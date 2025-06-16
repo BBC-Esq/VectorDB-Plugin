@@ -53,7 +53,7 @@ priority_libs = {
             "https://download.pytorch.org/whl/cu124/torch-2.6.0%2Bcu124-cp311-cp311-win_amd64.whl#sha256=6a1fb2714e9323f11edb6e8abf7aad5f79e45ad25c081cde87681a18d99c29eb",
             "https://download.pytorch.org/whl/cu124/torchvision-0.21.0%2Bcu124-cp311-cp311-win_amd64.whl#sha256=000a013584ad2304ab30496318145f284ac364622addb5ee3a5abd2769ba146f",
             "https://download.pytorch.org/whl/cu124/torchaudio-2.6.0%2Bcu124-cp311-cp311-win_amd64.whl#sha256=a25e146ce66ea9a6aed39008cc2001891bdf75253af479a4c32096678b2073b3",
-            "triton-windows==3.2.0.post12",
+            "triton-windows==3.2.0.post18",
             "git+https://github.com/shashikg/WhisperS2T.git@e7f7e6dbfdc7f3a39454feb9dd262fd3653add8c",
             "git+https://github.com/BBC-Esq/WhisperSpeech.git@795f60157136b0052b9a1f576e88803f7783ab1f",
             "xformers==0.0.29.post3",
@@ -85,7 +85,7 @@ priority_libs = {
             "https://download.pytorch.org/whl/cu124/torch-2.6.0%2Bcu124-cp312-cp312-win_amd64.whl#sha256=3313061c1fec4c7310cf47944e84513dcd27b6173b72a349bb7ca68d0ee6e9c0",
             "https://download.pytorch.org/whl/cu124/torchvision-0.21.0%2Bcu124-cp312-cp312-win_amd64.whl#sha256=ec63c2ee792757492da40590e34b14f2fceda29050558c215f0c1f3b08149c0f",
             "https://download.pytorch.org/whl/cu124/torchaudio-2.6.0%2Bcu124-cp312-cp312-win_amd64.whl#sha256=004ff6bcee0ac78747253c09db67d281add4308a9b87a7bf1769da5914998639",
-            "triton-windows==3.2.0.post12",
+            "triton-windows==3.2.0.post18",
             "git+https://github.com/shashikg/WhisperS2T.git@e7f7e6dbfdc7f3a39454feb9dd262fd3653add8c",
             "git+https://github.com/BBC-Esq/WhisperSpeech.git@795f60157136b0052b9a1f576e88803f7783ab1f",
             "xformers==0.0.29.post3",
@@ -117,7 +117,7 @@ libs = [
     "accelerate==1.7.0",
     "aiofiles==24.1.0",
     "aiohappyeyeballs==2.6.1",
-    "aiohttp==3.12.11", # langchain libraries require <4
+    "aiohttp==3.12.13", # langchain libraries require <4
     "aiosignal==1.3.2", # only required by aiohttp
     "anndata==0.11.4",
     "annotated-types==0.7.0",
@@ -130,7 +130,7 @@ libs = [
     "beautifulsoup4==4.13.4",
     "bitsandbytes==0.46.0",
     "braceexpand==0.1.7",
-    "certifi==2025.4.26",
+    "certifi==2025.6.15",
     "cffi==1.17.1",
     "chardet==5.2.0",
     "charset-normalizer==3.4.2", # requests requires <4
@@ -141,7 +141,7 @@ libs = [
     "colorama==0.4.6",
     "coloredlogs==15.0.1",
     "contourpy==1.3.2", # only required by matplotlib
-    "cryptography==45.0.3", # only required by unstructured library
+    "cryptography==45.0.3", # only required by unstructured and pdfminer.six
     "ctranslate2==4.6.0",
     "cycler==0.12.1",
     "dataclasses-json==0.6.7",
@@ -150,7 +150,7 @@ libs = [
     "Deprecated==1.2.18", # only needed by pikepdf
     "deprecation==2.1.0", # only needed by ocrmypdf
     "diffusers==0.33.1", # required by chatterbox-lite
-    "dill==0.3.8", # datasets 3.6.0 requires <0.3.9; multiprocess 0.70.16 requires >=0.3.8
+    "dill==0.3.8", # datasets requires <0.3.9; multiprocess requires >=0.3.8
     "distro==1.9.0",
     "docx2txt==0.9",
     "einops==0.8.1",
@@ -163,11 +163,10 @@ libs = [
     "fastprogress==1.0.3", # only required by whisperspeech
     "filetype==1.2.0",
     "filelock==3.18.0",
-    "fonttools==4.58.2", # only required by matplotlib
+    "fonttools==4.58.4", # only required by matplotlib
     "frozendict==2.4.6",
-    "frozenlist==1.6.2",
-    "fsspec==2025.3.0", # datasets 3.6.0 requires <=2025.3.0
-    "fsspec[http]==2025.3.0", # datasets 3.6.0 requires <=2025.3.0
+    "frozenlist==1.7.0",
+    "fsspec[http]==2023.5.0", # huggingface_hub requires <=2023.5.0
     "greenlet==3.2.3",
     "gTTS==2.5.4",
     "hf_xet==1.1.3",
@@ -177,7 +176,7 @@ libs = [
     "httpcore==1.0.9",
     "httpx==0.28.1",
     "httpx-sse==0.4.0",
-    "huggingface-hub==0.32.4", # tokenizers 0.21.1 requires >=0.16.4,<1.0
+    "huggingface-hub==0.33.0", # tokenizers 0.21.1 requires >=0.16.4,<1.0
     "humanfriendly==10.0",
     "HyperPyYAML==1.2.2",
     "idna==3.10",
@@ -191,19 +190,19 @@ libs = [
     "jsonpointer==3.0.0",
     "kiwisolver==1.4.8",
     "langchain==0.3.25",
-    "langchain-community==0.3.24",
-    "langchain-core==0.3.61",
-    "langchain-huggingface==0.2.0",
+    "langchain-community==0.3.25",
+    "langchain-core==0.3.65",
+    "langchain-huggingface==0.3.0",
     "langchain-text-splitters==0.3.8",
     "langdetect==1.0.9",
-    "langsmith==0.3.42",
+    "langsmith==0.3.45",
     "llvmlite==0.44.0", # only required by numba
     "lxml==5.4.0",
     "Markdown==3.8",
     "markdown-it-py==3.0.0",
     "MarkupSafe==3.0.2",
     "marshmallow==3.26.1", # dataclasses-json==0.6.7 requires less than 4.0.0
-    "matplotlib==3.10.3", # uniquely requires pyparsing==3.1.2 cycler==0.12.1 kiwisolver==1.4.5
+    "matplotlib==3.10.3", # uniquely requires pyparsing, cycler, and kiwisolver
     "mdurl==0.1.2",
     "more-itertools==10.7.0",
     "mpmath==1.3.0", # sympy 1.13.1 requires less than 1.4
@@ -216,23 +215,20 @@ libs = [
     "networkx==3.5",
     "nltk==3.9.1", # not higher; gives unexplained error
     "numba==0.61.2", # only required by openai-whisper and chattts
-    # langchain requires at least 1.26.2
-    # numba requires less than 2.3
-    # Scipy requires less than 2.5
     # "numpy==1.26.4",
-    "numpy==2.2.2",
+    "numpy==2.2.6", # numba 0.61.2 requires less than numpy 2.3
     "ocrmypdf==16.10.2",
     "olefile==0.47",
     "onnx==1.18.0", # required by chatterbox-lite
-    "openai==1.84.0", # only required by chat_lm_studio.py script and whispers2t (if using openai vanilla backend)
+    "openai==1.86.0", # only required by chat_lm_studio.py script and whispers2t (if using openai vanilla backend)
     "openai-whisper==20240930", # only required by whisper_s2t (if using openai vanilla backend)
     "openpyxl==3.1.5",
-    "optimum==1.25.3",
+    "optimum==1.26.1",
     "ordered-set==4.1.0",
     "orderly-set==5.4.1", # deepdiff 8.2.0 requires orderly-set>=5.3.0,<6
     "orjson==3.10.18",
     "packaging==24.2", # langchain-core==0.3.60 requires less than 25
-    "pandas==2.2.3",
+    "pandas==2.3.0",
     "pdfminer.six==20250506", # ocrmypdf 16.10.1 requires >=20220319
     "pikepdf==9.8.1", # only needed by ocrmypdf
     "pillow==11.2.1",
@@ -240,15 +236,15 @@ libs = [
     "pipdeptree",
     "platformdirs==4.3.8",
     "pluggy==1.6.0", # only needed by ocrmypdf
-    "propcache==0.3.1",
+    "propcache==0.3.2",
     "protobuf==6.31.1",
     "psutil==7.0.0",
     "pyarrow==20.0.0",
     "pybase16384==0.3.8", # only required by chattts
     "pycparser==2.22",
-    "pydantic==2.11.5", # unstructured-client==0.35.0 requires pydantic>=2.11.2
-    "pydantic_core==2.33.2", # pydantic 2.11.5 requires pydantic_core==2.33.2
-    "pydantic-settings==2.9.1", # langchain-community==0.3.23 requires pydantic-settings>=2.4.0,<3.0.0
+    "pydantic==2.11.7",
+    "pydantic_core==2.33.2", # pydantic 2.11.7 requires pydantic_core==2.33.2
+    "pydantic-settings==2.9.1", # langchain-community requires pydantic-settings>=2.4.0,<3.0.0
     "Pygments==2.19.1",
     "PyOpenGL==3.1.9",
     "PyOpenGL-accelerate==3.1.9",
@@ -266,10 +262,10 @@ libs = [
     "PyYAML==6.0.2",
     "rapidfuzz==3.13.0",
     "regex==2024.11.6",
-    "requests==2.32.3",
+    "requests==2.32.4",
     "requests-toolbelt==1.0.0",
     "rich==14.0.0",
-    "ruamel.yaml==0.18.13",
+    "ruamel.yaml==0.18.14",
     "ruamel.yaml.clib==0.2.12",
     "s3tokenizer==0.1.7", # required by chatterbox-lite
     "safetensors==0.5.3",
@@ -286,7 +282,8 @@ libs = [
     "SQLAlchemy==2.0.41", # langchain and langchain-community require less than 3.0.0
     "sseclient-py==1.8.0", # only required by Kobold
     "sympy==1.13.1", # torch 2.6.0 requires sympy==1.13.1
-    "tabulate==0.9.0",
+    # "tabulate==0.9.0",
+    "tabulate2==1.10.2",
     "tblib==3.1.0", # only tiledb-cloud requires
     "tenacity==9.1.2",
     "termcolor==3.1.0",
@@ -312,16 +309,16 @@ libs = [
     "webdataset==0.2.111", # required by all TTS libraries
     "webencodings==0.5.1", # only required by html5lib
     "wrapt==1.17.2",
-    "xlrd==2.0.1",
+    "xlrd==2.0.2",
     "xxhash==3.5.0",
-    "yarl==1.20.0", # aiohttp requires <2
-    "zipp==3.22.0",
+    "yarl==1.20.1", # aiohttp requires <2
+    "zipp==3.23.0",
     "zstandard==0.23.0" # only required by langsmith 3+
 ]
 
 full_install_libs = [
     "PySide6==6.9.1",
-    "pymupdf==1.26.0",
+    "pymupdf==1.26.1",
     "unstructured==0.17.2"
 ]
 
@@ -1393,7 +1390,7 @@ scrape_documentation = {
     "aiohappyeyeballs": {
         "URL": "https://aiohappyeyeballs.readthedocs.io/en/stable/",
         "folder": "aiohappyeyeballs",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "FuroThemeScraper"
     },
     "aiohttp": {
         "URL": "https://docs.aiohttp.org/en/stable/",
@@ -1406,7 +1403,7 @@ scrape_documentation = {
     "anndata": {
         "URL": "https://anndata.readthedocs.io/en/stable/",
         "folder": "anndata",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "PydataThemeScraper"
     },
     "anyio": {
         "URL": "https://anyio.readthedocs.io/en/stable/",
@@ -1415,19 +1412,18 @@ scrape_documentation = {
     },
     "Argcomplete": {
         "URL": "https://kislyuk.github.io/argcomplete/",
-        "folder": "argcomplete"
+        "folder": "argcomplete",
+        "scraper_class": "FuroThemeScraper",
     },
     "array_api_compat": {
         "URL": "https://data-apis.org/array-api-compat/",
-        "folder": "array_api_compat"
+        "folder": "array_api_compat",
+        "scraper_class": "FuroThemeScraper"
     },
     "attrs": {
         "URL": "https://www.attrs.org/en/stable/",
-        "folder": "attrs"
-    },
-    "AutoAWQ": {
-        "URL": "https://casper-hansen.github.io/AutoAWQ/",
-        "folder": "autoawq"
+        "folder": "attrs",
+        "scraper_class": "FuroThemeScraper"
     },
     "Beautiful Soup 4": {
         "URL": "https://www.crummy.com/software/BeautifulSoup/bs4/doc/",
@@ -1440,7 +1436,8 @@ scrape_documentation = {
     },
     "Black": {
         "URL": "https://black.readthedocs.io/en/stable/",
-        "folder": "Black"
+        "folder": "Black",
+        "scraper_class": "FuroThemeScraper"
     },
     "cffi": {
         "URL": "https://cffi.readthedocs.io/en/stable/",
@@ -1452,7 +1449,8 @@ scrape_documentation = {
     },
     "charset-normalizer": {
         "URL": "https://charset-normalizer.readthedocs.io/en/stable/",
-        "folder": "charset_normalizer"
+        "folder": "charset_normalizer",
+        "scraper_class": "FuroThemeScraper"
     },
     "click": {
         "URL": "https://click.palletsprojects.com/en/stable/",
@@ -1465,7 +1463,7 @@ scrape_documentation = {
     "contourpy": {
         "URL": "https://contourpy.readthedocs.io/en/stable/",
         "folder": "contourpy",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "FuroThemeScraper"
     },
     "cryptography": {
         "URL": "https://cryptography.io/en/stable/",
@@ -1474,16 +1472,19 @@ scrape_documentation = {
     },
     "CTranslate2": {
         "URL": "https://opennmt.net/CTranslate2/",
-        "folder": "ctranslate2"
+        "folder": "ctranslate2",
+        "scraper_class": "RstContentScraper"
     },
     "cuDF": {
         "URL": "https://docs.rapids.ai/api/cudf/stable/",
-        "folder": "cuDF"
+        "folder": "cuDF",
+        "scraper_class": "PydataThemeScraper"
     },
-    "CuPy": {
-        "URL": "https://docs.cupy.dev/en/stable/",
-        "folder": "cupy"
-    },
+    # "CuPy": {
+        # "URL": "https://docs.cupy.dev/en/stable/",
+        # "folder": "cupy",
+        # "scraper_class": "PydataThemeScraper"
+    # },
     "cycler": {
         "URL": "https://matplotlib.org/cycler/",
         "folder": "cycler"
@@ -1491,7 +1492,7 @@ scrape_documentation = {
     "dataclasses-json": {
         "URL": "https://lidatong.github.io/dataclasses-json/",
         "folder": "dataclasses_json",
-        # "scraper_class": "HuggingfaceScraper"
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "datasets 3.6.0": {
         "URL": "https://huggingface.co/docs/datasets/v3.6.0/en/",
@@ -1506,9 +1507,20 @@ scrape_documentation = {
         "URL": "https://deprecated.readthedocs.io/en/latest/",
         "folder": "deprecated"
     },
+    "deprecation": {
+        "URL": "https://deprecation.readthedocs.io/en/latest/",
+        "folder": "deprecation",
+        "scraper_class": "BodyRoleMainScraper"
+    },
+    "Diffusers": {
+        "URL": "https://huggingface.co/docs/diffusers/index",
+        "folder": "diffusers",
+        "scraper_class": "HuggingfaceScraper"
+    },
     "dill": {
         "URL": "https://dill.readthedocs.io/en/latest/",
-        "folder": "dill"
+        "folder": "dill",
+        "scraper_class": "RtdThemeScraper"
     },
     "distro": {
         "URL": "https://distro.readthedocs.io/en/stable/",
@@ -1516,50 +1528,63 @@ scrape_documentation = {
     },
     "einops": {
         "URL": "https://einops.rocks/",
-        "folder": "einops"
+        "folder": "einops",
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "einx": {
         "URL": "https://einx.readthedocs.io/en/stable/",
         "folder": "einx",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "PydataThemeScraper"
     },
     "fastcore": {
         "URL": "https://fastcore.fast.ai/",
         "folder": "fastcore",
+        "scraper_class": "FastcoreScraper"
     },
     "filelock": {
         "URL": "https://py-filelock.readthedocs.io/en/stable/",
         "folder": "filelock",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "FuroThemeScraper"
     },
     "fonttools": {
         "URL": "https://fonttools.readthedocs.io/en/stable/",
         "folder": "fonttools",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "RstContentScraper"
     },
     "fsspec": {
         "URL": "https://filesystem-spec.readthedocs.io/en/stable/",
         "folder": "fsspec",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "RtdThemeScraper"
     },
     "greenlet": {
         "URL": "https://greenlet.readthedocs.io/en/stable/",
         "folder": "greenlet",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "FuroThemeScraper"
     },
     "gTTS": {
         "URL": "https://gtts.readthedocs.io/en/latest/",
-        "folder": "gtts"
+        "folder": "gtts",
+        "scraper_class": "RtdThemeScraper"
+    },
+    "h11": {
+        "URL": "https://h11.readthedocs.io/en/latest/",
+        "folder": "h11",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "HDF5": {
         "URL": "https://docs.h5py.org/en/stable/",
         "folder": "hdf5",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "RtdThemeScraper"
+    },
+    "httpcore": {
+        "URL": "https://www.encode.io/httpcore/",
+        "folder": "httpcore",
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "httpx": {
         "URL": "https://www.python-httpx.org/",
         "folder": "httpx",
-        # "scraper_class": "HuggingfaceScraper"
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "Huggingface Hub 0.32.4": {
         "URL": "https://huggingface.co/docs/huggingface_hub/v0.32.4/en/",
@@ -1568,23 +1593,28 @@ scrape_documentation = {
     },
     "humanfriendly": {
         "URL": "https://humanfriendly.readthedocs.io/en/latest/",
-        "folder": "humanfriendly"
+        "folder": "humanfriendly",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "importlib_metadata": {
         "URL": "https://importlib-metadata.readthedocs.io/en/stable/",
-        "folder": "importlib_metadata"
+        "folder": "importlib_metadata",
+        "scraper_class": "FuroThemeScraper"
     },
     "isort": {
         "URL": "https://pycqa.github.io/isort/",
-        "folder": "isort"
+        "folder": "isort",
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "Jinja": {
         "URL": "https://jinja.palletsprojects.com/en/stable/",
-        "folder": "jinja"
+        "folder": "jinja",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "jiwer": {
         "URL": "https://jitsi.github.io/jiwer/",
-        "folder": "jiwer"
+        "folder": "jiwer",
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "joblib": {
         "URL": "https://joblib.readthedocs.io/en/stable/",
@@ -1594,7 +1624,7 @@ scrape_documentation = {
     "kdenlive": {
         "URL": "https://docs.kdenlive.org/en/",
         "folder": "kdenlive",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "RtdThemeScraper"
     },
     "kiwisolver": {
         "URL": "https://kiwisolver.readthedocs.io/en/stable/",
@@ -1604,279 +1634,334 @@ scrape_documentation = {
     "Langchain": {
         "URL": "https://python.langchain.com/api_reference/",
         "folder": "langchain",
-        "scraper_class": "LangchainScraper"
+        "scraper_class": "PydataThemeScraper"
     },
     "Librosa": {
         "URL": "https://librosa.org/doc/latest/",
-        "folder": "librosa"
+        "folder": "librosa",
+        "scraper_class": "RtdThemeScraper"
     },
     "llama-cpp-python": {
         "URL": "https://llama-cpp-python.readthedocs.io/en/stable/",
-        "folder": "llama_cpp_python"
+        "folder": "llama_cpp_python",
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "llvmlite": {
         "URL": "https://llvmlite.readthedocs.io/en/stable/",
         "folder": "llvmlite",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "RtdThemeScraper"
     },
-    "LM Studio": {
-        "URL": "https://lmstudio.ai/docs/",
-        "folder": "lm_studio"
-    },
+    # "LM Studio": {
+        # "URL": "https://lmstudio.ai/docs/",
+        # "folder": "lm_studio",
+    # },
     "Loguru": {
         "URL": "https://loguru.readthedocs.io/en/stable/",
-        "folder": "loguru"
+        "folder": "loguru",
+        "scraper_class": "RtdThemeScraper"
     },
-    "lxml 5.4.0": {
-        "URL": "https://lxml.de/5.4/",
-        "folder": "lxml_540"
-    },
+    # "lxml 5.4.0": {
+        # "URL": "https://lxml.de/5.4/",
+        # "folder": "lxml_540",
+        # "scraper_class": "DivClassDocumentScraper"
+    # },
     "lxml-html-clean": {
         "URL": "https://lxml-html-clean.readthedocs.io/en/stable/",
-        "folder": "lxml_html_clean"
+        "folder": "lxml_html_clean",
+        "scraper_class": "RtdThemeScraper"
     },
     "Markdown": {
         "URL": "https://python-markdown.github.io/",
-        "folder": "Markdown"
+        "folder": "Markdown",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "markdown-it-py": {
         "URL": "https://markdown-it-py.readthedocs.io/en/stable/",
-        "folder": "markdown_it_py"
+        "folder": "markdown_it_py",
+        "scraper_class": "MainIdMainContentRoleMainScraper"
+    },
+    "markupsafe": {
+        "URL": "https://markupsafe.palletsprojects.com/en/stable/",
+        "folder": "markupsafe",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "marshmallow": {
         "URL": "https://marshmallow.readthedocs.io/en/stable/",
-        "folder": "marshmallow"
+        "folder": "marshmallow",
+        "scraper_class": "FuroThemeScraper"
     },
     "Matplotlib": {
         "URL": "https://matplotlib.org/stable/",
-        "folder": "matplotlib"
+        "folder": "matplotlib",
+        "scraper_class": "PydataThemeScraper"
     },
     "more-itertools": {
         "URL": "https://more-itertools.readthedocs.io/en/stable/",
         "folder": "more_itertools",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "FuroThemeScraper"
     },
     "mpmath": {
         "URL": "https://mpmath.org/doc/current/",
-        "folder": "mpmath"
+        "folder": "mpmath",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "msg-parser": {
         "URL": "https://msg-parser.readthedocs.io/en/latest/",
-        "folder": "msg_parser"
+        "folder": "msg_parser",
+        "scraper_class": "BodyRoleMainScraper"
+    },
+    "multidict": {
+        "URL": "https://multidict.aio-libs.org/en/stable/",
+        "folder": "multidict",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "multiprocess": {
         "URL": "https://multiprocess.readthedocs.io/en/stable/",
-        "folder": "multiprocess"
+        "folder": "multiprocess",
+        "scraper_class": "RtdThemeScraper"
     },
     "natsort": {
         "URL": "https://natsort.readthedocs.io/en/stable/",
-        "folder": "natsort"
+        "folder": "natsort",
+        "scraper_class": "RtdThemeScraper"
     },
     "NetworkX": {
         "URL": "https://networkx.org/documentation/stable/",
-        "folder": "networkx"
+        "folder": "networkx",
+        "scraper_class": "PydataThemeScraper"
     },
     "NLTK": {
         "URL": "https://www.nltk.org/",
-        "folder": "nltk"
+        "folder": "nltk",
+        "scraper_class": "DivIdMainContentRoleMainScraper"
     },
-    # "numba": {
-        # "URL": "https://numba.readthedocs.io/",
-        # "folder": "numba",
-        # "scraper_class": "ReadthedocsScraper"
-    # },
+    "numba": {
+        "URL": "https://numba.readthedocs.io/en/stable/",
+        "folder": "numba",
+        "scraper_class": "RtdThemeScraper"
+    },
     "Numexpr": {
         "URL": "https://numexpr.readthedocs.io/en/latest/",
-        "folder": "numexpr"
+        "folder": "numexpr",
+        "scraper_class": "RtdThemeScraper"
     },
     "NumPy 1.26": {
         "URL": "https://numpy.org/doc/1.26/",
-        "folder": "numpy_126"
+        "folder": "numpy_126",
+        "scraper_class": "PydataThemeScraper"
     },
     "NumPy (latest stable)": {
         "URL": "https://numpy.org/doc/stable/",
-        "folder": "numpy"
+        "folder": "numpy",
+        "scraper_class": "PydataThemeScraper"
     },
     "ocrmypdf": {
         "URL": "https://ocrmypdf.readthedocs.io/en/stable/",
         "folder": "ocrmypdf",
-        "scraper_class": "ReadthedocsScraper"
-    },
-    "ONNX": {
-        "URL": "https://onnx.ai/onnx/",
-        "folder": "onnx"
-    },
-    "ONNX Runtime": {
-        "URL": "https://onnxruntime.ai/docs/api/python/",
-        "folder": "onnx_runtime"
+        "scraper_class": "RtdThemeScraper"
     },
     # "openai": {
-        # "URL": "https://platform.openai.com/docs/api-reference/",
-        # "folder": "openai"
+        # "URL": "https://raw.githubusercontent.com/openai/openai-openapi/master/openapi.yaml",
+        # "folder": "openai",
+        # "scraper_class": "FileDownloader"
     # },
-    # "openpyxl": {
-        # "URL": "https://openpyxl.readthedocs.io/en/stable/",
-        # "folder": "openpyxl"
-    # },
+    "openpyxl": {
+        "URL": "https://openpyxl.readthedocs.io/en/stable/",
+        "folder": "openpyxl",
+        "scraper_class": "BodyRoleMainScraper"
+    },
     "Optimum 1.25.2": {
         "URL": "https://huggingface.co/docs/optimum/v1.25.2/en/",
         "folder": "optimum_1252",
         "scraper_class": "HuggingfaceScraper"
     },
-    # "packaging": {
-        # "URL": "https://packaging.pypa.io/en/stable/",
-        # "folder": "packaging"
-    # },
+    "packaging": {
+        "URL": "https://packaging.pypa.io/en/stable/",
+        "folder": "packaging",
+        "scraper_class": "FuroThemeScraper"
+    },
     "pandas": {
         "URL": "https://pandas.pydata.org/docs/",
-        "folder": "pandas"
+        "folder": "pandas",
+        "scraper_class": "PydataThemeScraper"
     },
     "Pandoc": {
         "URL": "https://pandoc.org",
-        "folder": "pandoc"
+        "folder": "pandoc",
+        "scraper_class": "MainScraper"
     },
-    # "pdfminer.six": {
-        # "URL": "https://pdfminersix.readthedocs.io/en/master/",
-        # "folder": "pdfminer_six"
-    # },
+    "pdfminer.six": {
+        "URL": "https://pdfminersix.readthedocs.io/en/master/",
+        "folder": "pdfminer_six",
+        "scraper_class": "BodyRoleMainScraper"
+    },
+    "pi-heif": {
+        "URL": "https://pillow-heif.readthedocs.io/en/latest/",
+        "folder": "piheif",
+        "scraper_class": "RstContentScraper"
+    },
     "pikepdf": {
         "URL": "https://pikepdf.readthedocs.io/en/stable/",
         "folder": "pikepdf",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "RtdThemeScraper"
     },
-    # "platformdirs": {
-        # "URL": "https://platformdirs.readthedocs.io/en/stable/",
-        # "folder": "platformdirs"
-    # },
-    "Playwright": {
-        "URL": "https://playwright.dev/python/",
-        "folder": "playwright"
+    "platformdirs": {
+        "URL": "https://platformdirs.readthedocs.io/en/stable/",
+        "folder": "platformdirs",
+        "scraper_class": "FuroThemeScraper"
     },
-    # "pluggy": {
-        # "URL": "https://pluggy.readthedocs.io/en/stable/",
-        # "folder": "pluggy"
+    # "Playwright": {
+        # "URL": "https://playwright.dev/python/",
+        # "folder": "playwright",
+        # "scraper_class": "DivClassThemeDocMarkdownMarkdownScraper"
     # },
-    # "Pillow": {
-        # "URL": "https://pillow.readthedocs.io/en/stable/",
-        # "folder": "pillow"
-    # },
+    "pluggy": {
+        "URL": "https://pluggy.readthedocs.io/en/stable/",
+        "folder": "pluggy",
+        "scraper_class": "BodyRoleMainScraper"
+    },
+    "Pillow": {
+        "URL": "https://pillow.readthedocs.io/en/stable/",
+        "folder": "pillow",
+        "scraper_class": "FuroThemeScraper"
+    },
     # "propcache": {
         # "URL": "https://propcache.aio-libs.org/",
         # "folder": "propcache",
+        # "scraper_class": "PropCacheScraper"
     # },
-    # "protobuf": {
-        # "URL": "https://protobuf.dev/",
-        # "folder": "protobuf"
-    # },
-    # "pyarrow": {
-        # "URL": "https://arrow.apache.org/docs/python/",
-        # "folder": "pyarrow"
-    # },
+    "protobuf": {
+        "URL": "https://protobuf.dev/",
+        "folder": "protobuf",
+        "scraper_class": "DivClassTdContentScraper"
+    },
+    "pyarrow": {
+        "URL": "https://arrow.apache.org/docs/python/",
+        "folder": "pyarrow",
+        "scraper_class": "PydataThemeScraper"
+    },
     "psutil": {
         "URL": "https://psutil.readthedocs.io/en/stable/",
         "folder": "psutil",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "RtdThemeScraper"
     },
     "PyAV": {
         "URL": "https://pyav.org/docs/stable/",
-        "folder": "pyav"
+        "folder": "pyav",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "Pydantic": {
         "URL": "https://docs.pydantic.dev/latest/",
-        "folder": "pydantic"
+        "folder": "pydantic",
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "pydantic-settings": {
         "URL": "https://docs.pydantic.dev/latest/concepts/pydantic_settings/",
-        "folder": "pydantic_settings"
+        "folder": "pydantic_settings",
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "Pygments": {
         "URL": "https://pygments.org/docs/",
-        "folder": "pygments"
+        "folder": "pygments",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "PyInstaller": {
         "URL": "https://pyinstaller.org/en/stable/",
-        "folder": "pyinstaller"
+        "folder": "pyinstaller",
+        "scraper_class": "RtdThemeScraper"
     },
-    # "PyMuPDF": {
-        # "URL": "https://pymupdf.readthedocs.io/en/latest/",
-        # "folder": "pymupdf",
-        # "scraper_class": "PyMuScraper"
-    # },
+    "PyMuPDF": {
+        "URL": "https://pymupdf.readthedocs.io/en/latest/",
+        "folder": "pymupdf",
+        "scraper_class": "PymupdfScraper"
+    },
     "PyOpenGL": {
         "URL": "https://mcfletch.github.io/pyopengl/documentation/manual/",
         "folder": "pyopengl",
     },
-    # "PyPDF": {
-        # "URL": "https://pypdf.readthedocs.io/en/stable/",
-        # "folder": "pypdf",
-        # "scraper_class": "ReadthedocsScraper"
-    # },
+    "PyPDF": {
+        "URL": "https://pypdf.readthedocs.io/en/stable/",
+        "folder": "pypdf",
+        "scraper_class": "RtdThemeScraper"
+    },
     # "Python 3.11": {
         # "URL": "https://docs.python.org/3.11/",
         # "folder": "Python_311",
     # },
-    "PyTorch Lightning": {
-        "URL": "https://lightning.ai/docs/pytorch/stable/",
-        "folder": "pytorch_lightning"
+    "python-docx": {
+        "URL": "https://python-docx.readthedocs.io/en/stable/", # won't scrape
+        "folder": "python_docx",
+        "scraper_class": "BodyRoleMainScraper"
     },
-    # "python-docx": {
-        # "URL": "https://python-docx.readthedocs.io/en/stable/", # won't scrape
-        # "folder": "python_docx"
-    # },
     "python-dateutil": {
         "URL": "https://dateutil.readthedocs.io/en/stable/",
         "folder": "python_dateutil",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "RstContentScraper"
     },
     "python-dotenv": {
         "URL": "https://saurabh-kumar.com/python-dotenv/",
-        "folder": "python-dotenv"
+        "folder": "python-dotenv",
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "python-oxmsg": {
         "URL": "https://scanny.github.io/python-oxmsg/",
-        "folder": "python-oxmsg"
+        "folder": "python-oxmsg",
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "PyYAML": {
         "URL": "https://pyyaml.org/wiki/PyYAMLDocumentation",
-        "folder": "pyyaml"
+        "folder": "pyyaml",
+        "scraper_class": "BodyScraper"
     },
     "Pywin32": {
         "URL": "https://mhammond.github.io/pywin32/",
-        "folder": "pywin32"
+        "folder": "pywin32",
+        "scraper_class": "BodyScraper"
     },
-    "Pyside 6": {
-        "URL": "https://doc.qt.io/qtforpython-6/",
-        "folder": "pyside6",
-        "scraper_class": "QtForPythonScraper"
-    },
+    # "Pyside 6": {
+        # "URL": "https://doc.qt.io/qtforpython-6/",
+        # "folder": "pyside6",
+        # "scraper_class": "FuroThemeScraper"
+    # },
     "pytz": {
         "URL": "https://pythonhosted.org/pytz/",
         "folder": "pytz",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "RapidFuzz": {
         "URL": "https://rapidfuzz.github.io/RapidFuzz/",
-        "folder": "rapidfuzz"
+        "folder": "rapidfuzz",
+        "scraper_class": "FuroThemeScraper"
     },
     "Referencing": {
         "URL": "https://referencing.readthedocs.io/en/stable/",
-        "folder": "referencing"
+        "folder": "referencing",
+        "scraper_class": "FuroThemeScraper"
     },
     "Requests": {
         "URL": "https://requests.readthedocs.io/en/stable/",
-        "folder": "requests"
+        "folder": "requests",
+        "scraper_class": "BodyRoleMainScraper"
+    },
+    "requests_toolbelt": {
+        "URL": "https://toolbelt.readthedocs.io/en/latest/",
+        "folder": "requeststoolbelt",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "Rich": {
         "URL": "https://rich.readthedocs.io/en/stable/",
         "folder": "rich",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "RstContentScraper"
     },
     "rpds-py": {
         "URL": "https://rpds.readthedocs.io/en/stable/",
-        "folder": "rpds_py"
+        "folder": "rpds_py",
+        "scraper_class": "ArticleRoleMainScraper"
     },
     "ruamel.yaml": {
         "URL": "https://yaml.dev/doc/ruamel.yaml/",
-        "folder": "ruamel_yaml"
+        "folder": "ruamel_yaml",
+        "scraper_class": "DivIdContentSecondScraper"
     },
     "Safetensors 0.3.2": {
         "URL": "https://huggingface.co/docs/safetensors/v0.3.2/en/",
@@ -1890,48 +1975,52 @@ scrape_documentation = {
     "SciPy 1.15.3": {
         "URL": "https://docs.scipy.org/doc/scipy-1.15.3/",
         "folder": "scipy_1153",
-        "scraper_class": "ScipyScraper",
+        "scraper_class": "PydataThemeScraper",
     },
     "Sentence-Transformers": {
         "URL": "https://www.sbert.net/docs",
-        "folder": "sentence_transformers"
+        "folder": "sentence_transformers",
+        "scraper_class": "RtdThemeScraper"
     },
     "Six": {
         "URL": "https://six.readthedocs.io/",
         "folder": "six",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "RstContentScraper"
     },
     "sniffio": {
         "URL": "https://sniffio.readthedocs.io/en/stable/",
         "folder": "sniffio",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "RstContentScraper"
     },
     "SoundFile 0.13.1": {
         "URL": "https://python-soundfile.readthedocs.io/en/0.13.1/",
         "folder": "soundfile_0131",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "RstContentScraper"
     },
     "sounddevice 0.5.2": {
         "URL": "https://python-sounddevice.readthedocs.io/en/0.5.2/",
-        "folder": "sounddevice_052"
+        "folder": "sounddevice_052",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "Soupsieve": {
         "URL": "https://facelessuser.github.io/soupsieve/",
-        "folder": "soupsieve"
+        "folder": "soupsieve",
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "Soxr": {
         "URL": "https://python-soxr.readthedocs.io/en/stable/",
-        "folder": "soxr"
+        "folder": "soxr",
+        "scraper_class": "PydataThemeScraper"
     },
     "SpaCy": {
         "URL": "https://spacy.io/api",
         "folder": "spacy",
-        "scraper_class": "SpacyScraper"
+        "scraper_class": "ArticleClassMainContent8zFCHScraper"
     },
     "SpeechBrain 0.5.15": {
         "URL": "https://speechbrain.readthedocs.io/en/v0.5.15/",
         "folder": "speechbrain_0515",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "RstContentScraper"
     },
     "SQLAlchemy 20": {
         "URL": "https://docs.sqlalchemy.org/en/20/",
@@ -1939,26 +2028,29 @@ scrape_documentation = {
     },
     "sympy": {
         "URL": "https://docs.sympy.org/latest/",
-        "folder": "sympy"
+        "folder": "sympy",
+        "scraper_class": "PymupdfScraper"
     },
-    # "tblib": {
-        # "URL": "https://python-tblib.readthedocs.io/en/stable/",
-        # "folder": "tblib"
-    # },
-    # "tenacity": {
-        # "URL": "https://tenacity.readthedocs.io/en/stable/",
-        # "folder": "tenacity"
-    # },
+    "tblib": {
+        "URL": "https://python-tblib.readthedocs.io/en/stable/",
+        "folder": "tblib",
+        "scraper_class": "FuroThemeScraper"
+    },
+    "tenacity": {
+        "URL": "https://tenacity.readthedocs.io/en/stable/",
+        "folder": "tenacity",
+        "scraper_class": "RstContentScraper"
+    },
     "Tile DB": {
-        "URL": "https://tiledb-inc-tiledb.readthedocs-hosted.com/projects/tiledb-py/en/stable/python-api.html",
+        "URL": "https://tiledb-inc-tiledb.readthedocs-hosted.com/projects/tiledb-py/en/stable/index.html",
         "folder": "tiledb",
         # "scraper_class": "TileDBScraper"
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "RstContentScraper"
     },
     "tiledb-vector-search": {
         "URL": "https://tiledb-inc.github.io/TileDB-Vector-Search/documentation/",
         "folder": "tiledb_vector_search",
-        "scraper_class": "TileDBVectorSearchScraper"
+        "scraper_class": "FastcoreScraper"
     },
     "tiledb-cloud": {
         "URL": "https://tiledb-inc.github.io/TileDB-Cloud-Py/",
@@ -2011,7 +2103,8 @@ scrape_documentation = {
     },
     "Torchmetrics": {
         "URL": "https://lightning.ai/docs/torchmetrics/stable/",
-        "folder": "torchmetrics"
+        "folder": "torchmetrics",
+        "scraper_class": "RstContentScraper"
     },
     "Torchvision 0.20": {
         "URL": "https://pytorch.org/vision/0.20/",
@@ -2030,7 +2123,8 @@ scrape_documentation = {
     },
     "tqdm": {
         "URL": "https://tqdm.github.io",
-        "folder": "tqdm"
+        "folder": "tqdm",
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "Transformers 4.52.3": {
         "URL": "https://huggingface.co/docs/transformers/v4.52.3/en",
@@ -2045,30 +2139,41 @@ scrape_documentation = {
     "typing_extensions": {
         "URL": "https://typing-extensions.readthedocs.io/en/stable/",
         "folder": "typing_extensions",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "BodyRoleMainScraper"
     },
-    # "tzdata": {
-        # "URL": "https://tzdata.readthedocs.io/en/stable/",
-        # "folder": "tzdata",
-        # "scraper_class": "ReadthedocsScraper"
-    # },
-    # "urllib3": {
-        # "URL": "https://urllib3.readthedocs.io/en/stable/",
-        # "folder": "urllib3"
-    # },
+    "typing-inspection": {
+        "URL": "https://pydantic.github.io/typing-inspection/dev/",
+        "folder": "typing_extensions",
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
+    },
+    "tzdata": {
+        "URL": "https://tzdata.readthedocs.io/en/stable/",
+        "folder": "tzdata",
+        "scraper_class": "BodyRoleMainScraper"
+    },
+    "urllib3": {
+        "URL": "https://urllib3.readthedocs.io/en/stable/",
+        "folder": "urllib3"
+    },
     # "Unstructured": {
         # "URL": "https://docs.unstructured.io/api-reference/api-services/sdk-python",
         # "folder": "unstructured"
     # },
+    "uv": {
+        "URL": "https://docs.astral.sh/uv/",
+        "folder": "uv",
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
+    },
     "Watchdog": {
         "URL": "https://python-watchdog.readthedocs.io/en/stable/",
-        "folder": "watchdog"
+        "folder": "watchdog",
+        "scraper_class": "BodyRoleMainScraper"
     },
-    # "webdataset": {
-        # "URL": "https://webdataset.github.io/webdataset/",
-        # "folder": "webdataset",
-        # "scraper_class": "ReadthedocsScraper"
-    # },
+    "webdataset": {
+        "URL": "https://huggingface.co/docs/hub/en/datasets-webdataset",
+        "folder": "webdataset",
+        "scraper_class": "HuggingfaceScraper"
+    },
     "webencodings": {
         "URL": "https://pythonhosted.org/webencodings/",
         "folder": "webencodings",
@@ -2076,25 +2181,28 @@ scrape_documentation = {
     "Wrapt": {
         "URL": "https://wrapt.readthedocs.io/en/master/",
         "folder": "wrapt",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "RstContentScraper"
     },
-    # "xlrd": {
-        # "URL": "https://xlrd.readthedocs.io/en/stable/",
-        # "folder": "xlrd",
-        # "scraper_class": "ReadthedocsScraper"
-    # },
+    "xlrd": {
+        "URL": "https://xlrd.readthedocs.io/en/stable/",
+        "folder": "xlrd",
+        "scraper_class": "RstContentScraper"
+    },
     "xFormers": {
         "URL": "https://facebookresearch.github.io/xformers/",
-        "folder": "xformers"
+        "folder": "xformers",
+        "scraper_class": "PytorchScraper"
     },
-    # "yarl": {
-        # "URL": "https://yarl.aio-libs.org/en/stable/",
-        # "folder": "yarl"
-    # },
-    # "zstandard": {
-        # "URL": "https://python-zstandard.readthedocs.io/en/stable/",
-        # "folder": "zstandard"
-    # },
+    "yarl": {
+        "URL": "https://yarl.aio-libs.org/en/stable/",
+        "folder": "yarl",
+        "scraper_class": "BodyRoleMainScraper"
+    },
+    "zstandard": {
+        "URL": "https://python-zstandard.readthedocs.io/en/stable/",
+        "folder": "zstandard",
+        "scraper_class": "BodyRoleMainScraper"
+    },
 }
 
 class CustomButtonStyles:
@@ -2984,7 +3092,7 @@ Torch and CUDA Compatibility
 | cu126         | 2.6.0, 2.7.0, 2.7.1
 | cu124         | 2.4.0, 2.4.1, 2.5.0, 2.5.1, 2.6.0
 
-# "CUDA" consists of multiple libraries, each having its own version.  This table maps those versions to a particular Pytorch wheel.
+# The "CUDA Toolkit" consists of multiple "metapackages", each having its own version.
 # Taken from https://github.com/pytorch/pytorch/blob/main/.github/scripts/generate_binary_build_matrix.py
 +--------------+------------+------------+------------+
 |              |   cu124    |   cu126    |   cu128    |
@@ -3052,12 +3160,12 @@ Torch & Python & Triton
 +--------+-------+--------+--------+----------+
 | Torch  | CUDA  | Python | Triton |   Sympy  |
 +--------+-------+--------+--------+----------+
-| 2.7.1  | cu128 |  3.13  |    ?   | >=1.13.3 |
-| 2.7.1  | cu128 |  3.12  |    ?   | >=1.13.3 |
-| 2.7.1  | cu128 |  3.11  |    ?   | >=1.13.3 |
-| 2.7.1  | cu126 |  3.13  |    ?   | >=1.13.3 |
-| 2.7.1  | cu126 |  3.12  |    ?   | >=1.13.3 |
-| 2.7.1  | cu126 |  3.11  |    ?   | >=1.13.3 |
+| 2.7.1  | cu128 |  3.13  |  3.3.1 | >=1.13.3 |
+| 2.7.1  | cu128 |  3.12  |  3.3.1 | >=1.13.3 |
+| 2.7.1  | cu128 |  3.11  |  3.3.1 | >=1.13.3 |
+| 2.7.1  | cu126 |  3.13  |  3.3.1 | >=1.13.3 |
+| 2.7.1  | cu126 |  3.12  |  3.3.1 | >=1.13.3 |
+| 2.7.1  | cu126 |  3.11  |  3.3.1 | >=1.13.3 |
 | 2.7.0  | cu128 |  3.13  |  3.3.0 | >=1.13.3 |
 | 2.7.0  | cu128 |  3.12  |  3.3.0 | >=1.13.3 |
 | 2.7.0  | cu128 |  3.11  |  3.3.0 | >=1.13.3 |
@@ -3068,16 +3176,12 @@ Torch & Python & Triton
 | 2.6.0  | cu126 |  3.12  |  3.2.0 | 1.13.1   |
 | 2.6.0  | cu126 |  3.11  |  3.2.0 | 1.13.1   |
 | 2.6.0  | cu124 |  3.13  |  3.2.0 | 1.13.1   |
-| 2.6.0  | cu124 |  3.12  |  3.2.0 | 1.13.1   | * current
+| 2.6.0  | cu124 |  3.12  |  3.2.0 | 1.13.1   |
 | 2.6.0  | cu124 |  3.11  |  3.2.0 | 1.13.1   |
 | 2.5.1  | cu124 |  3.12  |  3.1.0 | 1.13.1   |
 | 2.5.1  | cu124 |  3.11  |  3.1.0 | 1.13.1   |
 | 2.5.0  | cu124 |  3.12  |  3.1.0 | 1.13.1   |
 | 2.5.0  | cu124 |  3.11  |  3.1.0 | 1.13.1   |
-| 2.4.1  | cu124 |  3.12  |  3.0.0 | Sympy    |
-| 2.4.1  | cu124 |  3.11  |  3.0.0 | Sympy    |
-| 2.4.0  | cu124 |  3.12  |  3.0.0 | Sympy    |
-| 2.4.0  | cu124 |  3.11  |  3.0.0 | Sympy    |
 +--------+-------+--------+--------+----------+
 * Excludes Python 3.10 wheels
 * Triton 3.0.0 and earlier wheels: https://github.com/jakaline-dev/Triton_win/releases (do not support Python 3.12)
@@ -3103,71 +3207,6 @@ Triton 3.2 works with PyTorch >= 2.6 .
 
 Triton 3.1 works with PyTorch >= 2.4 . PyTorch 2.3 and older are not supported.
 
-Since the release triton-windows==3.2.0.post13, TinyCC is bundled in the Triton wheels, so you don't need to manually install a C compiler to use Triton. Packages that directly call triton.jit, such as SageAttention, will just work.
-
-You still need to install a C++ compiler if you use torch.compile targeting CPU. This may happen when you use nodes like 'CompileModel' in ComfyUI. Triton does not affect how PyTorch configures the C++ compiler in this case.
-
-If you need to override the C compiler, you can set the environment variable CC. MSVC, GCC, and Clang are supported for the JIT compilation in Triton.
-
-
-Instructions for older or custom wheels without bundled TinyCC
-
-If you don't have a C compiler, I recommend to install MSVC and Windows SDK.
-
-    You can install them in Visual Studio
-        If you don't want to install the whole Visual Studio, you can just install Visual Studio Build Tools
-    Visual Studio >= 2017 is supported
-    Choose the latest version of MSVC and Windows SDK from the list
-
-Then you need to add the path containing cl.exe to the Windows PATH:
-
-    The path is like C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.43.34808\bin\Hostx64\x64
-    Change the version numbers according to your installation, and make sure this folder accually exists on your computer
-    If you open a new PowerShell, type cl, and it shows Microsoft (R) C/C++ Optimizing Compiler ..., then you're doing right
-
-vcredist is required (also known as 'Visual C++ Redistributable for Visual Studio 2015-2022', msvcp140.dll, vcruntime140.dll), because libtriton.pyd is compiled by MSVC. Install it from https://aka.ms/vs/17/release/vc_redist.x64.exe
-
-Now you can install triton-windows 3.3, or upgrade the already installed version. To prevent breaking with your installed PyTorch when a new version of Triton is released in future, you can limit the version to be < 3.4:
-
-pip install -U "triton-windows<3.4"
-
-For Triton 3.2, you need:
-
-pip install -U "triton-windows<3.3"
-
-Before using Triton in larger projects like ComfyUI, please run the following script to test if Triton itself works.
-
-    You need to save the code in a file, such as test_triton.py, then run python test_triton.py
-    When you open an issue, please show the command you use to run this test, and the full error log
-
-import torch
-import triton
-import triton.language as tl
-
-@triton.jit
-def add_kernel(x_ptr, y_ptr, output_ptr, n_elements, BLOCK_SIZE: tl.constexpr):
-    pid = tl.program_id(axis=0)
-    block_start = pid * BLOCK_SIZE
-    offsets = block_start + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n_elements
-    x = tl.load(x_ptr + offsets, mask=mask)
-    y = tl.load(y_ptr + offsets, mask=mask)
-    output = x + y
-    tl.store(output_ptr + offsets, output, mask=mask)
-
-def add(x: torch.Tensor, y: torch.Tensor):
-    output = torch.empty_like(x)
-    n_elements = output.numel()
-    grid = lambda meta: (triton.cdiv(n_elements, meta["BLOCK_SIZE"]),)
-    add_kernel[grid](x, y, output, n_elements, BLOCK_SIZE=1024)
-    return output
-
-a = torch.rand(3, device="cuda")
-b = a + a
-b_compiled = add(a, a)
-print(b_compiled - b)
-print("If you see tensor([0., 0., 0.], device='cuda:0'), then it works")
-
 
 ************
 cuDNN & CUDA
@@ -3182,53 +3221,54 @@ LINUX Flash Attention 2
 ***********************
 
 # Obtained from https://github.com/Dao-AILab/flash-attention/blob/main/.github/workflows/publish.yml
-# officially, FA2 only supports up to CUDA 12.4.1, but it seems to work with "cu126"..
-+--------------+------------------------------------------------------+--------+
-| FA2 Version  |                 Torch (exclud torch<2                |  CUDA  |
-+--------------+------------------------------------------------------+--------+
-| v2.7.4.post1 | 2.2.2, 2.3.1, 2.4.0, 2.5.1, 2.6.0                    | 12.4.1 |
-| v2.7.4       | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1, 2.6.0             | 12.4.1 |
-| v2.7.3       | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1, 2.6.0.dev20241001 | 12.3.2 |
-| v2.7.2.post1 | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1, 2.6.0.dev20241001 | 12.3.2 |
-| v2.7.2       | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1, 2.6.0.dev20241001 | 12.3.2 |
-| v2.7.1.post4 | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1, 2.6.0.dev20241001 | 12.3.2 |
-| v2.7.1.post3 | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1, 2.6.0.dev20241001 | 12.3.2 |
-| v2.7.1.post2 | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1, 2.6.0.dev20241001 | 12.3.2 |
-| v2.7.1.post1 | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1, 2.6.0.dev20241010 | 12.4.1 |
-| v2.7.1       | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1, 2.6.0.dev20241010 | 12.4.1 |
-| v2.7.0.post2 | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1                    | 12.4.1 |
-| v2.7.0.post1 | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1                    | 12.4.1 |
-| v2.7.0       | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1                    | 12.3.2 |
-| v2.6.3       | 2.0.1, 2.1.2, 2.2.2, 2.3.1, 2.4.0                    | 12.3.2 |
-| v2.6.2       | 2.0.1, 2.1.2, 2.2.2, 2.3.1, 2.4.0.dev20240527        | 12.3.2 |
-| v2.6.1       | 2.0.1, 2.1.2, 2.2.2, 2.3.1, 2.4.0.dev20240514        | 12.3.2 |
-| v2.6.0.post1 | 2.0.1, 2.1.2, 2.2.2, 2.3.1, 2.4.0.dev20240514        | 12.2.2 |
-| v2.6.0       | 2.0.1, 2.1.2, 2.2.2, 2.3.1, 2.4.0.dev20240512        | 12.2.2 |
-| v2.5.9.post1 | 2.0.1, 2.0.1, 2.2.2, 2.3.0, 2.4.0.dev20240407        | 12.2.2 |
-+--------------+-----------------------------------------------+---------------+
+# Officially, FA2 "cu12" but it works most of the time.
++--------------+------------------------------------------+--------+
+| FA2 Version  |         Torch (exclud torch<2)           |  CUDA  |
++--------------+------------------------------------------+--------+
+| v2.8.0       | 2.4.0, 2.5.1, 2.6.0, 2.7.1               | 12.9.0 |
+| v2.7.4.post1 | 2.2.2, 2.3.1, 2.4.0, 2.5.1, 2.6.0        | 12.4.1 |
+| v2.7.4       | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1, 2.6.0 | 12.4.1 |
+| v2.7.3       | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1        | 12.3.2 |
+| v2.7.2.post1 | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1        | 12.3.2 |
+| v2.7.2       | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1        | 12.3.2 |
+| v2.7.1.post4 | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1        | 12.3.2 |
+| v2.7.1.post3 | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1        | 12.3.2 |
+| v2.7.1.post2 | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1        | 12.3.2 |
+| v2.7.1.post1 | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1        | 12.4.1 |
+| v2.7.1       | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1        | 12.4.1 |
+| v2.7.0.post2 | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1        | 12.4.1 |
+| v2.7.0.post1 | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1        | 12.4.1 |
+| v2.7.0       | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1        | 12.3.2 |
+| v2.6.3       | 2.0.1, 2.1.2, 2.2.2, 2.3.1, 2.4.0        | 12.3.2 |
+| v2.6.2       | 2.0.1, 2.1.2, 2.2.2, 2.3.1               | 12.3.2 |
+| v2.6.1       | 2.0.1, 2.1.2, 2.2.2, 2.3.1               | 12.3.2 |
+| v2.6.0.post1 | 2.0.1, 2.1.2, 2.2.2, 2.3.1               | 12.2.2 |
+| v2.6.0       | 2.0.1, 2.1.2, 2.2.2, 2.3.1               | 12.2.2 |
+| v2.5.9.post1 | 2.0.1, 2.0.1, 2.2.2, 2.3.0               | 12.2.2 |
++--------------+------------------------------------------+--------+
 
 *************************
 WINDOWS Flash Attention 2
 *************************
 
++--------------+---------------------+-------------------+
+| FA2          |       Torch         | CUDA (excl. 11.x) |
++--------------+---------------------+-------------------+
+| main         | 2.5.1, 2.6.0, 2.7.0 | 12.4.1, 12.8.1    |
+| v2.7.4.post1 | 2.4.0, 2.5.1, 2.6.0 | 12.4.1            | * current
+| v2.7.1.post1 | 2.3.1, 2.4.0, 2.5.1 | 12.4.1            |
+| v2.7.0.post2 | 2.3.1, 2.4.0, 2.5.1 | 12.4.1            |
+| v2.6.3       | 2.2.2, 2.3.1, 2.4.0 | 12.3.2            |
+| v2.6.1       | 2.2.2, 2.3.1        | 12.3.2            |
+| v2.5.9.post2 | 2.2.2, 2.3.1        | 12.2.2            |
+| v2.5.9.post1 | 2.2.2, 2.3.0        | 12.2.2            |
+| v2.5.8       | 2.2.2, 2.3.0        | 12.2.2            |
+| v2.5.6       | 2.1.2, 2.2.2        | 12.2.2            |
+| v2.5.2       | 2.1.2, 2.2.0        | 12.2.2            |
+| v2.4.2       | 2.1.2, 2.2.0        | 12.2.2            |
++--------------+---------------------+-------------------+
 # Windows wheels are located here: https://github.com/kingbri1/flash-attention
- # Former name: https://github.com/bdashore3/flash-attention/releases/
 # HIGHLY CUDA SPECIFIC
-+--------------+-----------------------------------+-------------------+
-| FA2          |              Torch                | CUDA (excl. 11.x) |
-+--------------+-----------------------------------+-------------------+
-| v2.7.4.post1 | 2.4.0, 2.5.1, 2.6.0               | 12.4.1            | * current
-| v2.7.1.post1 | 2.3.1, 2.4.0, 2.5.1               | 12.4.1            |
-| v2.7.0.post2 | 2.3.1, 2.4.0, 2.5.1               | 12.4.1            |
-| v2.6.3       | 2.2.2, 2.3.1, 2.4.0               | 12.3.2            |
-| v2.6.1       | 2.2.2, 2.3.1                      | 12.3.2            |
-| v2.5.9.post2 | 2.2.2, 2.3.1                      | 12.2.2            |
-| v2.5.9.post1 | 2.2.2, 2.3.0                      | 12.2.2            |
-| v2.5.8       | 2.2.2, 2.3.0                      | 12.2.2            |
-| v2.5.6       | 2.1.2, 2.2.2                      | 12.2.2            |
-| v2.5.2       | 2.1.2, 2.2.0                      | 12.2.2            |
-| v2.4.2       | 2.1.2, 2.2.0                      | 12.2.2            |
-+--------------+-----------------------------------+-------------------+
 
 ***********************************
 Xformers & Flash Attention 2 & CUDA
@@ -3238,16 +3278,13 @@ Xformers & Flash Attention 2 & CUDA
 +------------------+-------+---------------+----------------+---------------+
 | Xformers Version | Torch |      FA2      |       CUDA (excl. 11.x)        |
 +------------------+-------+---------------+--------------------------------+
-| v0.0.30          | 2.7.0 | 2.7.1 - 2.7.4 | 12.1.0, 12.4.1, 12.6.3, 12.8.1 | *pypi * needed
+| v0.0.30          | 2.7.0 | 2.7.1 - 2.7.4 | 12.6.3, 12.8.1                 | *pypi *
 | v0.0.29.post3    | 2.6.0 | 2.7.1 - 2.7.2 | 12.1.0, 12.4.1, 12.6.3, 12.8.0 | *pypi * current
 | v0.0.29.post2    | 2.6.0 | 2.7.1 - 2.7.2 | 12.1.0, 12.4.1, 12.6.3, 12.8.0 | *pypi
 | v0.0.29.post1    | 2.5.1 | 2.7.1 - 2.7.2 | 12.1.0, 12.4.1                 | *only from pytorch
 | v0.0.29 (BUG)    | 2.5.1 |               |                                | *only from pytorch
-| v0.0.28.post3    | 2.5.1 | 2.6.3         |                                | *only from pytorch
-| v0.0.28.post2    | 2.5.0 | 2.6.3         |                                | *only from pytorch
-| v0.0.28.post1    | 2.4.1 | 2.6.3         |                                | *only from pytorch
-| v0.0.27.post2    | 2.4.0 |               |                                | *pypi
-| v0.0.27.post1    | 2.4.0 |               |                                | *pypi
+| v0.0.28.post3    | 2.5.1 | 2.6.3         | 12.1.0, 12.4.1                 | *only from pytorch
+| v0.0.28.post2    | 2.5.0 | 2.6.3         | 12.1.0, 12.4.1                 | *only from pytorch
 +------------------+-------+---------------+--------------------------------+
 * Torch support determined by https://github.com/facebookresearch/xformers/blob/main/.github/workflows/wheels.yml
 * FA2 support determined by by https://github.com/facebookresearch/xformers/blob/main/xformers/ops/fmha/flash.py

@@ -45,19 +45,9 @@ class ReadthedocsScraper(BaseScraper):
         return soup.find("div", class_="rst-content")
 
 
-class LangchainScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("div", class_="doc-markdown-body")
-
-
-class QtForPythonScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("div", class_="section")
-
-
 class PyTorchScraper(BaseScraper):
     def extract_main_content(self, soup):
-        return soup.find("div", class_="documentation-content-container")
+        return soup.find("article", id="pytorch-article", class_="pytorch-article", attrs={"itemprop": "articleBody"})
 
 
 class TileDBScraper(BaseScraper):
@@ -65,26 +55,139 @@ class TileDBScraper(BaseScraper):
         return soup.find("main", {"id": "content"})
 
 
-class TileDBVectorSearchScraper(BaseScraper):
+class RstContentScraper(BaseScraper):
     def extract_main_content(self, soup):
-        return soup.find("div", class_="content")
+        return soup.find("div", class_="rst-content")
 
 
-class PyMuScraper(BaseScraper):
+class FuroThemeScraper(BaseScraper):
+    def extract_main_content(self, soup):
+        return soup.find("article", id="furo-main-content")
+
+
+class PydataThemeScraper(BaseScraper):
+    def extract_main_content(self, soup):
+        return soup.find("article", class_="bd-article")
+
+
+class FastcoreScraper(BaseScraper):
+    def extract_main_content(self, soup):
+        return soup.find("main", id="quarto-document-content", class_="content")
+
+
+class RtdThemeScraper(BaseScraper):
+    def extract_main_content(self, soup):
+        return soup.find("div", attrs={"itemprop": "articleBody"})
+
+
+class BodyRoleMainScraper(BaseScraper):
+    def extract_main_content(self, soup):
+        return soup.find("div", class_="body", attrs={"role": "main"})
+
+
+class ArticleMdContentInnerMdTypesetScraper(BaseScraper):
+    def extract_main_content(self, soup):
+        return soup.find("article", class_="md-content__inner md-typeset")
+
+
+class DivClassDocumentScraper(BaseScraper):
+    def extract_main_content(self, soup):
+        return soup.find("div", class_="document")
+
+
+class MainIdMainContentRoleMainScraper(BaseScraper):
+    def extract_main_content(self, soup):
+        return soup.find("main", id="main-content", attrs={"role": "main"})
+
+
+class DivIdMainContentRoleMainScraper(BaseScraper):
+    def extract_main_content(self, soup):
+        return soup.find("div", id="main-content", attrs={"role": "main"})
+
+
+class MainScraper(BaseScraper):
+    def extract_main_content(self, soup):
+        return soup.find("main")
+
+
+class DivClassThemeDocMarkdownMarkdownScraper(BaseScraper):
+    def extract_main_content(self, soup):
+        return soup.find("div", class_=["theme-doc-markdown", "markdown"])
+
+
+class DivClassTdContentScraper(BaseScraper):
+    def extract_main_content(self, soup):
+        return soup.find("div", class_="td-content")
+
+
+class PymupdfScraper(BaseScraper):
+    def extract_main_content(self, soup):
+        article_container = soup.find("div", class_="article-container")
+        if article_container:
+            return article_container.find("section")
+        return None
+
+
+class BodyScraper(BaseScraper):
+    def extract_main_content(self, soup):
+        return soup.find("body")
+
+
+class ArticleRoleMainScraper(BaseScraper):
     def extract_main_content(self, soup):
         return soup.find("article", attrs={"role": "main"})
 
 
-class SpacyScraper(BaseScraper):
+class DivIdContentSecondScraper(BaseScraper):
     def extract_main_content(self, soup):
-        main_content = soup.find("article", attrs={"role": "main"})
-        if not main_content:
-            main_content = soup.find(
-                "article", class_=lambda x: x and "main_content" in x
-            )
-        if not main_content:
-            main_content = soup.find(["main", "div"], attrs={"role": "main"})
-        return main_content
+        content_divs = soup.find_all("div", id="content")
+        if len(content_divs) >= 2:
+            return content_divs[1]  # Return the second one (index 1)
+        return None
+
+
+class ArticleClassMainContent8zFCHScraper(BaseScraper):
+    def extract_main_content(self, soup):
+        return soup.find("article", class_="main_content__8zFCH")
+
+
+class PropCacheScraper(ReadthedocsScraper):# only one thus far that modifies the crawling behavior
+    """Special-case scraper for https://propcache.aio-libs.org/ .
+
+    The bare domain 302-redirects to /en/latest/, so we force that
+    versioned path before link extraction to keep urljoin() correct.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # If user passed the root URL, rewrite it to the docs root.
+        if self.url.rstrip("/").endswith("propcache.aio-libs.org"):
+            self.url = urljoin(self.url, "en/latest/")
+
+        # Always keep a trailing “/” for consistent joins.
+        if not self.url.endswith("/"):
+            self.url += "/"
+
+        self.base_url = self.url
+
+    def extract_main_content(self, soup):
+        return soup.find("div", class_="body", attrs={"role": "main"})
+
+
+class FileDownloader(BaseScraper):
+    """Save any non-HTML asset (e.g. YAML) exactly as delivered."""
+
+    def extract_main_content(self, soup):
+        return None
+
+    async def save_file(self, content: bytes, url: str, save_dir: str):
+        from pathlib import Path
+
+        basename = Path(url).name or "download"
+        filename = os.path.join(save_dir, basename)
+
+        async with aiofiles.open(filename, "wb") as f:
+            await f.write(content)
 
 
 class ScraperRegistry:
@@ -92,13 +195,28 @@ class ScraperRegistry:
         "BaseScraper": BaseScraper,
         "HuggingfaceScraper": HuggingfaceScraper,
         "ReadthedocsScraper": ReadthedocsScraper,
-        "LangchainScraper": LangchainScraper,
-        "QtForPythonScraper": QtForPythonScraper,
         "PyTorchScraper": PyTorchScraper,
         "TileDBScraper": TileDBScraper,
-        "TileDBVectorSearchScraper": TileDBVectorSearchScraper,
-        "PyMuScraper": PyMuScraper,
-        "SpacyScraper": SpacyScraper,
+        "PropCacheScraper": PropCacheScraper,
+        "FuroThemeScraper": FuroThemeScraper,
+        "RstContentScraper": RstContentScraper,
+        "PydataThemeScraper": PydataThemeScraper,
+        "FastcoreScraper": FastcoreScraper,
+        "RtdThemeScraper": RtdThemeScraper,
+        "BodyRoleMainScraper": BodyRoleMainScraper,
+        "ArticleMdContentInnerMdTypesetScraper": ArticleMdContentInnerMdTypesetScraper,
+        "DivClassDocumentScraper": DivClassDocumentScraper,
+        "MainIdMainContentRoleMainScraper": MainIdMainContentRoleMainScraper,
+        "DivIdMainContentRoleMainScraper": DivIdMainContentRoleMainScraper,
+        "MainScraper": MainScraper,
+        "DivClassThemeDocMarkdownMarkdownScraper": DivClassThemeDocMarkdownMarkdownScraper,
+        "DivClassTdContentScraper": DivClassTdContentScraper,
+        "PymupdfScraper": PymupdfScraper,
+        "BodyScraper": BodyScraper,
+        "ArticleRoleMainScraper": ArticleRoleMainScraper,
+        "DivIdContentSecondScraper": DivIdContentSecondScraper,
+        "ArticleClassMainContent8zFCHScraper": ArticleClassMainContent8zFCHScraper,
+        "FileDownloader": FileDownloader,
     }
 
     @classmethod
@@ -205,6 +323,11 @@ class ScraperWorker(QObject):
             "ascii",
         ]
         headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (X11; Linux x86_64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/125.0.0.0 Safari/537.36"
+            ),
             "Accept-Charset": "utf-8, iso-8859-1;q=0.8, *;q=0.7",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         }
@@ -216,9 +339,7 @@ class ScraperWorker(QObject):
                     timeout = aiohttp.ClientTimeout(total=30)
                     async with session.get(url, headers=headers, timeout=timeout) as response:
                         if response.status == 200:
-                            content_type = response.headers.get(
-                                "content-type", ""
-                            ).lower()
+                            content_type = response.headers.get("content-type", "").lower()
                             if "text/html" in content_type:
                                 try:
                                     html = await response.text(encoding="utf-8")
