@@ -511,13 +511,20 @@ users having 24 gigabytes of VRAM.  Sometimes larger models having 32 billion pa
 contexts but Mistral Small 3 leaves sufficient VRAM avaialble in such circumstances. Benchmark results also show that it excels at
 reasoning, coding, math, and instruction following, oftentimes producing more succinct answers than other similarly sized models.
 
-### What is the gte-Qwen2-1.5B-instruct embedding model?
-The gte-Qwen2-1.5B-instruct embedding models from Alibaba-NLP produces some of the highest quality embeddings out of the embedding
-models that this program offers.  It is a hybrid embedding model consisting of a merge between the Qwen 2 1.5 billion parameter
-chat model and a BERT architecture to create an embedding model.  It incorporates newer advancements such as Rotary Positional
-Encodings and GLU, which enables up to much longer maximum sequence length 8192 tokens, much longer than the typical 512 token limit
-of other embedding models.  In addition, it creates embeddings having 1536 domensions for noticeably higher quality results.  Along
-with the Infly embedding models, this model is one of the highest quality embedding models although it requires more compute time.
+### What are the MiniCPM-4 chat models?
+The MiniCPM-4 chat models are ultra-efficient, open-source LLMs built by the OpenBMB team for edge devices, offered in lightweight
+0.5 B-parameter and 8 B-parameter versions.  The 8b variant achieves comparable performance to Qwen3-8B using only 22% of the training
+data.  The 0.5B parameter variant, despite having fewer parameters, significantly outperforms Qwen3-0.6B, Llama3.2-1B, and Gemma3-1B.
+The 8b variant matches Qwen3 8b and outperforms GLM4-9B, and exceeds larger models such as Gemma3-12B and approaches Phi4-14B.  The
+major advantage is on 128k context sequences where it achieves 7x faster decoding than Qwen3-8b due to the fact that it only attends
+to ~6k tokens out of 128k (5% sparsity).  These chat models focus on the English and Chinese languages.
+
+### What is the Deepseek R1 Chat Model?
+The Deepseek R1 chat model was previously removed from this program, but it has been re-added since Deepseek released a newer and
+improved version in late May, 2025.  This new version, based on the Qwen3 architecture, has significantly improved both its reasoning
+and generic response tasks and is an excellent choice for retrieval augmented generation.  It claims to rival much larger open source
+models such as Qwen 3 32b and Phi-4 14b and even claims to outperform closed-source models such as OpenAI's os-mini (medium) and
+Google's Gemini 2.5 Flash, which is quite impressive.
 
 ### What are the BGE Embedding Models?
 The BGE family of embedding models were created by BAAI and have long been a staple within the embedding community and this program
@@ -548,6 +555,13 @@ also significantly faster than similarly sized models due to their reliance on t
 run with or without reliance on the Xformers library depending on whether a user's hardware supports it.  The Snowflake Arctic embedding
 models are also unique in that they have a maximum sequence length of 8192 tokens, which is far greater than the typical 512 token limit
 of other embedding models.
+
+### What are the Qwen3 Embedding Models?
+Released in June, 2025, Alibaba’s Qwen 3 Embedding family delivers state-of-the-art text embeddings while staying friendly to everyday hardware.  They are based on the popular Qwen 3 chat models but have special training to make them suitable for generating embeddings.
+As of June, 2025, they hold the top three ranked spots on the Huggingface leaderboard.  They are primarily trained on English and
+Chinese data, but a fair amount of their training data is also from numerous other languages so they can be reliably used for multilingual
+embedding tasks as well.  They are released under the liberal Apache-2.0 license. The Qwen 3 family of embedding models comes in three
+practical sizes—“small” (0.6 B parameters), “base” (4 B), and “large” (8 B). Even the 0.6 B version outperforms older 7 B embedding models, which is a phenomenal accomplishment while the 8 B model often edges out commercial offerings. All variants support long contexts (up to 32 k tokens). 
 
 ### What is the Scrape Documentation tool?
 Scrape Documentation automatically downloads documentation from online sources to build vector databases without manual copy-pasting.
