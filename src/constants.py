@@ -323,6 +323,16 @@ full_install_libs = [
 ]
 
 CHAT_MODELS = {
+    'MiniCPM4 - 0.5b': {
+        'model': 'MiniCPM4 - 0.5b',
+        'repo_id': 'openbmb/MiniCPM4-0.5B',
+        'cache_dir': 'openbmb--MiniCPM4-0.5B',
+        'cps': 153.24,
+        'vram': 1255.18,
+        'function': 'Minicpm',
+        'precision': 'bfloat16',
+        'gated': False,
+    },
     'Qwen 3 - 0.6b': {
         'model': 'Qwen 3 - 0.6b',
         'repo_id': 'Qwen/Qwen3-0.6B',
@@ -390,6 +400,16 @@ CHAT_MODELS = {
         'gated': False,
         'max_new_tokens': 4096,
     },
+    'Exaone - 7.8b': {
+        'model': 'Exaone - 7.8b',
+        'repo_id': 'LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct',
+        'cache_dir': 'LGAI-EXAONE--EXAONE-3.5-7.8B-Instruct',
+        'cps': 211.23,
+        'vram': 6285.99,
+        'function': 'Exaone',
+        'precision': 'float32',
+        'gated': False,
+    },
     'Qwen 3 - 8b': {
         'model': 'Qwen 3 - 8b',
         'repo_id': 'Qwen/Qwen3-8B',
@@ -433,14 +453,14 @@ CHAT_MODELS = {
         'precision': 'bfloat16',
         'gated': False,
     },
-    'Exaone - 7.8b': {
-        'model': 'Exaone - 7.8b',
-        'repo_id': 'LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct',
-        'cache_dir': 'LGAI-EXAONE--EXAONE-3.5-7.8B-Instruct',
-        'cps': 211.23,
-        'vram': 6285.99,
-        'function': 'Exaone',
-        'precision': 'float32',
+    'MiniCPM4 - 8b': {
+        'model': 'MiniCPM4 - 8b',
+        'repo_id': 'openbmb/MiniCPM4-8B',
+        'cache_dir': 'openbmb--MiniCPM4-8B',
+        'cps': 110.90,
+        'vram': 8527.52,
+        'function': 'Minicpm',
+        'precision': 'bfloat16',
         'gated': False,
     },
     'GLM4-Z1 - 9b': {

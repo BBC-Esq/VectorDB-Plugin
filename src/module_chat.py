@@ -558,6 +558,24 @@ class Phi4(BaseModel):
 
         gen_thread.join()
 
+
+class Minicpm(Qwen):
+    def __init__(self, generation_settings, model_name):
+        model_info = CHAT_MODELS[model_name]
+        settings = copy.deepcopy(bnb_bfloat16_settings)
+        settings['tokenizer_settings']['trust_remote_code'] = True
+        settings['model_settings']['trust_remote_code'] = True
+
+        is_small_model = ('0.5b' in model_name.lower())
+        no_cuda = not torch.cuda.is_available()
+        if is_small_model and no_cuda:
+            settings = {
+                'tokenizer_settings': {'trust_remote_code': True},
+                'model_settings': {'trust_remote_code': True}
+            }
+
+        BaseModel.__init__(self, model_info, settings, generation_settings)
+
 def generate_response(model_instance, augmented_query):
     prompt = model_instance.create_prompt(augmented_query)
     inputs = model_instance.create_inputs(prompt)
