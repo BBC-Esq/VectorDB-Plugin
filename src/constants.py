@@ -332,6 +332,7 @@ CHAT_MODELS = {
         'function': 'Minicpm',
         'precision': 'bfloat16',
         'gated': False,
+        'max_tokens': 4096,
     },
     'Qwen 3 - 0.6b': {
         'model': 'Qwen 3 - 0.6b',
@@ -353,7 +354,7 @@ CHAT_MODELS = {
         'function': 'Qwen',
         'precision': 'bfloat16',
         'gated': False,
-        'max_new_tokens': 4096,
+        'max_new_tokens': 2048,
     },
     'Granite - 2b': {
         'model': 'Granite - 2b',
@@ -376,7 +377,6 @@ CHAT_MODELS = {
         'function': 'Exaone',
         'precision': 'float32',
         'gated': False,
-        'max_tokens': 4096,
     },
     'Phi 4 Mini - 4b': {
         'model': 'Phi 4 Mini - 4b',
@@ -387,7 +387,8 @@ CHAT_MODELS = {
         'function': 'Phi4',
         'precision': 'bfloat16',
         'gated': False,
-        'max_new_tokens': 4096,
+        'max_tokens': 4096,
+        'max_new_tokens': 2048,
     },
     'Qwen 3 - 4b': {
         'model': 'Qwen 3 - 4b',
@@ -398,7 +399,8 @@ CHAT_MODELS = {
         'function': 'Qwen',
         'precision': 'bfloat16',
         'gated': False,
-        'max_new_tokens': 4096,
+        'max_tokens': 4096,
+        'max_new_tokens': 2048,
     },
     'Exaone - 7.8b': {
         'model': 'Exaone - 7.8b',
@@ -419,7 +421,7 @@ CHAT_MODELS = {
         'function': 'Qwen',
         'precision': 'bfloat16',
         'gated': False,
-        'max_new_tokens': 4096,
+        'max_new_tokens': 2048,
     },
     'Deepseek R1 - 8b': {
         'model': 'Deepseek R1 - 8b',
@@ -430,7 +432,7 @@ CHAT_MODELS = {
         'function': 'DeepseekR1',
         'precision': 'bfloat16',
         'gated': False,
-        'max_new_tokens': 4096,
+        'max_new_tokens': 2048,
     },
     'Seed Coder - 8b': {
         'model': 'Seed Coder - 8b',
@@ -441,7 +443,7 @@ CHAT_MODELS = {
         'function': 'SeedCoder',
         'precision': 'bfloat16',
         'gated': False,
-        'max_new_tokens': 4096,
+        'max_new_tokens': 2048,
     },
     'Granite - 8b': {
         'model': 'Granite - 8b',
@@ -472,7 +474,7 @@ CHAT_MODELS = {
         'function': 'GLM4Z1',
         'precision': 'bfloat16',
         'gated': False,
-        'max_new_tokens': 4096,
+        'max_new_tokens': 2048,
     },
     'Qwen 3 - 14b': {
         'model': 'Qwen 3 - 14b',
@@ -483,7 +485,7 @@ CHAT_MODELS = {
         'function': 'Qwen',
         'precision': 'bfloat16',
         'gated': False,
-        'max_new_tokens': 8192,
+        'max_new_tokens': 4096,
     },
     'Mistral Small 3 - 24b': {
         'model': 'Mistral Small 3 - 24b',
@@ -516,7 +518,7 @@ CHAT_MODELS = {
         'function': 'Qwen',
         'precision': 'bfloat16',
         'gated': False,
-        'max_new_tokens': 8192,
+        'max_new_tokens': 4096,
     },
     'GLM4-Z1 - 32b': {
         'model': 'GLM4-Z1 - 32b',
