@@ -1,20 +1,15 @@
-import logging, sys
-
-# logging.basicConfig(
-    # level=logging.DEBUG,                       # or INFO/ERROR as you prefer
-    # format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    # handlers=[logging.StreamHandler(sys.stdout)],
-    # force=True                                 # clobber any accidental configs
-# )
-
-import multiprocessing
-if __name__ == '__main__':
-    multiprocessing.set_start_method('spawn', force=True)
-
+# import multiprocessing
+# if __name__ == '__main__':
+    # multiprocessing.set_start_method('spawn', force=True)
+# to address potential conflict with python 3.12 and tokenizers
+import faulthandler, signal
+faulthandler.enable(all_threads=True)
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+import sys
 import warnings
 warnings.filterwarnings("ignore", message="pkg_resources is deprecated", category=UserWarning)
 
-import os
 from pathlib import Path
 
 from utilities import set_cuda_paths
@@ -39,7 +34,6 @@ from utilities import (
     ensure_theme_config,
     update_theme_in_config,
     make_theme_changer,
-    download_kobold_executable,
     download_kokoro_tts,
     download_with_threadpool,
 )
@@ -217,6 +211,6 @@ def main():
     sys.exit(app.exec())
 
 if __name__ == '__main__':
+    import multiprocessing
+    multiprocessing.set_start_method('spawn', force=True)
     main()
-
-

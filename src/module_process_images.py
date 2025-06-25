@@ -37,8 +37,21 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 def get_best_device():
     return 'cuda' if torch.cuda.is_available() else 'cpu'
 
-def check_for_images(image_dir):
-    return any(file.suffix.lower() in ALLOWED_EXTENSIONS for file in Path(image_dir).iterdir())
+def check_for_images(image_dir: Path) -> bool:
+    """
+    Return True if the folder contains at least one file whose suffix is in
+    ALLOWED_EXTENSIONS.  Materialising the iterator avoids the scandir/thread
+    race that caused the access-violation on Windows + multiprocessing.
+    """
+    try:
+        entries = list(Path(image_dir).iterdir())   # <- prevents the crash
+    except FileNotFoundError:
+        return False       # directory doesn’t exist yet
+    except OSError:
+        return False       # permissions or other FS error
+
+    return any(p.suffix.lower() in ALLOWED_EXTENSIONS for p in entries)
+
 
 def run_loader_in_process(loader_func):
     try:

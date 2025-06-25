@@ -24,72 +24,18 @@ class CreateDatabaseProcess:
         self.process = multiprocessing.Process(target=create_vector_db_in_process, args=(self.database_name,))
         self.process.start()
 
-    def wait(self):
+    def wait(self, timeout=None):
         if self.process:
-            self.process.join()
+            self.process.join(timeout)
 
     def is_alive(self):
         if self.process:
             return self.process.is_alive()
         return False
 
-
-class CreateDatabaseThread(QThread):
-    creationComplete = Signal()
-    validationFailed = Signal(str)
-
-    def __init__(self, database_name, model_name, skip_ocr, parent=None):
-        super().__init__(parent)
-        self.database_name = database_name
-        self.model_name = model_name
-        self.skip_ocr = skip_ocr
-        self.process = None
-
-    def run(self):
-        script_dir = Path(__file__).resolve().parent
-        ok, msg = check_preconditions_for_db_creation(script_dir,
-                                                      self.database_name,
-                                                      skip_ocr=self.skip_ocr)
-        if not ok:
-            self.validationFailed.emit(msg)
-            return
-
-        self.process = multiprocessing.Process(
-            target=create_vector_db_in_process,
-            args=(self.database_name,))
-        self.process.start()
-        self.process.join()
-
-        # detect child-process failure
-        if self.process.exitcode != 0:
-            err_msg = (f"Database build failed (exit code {self.process.exitcode}). "
-                       "Check the log window for details.")
-            self.validationFailed.emit(err_msg)
-            return
-
-        my_cprint(f"{self.model_name} removed from memory.", "red")
-        self.creationComplete.emit()
-        time.sleep(.2)
-        self.update_config_with_database_name()
-        backup_database_incremental(self.database_name)
-
-    def update_config_with_database_name(self):
-        config_path = Path(__file__).resolve().parent / "config.yaml"
-        if config_path.exists():
-            with open(config_path, 'r', encoding='utf-8') as file:
-                config = yaml.safe_load(file) or {}
-            model = config.get('EMBEDDING_MODEL_NAME')
-            chunk_size = config.get('database', {}).get('chunk_size')
-            chunk_overlap = config.get('database', {}).get('chunk_overlap')
-            if 'created_databases' not in config or not isinstance(config['created_databases'], dict):
-                config['created_databases'] = {}
-            config['created_databases'][self.database_name] = {
-                'model': model,
-                'chunk_size': chunk_size,
-                'chunk_overlap': chunk_overlap
-            }
-            with open(config_path, 'w', encoding='utf-8') as file:
-                yaml.safe_dump(config, file, allow_unicode=True)
+    def terminate(self):
+        if self.process and self.process.is_alive():
+            self.process.terminate()
 
 
 class CustomFileSystemModel(QFileSystemModel):
@@ -136,6 +82,12 @@ class DatabasesTab(QWidget):
         self.layout.addLayout(grid_layout_top_buttons)
         self.layout.addLayout(hbox2)
         self.sync_combobox_with_config()
+        
+        self.db_process = None
+        self.process_timer = QTimer()
+        self.process_timer.timeout.connect(self.check_process_status)
+        self.current_model_name = None
+        self.current_database_name = None
 
     def _validation_failed(self, message: str):
         QMessageBox.warning(self, "Validation Failed", message)
@@ -280,7 +232,10 @@ class DatabasesTab(QWidget):
         self.database_name_input.setDisabled(True)
 
         database_name = self.database_name_input.text().strip()
-        model_name   = self.model_combobox.currentText()
+        model_name = self.model_combobox.currentText()
+
+        self.current_database_name = database_name
+        self.current_model_name = model_name
 
         docs_dir = Path(__file__).resolve().parent / "Docs_for_DB"
         has_pdfs = any(p.suffix.lower() == ".pdf" for p in docs_dir.iterdir() if p.is_file())
@@ -293,19 +248,102 @@ class DatabasesTab(QWidget):
                                          QMessageBox.Yes)
             skip_ocr = (reply == QMessageBox.No)
 
-        self.create_database_thread = CreateDatabaseThread(database_name, model_name, skip_ocr, parent=self)
+        self.start_database_creation(database_name, model_name, skip_ocr)
 
-        self.create_database_thread.creationComplete.connect(self.reenable_create_db_button)
-        self.create_database_thread.validationFailed.connect(self._validation_failed)
-        self.create_database_thread.start()
+    def start_database_creation(self, database_name, model_name, skip_ocr):
+        try:
+            script_dir = Path(__file__).resolve().parent
+            ok, msg = check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=skip_ocr)
+            if not ok:
+                self._validation_failed(msg)
+                return
+
+            self.db_process = CreateDatabaseProcess(database_name)
+            self.db_process.start()
+
+            self.process_timer.start(500)
+            
+            my_cprint(f"Started database creation for: {database_name}", "green")
+
+        except Exception as e:
+            self._validation_failed(f"Failed to start database creation: {str(e)}")
+
+    def check_process_status(self):
+        if not self.db_process:
+            self.process_timer.stop()
+            return
+
+        if self.db_process.is_alive():
+            return
+
+        self.process_timer.stop()
+
+        try:
+            # ✅ Capture exitcode BEFORE join() in case process gets closed
+            exit_code = self.db_process.process.exitcode
+            
+            # Now join the process
+            self.db_process.process.join()
+            
+            # Optional: Clean up process resources on Python 3.10+
+            if hasattr(self.db_process.process, 'close'):
+                self.db_process.process.close()
+            
+            # ✅ Use the captured exit_code instead of accessing it after join
+            if exit_code == 0:
+                my_cprint(f"{self.current_model_name} removed from memory.", "red")
+                self.update_config_with_database_name()
+                backup_database_incremental(self.current_database_name)
+                QMessageBox.information(self, "Success", "Database created successfully!")
+                
+            else:
+                err_msg = (f"Database build failed (exit code {exit_code}). "
+                          "Check the log window for details.")
+                QMessageBox.critical(self, "Error", err_msg)
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Error checking process status: {str(e)}")
+
+        finally:
+            self.db_process = None
+            self.reenable_create_db_button()
+
+    def update_config_with_database_name(self):
+        config_path = Path(__file__).resolve().parent / "config.yaml"
+        if config_path.exists():
+            with open(config_path, 'r', encoding='utf-8') as file:
+                config = yaml.safe_load(file) or {}
+            model = config.get('EMBEDDING_MODEL_NAME')
+            chunk_size = config.get('database', {}).get('chunk_size')
+            chunk_overlap = config.get('database', {}).get('chunk_overlap')
+            if 'created_databases' not in config or not isinstance(config['created_databases'], dict):
+                config['created_databases'] = {}
+            config['created_databases'][self.current_database_name] = {
+                'model': model,
+                'chunk_size': chunk_size,
+                'chunk_overlap': chunk_overlap
+            }
+            with open(config_path, 'w', encoding='utf-8') as file:
+                yaml.safe_dump(config, file, allow_unicode=True)
 
     def reenable_create_db_button(self):
         self.create_db_button.setDisabled(False)
         self.choose_docs_button.setDisabled(False)
         self.model_combobox.setDisabled(False)
         self.database_name_input.setDisabled(False)
-        self.create_database_thread = None
+        
+        self.current_database_name = None
+        self.current_model_name = None
+        
         gc.collect()
+
+    def closeEvent(self, event):
+        if self.db_process and self.db_process.is_alive():
+            self.db_process.terminate()
+            self.db_process.wait()
+        if hasattr(self, 'process_timer'):
+            self.process_timer.stop()
+        event.accept()
 
     def toggle_group_box(self, group_box, checked):
         self.groups[group_box] = 1 if checked else 0

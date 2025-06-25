@@ -24,48 +24,217 @@ def set_cuda_paths():
     import sys
     import os
     from pathlib import Path
-    # virtual environment path
     venv_base = Path(sys.executable).parent.parent
-
-    # dependencies path
-    dependency_base = venv_base / 'Lib' / 'site-packages'
-
-    # nvidia base path
-    nvidia_base = dependency_base / 'nvidia'
-
-    # nvidia specific component paths
-    cuda_runtime = nvidia_base / 'cuda_runtime' / 'bin'
-    cuda_runtime_lib = nvidia_base / 'cuda_runtime' / 'lib' / 'x64'
-    cuda_runtime_include = nvidia_base / 'cuda_runtime' / 'include'
-    cublas = nvidia_base / 'cublas' / 'bin'
-    cudnn = nvidia_base / 'cudnn' / 'bin'
-    nvrtc = nvidia_base / 'cuda_nvrtc' / 'bin'
-    nvcc = nvidia_base / 'cuda_nvcc' / 'bin'
-    cusparse = nvidia_base / 'cusparse' / 'bin'
-
-    # unique cusparselt path
-    # cusparselt = dependency_base / 'cusparselt' / 'bin'
-
+    nvidia_base_path = venv_base / 'Lib' / 'site-packages' / 'nvidia'
+    cuda_path_runtime = nvidia_base_path / 'cuda_runtime' / 'bin'
+    cuda_path_runtime_lib = nvidia_base_path / 'cuda_runtime' / 'lib' / 'x64'
+    cuda_path_runtime_include = nvidia_base_path / 'cuda_runtime' / 'include'
+    cublas_path = nvidia_base_path / 'cublas' / 'bin'
+    cudnn_path = nvidia_base_path / 'cudnn' / 'bin'
+    nvrtc_path = nvidia_base_path / 'cuda_nvrtc' / 'bin'
+    nvcc_path = nvidia_base_path / 'cuda_nvcc' / 'bin'
     paths_to_add = [
-        str(cuda_runtime),
-        str(cuda_runtime_lib),
-        str(cuda_runtime_include),
-        str(cublas),
-        str(cudnn),
-        str(nvrtc),
-        str(nvcc),
-        str(cusparse),
-        # str(cusparselt),
+        str(cuda_path_runtime),
+        str(cuda_path_runtime_lib),
+        str(cuda_path_runtime_include),
+        str(cublas_path),
+        str(cudnn_path),
+        str(nvrtc_path),
+        str(nvcc_path),
     ]
-
     current_value = os.environ.get('PATH', '')
     new_value = os.pathsep.join(paths_to_add + ([current_value] if current_value else []))
     os.environ['PATH'] = new_value
 
-    triton_cuda_path = nvidia_base / 'cuda_runtime'
+    triton_cuda_path = nvidia_base_path / 'cuda_runtime'
     current_cuda_path = os.environ.get('CUDA_PATH', '')
     new_cuda_path = os.pathsep.join([str(triton_cuda_path)] + ([current_cuda_path] if current_cuda_path else []))
     os.environ['CUDA_PATH'] = new_cuda_path
+
+
+def get_platform_info():
+    """
+    Returns
+    -------
+    dict
+        Dictionary containing platform details:
+        - 'system' (str): OS name ('Windows', 'Darwin', 'Linux', etc.)
+        - 'platform' (str): Detailed platform string (e.g., 'Windows-10-10.0.19045-SP0')
+        - 'architecture' (str): Machine architecture ('AMD64', 'arm64', 'x86_64', etc.)
+    
+    Examples
+    --------
+    Windows: {'system': 'Windows', 'platform': 'Windows-11-10.0.22621', 'architecture': 'AMD64'}
+    macOS: {'system': 'Darwin', 'platform': 'macOS-13.2.1-arm64-arm-64bit', 'architecture': 'arm64'}
+    Linux: {'system': 'Linux', 'platform': 'Linux-5.15.0-generic', 'architecture': 'x86_64'}
+    """
+    import platform
+    
+    return {
+        "system": platform.system(),
+        "platform": platform.platform(),
+        "architecture": platform.machine()
+    }
+
+
+def get_python_version():
+    """
+    Returns
+    -------
+    dict
+        Dictionary containing Python version details:
+        - 'major' (int): Major version number (e.g., 3)
+        - 'minor' (int): Minor version number (e.g., 11)
+        - 'version_string' (str): Full version string (e.g., '3.11')
+    
+    Examples
+    --------
+    Python 3.11:
+    {'major': 3, 'minor': 11, 'version_string': '3.11'}
+    """
+    import sys
+    
+    major = sys.version_info.major
+    minor = sys.version_info.minor
+    
+    return {
+        'major': major,
+        'minor': minor,
+        'version_string': f'{major}.{minor}'
+    }
+
+
+def has_nvidia_gpu():
+    """
+    Returns
+    -------
+    bool
+        True if nvidia-smi command succeeds (NVIDIA GPU present), False otherwise.
+        Returns False if nvidia-smi is not found or returns non-zero exit code.
+
+    Notes
+    -----
+    This function does not require PyTorch or CUDA toolkit to be installed.
+    It only checks if NVIDIA drivers and nvidia-smi utility are available.
+    """
+    import subprocess
+    
+    try:
+        result = subprocess.run(
+            ["nvidia-smi"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
+
+
+def has_bfloat16_support():
+    """
+    Returns
+    -------
+    bool
+        True if PyTorch with CUDA is available AND GPU compute capability >= 8.0.
+        False if PyTorch is not installed, CUDA is not available, or compute capability < 8.0.
+
+    Notes
+    -----
+    bfloat16 support requires:
+    - PyTorch with CUDA support installed
+    - NVIDIA GPU with compute capability 8.0 or higher (Ampere architecture+)
+    - Examples of supported GPUs: RTX 3060+, RTX 4000 series, A100, H100, etc.
+    
+    This function will return False if PyTorch is not installed rather than raising an error.
+    """
+    import sys
+    
+    try:
+        # Check if torch is available
+        if 'torch' not in sys.modules:
+            try:
+                import torch
+            except ImportError:
+                return False
+        else:
+            import torch
+        
+        if not torch.cuda.is_available():
+            return False
+        
+        capability = torch.cuda.get_device_capability()
+        return capability >= (8, 0)
+        
+    except Exception:
+        return False
+
+
+def gpu_summary():
+    """
+    Returns
+    -------
+    list[dict]
+        Each dictionary contains:
+        - index (int)            : GPU index
+        - name (str)             : Marketing name (NVML)
+        - compute_cap (str)      : CUDA compute capability, e.g. "8.9"
+        - vram_gb (float)        : Total VRAM in GiB (rounded to 2 decimals)
+        - cuda_cores (int)       : Total CUDA cores
+    """
+    from pynvml import (
+        nvmlInit,
+        nvmlShutdown,
+        nvmlDeviceGetCount,
+        nvmlDeviceGetHandleByIndex,
+        nvmlDeviceGetName,
+        nvmlDeviceGetMemoryInfo,
+    )
+    from numba import cuda
+
+    # Mapping: (compute_major, compute_minor) -> CUDA cores per SM
+    cc_cores_per_SM = {
+        (2, 0): 32,  (2, 1): 48,                # Fermi
+        (3, 0): 192, (3, 5): 192, (3, 7): 192,  # Kepler
+        (5, 0): 128, (5, 2): 128,               # Maxwell
+        (6, 0): 64,  (6, 1): 128,               # Pascal
+        (7, 0): 64,  (7, 5): 64,                # Volta / Turing
+        (8, 0): 64,  (8, 6): 128, (8, 9): 128,  # Ampere / Ada
+        (9, 0): 128,                            # Hopper
+        (10, 0): 128,                           # Blackwell Data Center (B200/B100)
+        (12, 0): 128,                           # Blackwell Client/Workstation (RTX 5090 etc.)
+    }
+
+    nvmlInit()
+    try:
+        gpu_count = nvmlDeviceGetCount()
+        summaries = []
+
+        for idx in range(gpu_count):
+            handle = nvmlDeviceGetHandleByIndex(idx)
+
+            name = nvmlDeviceGetName(handle)
+            vram_gb = nvmlDeviceGetMemoryInfo(handle).total / (1024 ** 3)
+
+            dev = cuda.select_device(idx)
+            cc_major, cc_minor = dev.compute_capability
+            sm_count = dev.MULTIPROCESSOR_COUNT
+
+            cores_per_sm = cc_cores_per_SM.get((cc_major, cc_minor), 128)
+            total_cores = cores_per_sm * sm_count
+
+            summaries.append(
+                {
+                    "index": idx,
+                    "name": name,
+                    "cuda_compute": f"{cc_major}.{cc_minor}",
+                    "vram": round(vram_gb, 2),
+                    "cuda_cores": total_cores,
+                }
+            )
+
+        return summaries
+    finally:
+        nvmlShutdown()
 
 
 def _needs_ocr_worker(path: str) -> bool:
@@ -100,6 +269,7 @@ def clean_triton_cache():
     else:
         print("\nNo Triton cache found to clean.")
         return True
+
 
 def check_pdfs_for_ocr(script_dir):
     import multiprocessing as mp
@@ -165,6 +335,7 @@ class DownloadSignals(QObject):
     finished = Signal(bool, str)
     progress = Signal(str)
 
+
 class DownloadRunnable(QRunnable):
     def __init__(self, download_func, *args):
         super().__init__()
@@ -179,11 +350,13 @@ class DownloadRunnable(QRunnable):
         except Exception as e:
             self.signals.finished.emit(False, str(e))
 
+
 def download_with_threadpool(download_func, *args, callback=None):
     runnable = DownloadRunnable(download_func, *args)
     if callback:
         runnable.signals.finished.connect(callback)
     QThreadPool.globalInstance().start(runnable)
+
 
 def download_kokoro_tts():
     from pathlib import Path
@@ -212,33 +385,6 @@ def download_kokoro_tts():
             shutil.rmtree(tts_path)
         return False
 
-def download_kobold_executable():
-    import requests
-    from pathlib import Path
-
-    file_name = "koboldcpp_nocuda.exe"
-    url = f"https://github.com/LostRuins/koboldcpp/releases/download/v1.82.4/{file_name}"
-
-    script_dir = Path(__file__).parent
-    assets_dir = script_dir / "Assets"
-    assets_dir.mkdir(exist_ok=True)
-
-    kobold_path = assets_dir / file_name
-
-    try:
-        print(f"Downloading KoboldCPP from {url}...")
-        response = requests.get(url)
-        response.raise_for_status()
-        with open(kobold_path, 'wb') as file:
-            file.write(response.content)
-        print(f"KoboldCPP downloaded successfully to {kobold_path}")
-        return True
-    except requests.exceptions.HTTPError as http_err:
-        print(f"HTTP error occurred while downloading KoboldCPP: {http_err}")
-        return False
-    except Exception as e:
-        print(f"Failed to download KoboldCPP: {e}")
-        return False
 
 def normalize_chat_text(text):
     """
@@ -314,81 +460,14 @@ def normalize_chat_text(text):
     # Clean up spacing and format
     text = re.sub(r'[^\S \n]', ' ', text)
     text = re.sub(r'  +', ' ', text)
-    text = re.sub(r'(?<=\n) +(?=\n)', '', text)
+    # text = re.sub(r'(?<=\n) +(?=\n)', '', text) # removes newlines
 
     text = text.strip()
     text = re.sub(r'^[^a-zA-Z]*', '', text)
-    text = re.sub(r'\n+', ' ', text)
+    # text = re.sub(r'\n{2,}', '\n', text) # remove newlines
 
     return text.strip()
 
-def test_triton_installation():
-   """
-   Tests if Triton is properly installed and working by comparing a simple addition operation between PyTorch's
-   native implementation and a custom Triton kernel. Returns True or False.
-   Example:
-   from triton_test import test_triton_installation
-   is_triton_working = test_triton_installation()
-   if is_triton_working:
-      print("Proceeding with Triton functionality...")
-   else:
-      print("Cannot proceed - Triton is not working properly")
-   """
-   logging.debug("Starting Triton installation test")
-   try:
-       import torch
-       import triton
-       import triton.language as tl
-       logging.debug("Successfully imported required packages")
-
-       @triton.jit
-       def add_kernel(x_ptr, y_ptr, output_ptr, n_elements, BLOCK_SIZE: tl.constexpr):
-           pid = tl.program_id(axis=0)
-           block_start = pid * BLOCK_SIZE
-           offsets = block_start + tl.arange(0, BLOCK_SIZE)
-           mask = offsets < n_elements
-           x = tl.load(x_ptr + offsets, mask=mask)
-           y = tl.load(y_ptr + offsets, mask=mask)
-           output = x + y
-           tl.store(output_ptr + offsets, output, mask=mask)
-
-       logging.debug("Defined Triton kernel for addition")
-
-       def add(x: torch.Tensor, y: torch.Tensor):
-           output = torch.empty_like(x)
-           assert x.is_cuda and y.is_cuda and output.is_cuda
-           n_elements = output.numel()
-           grid = lambda meta: (triton.cdiv(n_elements, meta["BLOCK_SIZE"]),)
-           add_kernel[grid](x, y, output, n_elements, BLOCK_SIZE=1024)
-           return output
-
-       logging.debug("Defined wrapper function for Triton kernel")
-       print("Testing Triton installation...")
-
-       a = torch.rand(3, device="cuda")
-       logging.debug("Created test tensor on CUDA device")
-
-       b = a + a
-       logging.debug("Computed PyTorch native addition")
-
-       b_compiled = add(a, a)
-       logging.debug("Computed Triton kernel addition")
-
-       difference = b_compiled - b
-       works = torch.all(difference == 0).item()
-       logging.debug(f"Test result: {'passed' if works else 'failed'}")
-
-       if works:
-           print("✓ Triton is working correctly")
-       else:
-           print("⨯ Triton test failed - results do not match PyTorch implementation. Please visit the Windows Triton repository")
-           print("here and review the instructions for installing any necessary dependencies: https://github.com/woct0rdho/triton-windows")
-       return works
-
-   except Exception as e:
-       logging.debug(f"Triton test failed with error: {str(e)}")
-       print(f"⨯ Triton test failed - error occurred: {str(e)}")
-       return False
 
 def supports_flash_attention():
     """Check if the current CUDA device supports flash attention (compute capability >= 8.0)."""
@@ -404,6 +483,7 @@ def supports_flash_attention():
     supports = major >= 8
     logging.debug(f"Flash attention {'supported' if supports else 'not supported'}")
     return supports
+
 
 def check_cuda_re_triton():
     """
@@ -436,6 +516,7 @@ def check_cuda_re_triton():
     print()
     logging.debug("CUDA file check completed")
 
+
 def get_model_native_precision(embedding_model_name, vector_models):
     logging.debug(f"Looking for precision for model: {embedding_model_name}")
     model_name = os.path.basename(embedding_model_name)
@@ -450,6 +531,7 @@ def get_model_native_precision(embedding_model_name, vector_models):
                 return model['precision']
     logging.debug("No match found, defaulting to float32")
     return 'float32'
+
 
 def get_appropriate_dtype(compute_device, use_half, model_native_precision):
     logging.debug(f"compute_device: {compute_device}")
@@ -519,42 +601,6 @@ def get_appropriate_dtype(compute_device, use_half, model_native_precision):
         logging.debug(f"Unrecognized precision '{model_native_precision}', returning float32")
         return torch.float32
 
-# IMPLEMENT THIS IF/WHEN A USER TRIES TO CREATE A DB WITH A CPU WITH AN INCOMPATIBLE VISION MODEL
-def cpu_db_creation_vision_model_compatibility(directory, image_extensions, config_path):
-    has_images = False
-    for root, _, files in os.walk(directory):
-        if any(file.lower().endswith(ext) for file in files for ext in image_extensions):
-            has_images = True
-            break
-
-    if not has_images:
-        return False, None
-
-    with open(config_path, 'r') as f:
-        config = yaml.safe_load(f)
-
-    compute_device = config.get('Compute_Device', {}).get('database_creation', 'cpu')
-
-    if compute_device.lower() == 'cpu':
-        return True, None
-
-    embedding_model = config.get('EMBEDDING_MODEL_NAME', '').lower()
-    if not (embedding_model.endswith('florence-2-base') or embedding_model.endswith('florence-2-large')):
-        message = ("You've selected one or more images to process but have selected an incompatible vision model "
-                   "when creating the database with a CPU. Please select either 'Florence-2-base' or 'Florence-2-large'.")
-        return True, message
-
-    return True, None
-
-def print_first_citation_metadata(metadata_list):
-    """
-    DEBUG: Print the metadata attributes/fields for the first citation in the list.
-    """
-    if metadata_list:
-        print("Metadata attributes/fields for the first citation:")
-        for key, value in metadata_list[0].items():
-            print(f"{key}: {value}")
-
 def format_citations(metadata_list):
     """
     Create citations with relevance scores and, for .pdf files, page numbers.
@@ -612,13 +658,6 @@ def format_citations(metadata_list):
     list_items = "".join(f"<li>{citation}</li>" for citation in sorted_citations)
 
     return f"<ol>{list_items}</ol>"
-
-def count_physical_cores():
-    return psutil.cpu_count(logical=False)
-
-def load_config(config_file):
-    with open(config_file, 'r') as file:
-        return yaml.safe_load(file)
 
 def list_theme_files():
     script_dir = Path(__file__).parent
@@ -838,30 +877,6 @@ def my_cprint(*args, **kwargs):
     kwargs['flush'] = True
     cprint(modified_message, *args[1:], **kwargs)
 
-# not currently used
-def get_cuda_compute_capabilities():
-   logging.debug("Getting CUDA compute capabilities")
-   ccs = []
-   device_count = torch.cuda.device_count()
-   logging.debug(f"Found {device_count} CUDA device(s)")
-
-   for i in range(device_count):
-       device = torch.cuda.device(i)
-       cc_major, cc_minor = torch.cuda.get_device_capability(device)
-       compute_capability = f"{cc_major}.{cc_minor}"
-       logging.debug(f"Device {i} compute capability: {compute_capability}")
-       ccs.append(compute_capability)
-
-   logging.debug(f"All compute capabilities: {ccs}")
-   return ccs
-
-def get_cuda_version():
-   logging.debug("Getting CUDA version")
-   major, minor = map(int, torch.version.cuda.split("."))
-   version = f'{major}{minor}'
-   logging.debug(f"CUDA version {major}.{minor} -> {version}")
-   return version
-
 # returns True if cuda exists and supports compute 8.0 of higher
 def has_bfloat16_support():
    logging.debug("Checking bfloat16 support")
@@ -876,108 +891,6 @@ def has_bfloat16_support():
    has_support = capability >= (8, 0)
    logging.debug(f"bfloat16 {'supported' if has_support else 'not supported'}")
    return has_support
-
-def get_precision():
-   logging.debug("Determining appropriate precision based on GPU capability")
-
-   if not torch.cuda.is_available():
-       logging.debug("CUDA not available")
-       raise RuntimeError("CUDA is not available. This function requires a CUDA-enabled GPU.")
-
-   capability = torch.cuda.get_device_capability()
-   logging.debug(f"CUDA compute capability: {capability}")
-
-   if capability >= (8, 0):
-       precision = torch.bfloat16
-       logging.debug("Using bfloat16 precision (Ampere or newer GPU)")
-   else:
-       precision = torch.float16
-       logging.debug("Using float16 precision (pre-Ampere GPU)")
-
-   return precision
-
-def get_device_and_precision():
-   logging.debug("Determining device and precision")
-
-   if torch.cuda.is_available():
-       device = "cuda"
-       logging.debug("CUDA device available")
-
-       capability = torch.cuda.get_device_capability()
-       logging.debug(f"CUDA compute capability: {capability}")
-
-       if capability >= (8, 0):
-           precision = "bfloat16"
-           logging.debug("Using bfloat16 precision (Ampere or newer GPU)")
-       else:
-           precision = "float16" 
-           logging.debug("Using float16 precision (pre-Ampere GPU)")
-   else:
-       device = "cpu"
-       precision = "float32"
-       logging.debug("Using CPU with float32 precision")
-
-   logging.debug(f"Final configuration - Device: {device}, Precision: {precision}")
-   return device, precision
-
-class FlashAttentionUtils:
-    """
-    Flash Attention 2 is only supported on Ampere and newer GPUs
-    https://github.com/Dao-AILab/flash-attention/blob/0dfb28174333d9eefb7c1dd4292690a8458d1e89/csrc/flash_attn/flash_api.cpp#L370
-    """
-    @staticmethod
-    def check_package_availability():
-        # check if flash_attn is installed
-        return importlib.util.find_spec("flash_attn") is not None
-
-    @staticmethod
-    def check_version_compatibility():
-        # check flash_attn version
-        if not FlashAttentionUtils.check_package_availability():
-            return False
-        flash_attention_version = version.parse(importlib.metadata.version("flash_attn"))
-        if torch.version.cuda:
-            return flash_attention_version >= version.parse("2.1.0")
-        elif torch.version.hip:
-            return flash_attention_version >= version.parse("2.0.4")
-        return False
-
-    @staticmethod
-    def check_dtype_compatibility(dtype):
-        # check if dtype is compatible
-        return dtype in [torch.float16, torch.bfloat16]
-
-    @staticmethod
-    def check_gpu_initialization():
-        # check if CUDA is available and default device is CUDA
-        return torch.cuda.is_available() and torch.cuda.current_device() >= 0
-
-    @staticmethod
-    def check_device_map(device_map):
-        # check if device_map is compatible
-        if device_map is None:
-            return True
-        if isinstance(device_map, dict):
-            return "cpu" not in device_map.values() and "disk" not in device_map.values()
-        return True
-
-    @classmethod
-    def is_flash_attention_compatible(cls, dtype=None, device_map=None):
-        # run all checks
-        checks = [
-            cls.check_package_availability(),
-            cls.check_version_compatibility(),
-            cls.check_dtype_compatibility(dtype) if dtype else True,
-            cls.check_gpu_initialization(),
-            cls.check_device_map(device_map)
-        ]
-        return all(checks)
-
-    @staticmethod
-    def enable_flash_attention(config):
-        # Enable Flash Attention in the config
-        config._attn_implementation = "flash_attention_2"
-        return config
 
 def set_logging_level():
     """

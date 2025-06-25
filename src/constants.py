@@ -298,6 +298,7 @@ libs = [
     "tokenizers==0.21.1",
     "tqdm==4.67.1",
     "transformers==4.52.4",
+    # "transformers==4.51.0",
     "typing-inspection==0.4.1", # required by pydantic and pydantic-settings
     "typing_extensions==4.14.0",
     "unstructured-client==0.36.0",
@@ -323,7 +324,7 @@ full_install_libs = [
 ]
 
 CHAT_MODELS = {
-    'MiniCPM4 - 0.5b': {
+    'MiniCPM4 - 0.5b': {# transformers 4.46.3
         'model': 'MiniCPM4 - 0.5b',
         'repo_id': 'openbmb/MiniCPM4-0.5B',
         'cache_dir': 'openbmb--MiniCPM4-0.5B',
@@ -334,7 +335,7 @@ CHAT_MODELS = {
         'gated': False,
         'max_tokens': 4096,
     },
-    'Qwen 3 - 0.6b': {
+    'Qwen 3 - 0.6b': {# transformers 4.51.0
         'model': 'Qwen 3 - 0.6b',
         'repo_id': 'Qwen/Qwen3-0.6B',
         'cache_dir': 'Qwen--Qwen3-0.6B',
@@ -356,7 +357,7 @@ CHAT_MODELS = {
         'gated': False,
         'max_new_tokens': 2048,
     },
-    'Granite - 2b': {
+    'Granite - 2b': {# transformers 4.49.0
         'model': 'Granite - 2b',
         'repo_id': 'ibm-granite/granite-3.3-2b-instruct',
         'cache_dir': 'ibm-granite--granite-3.3-2b-instruct',
@@ -378,7 +379,7 @@ CHAT_MODELS = {
         'precision': 'float32',
         'gated': False,
     },
-    'Phi 4 Mini - 4b': {
+    'Phi 4 Mini - 4b': {# transformers 4.45.0
         'model': 'Phi 4 Mini - 4b',
         'repo_id': 'microsoft/Phi-4-mini-instruct',
         'cache_dir': 'microsoft--Phi-4-mini-instruct',
@@ -423,7 +424,7 @@ CHAT_MODELS = {
         'gated': False,
         'max_new_tokens': 2048,
     },
-    'Deepseek R1 - 8b': {
+    'Deepseek R1 - 8b': {# 4.46.3
         'model': 'Deepseek R1 - 8b',
         'repo_id': 'deepseek-ai/DeepSeek-R1-0528-Qwen3-8B',
         'cache_dir': 'deepseek-ai--DeepSeek-R1-0528-Qwen3-8B',
@@ -434,7 +435,7 @@ CHAT_MODELS = {
         'gated': False,
         'max_new_tokens': 2048,
     },
-    'Seed Coder - 8b': {
+    'Seed Coder - 8b': {# transformers 4.46.2
         'model': 'Seed Coder - 8b',
         'repo_id': 'ByteDance-Seed/Seed-Coder-8B-Instruct',
         'cache_dir': 'ByteDance-Seed--Seed-Coder-8B-Instruct',
@@ -465,7 +466,7 @@ CHAT_MODELS = {
         'precision': 'bfloat16',
         'gated': False,
     },
-    'GLM4-Z1 - 9b': {
+    'GLM4-Z1 - 9b': {# transformers 4.52.0.dev0
         'model': 'GLM4-Z1 - 9b',
         'repo_id': 'THUDM/GLM-Z1-9B-0414',
         'cache_dir': 'THUDM--GLM-Z1-9B-0414',
@@ -487,7 +488,7 @@ CHAT_MODELS = {
         'gated': False,
         'max_new_tokens': 4096,
     },
-    'Mistral Small 3 - 24b': {
+    'Mistral Small 3 - 24b': {# transformers 4.49.0.dev0
         'model': 'Mistral Small 3 - 24b',
         'repo_id': 'mistralai/Mistral-Small-24B-Instruct-2501',
         'cache_dir': 'mistralai--Mistral-Small-24B-Instruct-2501',
@@ -549,7 +550,7 @@ VECTOR_MODELS = {
     # ],
     'BAAI': [
         {
-            'name': 'bge-small-en-v1.5',
+            'name': 'bge-small-en-v1.5',# transformers 4.30.0
             'dimensions': 384,
             'max_sequence': 512,
             'size_mb': 134,
@@ -582,7 +583,7 @@ VECTOR_MODELS = {
             'precision': 'float32'
         },
         # {
-            # 'name': 'bge-code-v1',
+            # 'name': 'bge-code-v1',# transformers 4.49.0
             # 'dimensions': 1536,
             # 'max_sequence': 4096,
             # 'size_mb': 1340,
@@ -595,7 +596,7 @@ VECTOR_MODELS = {
     ],
     'IBM': [
         {
-            'name': 'Granite-30m-English',
+            'name': 'Granite-30m-English',# transformers 4.38.2
             'dimensions': 384,
             'max_sequence': 512,
             'size_mb': 61,
@@ -619,7 +620,7 @@ VECTOR_MODELS = {
     ],
     'infly': [
         {
-            'name': 'inf-retriever-v1-1.5b',
+            'name': 'inf-retriever-v1-1.5b',# transformers 4.48.1
             'dimensions': 1536,
             'max_sequence': 8192,
             'size_mb': 3090,
@@ -630,7 +631,7 @@ VECTOR_MODELS = {
             'precision': 'bfloat16'
         },
         {
-            'name': 'inf-retriever-v1-7b',
+            'name': 'inf-retriever-v1-7b',# transformers 4.44.2
             'dimensions': 3584,
             'max_sequence': 8192,
             'size_mb': 14130,
@@ -643,7 +644,7 @@ VECTOR_MODELS = {
     ],
     'intfloat': [
         {
-            'name': 'e5-small-v2',
+            'name': 'e5-small-v2',# 4.29.0.dev0
             'dimensions': 384,
             'max_sequence': 512,
             'size_mb': 134,
@@ -678,7 +679,7 @@ VECTOR_MODELS = {
     ],
     # 'NovaSearch': [
         # {
-            # 'name': 'stella_en_1.5B_v5',
+            # 'name': 'stella_en_1.5B_v5',# transformers 4.42.3
             # 'dimensions': 1024,
             # 'max_sequence': 512,
             # 'size_mb': 6170,
@@ -689,7 +690,7 @@ VECTOR_MODELS = {
             # 'precision': 'float32'
         # },
         # {
-            # 'name': 'stella_en_400M_v5',
+            # 'name': 'stella_en_400M_v5',# 4.41.2
             # 'dimensions': 1024,
             # 'max_sequence': 512,
             # 'size_mb': 1740,
@@ -702,7 +703,7 @@ VECTOR_MODELS = {
     # ],
     'Qwen': [
         {
-            'name': 'Qwen3-Embedding-0.6B',
+            'name': 'Qwen3-Embedding-0.6B',# transformers 4.51.3
             'dimensions': 1024,
             'max_sequence':8192,
             'size_mb': 1190,
@@ -737,7 +738,7 @@ VECTOR_MODELS = {
     ],
     'Snowflake': [
         {
-            'name': 'arctic-embed-m-v2.0',
+            'name': 'arctic-embed-m-v2.0',# transformers 4.39.3
             'dimensions': 768,
             'max_sequence':8192,
             'size_mb': 1220,
@@ -762,7 +763,7 @@ VECTOR_MODELS = {
 }
 
 VISION_MODELS = {
-    'InternVL3 - 1b': {
+    'InternVL3 - 1b': {# transformers 4.48.3
         'precision': 'bfloat16',
         'quant': '4-bit',
         'size': '1b',
@@ -792,7 +793,7 @@ VISION_MODELS = {
         'vram': '3.2 GB',
         'loader': 'loader_internvl'
     },
-    'Granite Vision - 2b': {
+    'Granite Vision - 2b': {# transformers 4.46.0.dev0
         'precision': 'bfloat16',
         'quant': '4-bit',
         'size': '2b',
@@ -832,7 +833,7 @@ VISION_MODELS = {
         'vram': '8.2 GB',
         'loader': 'loader_internvl'
     },
-    'Qwen VL - 7b': {
+    'Qwen VL - 7b': {# transformers 4.41.2
         'precision': 'bfloat16',
         'quant': '4-bit',
         'size': '7b',
@@ -842,7 +843,7 @@ VISION_MODELS = {
         'vram': '9.6 GB',
         'loader': 'loader_qwenvl'
     },
-    'THUDM glm4v - 9b': {
+    'THUDM glm4v - 9b': {# transformers 4.44.0
         'precision': 'bfloat16',
         'quant': '4-bit',
         'size': '9b',
@@ -852,7 +853,7 @@ VISION_MODELS = {
         'vram': '10.5 GB',
         'loader': 'loader_glmv4'
     },
-    'Molmo-D-0924 - 8b': {
+    'Molmo-D-0924 - 8b': {# transformers 4.43.3
         'precision': 'bfloat16',
         'quant': '4-bit',
         'size': '8b',
@@ -1940,11 +1941,11 @@ scrape_documentation = {
         "folder": "pywin32",
         "scraper_class": "BodyScraper"
     },
-    # "Pyside 6": {
-        # "URL": "https://doc.qt.io/qtforpython-6/",
-        # "folder": "pyside6",
-        # "scraper_class": "FuroThemeScraper"
-    # },
+    "Pyside 6": {
+        "URL": "https://doc.qt.io/qtforpython-6/",
+        "folder": "pyside6",
+        "scraper_class": "FuroThemeScraper"
+    },
     "pytz": {
         "URL": "https://pythonhosted.org/pytz/",
         "folder": "pytz",
@@ -3106,7 +3107,7 @@ r"""
 Torch and CUDA Compatibility
 ****************************
 
-# Pytorch provides prebuilt wheels compatible with CUDA as follows.  You can still compile from source for additional compatibility.
+# Unless you compile from source, Pytorch provides prebuilt wheels.
 +---------------+----------------------------------
 | Wheel Name    | Torch Versions Supported
 +---------------+----------------------------------
@@ -3114,7 +3115,7 @@ Torch and CUDA Compatibility
 | cu126         | 2.6.0, 2.7.0, 2.7.1
 | cu124         | 2.4.0, 2.4.1, 2.5.0, 2.5.1, 2.6.0
 
-# The "CUDA Toolkit" consists of multiple "metapackages", each having its own version.
+# The "CUDA Toolkit" contains multiple "metapackages", each with their own versioning.
 # Taken from https://github.com/pytorch/pytorch/blob/main/.github/scripts/generate_binary_build_matrix.py
 +--------------+------------+------------+------------+
 |              |   cu124    |   cu126    |   cu128    |
@@ -3218,10 +3219,12 @@ This is officially supported by Triton.
 
 RTX 30xx (Ampere)
 fp8 only works on Nvidia GPUs with sm >= 89
-This is officially supported by Triton, but fp8 (also known as float8) will not work, see the known issue. I recommend to use GGUF instead of fp8 models in this case.
+This is officially supported by Triton, but fp8 (also known as float8) will not work, see the known issue. I recommend to use
+GGUF instead of fp8 models in this case.
 
 RTX 20xx (Turing) or older
-This is not officially supported by Triton. It can run some simple AI models, but not always. fp8 (also known as float8) and bf16 (also known as bfloat16) will not work. I recommend to use GGUF instead of fp8 or bf16 models in this case.
+This is not officially supported by Triton. It can run some simple AI models, but not always. fp8 (also known as float8) and bf16
+(also known as bfloat16) will not work. I recommend to use GGUF instead of fp8 or bf16 models in this case.
 
 Triton 3.3 works with PyTorch >= 2.7 .
 
@@ -3243,10 +3246,12 @@ LINUX Flash Attention 2
 ***********************
 
 # Obtained from https://github.com/Dao-AILab/flash-attention/blob/main/.github/workflows/publish.yml
-# Officially, FA2 "cu12" but it works most of the time.
+* HIGHLY CUDA SPECIFIC
 +--------------+------------------------------------------+--------+
 | FA2 Version  |         Torch (exclud torch<2)           |  CUDA  |
 +--------------+------------------------------------------+--------+
+| v2.8.0.post2 | 2.4.0, 2.5.1, 2.6.0, 2.7.1               | 12.9.0 |
+| v2.8.0.post1 | 2.4.0, 2.5.1, 2.6.0, 2.7.1               | 12.9.0 |
 | v2.8.0       | 2.4.0, 2.5.1, 2.6.0, 2.7.1               | 12.9.0 |
 | v2.7.4.post1 | 2.2.2, 2.3.1, 2.4.0, 2.5.1, 2.6.0        | 12.4.1 |
 | v2.7.4       | 2.1.2, 2.2.2, 2.3.1, 2.4.0, 2.5.1, 2.6.0 | 12.4.1 |
@@ -3269,28 +3274,30 @@ LINUX Flash Attention 2
 | v2.5.9.post1 | 2.0.1, 2.0.1, 2.2.2, 2.3.0               | 12.2.2 |
 +--------------+------------------------------------------+--------+
 
+
 *************************
 WINDOWS Flash Attention 2
 *************************
 
-+--------------+---------------------+-------------------+
-| FA2          |       Torch         | CUDA (excl. 11.x) |
-+--------------+---------------------+-------------------+
-| main         | 2.5.1, 2.6.0, 2.7.0 | 12.4.1, 12.8.1    |
-| v2.7.4.post1 | 2.4.0, 2.5.1, 2.6.0 | 12.4.1            | * current
-| v2.7.1.post1 | 2.3.1, 2.4.0, 2.5.1 | 12.4.1            |
-| v2.7.0.post2 | 2.3.1, 2.4.0, 2.5.1 | 12.4.1            |
-| v2.6.3       | 2.2.2, 2.3.1, 2.4.0 | 12.3.2            |
-| v2.6.1       | 2.2.2, 2.3.1        | 12.3.2            |
-| v2.5.9.post2 | 2.2.2, 2.3.1        | 12.2.2            |
-| v2.5.9.post1 | 2.2.2, 2.3.0        | 12.2.2            |
-| v2.5.8       | 2.2.2, 2.3.0        | 12.2.2            |
-| v2.5.6       | 2.1.2, 2.2.2        | 12.2.2            |
-| v2.5.2       | 2.1.2, 2.2.0        | 12.2.2            |
-| v2.4.2       | 2.1.2, 2.2.0        | 12.2.2            |
-+--------------+---------------------+-------------------+
-# Windows wheels are located here: https://github.com/kingbri1/flash-attention
-# HIGHLY CUDA SPECIFIC
+* Obtained from examining releases since workflows aren't consistent.
+* HIGHLY CUDA SPECIFIC
++--------------+----------------------------+----------------+
+| FA2          |       Torch                | CUDA           |
++--------------+----------------------------+----------------+
+| v2.7.4.post1 | 2.4.0, 2.5.1, 2.6.0, 2.7.0 | 12.4.1, 12.8.1 |
+| v2.7.1.post1 | 2.3.1, 2.4.0, 2.5.1        | 12.4.1         |
+| v2.7.0.post2 | 2.3.1, 2.4.0, 2.5.1        | 12.4.1         |
+| v2.6.3       | 2.2.2, 2.3.1, 2.4.0        | 12.3.2         |
+| v2.6.1       | 2.2.2, 2.3.1               | 12.3.2         |
+| v2.5.9.post2 | 2.2.2, 2.3.1               | 12.2.2         |
+| v2.5.9.post1 | 2.2.2, 2.3.0               | 12.2.2         |
+| v2.5.8       | 2.2.2, 2.3.0               | 12.2.2         |
+| v2.5.6       | 2.1.2, 2.2.2               | 12.2.2         |
+| v2.5.2       | 2.1.2, 2.2.0               | 12.2.2         |
+| v2.4.2       | 2.1.2, 2.2.0               | 12.2.2         |
++--------------+----------------------------+----------------+
+# Windows wheels: https://github.com/kingbri1/flash-attention
+
 
 ***********************************
 Xformers & Flash Attention 2 & CUDA
@@ -3300,6 +3307,7 @@ Xformers & Flash Attention 2 & CUDA
 +------------------+-------+---------------+----------------+---------------+
 | Xformers Version | Torch |      FA2      |       CUDA (excl. 11.x)        |
 +------------------+-------+---------------+--------------------------------+
+| v0.0.31          | 2.7.1 | 2.7.1 - 2.8.0 | 12.6.3, 12.8.1                 | *doublecheck this due to now incorporation FA3?
 | v0.0.30          | 2.7.0 | 2.7.1 - 2.7.4 | 12.6.3, 12.8.1                 | *pypi *
 | v0.0.29.post3    | 2.6.0 | 2.7.1 - 2.7.2 | 12.1.0, 12.4.1, 12.6.3, 12.8.0 | *pypi * current
 | v0.0.29.post2    | 2.6.0 | 2.7.1 - 2.7.2 | 12.1.0, 12.4.1, 12.6.3, 12.8.0 | *pypi

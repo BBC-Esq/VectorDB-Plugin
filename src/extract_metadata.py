@@ -1,5 +1,3 @@
-# extract_metadata.py
-
 import os
 import datetime
 import hashlib
@@ -21,21 +19,33 @@ def extract_common_metadata(file_path, content_hash=None):
     file_path = os.path.realpath(file_path)
     file_name = os.path.basename(file_path)
     file_type = os.path.splitext(file_path)[1]
-    # file_size = os.path.getsize(file_path)
     creation_date = datetime.datetime.fromtimestamp(os.path.getctime(file_path)).isoformat()
     modification_date = datetime.datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat()
 
     file_hash = content_hash if content_hash else compute_file_hash(file_path)
 
-    return {
+    metadata = {
         "file_path": file_path,
         "file_type": file_type,
         "file_name": file_name,
-        # "file_size": file_size, # was creating unspecified problems...
         "creation_date": creation_date,
         "modification_date": modification_date,
         "hash": file_hash
     }
+    
+    #=========================================================================
+    clean_metadata = {}
+    for k, v in metadata.items():
+        if isinstance(v, (str, int, float, bool, type(None))):
+            clean_metadata[k] = v
+        elif isinstance(v, enumerate):
+            print(f"❌ ENUMERATE in metadata key '{k}' - converting to string")
+            clean_metadata[k] = str(list(v))
+        else:
+            clean_metadata[k] = str(v)
+    
+    return clean_metadata
+    #=========================================================================
 
 def extract_image_metadata(file_path):
     metadata = extract_common_metadata(file_path)
@@ -53,20 +63,6 @@ def extract_audio_metadata(file_path):
     return metadata
 
 def add_pymupdf_page_metadata(doc: Document, chunk_size: int = 1200, chunk_overlap: int = 600) -> List[Document]:
-    """
-    Called by document_processor.py.  Chunks the body of text returned by the custom pymupdfparser script.
-    Uses a helper method named `split_text` to assign the appropriate page metadata to each chunk.
-
-        Detailed Process:
-        1. The method first identifies the positions of the custom page markers within the text using a regular expression.
-           These markers denote the start of a new page (e.g., `[[page1]]`).
-        2. The text is then cleaned by removing the page markers, resulting in a continuous block of text.
-        3. The cleaned text is split into chunks based on the specified `chunk_size`. If the chunk size exceeds the
-           remaining length of the text, the last chunk is adjusted to include the remaining text.
-        4. For each chunk, the method determines the appropriate page number by finding the nearest preceding page
-           marker position.
-        5. The method returns a list of tuples where each tuple contains a chunk of text and the page number associated with that chunk.
-        """
     def split_text(text: str, chunk_size: int, chunk_overlap: int) -> List[Tuple[str, int]]:
         page_markers = []
         offset = 0
@@ -99,15 +95,29 @@ def add_pymupdf_page_metadata(doc: Document, chunk_size: int = 1200, chunk_overl
 
     chunks = split_text(doc.page_content, chunk_size, chunk_overlap)
 
+    #================================================================================================
     new_docs = []
     for chunk, page_num in chunks:
-        new_metadata = doc.metadata.copy()
+        new_metadata = {}
+        if doc.metadata:
+            for k, v in doc.metadata.items():
+                if k is not None and v is not None:
+                    key = str(k)
+                    if isinstance(v, (str, int, float, bool)):
+                        new_metadata[key] = v
+                    elif isinstance(v, enumerate):
+                        print(f"❌ ENUMERATE in chunk metadata key '{key}' - converting to string")
+                        new_metadata[key] = str(list(v))
+                    else:
+                        new_metadata[key] = str(v)
+
         new_metadata['page_number'] = page_num
 
         new_doc = Document(
-            page_content=chunk,
+            page_content=str(chunk).strip(),
             metadata=new_metadata
         )
         new_docs.append(new_doc)
+        #================================================================================================
 
     return new_docs

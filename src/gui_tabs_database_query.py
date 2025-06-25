@@ -207,7 +207,7 @@ class DatabaseQueryTab(QWidget):
         indicator_layout.setContentsMargins(0, 0, 0, 0)
         indicator_layout.addWidget(self.thinking_label)
         indicator_layout.addWidget(self.thinking_indicator)
-        # hide both by default
+
         self.thinking_label.hide()
         self.thinking_indicator.hide()
         layout.addLayout(indicator_layout)
@@ -334,7 +334,7 @@ class DatabaseQueryTab(QWidget):
         STRATEGIES = {
             "Local Model": LocalModelStrategy(self),
             "LM Studio": LMStudioStrategy(self),
-            "Kobold": oboldStrategy(self),
+            "Kobold": KoboldStrategy(self),
             "gpt-4.1-nano": ChatGPTStrategy(self),
             "gpt-4.1-mini": ChatGPTStrategy(self),
             "gpt-4.1": ChatGPTStrategy(self),

@@ -232,7 +232,8 @@ class LocalModelChat:
                         script_dir = Path(__file__).resolve().parent
                         with open(script_dir / 'chat_history.txt', 'w', encoding='utf-8') as f:
 
-                            normalized_response = normalize_chat_text(full_response)
+                            # normalized_response = normalize_chat_text(full_response)
+                            normalized_response = full_response
                             f.write(normalized_response)
                         citations = format_citations(metadata_list)
                         conn.send(PipeMessage(MessageType.CITATIONS, citations))

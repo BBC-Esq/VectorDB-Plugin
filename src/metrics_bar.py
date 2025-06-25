@@ -4,7 +4,6 @@ from datetime import datetime
 from enum import IntEnum
 from functools import lru_cache
 from typing import Optional, List
-import atexit
 import csv
 import subprocess
 import psutil
@@ -48,7 +47,6 @@ if HAS_NVIDIA_GPU:
             pynvml.nvmlShutdown()
         except Exception:
             pass
-    atexit.register(_shutdown_nvml)
 else:
     HANDLE = None
 
@@ -579,6 +577,7 @@ class MetricsWidget(QWidget):
                 self.stop_metrics_collector()
             else:
                 self.start_metrics_collector()
+
     def change_visualization(self, kind: VizType):
         if kind == self.current_visualization_type:
             return
@@ -589,16 +588,27 @@ class MetricsWidget(QWidget):
         self.current_visualization = VIZ_FACTORY[kind](self.metrics_store)
         self.current_visualization.setToolTip("Right click for display options")
         self.layout.addWidget(self.current_visualization)
+
     def start_metrics_collector(self):
         if not self.collector_thread.isRunning():
             self.collector_thread.start()
+
     def stop_metrics_collector(self):
         if self.collector_thread.isRunning():
             self.collector_thread.stop()
+
     def cleanup(self):
         if self.collector_thread.isRunning():
             self.collector_thread.stop()
         self.current_visualization.cleanup()
+
+        if HAS_NVIDIA_GPU:
+            try:
+                import pynvml
+                pynvml.nvmlShutdown()
+            except Exception:
+                pass
+
     def closeEvent(self, event):
         self.cleanup()
         super().closeEvent(event)

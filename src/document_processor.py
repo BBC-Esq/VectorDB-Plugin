@@ -1,3 +1,5 @@
+# document_processor.py
+
 import os
 import sys
 import io
@@ -8,16 +10,8 @@ import yaml
 import math
 from pathlib import Path, PurePath
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
-from langchain_community.docstore.document import Document
+from langchain_core.documents import Document
 from langchain_text_splitters.character import RecursiveCharacterTextSplitter
-from langchain_text_splitters.base import TextSplitter
-# # ─ monkey-patch block starts
-# _old_merge = TextSplitter._merge_splits
-# def _debug_merge(self, splits, separator):
-    # print(">>> _length_function TYPE *inside* _merge_splits:", type(self._length_function))
-    # return _old_merge(self, splits, separator)
-# TextSplitter._merge_splits = _debug_merge
-# # ─ monkey-patch block ends
 from langchain_community.document_loaders import (
     PyMuPDFLoader,
     Docx2txtLoader,
@@ -57,6 +51,34 @@ ROOT_DIRECTORY = Path(__file__).parent
 SOURCE_DIRECTORY = ROOT_DIRECTORY / "Docs_for_DB"
 INGEST_THREADS = max(4, os.cpu_count() - 4)
 
+
+from typing import List
+
+class FixedSizeTextSplitter:
+    """Splits text into equally-sized character chunks without regex.
+
+    Parameters
+    ----------
+    chunk_size : int
+        Maximum characters per chunk.  Comes straight from config.yaml.
+    """
+
+    def __init__(self, chunk_size: int):
+        self.chunk_size = chunk_size
+
+    def split_documents(self, docs: List[Document]) -> List[Document]:
+        chunks: List[Document] = []
+        for doc in docs:
+            text = doc.page_content or ""
+            for start in range(0, len(text), self.chunk_size):
+                piece = text[start : start + self.chunk_size].strip()
+                if not piece:
+                    continue
+                # shallow-copy metadata so each chunk carries origin info
+                chunks.append(Document(page_content=piece, metadata=dict(doc.metadata)))
+        return chunks
+
+
 class CustomPyMuPDFParser(PyMuPDFParser):
     def _lazy_parse(self, blob: Blob, text_kwargs: Optional[dict[str, Any]] = None) -> Iterator[Document]:
         with PyMuPDFParser._lock:
@@ -66,7 +88,6 @@ class CustomPyMuPDFParser(PyMuPDFParser):
                 full_content = []
                 for page in doc:
                     page_content = self._get_page_content(doc, page, text_kwargs)
-                    # Only add page marker and content if there's actual content
                     if page_content.strip():
                         full_content.append(f"[[page{page.number + 1}]]{page_content}")
 
@@ -83,6 +104,7 @@ class CustomPyMuPDFLoader(PyMuPDFLoader):
             extract_images=kwargs.get('extract_images', False)
         )
 
+# ensure all loader class names map correctly
 for ext, loader_name in DOCUMENT_LOADERS.items():
     DOCUMENT_LOADERS[ext] = globals()[loader_name]
 
@@ -157,17 +179,6 @@ def load_single_document(file_path: Path) -> Document:
 
         document = documents[0]
 
-        if not isinstance(document.page_content, str):
-            if isinstance(document.page_content, (list, tuple)):
-                document.page_content = "\n".join(map(str, document.page_content))
-            else:
-                document.page_content = str(document.page_content)
-
-        safe_metadata = {}
-        for k, v in document.metadata.items():
-            safe_metadata[k] = v if isinstance(v, (str, int, float, bool)) or v is None else str(v)
-        document.metadata = safe_metadata
-
         content_hash = compute_content_hash(document.page_content)
         metadata = extract_document_metadata(file_path, content_hash)
         document.metadata.update(metadata)
@@ -215,128 +226,44 @@ def load_documents(source_dir: Path) -> list:
     return docs
 
 def split_documents(documents=None, text_documents_pdf=None):
-    try:
-        print("\nSplitting documents into chunks.")
-        with open("config.yaml", "r", encoding='utf-8') as config_file:
-            config = yaml.safe_load(config_file)
-            chunk_size = config["database"]["chunk_size"]
-            chunk_overlap = config["database"]["chunk_overlap"]
+   try:
+       print("\nSplitting documents into chunks.")
 
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-            keep_separator=False,
-        )
+       with open("config.yaml", "r", encoding='utf-8') as config_file:
+           config = yaml.safe_load(config_file)
+           chunk_size = config["database"]["chunk_size"]
+           chunk_overlap = config["database"]["chunk_overlap"]
 
-        texts = []
+       # instantiate text splitter
+       text_splitter = FixedSizeTextSplitter(chunk_size=chunk_size)
 
-        # Split non-PDF documents (no cleanup needed - handled in load_single_document)
-        if documents:
-            # Ensure all input documents have string content before splitting
-            for doc in documents:
-                if not isinstance(doc.page_content, str):
-                    doc.page_content = str(doc.page_content or "")
-            
-            texts = text_splitter.split_documents(documents)
-            
-            # Ensure all split documents have string content
-            for text_doc in texts:
-                if not isinstance(text_doc.page_content, str):
-                    text_doc.page_content = str(text_doc.page_content or "")
+       # text_splitter = RecursiveCharacterTextSplitter(
+           # chunk_size=chunk_size,
+           # chunk_overlap=chunk_overlap,
+           # keep_separator=False,
+       # )
 
-        """
-        I customized langchain's pymupdfparser to add custom page markers as follows:
-        
-        [[page1]]This is the text content of the first page.
-        It might contain multiple lines, paragraphs, or sections.
+       texts = []
 
-        [[page2]]This is the text content of the second page.
-        Again, it could be as long as necessary, depending on the content.
+       if documents:
+           # use text splitter directly
+           texts = text_splitter.split_documents(documents)
 
-        [[page3]]Finally, this is the text content of the third page.
-        """
+       if text_documents_pdf:
+           processed_pdf_docs = []
+           for doc in text_documents_pdf:
+               chunked_docs = add_pymupdf_page_metadata(
+                   doc,
+                   chunk_size=chunk_size,
+                   chunk_overlap=chunk_overlap,
+               )
+               processed_pdf_docs.extend(chunked_docs)
+           
+           texts.extend(processed_pdf_docs)
 
-        # ------------------------------------------------------------------ #
-        # 2. Split PDF documents (with custom page markers)                   #
-        # ------------------------------------------------------------------ #
-        if text_documents_pdf:
-            # Ensure all PDF documents have string content before processing
-            for pdf_doc in text_documents_pdf:
-                if not isinstance(pdf_doc.page_content, str):
-                    pdf_doc.page_content = str(pdf_doc.page_content or "")
-            
-            processed_pdf_docs = []
-            for doc in text_documents_pdf:
-                chunked_docs = add_pymupdf_page_metadata(
-                    doc,
-                    chunk_size=chunk_size,
-                    chunk_overlap=chunk_overlap,
-                )
-                processed_pdf_docs.extend(chunked_docs)
-            
-            # Ensure all PDF chunks have string content
-            for pdf_doc in processed_pdf_docs:
-                if not isinstance(pdf_doc.page_content, str):
-                    pdf_doc.page_content = str(pdf_doc.page_content or "")
-            
-            texts.extend(processed_pdf_docs)
+       return texts
 
-        # Final safety check: ensure ALL texts have string content
-        for text_doc in texts:
-            if not isinstance(text_doc.page_content, str):
-                text_doc.page_content = str(text_doc.page_content or "")
-
-        return texts
-
-    except Exception as e:
-        logging.exception("Error during document splitting")
-        logging.error(f"Error type: {type(e)}")
-        raise
-
-"""
-The PyMUPDF parser was modified in langchain-community 0.3.15+
-
-- Adds "producer" and "creator" metadata fields
-- Adds thread safety features
-- Adds support for encrypted PDFs, tables, and enhanced image extraction
-- Added configurable page handling modes
-
-+----------------------+---------------------------+---------------+-----------+
-| Parameter            | Available Options         | Default Value | Required? |
-+----------------------+---------------------------+---------------+-----------+
-| mode                 | "single", "page"          | "page"        | No        |
-+----------------------+---------------------------+---------------+-----------+
-| password            | Any string                 | None          | No        |
-+----------------------+---------------------------+---------------+-----------+
-| pages_delimiter     | Any string                 | "\n\f"        | No        |
-+----------------------+---------------------------+---------------+-----------+
-| extract_images      | True, False                | False         | No        |
-+----------------------+---------------------------+---------------+-----------+
-| images_parser       | BaseImageBlobParser obj    | None          | No        |
-+----------------------+---------------------------+---------------+-----------+
-| images_inner_format | "text"                     | "text"        | No        |
-|                     | "markdown-img"             |               |           |
-|                     | "html-img"                 |               |           |
-+----------------------+---------------------------+---------------+-----------+
-| extract_tables      | "csv"                      | None          | No        |
-|                     | "markdown"                 |               |           |
-|                     | "html"                     |               |           |
-|                     | None                       |               |           |
-+----------------------+---------------------------+---------------+-----------+
-| extract_tables      | Dictionary with settings   | None          | No        |
-| _settings           | for table extraction       |               |           |
-+----------------------+---------------------------+---------------+-----------+
-| text_kwargs         | Dictionary with text       | None          | No        |
-| (Parser only)       | extraction settings        |               |           |
-+----------------------+---------------------------+---------------+-----------+
-
-This table is ONLY RELEVANT if I do not use custom sub-classes.  Keep for possible future reference
-
-Regarding the additional metadata fields, this won't interfere with extract_metadata.py because it:
-
-1) Applies after the document is loaded; and
-2) Uses document.metadata.update(metadata), which means that it will either:
-
-* Add your metadata fields alongside the Langchain metadata; or
-* Override any duplicate fields with your values
-"""
+   except Exception as e:
+       logging.exception("Error during document splitting")
+       logging.error(f"Error type: {type(e)}")
+       raise

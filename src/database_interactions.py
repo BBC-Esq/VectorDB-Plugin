@@ -1,5 +1,3 @@
-# database_interactions.py
-
 import gc
 import logging
 import os
@@ -23,32 +21,17 @@ import traceback
 import numpy as np
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
-from langchain_community.docstore.document import Document
+from langchain_core.documents import Document
 from langchain_community.vectorstores import TileDB
 
 from document_processor import load_documents, split_documents
 from module_process_images import choose_image_loader
-from utilities import my_cprint, get_model_native_precision, get_appropriate_dtype, supports_flash_attention
+from utilities import my_cprint, get_model_native_precision, get_appropriate_dtype, supports_flash_attention, set_cuda_paths
 from constants import VECTOR_MODELS
 
 logging.basicConfig(level=logging.CRITICAL, force=True)
-# logging.basicConfig(level=logging.DEBUG, force=True)
 logger = logging.getLogger(__name__)
 
-
-# DEBUG - implement later to potentially see the size of objects
-def get_memory_usage(obj, name):
-    """Helper function to get memory usage of an object"""
-    try:
-        size_bytes = sys.getsizeof(obj)
-        if hasattr(obj, '__len__'):
-            if len(obj) > 0:
-                item_size = sys.getsizeof(obj[0]) if len(obj) > 0 else 0
-                total_size = size_bytes + (item_size * len(obj))
-                return f"{name}: {total_size / (1024**2):.2f} MB ({len(obj)} items)"
-        return f"{name}: {size_bytes / (1024**2):.2f} MB"
-    except:
-        return f"{name}: Unable to calculate size"
 
 class BaseEmbeddingModel:
     def __init__(self, model_name, model_kwargs, encode_kwargs, is_query=False):
@@ -58,67 +41,86 @@ class BaseEmbeddingModel:
         self.is_query = is_query
 
     def prepare_kwargs(self):
-        ready = deepcopy(self.model_kwargs)
+        # Prepare kwargs for SentenceTransformer with robust defaults
+        hf_embed_kw = deepcopy(self.model_kwargs)
 
-        # 1) update model_kwargs
-        ready.setdefault("model_kwargs", {}).setdefault("trust_remote_code", True)
+        # ensure all top-level keys exist
+        hf_embed_kw.setdefault("device", "cpu")
+        hf_embed_kw.setdefault("trust_remote_code", True)
 
-        # 2) update tokenizer_kwargs
-        tok_kw = ready.setdefault("tokenizer_kwargs", {})
+        # tokenizer_kwargs should be nested under model_kwargs for SentenceTransformer
+        tok_kw = hf_embed_kw.setdefault("tokenizer_kwargs", {})
         tok_kw.setdefault("trust_remote_code", True)
+        tok_kw.setdefault("use_fast", True)
         tok_kw.setdefault("padding", True)
         tok_kw.setdefault("truncation", True)
         tok_kw.setdefault("return_token_type_ids", False)
-        tok_kw.setdefault("use_fast", True)
-        tok_kw.setdefault("max_length", 512)
+        tok_kw.setdefault("model_max_length", 512)
 
-        return ready
+        return hf_embed_kw
 
     def prepare_encode_kwargs(self):
         if self.is_query:
             self.encode_kwargs['batch_size'] = 1
+            # self.encode_kwargs.setdefault('show_progress_bar', True)
+            # self.encode_kwargs.setdefault('convert_to_tensor', True)
+            # self.encode_kwargs.setdefault('num_workers', 0)
+            self.encode_kwargs.setdefault('max_length', 512)
         return self.encode_kwargs
 
     def create(self):
-        prepared_kwargs = self.prepare_kwargs()
-        prepared_encode_kwargs = self.prepare_encode_kwargs()
+        model_kwargs = self.prepare_kwargs()
+        encode_kwargs = self.prepare_encode_kwargs()
+
+        #==========================================================
+        print("\n" + "="*80)
+        print("PARAMETERS BEING PASSED TO HuggingFaceEmbeddings:")
+        print("="*80)
+        
+        # Show the complete parameter structure
+        complete_params = {
+            "model_name": self.model_name,
+            "model_kwargs": model_kwargs,
+            "encode_kwargs": encode_kwargs
+        }
+        
+        import json
+        print("\nComplete parameter structure:")
+        print(json.dumps(complete_params, indent=2, default=str))
+        
+        print("\n" + "="*80 + "\n")
+        #==========================================================
 
         hf = HuggingFaceEmbeddings(
             model_name=self.model_name,
             show_progress=not self.is_query,
-            model_kwargs=prepared_kwargs,
-            encode_kwargs=prepared_encode_kwargs
+            model_kwargs=model_kwargs,
+            encode_kwargs=encode_kwargs
         )
-
-        tok = hf._client.tokenizer
-        if "token_type_ids" in tok.model_input_names:
-            tok.model_input_names.remove("token_type_ids")
 
         return hf
 
-
 class SnowflakeEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
-        # 1) inherit all kwargs from the base class
+        # get base parameters
         snow_kwargs = super().prepare_kwargs()
 
-        # 2) update tokenizer_kwargs for large model
+        # Update tokenizer_kwargs for large model and return
         if "large" in self.model_name.lower():
             tok_kw = snow_kwargs.setdefault("tokenizer_kwargs", {})
-            tok_kw.update({"max_length": 8192})
-
+            tok_kw.update({"model_max_length": 8192})
             return snow_kwargs
 
-        # 1) determine if xformers can be used
-        compute_device = snow_kwargs.get("device", "").lower()
-        is_cuda        = compute_device.startswith("cuda")
-        use_xformers   = is_cuda and supports_flash_attention()
+        # determine xformers compatibility
+        device = self.model_kwargs.get("device", "").lower()
+        is_cuda = device.startswith("cuda")
+        use_xformers = is_cuda and supports_flash_attention()
 
-        # 2) update tokenizer_kwargs for medium model
+        # update tokenizer_kwargs
         tok_kw = snow_kwargs.setdefault("tokenizer_kwargs", {})
-        tok_kw.update({"max_length": 8192})
+        tok_kw.update({"model_max_length": 8192})
 
-        # 3) update config_kwargs for medium model
+        # update config_kwargs
         snow_kwargs["config_kwargs"] = {
             "use_memory_efficient_attention": use_xformers,
             "unpad_inputs": use_xformers,
@@ -127,83 +129,92 @@ class SnowflakeEmbedding(BaseEmbeddingModel):
 
         return snow_kwargs
 
-
-# deprecated
 class StellaEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
-        # 1) inherit all kwargs from the base class
+        # get base parameters
         stella_kwargs = super().prepare_kwargs()
 
-        # 2) update tokenizer_kwargs
+        # update tokenizer_kwargs
         tok_kw = stella_kwargs.setdefault("tokenizer_kwargs", {})
         tok_kw.update({
-            "max_length": 512,
+            "model_max_length": 512,
         })
 
         return stella_kwargs
 
     def prepare_encode_kwargs(self):
         encode_kwargs = super().prepare_encode_kwargs()
-        # 1) add the appropriate prompt_name if a query is being embedded
+
+        # update encode_kwargs
         if self.is_query:
             encode_kwargs["prompt_name"] = "s2p_query"
 
         return encode_kwargs
 
-
-# deprecated
 class Stella400MEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
-        # 1) inherit all kwargs from the base class
+        # get base parameters
         stella_kwargs = super().prepare_kwargs()
 
-        # 2) determine if xformers can be used
-        compute_device = stella_kwargs.get("device", "")
-        is_cuda = compute_device.lower().startswith("cuda")
+        # determine xformers compatibility
+        device = self.model_kwargs.get("device", "")
+        is_cuda = device.lower().startswith("cuda")
         use_xformers = is_cuda and supports_flash_attention()
-
-        # 3) update tokenizer_kwargs
+        
+        # update tokenizer_kwargs
         tok_kw = stella_kwargs.setdefault("tokenizer_kwargs", {})
         tok_kw.update({
-            "max_length": 512,
+            "model_max_length": 512,
         })
 
-        # 4) update config_kwargs
+        # update config_kwargs
         stella_kwargs["config_kwargs"] = {
             "use_memory_efficient_attention": use_xformers,
             "unpad_inputs": use_xformers,
-            "attn_implementation": "eager",   # always "eager" even when not using xformers
+            "attn_implementation": "eager",  # always "eager" even when not using xformers; not compatible with sdpa
         }
 
         return stella_kwargs
 
     def prepare_encode_kwargs(self):
         encode_kwargs = super().prepare_encode_kwargs()
-        # 1) add the appropriate prompt_name if a query is being embedded
+
+        # update encode_kwargs
         if self.is_query:
             encode_kwargs["prompt_name"] = "s2p_query"
 
         return encode_kwargs
 
-
-# deprecated, only needed for deprecated gte-large-en-v1.5 and gte-base-en-v1.5 models
-class AlibabaEmbedding(BaseEmbeddingModel):
+class BgeCodeEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
-        # 1) inherit all kwargs from the base class
-        ali_kwargs = super().prepare_kwargs()
+        # get base parameters
+        bge_kwargs = super().prepare_kwargs()
 
-        # 2) determine if xformers can be used
-        compute_device = ali_kwargs.get("device", "").lower()
-        is_cuda = compute_device.startswith("cuda")
-        use_xformers = is_cuda and supports_flash_attention()
-
-        # 3) update tokenizer_kwargs
-        tok_kw = ali_kwargs.setdefault("tokenizer_kwargs", {})
+        # update tokenizer_kwargs
+        tok_kw = bge_kwargs.setdefault("tokenizer_kwargs", {})
         tok_kw.update({
-            "max_length": 8192,
+            "model_max_length": 4096,
         })
 
-        # 4) update config_kwargs
+        return bge_kwargs
+
+class AlibabaEmbedding(BaseEmbeddingModel):
+    def prepare_kwargs(self):
+        # get base parameters
+        ali_kwargs = super().prepare_kwargs()
+
+        # determine xformers compatibility
+        device = self.model_kwargs.get("device", "").lower()
+        is_cuda = device.startswith("cuda")
+        use_xformers = is_cuda and supports_flash_attention()
+
+        # update tokenizer_kwargs
+        tok_kw = ali_kwargs.setdefault("tokenizer_kwargs", {})
+        tok_kw.update({
+            "model_max_length": 8192,
+        })
+
+        # update config_kwargs
         ali_kwargs["config_kwargs"] = {
             "use_memory_efficient_attention": use_xformers,
             "unpad_inputs": use_xformers,
@@ -212,55 +223,56 @@ class AlibabaEmbedding(BaseEmbeddingModel):
 
         return ali_kwargs
 
-
-class BgeCodeEmbedding(BaseEmbeddingModel):
-    def prepare_kwargs(self):
-        # 1) inherit all kwargs from the base class
-        bge_kwargs = super().prepare_kwargs()
-
-        # 2) update tokenizer_kwargs
-        tok_kw = bge_kwargs.setdefault("tokenizer_kwargs", {})
-        tok_kw.update({
-            "max_length": 4096,
-        })
-
-        return bge_kwargs
-
-
 class InflyAndAlibabaEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
-        # 1) inherit all kwargs from the base class
+        # get base parameters
         infly_kwargs = super().prepare_kwargs()
-
-        # 2) update tokenizer_kwargs
+        
+        # update tokenizer_kwargs
         tok_kw = infly_kwargs.setdefault("tokenizer_kwargs", {})
         tok_kw.update({
-            "max_length": 8192,
+            "model_max_length": 8192,
         })
-
+        
         return infly_kwargs
-
 
 class QwenEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
+        # get base parameters
         q_kwargs = super().prepare_kwargs()
 
-        # 1) update model_kwargs
-        q_kwargs.setdefault("model_kwargs", {}).update({
-            "attn_implementation": "sdpa",
+        # update model_kwargs
+        inner_model_kwargs = q_kwargs.setdefault("model_kwargs", {})
+        inner_model_kwargs.update({
+            "attn_implementation": "flash_attention_2",
         })
 
-        # 2) update tokenizer_kwargs
-        q_kwargs["tokenizer_kwargs"] = {
-            **q_kwargs.get("tokenizer_kwargs", {}),
+        # update tokenizer_kwargs
+        tok_kw = q_kwargs.setdefault("tokenizer_kwargs", {})
+        tok_kw.update({
             "padding_side": "left",
-            "max_length": 8192,
-        }
+            "model_max_length": 8192,
+        })
 
         return q_kwargs
 
+    def prepare_encode_kwargs(self):
+        encode_kwargs = super().prepare_encode_kwargs()
+        # update encode_kwargs
+        encode_kwargs["max_length"] = 8192
+
+        return encode_kwargs
 
 def create_vector_db_in_process(database_name):
+    # to address potential conflict with python 3.12 and tokenizers
+    import faulthandler, os
+    faulthandler.enable(all_threads=True,
+                        file=open(f"faulthandler_{os.getpid()}.log", "w"))
+    # os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    # import torch
+    # torch.set_num_threads(1)
+
+    set_cuda_paths()
     create_vector_db = CreateVectorDB(database_name=database_name)
     create_vector_db.run()
 
@@ -308,17 +320,20 @@ class CreateVectorDB:
         torch_dtype = get_appropriate_dtype(compute_device, use_half, model_native_precision)
 
         model_kwargs = {
-            "device": compute_device, 
+            "device": compute_device,
             "trust_remote_code": True,
-            "similarity_fn_name": "euclidean", # (str, optional); "cosine" (default), "dot", "euclidean", "manhattan"
             "model_kwargs": {
-                "torch_dtype": torch_dtype if torch_dtype is not None else None
+                "torch_dtype": torch_dtype if torch_dtype is not None else None,
+                "attn_implementation": "sdpa",
+                "trust_remote_code": True,
             }
         }
 
-        # encode_kwargs = {'normalize_embeddings': True, 'batch_size': 8}
-        # encode_kwargs = {'max_length': 512, 'batch_size': 8}
-        encode_kwargs = {'batch_size': 8}
+        encode_kwargs = {
+            'batch_size': 8,
+            'padding': True,
+            'truncation': True,
+        }
 
         if compute_device.lower() == 'cpu':
             encode_kwargs['batch_size'] = 2
@@ -340,7 +355,6 @@ class CreateVectorDB:
                 'gte-base': 14,
                 'arctic-embed-m': 14,
                 'stella_en_400M_v5': 20, # deprecated
-
             }
 
             for key, value in batch_size_mapping.items():
@@ -353,6 +367,7 @@ class CreateVectorDB:
                         encode_kwargs['batch_size'] = value
                         break
 
+        # ✅ Use your complete inheritance structure with fixed nesting
         if "qwen3-embedding" in embedding_model_name.lower():
             print("Using QwenEmbedding class.")
             model = QwenEmbedding(embedding_model_name, model_kwargs, encode_kwargs).create()
@@ -362,8 +377,8 @@ class CreateVectorDB:
             model = SnowflakeEmbedding(embedding_model_name, model_kwargs, encode_kwargs).create()
 
         elif "alibaba" in embedding_model_name.lower():
-            print("Using InflyAndAlibabaEmbedding class.")
-            model = InflyAndAlibabaEmbedding(embedding_model_name, model_kwargs, encode_kwargs).create()
+            print("Using AlibabaEmbedding class.")
+            model = AlibabaEmbedding(embedding_model_name, model_kwargs, encode_kwargs).create()
 
         elif "400m" in embedding_model_name.lower():
             print("Using Stella400MEmbedding class.")
@@ -373,21 +388,22 @@ class CreateVectorDB:
             print("Using StellaEmbedding class.")
             model = StellaEmbedding(embedding_model_name, model_kwargs, encode_kwargs).create()
 
-        # elif "bge-code" in embedding_model_name.lower():
-            # print("Using BgeCodeEmbeddingModel class.")
-            # model = BgeCodeEmbedding(embedding_model_name, model_kwargs, encode_kwargs).create()
+        elif "bge-code" in embedding_model_name.lower():
+            print("Using BgeCodeEmbedding class.")
+            model = BgeCodeEmbedding(embedding_model_name, model_kwargs, encode_kwargs).create()
 
         elif "infly" in embedding_model_name.lower():
             print("Using InflyAndAlibabaEmbedding class.")
             model = InflyAndAlibabaEmbedding(embedding_model_name, model_kwargs, encode_kwargs).create()
 
+        elif "e5" in embedding_model_name.lower():
+            print("Using BaseEmbeddingModel class with Intfloat prompt.")
+            encode_kwargs["prompt"] = "passage: "
+            model = BaseEmbeddingModel(embedding_model_name, model_kwargs, encode_kwargs).create()
+
         else:
             print("Using BaseEmbeddingModel class.")
             model = BaseEmbeddingModel(embedding_model_name, model_kwargs, encode_kwargs).create()
-
-        logger.debug("🛈 %s tokenizer_kwargs=%s",
-                     embedding_model_name,
-                     model_kwargs.get("tokenizer_kwargs"))
 
         model_name = os.path.basename(embedding_model_name)
         precision = "float32" if torch_dtype is None else str(torch_dtype).split('.')[-1]
@@ -428,88 +444,15 @@ class CreateVectorDB:
                 chunk_counters[file_hash] += 1
                 tiledb_id = str(random.randint(0, MAX_UINT64 - 1))
 
-                # ensure page_content is a clean string
-                if hasattr(doc, 'page_content'):
-                    if doc.page_content is None:
-                        text_str = ""
-                    elif isinstance(doc.page_content, str):
-                        text_str = doc.page_content.strip()
-                    elif isinstance(doc.page_content, (list, tuple)):
-                        text_str = "\n".join(str(item) for item in doc.page_content).strip()
-                    elif isinstance(doc.page_content, bytes):
-                        try:
-                            text_str = doc.page_content.decode('utf-8', errors='ignore').strip()
-                        except Exception:
-                            text_str = str(doc.page_content).strip()
-                    else:
-                        text_str = str(doc.page_content).strip()
-                else:
-                    text_str = str(doc).strip()
-
-                if not text_str:
-                    continue
-
-                if not isinstance(text_str, str):
-                    logging.error(f"Failed to convert to string: {type(text_str)} - {str(text_str)[:100]}")
-                    continue
-
-                all_texts.append(text_str)
+                all_texts.append(doc.page_content)
                 all_metadatas.append(doc.metadata)
                 all_ids.append(tiledb_id)
                 hash_id_mappings.append((tiledb_id, file_hash))
 
-            # Debug check – ensure no non-strings slipped through
-            bad_chunks = [
-                (idx, type(txt), str(txt)[:60])
-                for idx, txt in enumerate(all_texts)
-                if not isinstance(txt, str)
-            ]
-            if bad_chunks:
-                print("\n>>> NON-STRING CHUNKS DETECTED:")
-                for idx, typ, preview in bad_chunks[:10]:
-                    print(f"   #{idx}: {typ} → {preview!r}")
-                raise ValueError(f"Found {len(bad_chunks)} non-string chunks — fix loaders")
-
             with open(self.ROOT_DIRECTORY / "config.yaml", 'r', encoding='utf-8') as config_file:
                 config_data = yaml.safe_load(config_file)
 
-            # Final clean-up of texts
-            validated_texts = []
-            for i, text in enumerate(all_texts):
-                if isinstance(text, str):
-                    cleaned_text = text.replace('\x00', '').strip()
-                    if cleaned_text:
-                        validated_texts.append(cleaned_text)
-                    else:
-                        logging.warning(f"Skipping empty text at index {i}")
-                else:
-                    logging.error(f"Non-string found at index {i}: {type(text)}")
-
-            all_texts = validated_texts
-
-            # Save chunks for testing
-            # test_chunks_dir = self.ROOT_DIRECTORY / "Test_Chunks"
-            # if test_chunks_dir.exists():
-                # shutil.rmtree(test_chunks_dir)
-            # test_chunks_dir.mkdir(parents=True, exist_ok=True)
-
-            # import json
-            # chunks_file = test_chunks_dir / "chunks.jsonl"
-
-            # my_cprint(f"Saving {len(all_texts)} chunks to JSONL format...", "yellow")
-
-            # # Save chunks as JSONL
-            # with open(chunks_file, 'w', encoding='utf-8') as f:
-                # for i, text in enumerate(all_texts):
-                    # chunk_data = {
-                        # "chunk_id": i,
-                        # "text": text
-                    # }
-                    # f.write(json.dumps(chunk_data, ensure_ascii=False) + '\n')
-
-            # my_cprint(f"Chunks saved to: {chunks_file}", "green")
-
-            # embed documents
+            # create embeddings
             embedding_start_time = time.time()
             vectors = embeddings.embed_documents(all_texts)
             embedding_end_time = time.time()
@@ -518,7 +461,7 @@ class CreateVectorDB:
 
             # Build (text, embedding) tuples in correct order
             text_embed_pairs = [
-                (txt, np.asarray(vec, dtype=np.float32))
+                (txt, vec.tolist() if hasattr(vec, 'tolist') else list(vec))
                 for txt, vec in zip(all_texts, vectors)
             ]
 
@@ -526,8 +469,8 @@ class CreateVectorDB:
             TileDB.from_embeddings(
                 text_embeddings=text_embed_pairs,
                 embedding=embeddings,
-                metadatas=all_metadatas[:len(all_texts)],
-                ids=all_ids[:len(all_texts)],
+                metadatas=all_metadatas,
+                ids=all_ids,
                 metric="euclidean",
                 index_uri=str(self.PERSIST_DIRECTORY),
                 index_type="FLAT",
@@ -606,6 +549,7 @@ class CreateVectorDB:
             conn.close()
 
     def load_audio_documents(self, source_dir: Path = None) -> list:
+        # checks the DocsforDB folder for .json files, which audio transcriptions are always saved to, and loads them
         if source_dir is None:
             source_dir = self.SOURCE_DIRECTORY
         json_paths = [f for f in source_dir.iterdir() if f.suffix.lower() == '.json']
@@ -750,68 +694,69 @@ class QueryVectorDB:
 
     @torch.inference_mode()
     def initialize_vector_model(self):
-        model_path   = self.config['created_databases'][self.selected_database]['model']
+        model_path = self.config['created_databases'][self.selected_database]['model']
         self.model_name = os.path.basename(model_path)
-        compute_device  = self.config['Compute_Device']['database_query']
+        compute_device = self.config['Compute_Device']['database_query']
 
-        # outer kwargs passed to SentenceTransformer
+        # ✅ Structure for query embeddings using fixed inheritance system
         model_kwargs = {
-            "device": compute_device,
-            "trust_remote_code": True,
-            "similarity_fn_name": "euclidean", # (str, optional); "cosine" (default), "dot", "euclidean", "manhattan"
-            "model_kwargs": {
-                "trust_remote_code": True,
-            },
-            "tokenizer_kwargs": {
-                "use_fast": True,
-                "trust_remote_code": True,
-            },
+            "device": compute_device,  # Will be extracted as top-level
+            "trust_remote_code": True,  # Will be extracted as top-level
         }
 
-        encode_kwargs = {"batch_size": 1}
+        encode_kwargs = {
+            "batch_size": 1,
+            "normalize_embeddings": True,
+        }
 
         mp_lower = model_path.lower()
 
+        # ✅ Use your inheritance structure for queries
         if "qwen3-embedding" in mp_lower:
             encode_kwargs["prompt"] = (
-                "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: <query>"
+                "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
             )
-
             embeddings = QwenEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
-        elif "snowflake" in mp_lower or "intfloat" in mp_lower:
-            # snowflake and intfloat prompt
+            
+        elif "snowflake" in mp_lower:
             encode_kwargs["prompt"] = "query: "
-            if "snowflake" in mp_lower:
-                embeddings = SnowflakeEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
-            else:
-                embeddings = BaseEmbeddingModel(model_path, model_kwargs, encode_kwargs, is_query=True).create()
+            embeddings = SnowflakeEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
+            
+        elif "intfloat" in mp_lower:
+            encode_kwargs["prompt"] = "query: "
+            embeddings = BaseEmbeddingModel(model_path, model_kwargs, encode_kwargs, is_query=True).create()
 
-        elif "alibaba" in mp_lower or "infly" in mp_lower:
-            # alibaba and infly prompt
+        elif "alibaba" in mp_lower:
             encode_kwargs["prompt"] = (
                 "Instruct: Given a web search query, retrieve relevant passages that answer the query\n"
-                "Query: <query>"
+                "Query: "
+            )
+            embeddings = AlibabaEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
+            
+        elif "infly" in mp_lower:
+            encode_kwargs["prompt"] = (
+                "Instruct: Given a web search query, retrieve relevant passages that answer the query\n"
+                "Query: "
             )
             embeddings = InflyAndAlibabaEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
 
-        # elif "bge-code" in mp_lower:
-            # #bge-code prompt, highly customizable
-            # code_instruction = "Given a question in text, retrieve relevant code that is relevant."
-            # encode_kwargs["prompt"] = f"<instruct>{code_instruction}\n<query>"
-            # embeddings = BgeCodeEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
+        elif "bge-code" in mp_lower:
+            code_instruction = "Given a question in text, retrieve relevant code that is relevant."
+            encode_kwargs["prompt"] = f"<instruct>{code_instruction}\n<query>"
+            embeddings = BgeCodeEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
 
         elif "stella" in mp_lower:
-            # stella prompt
             encode_kwargs["prompt"] = ("Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: ")
             if "400m" in mp_lower:
                 embeddings = Stella400MEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
             else:
                 embeddings = StellaEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
 
+        elif "bge" in mp_lower:
+            encode_kwargs["prompt"] = ("Represent this sentence for searching relevant passages: ")
+            embeddings = BaseEmbeddingModel(model_path, model_kwargs, encode_kwargs, is_query=True).create()
+            
         else:
-            if "bge" in mp_lower:
-                # bge prompt
-                encode_kwargs["prompt"] = ("Represent this sentence for searching relevant passages: ")
             embeddings = BaseEmbeddingModel(model_path, model_kwargs, encode_kwargs, is_query=True).create()
 
         return embeddings
@@ -882,100 +827,3 @@ class QueryVectorDB:
 
         gc.collect()
         logging.debug(f"Cleanup completed for instance {self._debug_id}")
-
-"""
-╔══════════════════════════════════════════════════════════════════════════╗
-║  DEVELOPMENT NOTES – xFormers flags, attention-impl, and tokenization    ║
-╚══════════════════════════════════════════════════════════════════════════╝
-
-────────────────────────────────────────────────────────────────────────────
-1.  Which models can use xFormers memory-efficient attention?
-────────────────────────────────────────────────────────────────────────────
-• Snowflake-GTE family   (all sizes except the “-large” variants)
-• Alibaba-GTE family
-• Stella-400 M           (v5)
-
-Stella-1.5 B **cannot** use xFormers kernels at the time of writing.
-
-────────────────────────────────────────────────────────────────────────────
-2.  Snowflake-GTE & Alibaba-GTE  (shared behaviour)
-────────────────────────────────────────────────────────────────────────────
-✔  Flags belong in ✧config_kwargs✧ (which LangChain forwards to AutoConfig):
-
-    {
-        "config_kwargs": {
-            "use_memory_efficient_attention":  <bool>,   # enable xFormers
-            "unpad_inputs":                    <bool>,   # strip padding tokens
-            "attn_implementation":             "eager"   # MUST be "eager"
-        }
-    }
-
-Implementation rules inside the GTE source:
-
-    • If use_memory_efficient_attention is **True**
-        – xFormers must be importable, otherwise an assertion fires.
-        – attn_implementation is automatically coerced to "eager"
-          (the code does this for you, but supplying "eager" is clearer).
-
-    • If use_memory_efficient_attention is **False**
-        – You may still set unpad_inputs=True. The model will unpad/re-pad
-          tensors using pure-PyTorch helpers (slower but functional).
-        – attn_implementation can be "sdpa" or "eager". Either works.
-
-────────────────────────────────────────────────────────────────────────────
-3.  Stella-400 M (v5)
-────────────────────────────────────────────────────────────────────────────
-✔  Same flag block, but with stricter rules:
-
-    {
-        "config_kwargs": {
-            "use_memory_efficient_attention":  <bool>,   # optional
-            "unpad_inputs":                    <bool>,   # should match the flag above
-            "attn_implementation":             "eager"   # ALWAYS "eager"
-        }
-    }
-
-• The 400 M code path **does not implement an SDPA class** yet, so
-  "eager" is mandatory even when xFormers is disabled.
-
-• If you set use_memory_efficient_attention=True while xFormers is
-  missing, an assertion will raise at runtime.
-
-────────────────────────────────────────────────────────────────────────────
-4.  Flag placement summary
-────────────────────────────────────────────────────────────────────────────
-outer  model_kwargs   (passed to SentenceTransformer)
-│
-├── tokenizer_kwargs   → forwarded to AutoTokenizer   ← configure padding
-│                                                          & truncation here
-│
-├── model_kwargs       → forwarded to AutoModel       ← runtime knobs
-│                        (dtype, quantisation, ...)
-│
-└── config_kwargs      → forwarded to AutoConfig      ← put the three
-                         (BEFORE weights load)           xFormers flags here
-     • use_memory_efficient_attention
-     • unpad_inputs
-     • attn_implementation
-
-────────────────────────────────────────────────────────────────────────────
-5.  Tokenization vs. encode_kwargs  (common pit-fall)
-────────────────────────────────────────────────────────────────────────────
-• SentenceTransformer.encode() *never* forwards encode_kwargs into the
-  tokenizer. It tokenizes first, then passes encode_kwargs into the model’s
-  forward() call.
-
-• Therefore:
-      – padding / truncation / max_length → tokenizer_kwargs
-      – batch_size, convert_to_numpy, etc. → encode_kwargs
-
-Putting padding flags in encode_kwargs is silently ignored.
-
-────────────────────────────────────────────────────────────────────────────
-6.  Runtime checklist
-────────────────────────────────────────────────────────────────────────────
-□ GPU build?           → supports_flash_attention() must confirm
-□ xFormers installed?  → import xformers.ops succeeds
-□ Flags consistent?    → unpad_inputs should mirror use_memory_efficient_attention
-□ attn_implementation  → "eager" for 400 M; "eager"/"sdpa" for others
-"""

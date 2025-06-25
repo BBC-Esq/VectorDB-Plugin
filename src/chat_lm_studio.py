@@ -85,7 +85,7 @@ class LMStudioChat:
         if self.query_vector_db:
             self.query_vector_db.cleanup()
 
-        if torch.cuda.empty_cache():
+        if torch.cuda.is_available():
             torch.cuda.empty_cache()
         gc.collect()
         
