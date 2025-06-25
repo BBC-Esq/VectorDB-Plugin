@@ -72,24 +72,24 @@ class BaseEmbeddingModel:
         model_kwargs = self.prepare_kwargs()
         encode_kwargs = self.prepare_encode_kwargs()
 
-        #==========================================================
-        print("\n" + "="*80)
-        print("PARAMETERS BEING PASSED TO HuggingFaceEmbeddings:")
-        print("="*80)
+        # #==========================================================
+        # print("\n" + "="*80)
+        # print("PARAMETERS BEING PASSED TO HuggingFaceEmbeddings:")
+        # print("="*80)
         
-        # Show the complete parameter structure
-        complete_params = {
-            "model_name": self.model_name,
-            "model_kwargs": model_kwargs,
-            "encode_kwargs": encode_kwargs
-        }
+        # # Show the complete parameter structure
+        # complete_params = {
+            # "model_name": self.model_name,
+            # "model_kwargs": model_kwargs,
+            # "encode_kwargs": encode_kwargs
+        # }
         
-        import json
-        print("\nComplete parameter structure:")
-        print(json.dumps(complete_params, indent=2, default=str))
+        # import json
+        # print("\nComplete parameter structure:")
+        # print(json.dumps(complete_params, indent=2, default=str))
         
-        print("\n" + "="*80 + "\n")
-        #==========================================================
+        # print("\n" + "="*80 + "\n")
+        # #==========================================================
 
         hf = HuggingFaceEmbeddings(
             model_name=self.model_name,
@@ -244,7 +244,8 @@ class QwenEmbedding(BaseEmbeddingModel):
         # update model_kwargs
         inner_model_kwargs = q_kwargs.setdefault("model_kwargs", {})
         inner_model_kwargs.update({
-            "attn_implementation": "flash_attention_2",
+            "attn_implementation": "sdpa",
+            # "attn_implementation": "flash_attention_2",
         })
 
         # update tokenizer_kwargs
