@@ -122,7 +122,14 @@ class BaseLoader:
     def process_images(self):
         image_dir = Path(__file__).parent / "Docs_for_DB"
         documents = []
-        image_files = [file for file in image_dir.iterdir() if file.suffix.lower() in ALLOWED_EXTENSIONS]
+        # image_files = [file for file in image_dir.iterdir() if file.suffix.lower() in ALLOWED_EXTENSIONS]
+
+        try:
+            image_files = [file for file in image_dir.iterdir() if file.suffix.lower() in ALLOWED_EXTENSIONS]
+        except OSError:
+            image_files = []
+            print(f"Error accessing directory {image_dir}")
+
         self.model, self.tokenizer, self.processor = self.initialize_model_and_tokenizer()
         print("Processing images.")
         start_time = time.time()
