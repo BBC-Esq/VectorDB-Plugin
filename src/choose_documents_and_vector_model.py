@@ -60,11 +60,18 @@ class SymlinkWorker(QThread):
     def run(self):
         if isinstance(self.source, (str, Path)):
             dir_path = Path(self.source)
-            files = [
-                str(p)
-                for p in dir_path.iterdir()
-                if p.is_file() and p.suffix.lower() in ALLOWED_EXTENSIONS
-            ]
+            try:
+                import os
+                filenames = os.listdir(str(dir_path))
+                files = [
+                    str(dir_path / filename)
+                    for filename in filenames
+                    if (dir_path / filename).is_file() 
+                    and (dir_path / filename).suffix.lower() in ALLOWED_EXTENSIONS
+                ]
+            except OSError:
+                files = []
+                print(f"Error accessing directory {dir_path}")
         else:
             files = list(self.source)
 
