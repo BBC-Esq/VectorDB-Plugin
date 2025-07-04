@@ -142,7 +142,7 @@ class MiscTab(QWidget):
 
    def chart_gpus(self):
        import matplotlib
-       matplotlib.use('Agg')
+       matplotlib.use('QtAgg')
        import matplotlib.pyplot as plt
        from chart_all_gpus import create_gpu_comparison_plot
        
@@ -173,7 +173,7 @@ class MiscTab(QWidget):
 
    def chart_chat_models(self):
        import matplotlib
-       matplotlib.use('Agg')
+       matplotlib.use('QtAgg')
        import matplotlib.pyplot as plt
        from chart_models_chat import create_chat_models_comparison_plot
        
@@ -192,7 +192,7 @@ class MiscTab(QWidget):
 
    def chart_vision_models(self):
        import matplotlib
-       matplotlib.use('Agg')
+       matplotlib.use('QtAgg')
        import matplotlib.pyplot as plt
        from chart_models_vision import create_vision_models_comparison_plot
        
@@ -211,7 +211,7 @@ class MiscTab(QWidget):
 
    def chart_vector_models(self):
        import matplotlib
-       matplotlib.use('Agg')
+       matplotlib.use('QtAgg')
        import matplotlib.pyplot as plt
        from chart_models_vector import create_vector_models_comparison_plot
        
