@@ -619,6 +619,219 @@ class GoogleTTSAudio:
         return np.concatenate(processed_chunks)
 
 
+"""
+FUTURE USAGE PATTERN
+class NewBackendAudio(BaseAudio):
+    REQUIRED_PACKAGES = {
+        "some_tts_lib": "1.2.3",
+        "another_dep": "4.5.6"
+    }
+    
+    def __init__(self):
+        super().__init__()
+        
+        from utilities import check_and_install_dependencies
+        
+        if not check_and_install_dependencies(
+            self.REQUIRED_PACKAGES, 
+            backend_name="NewBackend"
+        ):
+            raise RuntimeError("NewBackend dependencies not available")
+"""
+
+
+class KyutaiAudio(BaseAudio):
+    REQUIRED_PACKAGES = {
+        "moshi": "0.2.8",
+        "sphn": "0.2.0"
+    }
+    
+    def __init__(self):
+        super().__init__()
+
+        from utilities import check_and_install_dependencies
+
+        if not check_and_install_dependencies(
+            self.REQUIRED_PACKAGES, 
+            backend_name="Kyutai"
+        ):
+            raise RuntimeError("Kyutai dependencies not available")
+
+        self.load_config('config.yaml', 'kyutai')
+        self.initialize_device()
+        self.initialize_model()
+
+    def create_checkpoint_info_from_cache(self, downloaded_paths):
+        """Create CheckpointInfo from downloaded files in cache."""
+        from moshi.models.loaders import CheckpointInfo
+        import json
+        from pathlib import Path
+
+        config_path = Path(downloaded_paths["config.json"])
+        with open(config_path, 'r') as f:
+            raw_config = json.load(f)
+
+        moshi_weights = Path(downloaded_paths["dsm_tts_1e68beda@240.safetensors"])
+        mimi_weights = Path(downloaded_paths["tokenizer-e351c8d8-checkpoint125.safetensors"])
+        tokenizer_path = Path(downloaded_paths["tokenizer_spm_8k_en_fr_audio.model"])
+
+        lm_config = dict(raw_config)
+        tts_config = lm_config.pop("tts_config", {})
+        stt_config = lm_config.pop("stt_config", {})
+        model_id = lm_config.pop("model_id", {})
+        lm_gen_config = lm_config.pop("lm_gen_config", {})
+        model_type = lm_config.pop("model_type", "moshi")
+
+        lm_config.pop("moshi_name", None)
+        lm_config.pop("mimi_name", None)
+        lm_config.pop("tokenizer_name", None)
+        lm_config.pop("lora_name", None)
+
+        return CheckpointInfo(
+            moshi_weights=moshi_weights,
+            mimi_weights=mimi_weights,
+            tokenizer=tokenizer_path,
+            lm_config=lm_config,
+            raw_config=raw_config,
+            model_type=model_type,
+            lora_weights=None,
+            lm_gen_config=lm_gen_config,
+            tts_config=tts_config,
+            stt_config=stt_config,
+            model_id=model_id,
+        )
+
+    def initialize_model(self):
+        try:
+            from moshi.models.tts import TTSModel
+            from moshi.models.loaders import CheckpointInfo
+            from huggingface_hub import hf_hub_download
+
+            my_cprint("Loading Kyutai TTS model...", "yellow")
+
+            hf_repo = self.config.get('hf_repo', 'kyutai/tts-1.6b-en_fr')
+
+            required_files = [
+                "config.json",
+                "dsm_tts_1e68beda@240.safetensors", 
+                "tokenizer-e351c8d8-checkpoint125.safetensors",
+                "tokenizer_spm_8k_en_fr_audio.model"
+            ]
+
+            need_download = False
+            for filename in required_files:
+                try:
+                    hf_hub_download(repo_id=hf_repo, filename=filename, cache_dir=CACHE_DIR, token=False, local_files_only=True)
+                except Exception:
+                    need_download = True
+                    break
+
+            if need_download:
+                my_cprint("Downloading Kyutai model files...", "yellow")
+            
+            downloaded_paths = {}
+            for filename in required_files:
+                try:
+                    file_path = hf_hub_download(
+                        repo_id=hf_repo,
+                        filename=filename,
+                        cache_dir=CACHE_DIR,
+                        token=False
+                    )
+                    downloaded_paths[filename] = file_path
+                except Exception as e:
+                    my_cprint(f"Error downloading {filename}: {e}", "red")
+                    raise
+
+            checkpoint_info = self.create_checkpoint_info_from_cache(downloaded_paths)
+            
+            self.tts_model = TTSModel.from_checkpoint_info(checkpoint_info, device=torch.device(self.device))
+
+            quality_mapping = {
+                "base": 4,
+                "medium": 16,
+                "high": 32
+            }
+
+            quality = self.config.get('quality', 'high')
+            self.tts_model.n_q = quality_mapping.get(quality, 32)
+            self.tts_model.temp = self.config.get('temp', 0.6)
+            self.tts_model.mimi.set_num_codebooks(self.tts_model.n_q)
+
+            my_cprint(f"Kyutai model loaded successfully! (Quality: {quality}, n_q: {self.tts_model.n_q})", "green")
+
+            self.setup_voice_conditioning()
+
+        except Exception as e:
+            my_cprint(f"Error initializing Kyutai model: {str(e)}", "red")
+            raise
+
+    def setup_voice_conditioning(self):
+        """Setup voice conditioning for the model."""
+        try:
+            voice_name = self.config.get('voice', 'expresso/ex03-ex01_happy_001_channel1_334s.wav')
+            cfg_coef = self.config.get('cfg_coef', 2.0)
+            
+            voice_path = self.tts_model.get_voice_path(voice_name)
+            self.condition_attributes = self.tts_model.make_condition_attributes([voice_path], cfg_coef=cfg_coef)
+            
+            voice_display = self.config.get('voice_display_name', 'Happy Male')
+            my_cprint(f"Voice conditioning loaded: {voice_display}", "green")
+            
+        except Exception as voice_error:
+            my_cprint(f"Voice loading failed: {voice_error}", "yellow")
+            my_cprint("Using model without voice conditioning", "yellow")
+            self.condition_attributes = self.tts_model.make_condition_attributes([], cfg_coef=None)
+
+    @torch.inference_mode()
+    def generate_speech_for_sentence(self, sentence):
+        """Generate audio for a single sentence."""
+        try:
+            entries = self.tts_model.prepare_script([sentence], padding_between=1)
+
+            pcms = []
+            def on_frame(frame):
+                if (frame != -1).all():
+                    pcm = self.tts_model.mimi.decode(frame[:, 1:, :]).cpu().numpy()
+                    pcms.append(np.clip(pcm[0, 0], -1, 1))
+
+            all_entries = [entries]
+            all_condition_attributes = [self.condition_attributes]
+
+            with self.tts_model.mimi.streaming(len(all_entries)):
+                result = self.tts_model.generate(all_entries, all_condition_attributes, on_frame=on_frame)
+
+            if pcms:
+                audio = np.concatenate(pcms, axis=-1)
+                return audio
+            else:
+                return None
+
+        except Exception as e:
+            return None
+
+    @torch.inference_mode()
+    def process_text_to_audio(self, sentences):
+        """Process sentences to audio and queue them for playback."""
+        for sentence in tqdm(sentences, desc="Processing Sentences"):
+            if not sentence.strip() or self.stop_event.is_set():
+                continue
+
+            try:
+                audio = self.generate_speech_for_sentence(sentence.strip())
+
+                if audio is not None:
+                    self.audio_queue.put((audio, self.tts_model.mimi.sample_rate))
+                else:
+                    print("Failed to generate audio for sentence")
+
+            except Exception as e:
+                print(f"Error processing sentence: {str(e)}")
+                continue
+
+        self.audio_queue.put(None)
+
+
 def run_tts(config_path, input_text_file):
     with open(config_path, 'r', encoding='utf-8') as file:
         config = yaml.safe_load(file)
@@ -636,6 +849,8 @@ def run_tts(config_path, input_text_file):
         audio_class = KokoroAudio()
     elif tts_model == 'chatterbox':
         audio_class = ChatterboxAudio()
+    elif tts_model == 'kyutai':
+        audio_class = KyutaiAudio()
     else:
         raise ValueError(f"Invalid TTS model specified in config.yaml: {tts_model}")
 

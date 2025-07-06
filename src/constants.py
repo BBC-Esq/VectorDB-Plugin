@@ -323,6 +323,28 @@ full_install_libs = [
     "unstructured==0.17.2"
 ]
 
+BACKEND_DEPENDENCIES = {
+    "kyutai": {
+        "moshi": "0.2.8",
+        "sphn": "0.2.0"
+    },
+    "bark": {
+        # Add any bark-specific deps if needed
+    }, # Empty dict = no dependency checking
+    "whisperspeech": {
+        # Add any whisperspeech-specific deps if needed  
+    }, # Empty dict = no dependency checking
+    "chattts": {
+        # Add any chattts-specific deps if needed
+    }, # Empty dict = no dependency checking
+    "chatterbox": {
+        # Add any chatterbox-specific deps if needed
+    }, # Empty dict = no dependency checking
+    "googletts": {
+        # Usually no extra deps beyond standard library
+    } # Empty dict = no dependency checking
+}
+
 CHAT_MODELS = {
     'MiniCPM4 - 0.5b': {# transformers 4.46.3
         'model': 'MiniCPM4 - 0.5b',

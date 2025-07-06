@@ -52,6 +52,108 @@ def set_cuda_paths():
     os.environ['CUDA_PATH'] = new_cuda_path
 
 
+def check_backend_dependencies(backend_name: str, interactive: bool = True) -> bool:
+    """
+    Check if a TTS backend's dependencies are available.
+
+    Args:
+        backend_name: Name of the TTS backend (e.g., 'kyutai', 'bark')
+        interactive: Whether to prompt user for installation
+
+    Returns:
+        True if all dependencies are available, False otherwise
+    """
+    from constants import BACKEND_DEPENDENCIES
+
+    # Get required packages for this backend
+    required_packages = BACKEND_DEPENDENCIES.get(backend_name, {})
+    
+    # If no dependencies defined, assume it's available
+    if not required_packages:
+        return True # ← This immediately returns True for empty dicts
+
+    # Use existing function to check and install
+    return check_and_install_dependencies(
+        required_packages,
+        backend_name=backend_name.title(),
+        interactive=interactive
+    )
+
+def is_package_available(pkg_name: str) -> tuple[bool, str]:
+    """Check if package is available and get its version."""
+    import importlib.util
+    import importlib.metadata
+    
+    package_exists = importlib.util.find_spec(pkg_name) is not None
+    package_version = "N/A"
+    if package_exists:
+        try:
+            package_version = importlib.metadata.version(pkg_name)
+        except importlib.metadata.PackageNotFoundError:
+            package_exists = False
+    return package_exists, package_version
+
+def verify_installation(package_name: str, expected_version: str) -> bool:
+    """Verify that a package is installed with the expected version."""
+    try:
+        import importlib.metadata
+        installed_version = importlib.metadata.version(package_name)
+        return installed_version == expected_version
+    except importlib.metadata.PackageNotFoundError:
+        return False
+
+def install_packages(packages: list[tuple[str, str]], no_deps: bool = True) -> bool:
+    """
+    Install packages using pip.
+    
+    Args:
+        packages: List of (package_name, version) tuples
+        no_deps: Whether to use --no-deps flag
+        
+    Returns:
+        True if all packages installed successfully, False otherwise
+    """
+    import subprocess
+    import sys
+    
+    for package, version in packages:
+        my_cprint(f"Installing {package}=={version}...", "yellow")
+        try:
+            command = [sys.executable, "-m", "pip", "install", f"{package}=={version}"]
+            if no_deps:
+                command.append("--no-deps")
+                
+            result = subprocess.run(command, capture_output=True, text=True, check=True)
+            my_cprint(f"Successfully installed {package}=={version}", "green")
+        except subprocess.CalledProcessError as e:
+            my_cprint(f"Failed to install {package}: {e.stderr}", "red")
+            return False
+
+    return True
+
+def check_and_install_dependencies(required_packages: dict[str, str], 
+                                 backend_name: str = "backend",
+                                 interactive: bool = True) -> bool:
+    import sys
+
+    missing_packages = []
+
+    for package, version in required_packages.items():
+        available, current_version = is_package_available(package)
+        if not available:
+            missing_packages.append((package, version))
+        elif current_version != version:
+            my_cprint(f"Warning: {package} version {current_version} found, expected {version}", "yellow")
+
+    if not missing_packages:
+        return True
+
+    if not interactive or not sys.stdin.isatty():
+
+        return False
+
+    return False
+
 def get_platform_info():
     """
     Returns

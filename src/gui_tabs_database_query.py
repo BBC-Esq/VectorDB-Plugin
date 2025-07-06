@@ -488,6 +488,32 @@ class DatabaseQueryTab(QWidget):
             QMessageBox.warning(self, "Error", "The Text to Speech backend you selected requires GPU-acceleration.")
             return
 
+        from utilities import check_backend_dependencies, install_packages
+        from constants import BACKEND_DEPENDENCIES
+        
+        if not check_backend_dependencies(tts_model, interactive=False):
+            required_packages = BACKEND_DEPENDENCIES.get(tts_model, {})
+            if required_packages:
+                packages_str = ", ".join([f"{pkg}=={ver}" for pkg, ver in required_packages.items()])
+
+                reply = QMessageBox.question(
+                    self, 
+                    "Missing Dependencies",
+                    f"{tts_model.title()} backend requires additional packages:\n\n{packages_str}\n\nInstall now?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.Yes
+                )
+
+                if reply == QMessageBox.Yes:
+                    missing_packages = [(pkg, ver) for pkg, ver in required_packages.items()]
+                    if install_packages(missing_packages):
+                        QMessageBox.information(self, "Success", "Dependencies installed successfully!")
+                    else:
+                        QMessageBox.warning(self, "Installation Failed", "Failed to install dependencies. Please install manually.")
+                        return
+                else:
+                    return
+
         if not (script_dir / 'chat_history.txt').exists():
             QMessageBox.warning(self, "Error", "No response to play.")
             return
