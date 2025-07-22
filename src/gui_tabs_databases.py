@@ -144,8 +144,6 @@ class DatabasesTab(QWidget):
                 config_data = yaml.safe_load(file) or {}
         if selected_path:
             config_data["EMBEDDING_MODEL_NAME"] = selected_path
-            if "stella" in selected_path.lower() or "static-retrieval" in selected_path.lower():
-                config_data["EMBEDDING_MODEL_DIMENSIONS"] = 1024
             else:
                 config_json_path = Path(selected_path) / "config.json"
                 if config_json_path.exists():
