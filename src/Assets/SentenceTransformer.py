@@ -1,4 +1,4 @@
-# modified 4.1.0 to add some commented out print statements for debugging; likely remove in next patch due to padding/trunction solved
+# modified 4.1.0 to modify "_text_length" method and add debugging
 from __future__ import annotations
 
 import copy
@@ -654,7 +654,35 @@ class SentenceTransformer(nn.Sequential, FitMixin, PeftAdapterMixin):
 
         for start_index in trange(0, len(sentences), batch_size, desc="Batches", disable=not show_progress_bar):
             sentences_batch = sentences_sorted[start_index : start_index + batch_size]
+
+            # #==DEBUG================================================================================================
+            # print(f"\n=== DEBUG: Before tokenization ===")
+            # print(f"Batch size: {len(sentences_batch)}")
+            # print(f"Sentences in batch:")
+            # for i, sent in enumerate(sentences_batch):
+                # print(f"  [{i}] Type: {type(sent)}, Length: {len(sent) if hasattr(sent, '__len__') else 'no len'}")
+                # print(f"      Content: {repr(sent)}...")
+            # #==DEBUG================================================================================================
+
             features = self.tokenize(sentences_batch)
+
+            # #==DEBUG================================================================================================
+            # print(f"\n=== DEBUG: After tokenization (features dict) ===")
+            # print(f"Features keys: {list(features.keys())}")
+            # for key, value in features.items():
+                # print(f"  {key}:")
+                # print(f"    Type: {type(value)}")
+                # if hasattr(value, 'shape'):
+                    # print(f"    Shape: {value.shape}")
+                # elif hasattr(value, '__len__'):
+                    # print(f"    Length: {len(value)}")
+                    # if isinstance(value, (list, tuple)) and len(value) > 0:
+                        # print(f"    First element type: {type(value[0])}")
+                        # if hasattr(value[0], '__len__'):
+                            # print(f"    First element length: {len(value[0])}")
+                        # print(f"    Sample content: {value}")  # First 2 elements
+                # print(f"    Content preview: {str(value)}...")
+            # #==DEBUG================================================================================================
 
             # print(
                 # f"SentenceTransformer.py - DEBUG: batch {start_index // batch_size} padded_side={self.tokenizer.padding_side if hasattr(self, 'tokenizer') else 'n/a'} "
@@ -1541,14 +1569,32 @@ print(similarities)
             return folder_url.pr_url
         return folder_url.commit_url
 
-    def _text_length(self, text: list[int] | list[list[int]]) -> int:
+    # def _text_length(self, text: list[int] | list[list[int]]) -> int:
+        # """
+        # Help function to get the length for the input text. Text can be either
+        # a list of ints (which means a single text as input), or a tuple of list of ints
+        # (representing several text inputs to the model).
+        # """
+
+        # if isinstance(text, dict):  # {key: value} case
+            # return len(next(iter(text.values())))
+        # elif not hasattr(text, "__len__"):  # Object has no len() method
+            # return 1
+        # elif len(text) == 0 or isinstance(text[0], int):  # Empty string or list of ints
+            # return len(text)
+        # else:
+            # return sum([len(t) for t in text])  # Sum of length of individual strings
+
+    # custom method that's more flexible and expansive
+    def _text_length(self, text: str | list[int] | list[list[int]]) -> int:
         """
         Help function to get the length for the input text. Text can be either
         a list of ints (which means a single text as input), or a tuple of list of ints
         (representing several text inputs to the model).
         """
-
-        if isinstance(text, dict):  # {key: value} case
+        if isinstance(text, str):  # Handle string input directly
+            return len(text)
+        elif isinstance(text, dict):  # {key: value} case
             return len(next(iter(text.values())))
         elif not hasattr(text, "__len__"):  # Object has no len() method
             return 1
