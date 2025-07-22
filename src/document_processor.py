@@ -49,7 +49,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 ROOT_DIRECTORY = Path(__file__).parent
 SOURCE_DIRECTORY = ROOT_DIRECTORY / "Docs_for_DB"
-INGEST_THREADS = max(4, os.cpu_count() - 4)
+INGEST_THREADS = max(2, os.cpu_count() - 8)
 
 
 from typing import List
