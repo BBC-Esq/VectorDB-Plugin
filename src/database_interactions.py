@@ -302,6 +302,7 @@ class CreateVectorDB:
             'batch_size': 8,
             'padding': True,
             'truncation': True,
+            "normalize_embeddings": True,
         }
 
         if compute_device.lower() == 'cpu':
@@ -670,6 +671,8 @@ class QueryVectorDB:
 
         encode_kwargs = {
             "batch_size": 1,
+            'padding': True,
+            'truncation': True,
             "normalize_embeddings": True,
         }
 
