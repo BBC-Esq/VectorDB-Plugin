@@ -34,35 +34,21 @@ logger = logging.getLogger(__name__)
 
 
 class BaseEmbeddingModel:
-    """
-    Wrapper that prepares structured kwargs for HuggingFaceEmbeddings (SentenceTransformer).
-
-    Outer dict keys map directly to SentenceTransformer.__init__ parameters:
-      - device
-      - trust_remote_code
-      - prompts / default_prompt_name (not used here but supported)
-      - model_kwargs        (inner dict: low-level HF AutoModel args)
-      - tokenizer_kwargs    (outer-level sibling)
-      - config_kwargs       (outer-level sibling)
-
-    encode_kwargs are passed to SentenceTransformer.encode().
-    """
-
-    def __init__(self, model_name, model_kwargs, encode_kwargs, is_query: bool = False):
+    def __init__(self, model_name, model_kwargs, encode_kwargs, is_query=False):
         self.model_name = model_name
-        self.model_kwargs = model_kwargs            # OUTER kwargs to SentenceTransformer
-        self.encode_kwargs = encode_kwargs          # kwargs to .encode()
+        self.model_kwargs = model_kwargs
+        self.encode_kwargs = encode_kwargs
         self.is_query = is_query
 
     def prepare_kwargs(self):
-        # shallow copy to avoid mutating caller's dict
+        # get kwargs passed from "initialize_vector_model"
         hf_embed_kw = deepcopy(self.model_kwargs)
 
-        # Required outer-level defaults
+        # default top level kwargs if a sub-class doesn't specify
         hf_embed_kw.setdefault("device", "cpu")
         hf_embed_kw.setdefault("trust_remote_code", True)
 
-        # Ensure tokenizer kwargs (outer-level)
+        # default tokenizer_kwargs if a sub-class doesn't specify
         tok_kw = hf_embed_kw.setdefault("tokenizer_kwargs", {})
         tok_kw.setdefault("trust_remote_code", True)
         tok_kw.setdefault("use_fast", True)
@@ -71,27 +57,40 @@ class BaseEmbeddingModel:
         tok_kw.setdefault("return_token_type_ids", False)
         tok_kw.setdefault("model_max_length", 512)
 
-        # Inner model_kwargs (low-level HF AutoModel args) should exist only if needed
-        inner = hf_embed_kw.get("model_kwargs", {})
-        # Remove meaningless None values
-        inner = {k: v for k, v in inner.items() if v is not None}
-        if inner:
-            hf_embed_kw["model_kwargs"] = inner
-        else:
-            hf_embed_kw.pop("model_kwargs", None)
-
         return hf_embed_kw
 
     def prepare_encode_kwargs(self):
         if self.is_query:
-            self.encode_kwargs.setdefault("batch_size", 1)
-            self.encode_kwargs.setdefault("max_length", 512)
-            self.encode_kwargs.setdefault("normalize_embeddings", True)
+            # default encode kwargs if a sub-class doesn't specify
+            self.encode_kwargs['batch_size'] = 1
+            # self.encode_kwargs.setdefault('show_progress_bar', True)
+            # self.encode_kwargs.setdefault('convert_to_tensor', True)
+            # self.encode_kwargs.setdefault('num_workers', 0)
+            self.encode_kwargs.setdefault('max_length', 512)
         return self.encode_kwargs
 
     def create(self):
         model_kwargs = self.prepare_kwargs()
         encode_kwargs = self.prepare_encode_kwargs()
+
+        # #==========================================================
+        # print("\n" + "="*80)
+        # print("PARAMETERS BEING PASSED TO HuggingFaceEmbeddings:")
+        # print("="*80)
+        
+        # # Show the complete parameter structure
+        # complete_params = {
+            # "model_name": self.model_name,
+            # "model_kwargs": model_kwargs,
+            # "encode_kwargs": encode_kwargs
+        # }
+        
+        # import json
+        # print("\nComplete parameter structure:")
+        # print(json.dumps(complete_params, indent=2, default=str))
+        
+        # print("\n" + "="*80 + "\n")
+        # #==========================================================
 
         hf = HuggingFaceEmbeddings(
             model_name=self.model_name,
@@ -99,127 +98,171 @@ class BaseEmbeddingModel:
             model_kwargs=model_kwargs,
             encode_kwargs=encode_kwargs
         )
-        return hf
 
+        return hf
 
 class SnowflakeEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
+        # get base parameters
         snow_kwargs = super().prepare_kwargs()
 
-        # Large variant override
+        # Update tokenizer_kwargs for large model and return
         if "large" in self.model_name.lower():
             tok_kw = snow_kwargs.setdefault("tokenizer_kwargs", {})
             tok_kw.update({"model_max_length": 8192})
             return snow_kwargs
 
-        device = snow_kwargs.get("device", "").lower()
+        # determine xformers compatibility
+        device = self.model_kwargs.get("device", "").lower()
         is_cuda = device.startswith("cuda")
         use_xformers = is_cuda and supports_flash_attention()
 
+        # update tokenizer_kwargs
         tok_kw = snow_kwargs.setdefault("tokenizer_kwargs", {})
         tok_kw.update({"model_max_length": 8192})
 
-        # Memory efficient attention flags
+        # update config_kwargs
         snow_kwargs["config_kwargs"] = {
             "use_memory_efficient_attention": use_xformers,
             "unpad_inputs": use_xformers,
             "attn_implementation": "eager" if use_xformers else "sdpa",
         }
-        return snow_kwargs
 
+        return snow_kwargs
 
 class StellaEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
+        # get base parameters
         stella_kwargs = super().prepare_kwargs()
+
+        # update tokenizer_kwargs
         tok_kw = stella_kwargs.setdefault("tokenizer_kwargs", {})
-        tok_kw.update({"model_max_length": 512})
+        tok_kw.update({
+            "model_max_length": 512,
+        })
+
         return stella_kwargs
 
     def prepare_encode_kwargs(self):
         encode_kwargs = super().prepare_encode_kwargs()
+
+        # update encode_kwargs
         if self.is_query:
             encode_kwargs["prompt_name"] = "s2p_query"
-        return encode_kwargs
 
+        return encode_kwargs
 
 class Stella400MEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
+        # get base parameters
         stella_kwargs = super().prepare_kwargs()
-        device = stella_kwargs.get("device", "")
+
+        # determine xformers compatibility
+        device = self.model_kwargs.get("device", "")
         is_cuda = device.lower().startswith("cuda")
         use_xformers = is_cuda and supports_flash_attention()
-
+        
+        # update tokenizer_kwargs
         tok_kw = stella_kwargs.setdefault("tokenizer_kwargs", {})
-        tok_kw.update({"model_max_length": 512})
+        tok_kw.update({
+            "model_max_length": 512,
+        })
 
+        # update config_kwargs
         stella_kwargs["config_kwargs"] = {
             "use_memory_efficient_attention": use_xformers,
             "unpad_inputs": use_xformers,
-            "attn_implementation": "eager",  # required eager
+            "attn_implementation": "eager",  # always "eager" even when not using xformers; not compatible with sdpa
         }
+
         return stella_kwargs
 
     def prepare_encode_kwargs(self):
         encode_kwargs = super().prepare_encode_kwargs()
+
+        # update encode_kwargs
         if self.is_query:
             encode_kwargs["prompt_name"] = "s2p_query"
-        return encode_kwargs
 
+        return encode_kwargs
 
 class BgeCodeEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
+        # get base parameters
         bge_kwargs = super().prepare_kwargs()
-        tok_kw = bge_kwargs.setdefault("tokenizer_kwargs", {})
-        tok_kw.update({"model_max_length": 4096})
-        return bge_kwargs
 
+        # update tokenizer_kwargs
+        tok_kw = bge_kwargs.setdefault("tokenizer_kwargs", {})
+        tok_kw.update({
+            "model_max_length": 4096,
+        })
+
+        return bge_kwargs
 
 class AlibabaEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
+        # get base parameters
         ali_kwargs = super().prepare_kwargs()
-        device = ali_kwargs.get("device", "").lower()
+
+        # determine xformers compatibility
+        device = self.model_kwargs.get("device", "").lower()
         is_cuda = device.startswith("cuda")
         use_xformers = is_cuda and supports_flash_attention()
 
+        # update tokenizer_kwargs
         tok_kw = ali_kwargs.setdefault("tokenizer_kwargs", {})
-        tok_kw.update({"model_max_length": 8192})
+        tok_kw.update({
+            "model_max_length": 8192,
+        })
 
+        # update config_kwargs
         ali_kwargs["config_kwargs"] = {
             "use_memory_efficient_attention": use_xformers,
             "unpad_inputs": use_xformers,
             "attn_implementation": "eager" if use_xformers else "sdpa",
         }
-        return ali_kwargs
 
+        return ali_kwargs
 
 class InflyAndAlibabaEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
+        # get base parameters
         infly_kwargs = super().prepare_kwargs()
+        
+        # update tokenizer_kwargs
         tok_kw = infly_kwargs.setdefault("tokenizer_kwargs", {})
-        tok_kw.update({"model_max_length": 8192})
+        tok_kw.update({
+            "model_max_length": 8192,
+        })
+        
         return infly_kwargs
-
 
 class QwenEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
+        # get base parameters
         q_kwargs = super().prepare_kwargs()
 
-        # Inner model kwargs only if needed
-        inner = q_kwargs.setdefault("model_kwargs", {})
-        inner.update({
+        # update model_kwargs
+        inner_model_kwargs = q_kwargs.setdefault("model_kwargs", {})
+        inner_model_kwargs.update({
             "attn_implementation": "sdpa",
+            # "attn_implementation": "flash_attention_2",
         })
 
+        # update tokenizer_kwargs
         tok_kw = q_kwargs.setdefault("tokenizer_kwargs", {})
         tok_kw.update({
             "padding_side": "left",
             "model_max_length": 8192,
         })
+
         return q_kwargs
 
     def prepare_encode_kwargs(self):
         encode_kwargs = super().prepare_encode_kwargs()
+        # update encode_kwargs
         encode_kwargs["max_length"] = 8192
+
         return encode_kwargs
 
 def create_vector_db_in_process(database_name):
@@ -278,25 +321,15 @@ class CreateVectorDB:
         model_native_precision = get_model_native_precision(embedding_model_name, VECTOR_MODELS)
         torch_dtype = get_appropriate_dtype(compute_device, use_half, model_native_precision)
 
-        # Outer kwargs for SentenceTransformer
-        outer_model_kwargs = {
+        model_kwargs = {
             "device": compute_device,
             "trust_remote_code": True,
-            # Inner low-level HF model args ONLY if needed
             "model_kwargs": {
                 "torch_dtype": torch_dtype if torch_dtype is not None else None,
-                "attn_implementation": "sdpa",   # keep if supported by model
-            },
-            # tokenizer_kwargs / config_kwargs added by subclass overrides
+                "attn_implementation": "sdpa",
+                "trust_remote_code": True,
+            }
         }
-
-        # Clean inner None values
-        inner = outer_model_kwargs["model_kwargs"]
-        inner = {k: v for k, v in inner.items() if v is not None}
-        if inner:
-            outer_model_kwargs["model_kwargs"] = inner
-        else:
-            outer_model_kwargs.pop("model_kwargs", None)
 
         encode_kwargs = {
             'batch_size': 8,
@@ -308,11 +341,12 @@ class CreateVectorDB:
             encode_kwargs['batch_size'] = 2
         else:
             batch_size_mapping = {
+                # 'bge-code': 2,
                 'inf-retriever-v1-7b': 2,
                 'Qwen3-Embedding-8B': 2,
                 'Qwen3-Embedding-4B': 3,
                 'inf-retriever-v1-1.5b': 3,
-                'stella_en_1.5B': 4,
+                'stella_en_1.5B': 4, # deprecated
                 'e5-base': 6,
                 'e5-large': 7,
                 'arctic-embed-l': 7,
@@ -322,51 +356,56 @@ class CreateVectorDB:
                 'bge-small': 12,
                 'gte-base': 14,
                 'arctic-embed-m': 14,
-                'stella_en_400M_v5': 20,
+                'stella_en_400M_v5': 20, # deprecated
             }
+
             for key, value in batch_size_mapping.items():
-                if key in embedding_model_name:
-                    encode_kwargs['batch_size'] = value
-                    break
+                if isinstance(key, tuple):
+                    if any(model_name_part in embedding_model_name for model_name_part in key):
+                        encode_kwargs['batch_size'] = value
+                        break
+                else:
+                    if key in embedding_model_name:
+                        encode_kwargs['batch_size'] = value
+                        break
 
-        name_lower = embedding_model_name.lower()
-
-        if "qwen3-embedding" in name_lower:
+        # ✅ Use your complete inheritance structure with fixed nesting
+        if "qwen3-embedding" in embedding_model_name.lower():
             print("Using QwenEmbedding class.")
-            model = QwenEmbedding(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
+            model = QwenEmbedding(embedding_model_name, model_kwargs, encode_kwargs).create()
 
-        elif "snowflake" in name_lower:
+        elif "snowflake" in embedding_model_name.lower():
             print("Using SnowflakeEmbedding class.")
-            model = SnowflakeEmbedding(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
+            model = SnowflakeEmbedding(embedding_model_name, model_kwargs, encode_kwargs).create()
 
-        elif "alibaba" in name_lower:
+        elif "alibaba" in embedding_model_name.lower():
             print("Using AlibabaEmbedding class.")
-            model = AlibabaEmbedding(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
+            model = AlibabaEmbedding(embedding_model_name, model_kwargs, encode_kwargs).create()
 
-        elif "400m" in name_lower:
+        elif "400m" in embedding_model_name.lower():
             print("Using Stella400MEmbedding class.")
-            model = Stella400MEmbedding(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
+            model = Stella400MEmbedding(embedding_model_name, model_kwargs, encode_kwargs).create()
 
-        elif "stella_en_1.5b_v5" in name_lower:
+        elif "stella_en_1.5b_v5" in embedding_model_name.lower():
             print("Using StellaEmbedding class.")
-            model = StellaEmbedding(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
+            model = StellaEmbedding(embedding_model_name, model_kwargs, encode_kwargs).create()
 
-        elif "bge-code" in name_lower:
+        elif "bge-code" in embedding_model_name.lower():
             print("Using BgeCodeEmbedding class.")
-            model = BgeCodeEmbedding(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
+            model = BgeCodeEmbedding(embedding_model_name, model_kwargs, encode_kwargs).create()
 
-        elif "infly" in name_lower:
+        elif "infly" in embedding_model_name.lower():
             print("Using InflyAndAlibabaEmbedding class.")
-            model = InflyAndAlibabaEmbedding(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
+            model = InflyAndAlibabaEmbedding(embedding_model_name, model_kwargs, encode_kwargs).create()
 
-        elif "e5" in name_lower:
+        elif "e5" in embedding_model_name.lower():
             print("Using BaseEmbeddingModel class with Intfloat prompt.")
             encode_kwargs["prompt"] = "passage: "
-            model = BaseEmbeddingModel(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
+            model = BaseEmbeddingModel(embedding_model_name, model_kwargs, encode_kwargs).create()
 
         else:
             print("Using BaseEmbeddingModel class.")
-            model = BaseEmbeddingModel(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
+            model = BaseEmbeddingModel(embedding_model_name, model_kwargs, encode_kwargs).create()
 
         model_name = os.path.basename(embedding_model_name)
         precision = "float32" if torch_dtype is None else str(torch_dtype).split('.')[-1]
@@ -661,11 +700,10 @@ class QueryVectorDB:
         self.model_name = os.path.basename(model_path)
         compute_device = self.config['Compute_Device']['database_query']
 
-        outer_model_kwargs = {
-            "device": compute_device,
-            "trust_remote_code": True,
-            # Add inner 'model_kwargs' only if you later decide to pass low-level model args (e.g. torch_dtype)
-            # "model_kwargs": {"torch_dtype": torch.bfloat16},
+        # ✅ Structure for query embeddings using fixed inheritance system
+        model_kwargs = {
+            "device": compute_device,  # Will be extracted as top-level
+            "trust_remote_code": True,  # Will be extracted as top-level
         }
 
         encode_kwargs = {
@@ -675,52 +713,53 @@ class QueryVectorDB:
 
         mp_lower = model_path.lower()
 
+        # ✅ Use your inheritance structure for queries
         if "qwen3-embedding" in mp_lower:
             encode_kwargs["prompt"] = (
                 "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
             )
-            embeddings = QwenEmbedding(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
-
+            embeddings = QwenEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
+            
         elif "snowflake" in mp_lower:
             encode_kwargs["prompt"] = "query: "
-            embeddings = SnowflakeEmbedding(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
-
+            embeddings = SnowflakeEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
+            
         elif "intfloat" in mp_lower:
             encode_kwargs["prompt"] = "query: "
-            embeddings = BaseEmbeddingModel(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
+            embeddings = BaseEmbeddingModel(model_path, model_kwargs, encode_kwargs, is_query=True).create()
 
         elif "alibaba" in mp_lower:
             encode_kwargs["prompt"] = (
-                "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
+                "Instruct: Given a web search query, retrieve relevant passages that answer the query\n"
+                "Query: "
             )
-            embeddings = AlibabaEmbedding(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
-
+            embeddings = AlibabaEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
+            
         elif "infly" in mp_lower:
             encode_kwargs["prompt"] = (
-                "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
+                "Instruct: Given a web search query, retrieve relevant passages that answer the query\n"
+                "Query: "
             )
-            embeddings = InflyAndAlibabaEmbedding(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
+            embeddings = InflyAndAlibabaEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
 
         elif "bge-code" in mp_lower:
             code_instruction = "Given a question in text, retrieve relevant code that is relevant."
             encode_kwargs["prompt"] = f"<instruct>{code_instruction}\n<query>"
-            embeddings = BgeCodeEmbedding(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
+            embeddings = BgeCodeEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
 
         elif "stella" in mp_lower:
-            encode_kwargs["prompt"] = (
-                "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
-            )
+            encode_kwargs["prompt"] = ("Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: ")
             if "400m" in mp_lower:
-                embeddings = Stella400MEmbedding(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
+                embeddings = Stella400MEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
             else:
-                embeddings = StellaEmbedding(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
+                embeddings = StellaEmbedding(model_path, model_kwargs, encode_kwargs, is_query=True).create()
 
         elif "bge" in mp_lower:
-            encode_kwargs["prompt"] = "Represent this sentence for searching relevant passages: "
-            embeddings = BaseEmbeddingModel(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
-
+            encode_kwargs["prompt"] = ("Represent this sentence for searching relevant passages: ")
+            embeddings = BaseEmbeddingModel(model_path, model_kwargs, encode_kwargs, is_query=True).create()
+            
         else:
-            embeddings = BaseEmbeddingModel(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
+            embeddings = BaseEmbeddingModel(model_path, model_kwargs, encode_kwargs, is_query=True).create()
 
         return embeddings
 

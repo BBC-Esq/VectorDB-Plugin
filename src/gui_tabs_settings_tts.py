@@ -71,7 +71,7 @@ class TTSSettingsTab(QWidget):
                 "voice": {
                     "label": "Voice",
                     "options": [
-                        "Default Female", "Fast Male 1", "Fast Female", "Fast Male 2", 
+                        "Default Male", "Fast Male 1", "Fast Female", "Fast Male 2", 
                         "Happy Male", "Happy Female 1", "Happy Female 2", "Enunciated Female"
                     ],
                     "default": "Happy Male",
@@ -195,7 +195,7 @@ class TTSSettingsTab(QWidget):
             kyutai["quality"] = self.widgets_for_backend["kyutai"]["quality"][1].currentText()
 
             voice_mapping = {
-                "Default Female": "expresso/ex04-ex03_default_002_channel2_239s.wav",
+                "Default Male": "expresso/ex04-ex03_default_002_channel2_239s.wav",
                 "Fast Male 1": "expresso/ex01-ex02_fast_001_channel1_104s.wav", 
                 "Fast Female": "expresso/ex01-ex02_fast_001_channel2_73s.wav",
                 "Fast Male 2": "expresso/ex04-ex03_fast_001_channel2_25s.wav",
