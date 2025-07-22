@@ -49,7 +49,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 ROOT_DIRECTORY = Path(__file__).parent
 SOURCE_DIRECTORY = ROOT_DIRECTORY / "Docs_for_DB"
-INGEST_THREADS = max(2, os.cpu_count() - 8)
+INGEST_THREADS = max(2, os.cpu_count() - 12)
 
 
 from typing import List
@@ -210,7 +210,7 @@ def load_documents(source_dir: Path) -> list:
         n_workers = min(INGEST_THREADS, max(len(doc_paths), 1))
 
         total_cores = os.cpu_count()
-        threads_per_process = 1
+        threads_per_process = 2
 
         with ProcessPoolExecutor(n_workers) as executor:
             chunksize = math.ceil(len(doc_paths) / n_workers)
