@@ -617,20 +617,20 @@ class loader_glmv4_thinking(BaseLoader):
         save_dir = info["cache_dir"]
         cache_dir = CACHE_DIR / save_dir
         cache_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self.device = torch.device("cuda")
         use_bf16 = torch.cuda.get_device_capability()[0] >= 8
         dtype = torch.bfloat16 if use_bf16 else torch.float16
-        
+
         quant_config = BitsAndBytesConfig(
             load_in_4bit=True, 
             bnb_4bit_quant_type="nf4", 
             bnb_4bit_compute_dtype=dtype
         )
-        
+
         # Import the specific model class
         from transformers import Glm4vForConditionalGeneration
-        
+
         model = Glm4vForConditionalGeneration.from_pretrained(
             model_id, 
             token=False, 
@@ -642,14 +642,14 @@ class loader_glmv4_thinking(BaseLoader):
             device_map="auto",
             attn_implementation="sdpa"
         ).eval()
-        
+
         processor = AutoProcessor.from_pretrained(
             model_id, 
             use_fast=True, 
             trust_remote_code=True, 
             cache_dir=cache_dir
         )
-        
+
         precision_str = "bfloat16" if use_bf16 else "float16"
         device_str = "CUDA" if self.device == "cuda" else "CPU"
         my_cprint(f"{chosen_model} (Thinking Mode) loaded into memory on {device_str} ({precision_str})", "green")
@@ -670,11 +670,11 @@ class loader_glmv4_thinking(BaseLoader):
         
         generated_tokens = outputs[0][len(inputs.input_ids[0]):]
         response = self.processor.decode(generated_tokens, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip()
-        
+
         # Extract content between <answer> and </answer> tags
         if '<answer>' in response and '</answer>' in response:
             start_idx = response.find('<answer>') + len('<answer>')
             end_idx = response.find('</answer>')
             response = response[start_idx:end_idx].strip()
-        
+
         return ' '.join(line.strip() for line in response.split('\n') if line.strip())
