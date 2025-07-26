@@ -115,12 +115,12 @@ priority_libs = {
 }
 
 libs = [
-    "accelerate==1.8.1",
+    "accelerate==1.9.0",
     "aiofiles==24.1.0",
     "aiohappyeyeballs==2.6.1",
     "aiohttp==3.12.14", # langchain libraries require <4
-    "aiosignal==1.4.0", # >=1.4.0 required by aiohttp
-    "anndata==0.11.4",
+    "aiosignal==1.4.0", #aiohttp requires >=1.4.0
+    "anndata==0.11.4", # 0.12+ requires additional dependencies; doublecheck if worth it
     "annotated-types==0.7.0",
     "anyio==4.9.0",
     "array_api_compat==1.12.0", # only anndata requires
@@ -129,7 +129,7 @@ libs = [
     "av==15.0.0",
     "backoff==2.2.1",
     "beautifulsoup4==4.13.4",
-    "bitsandbytes==0.46.0",
+    "bitsandbytes==0.46.1",
     "braceexpand==0.1.7",
     "certifi==2025.7.14",
     "cffi==1.17.1",
@@ -160,14 +160,14 @@ libs = [
     "encodec==0.1.1",
     "et-xmlfile==2.0.0", # openpyxl requires; caution...openpyxl 3.1.5 (6/28/2024) predates et-xmlfile 2.0.0 (10/25/2024)
     "eval-type-backport==0.2.2", # only required by unstructured
-    "fastcore==1.8.5", # only required by whisperspeech
+    "fastcore==1.8.7", # only required by whisperspeech
     "fastprogress==1.0.3", # only required by whisperspeech
     "filetype==1.2.0",
     "filelock==3.18.0",
-    "fonttools==4.58.5", # only required by matplotlib
+    "fonttools==4.59.0", # only required by matplotlib
     "frozendict==2.4.6",
     "frozenlist==1.7.0",
-    "fsspec[http]==2025.5.1", # huggingface_hub requires <=2025.5.1
+    "fsspec[http]==2025.3.0", # datasets requires <=2025.3.0
     "greenlet==3.2.3",
     "gTTS==2.5.4",
     "hf_xet==1.1.5",
@@ -177,7 +177,7 @@ libs = [
     "httpcore==1.0.9",
     "httpx==0.28.1",
     "httpx-sse==0.4.1",
-    "huggingface-hub==0.33.4", # tokenizers 0.21.1 requires >=0.16.4,<1.0
+    "huggingface-hub==0.34.1", # tokenizers requires <1.0
     "humanfriendly==10.0",
     "HyperPyYAML==1.2.2",
     "idna==3.10",
@@ -202,12 +202,12 @@ libs = [
     "Markdown==3.8.2",
     "markdown-it-py==3.0.0",
     "MarkupSafe==3.0.2",
-    "marshmallow==3.26.1", # dataclasses-json==0.6.7 requires less than 4.0.0
+    "marshmallow==3.26.1", # dataclasses-json requires <4.0.0
     "matplotlib==3.10.3", # uniquely requires pyparsing, cycler, and kiwisolver
     "mdurl==0.1.2",
     "more-itertools==10.7.0",
     # "moshi==0.2.8", # installed at runtime if needed
-    "mpmath==1.3.0", # sympy 1.13.1 requires less than 1.4
+    "mpmath==1.3.0", # sympy 1.13.1 requires <1.4
     "msg-parser==1.2.0",
     "multidict==6.6.3",
     "multiprocess==0.70.16", # datasets requires <0.70.17
@@ -217,36 +217,35 @@ libs = [
     "networkx==3.5",
     "nltk==3.9.1", # not higher; gives unexplained error
     "numba==0.61.2", # only required by openai-whisper and chattts
-    # "numpy==1.26.4",
-    "numpy==2.2.6", # numba 0.61.2 requires less than numpy 2.3
+    "numpy==2.2.6", # numba 0.61.2 requires <2.3
     "ocrmypdf==16.10.4",
     "olefile==0.47",
     "onnx==1.18.0", # required by chatterbox-lite
-    "openai==1.95.1", # only required by chat_lm_studio.py script and whispers2t (if using openai vanilla backend)
+    "openai==1.97.1", # only required by chat_lm_studio.py script and whispers2t (if using openai vanilla backend)
     "openai-whisper==20250625", # only required by whisper_s2t (if using openai vanilla backend)
     "openpyxl==3.1.5",
     "optimum==1.26.1",
     "ordered-set==4.1.0",
-    "orderly-set==5.5.0", # deepdiff 8.2.0 requires orderly-set>=5.3.0,<6
-    "orjson==3.10.18",
-    "packaging==24.2", # langchain-core==0.3.60 requires less than 25
+    "orderly-set==5.5.0", # deepdiff 8.2.0 requires >=5.3.0,<6
+    "orjson==3.11.1",
+    "packaging==24.2", # langchain-core==0.3.60 requires <25
     "pandas==2.3.1",
     "pdfminer.six==20250506", # ocrmypdf 16.10.1 requires >=20220319
-    "pikepdf==9.10.0", # only needed by ocrmypdf
+    "pikepdf==9.10.2", # only needed by ocrmypdf
     "pillow==11.3.0",
-    "pi-heif==0.22.0", # only needed by ocrmypdf, but not for my usage of ocrmypdf
+    # "pi-heif==0.22.0", # only needed by ocrmypdf, but not for my usage of ocrmypdf
     "pipdeptree",
     "platformdirs==4.3.8",
     "pluggy==1.6.0", # only needed by ocrmypdf
     "propcache==0.3.2",
     "protobuf==6.31.1",
     "psutil==7.0.0",
-    "pyarrow==20.0.0",
+    "pyarrow==21.0.0",
     "pybase16384==0.3.8", # only required by chattts
     "pycparser==2.22",
     "pydantic==2.11.7",
-    "pydantic_core==2.33.2", # pydantic 2.11.7 requires pydantic_core==2.33.2
-    "pydantic-settings==2.9.1", # langchain-community requires pydantic-settings>=2.4.0,<3.0.0
+    "pydantic_core==2.33.2", # pydantic 2.11.7 requires ==2.33.2
+    "pydantic-settings==2.10.1", # langchain-community requires >=2.4.0,<3.0.0
     "Pygments==2.19.2",
     "PyOpenGL==3.1.9",
     "PyOpenGL-accelerate==3.1.9",
@@ -266,12 +265,12 @@ libs = [
     "regex==2024.11.6",
     "requests==2.32.4",
     "requests-toolbelt==1.0.0",
-    "rich==14.0.0",
+    "rich==14.1.0",
     "ruamel.yaml==0.18.14",
     "ruamel.yaml.clib==0.2.12",
-    "s3tokenizer==0.1.7", # required by chatterbox-lite
+    "s3tokenizer==0.2.0", # required by chatterbox-lite
     "safetensors==0.5.3",
-    "scikit-learn==1.7.0",
+    "scikit-learn==1.7.1",
     "scipy==1.16.0",
     "sentence-transformers==4.1.0",
     "sentencepiece==0.2.0",
@@ -282,9 +281,9 @@ libs = [
     "soupsieve==2.7",
     # "sphn==0.2.0", # installed at runtime when needed
     "speechbrain==0.5.16",
-    "SQLAlchemy==2.0.41", # langchain and langchain-community require less than 3.0.0
+    "SQLAlchemy==2.0.41", # langchain and langchain-community require <3.0.0
     "sseclient-py==1.8.0", # only required by Kobold
-    "sympy==1.13.1", # torch 2.6.0 requires sympy==1.13.1
+    "sympy==1.13.1", # torch 2.6.0 requires ==1.13.1
     # "tabulate==0.9.0",
     "tabulate2==1.10.2",
     "tblib==3.1.0", # only tiledb-cloud requires
@@ -294,22 +293,22 @@ libs = [
     "tessdata.eng==1.0.0",
     "threadpoolctl==3.6.0",
     "tiktoken==0.9.0",
-    "tiledb==0.34.0",
+    "tiledb==0.34.1",
     "tiledb-cloud==0.13.0",
     "tiledb-vector-search==0.13.0",
-    "timm==1.0.17",
+    "timm==1.0.19",
     "tokenizers==0.21.2",
     "tqdm==4.67.1",
-    "transformers==4.53.2",
+    "transformers==4.54.0",
     "typing-inspection==0.4.1", # required by pydantic and pydantic-settings
     "typing_extensions==4.14.1",
-    "unstructured-client==0.36.0",
+    "unstructured-client==0.41.0",
     "tzdata==2025.2",
     "urllib3==2.5.0", # requests requires <3
-    "vector-quantize-pytorch==1.22.17",
+    "vector-quantize-pytorch==1.22.18",
     "vocos==0.1.0",
     "watchdog==6.0.0",
-    "webdataset==0.2.111", # required by all TTS libraries
+    "webdataset==0.2.111", # only requires by Whisperspeech; next is 1.0.2 so hesitate to upgrade
     "webencodings==0.5.1", # only required by html5lib
     "wrapt==1.17.2",
     "xlrd==2.0.2",
@@ -322,7 +321,7 @@ libs = [
 full_install_libs = [
     "PySide6==6.9.1",
     "pymupdf==1.26.3",
-    "unstructured==0.17.2"
+    "unstructured==0.18.11"
 ]
 
 BACKEND_DEPENDENCIES = {
@@ -357,6 +356,7 @@ CHAT_MODELS = {
         'function': 'Minicpm',
         'precision': 'bfloat16',
         'gated': False,
+        'license': 'apache-2.0',
         'max_tokens': 4096,
     },
     'Qwen 3 - 0.6b': {# transformers 4.51.0
@@ -368,6 +368,7 @@ CHAT_MODELS = {
         'function': 'Qwen',
         'precision': 'bfloat16',
         'gated': False,
+        'license': 'apache-2.0',
         'max_new_tokens': 2048,
     },
     'Qwen 3 - 1.7b': {
@@ -379,6 +380,7 @@ CHAT_MODELS = {
         'function': 'Qwen',
         'precision': 'bfloat16',
         'gated': False,
+        'license': 'apache-2.0',
         'max_new_tokens': 2048,
     },
     'Granite - 2b': {# transformers 4.49.0
@@ -390,18 +392,9 @@ CHAT_MODELS = {
         'function': 'Granite',
         'precision': 'bfloat16',
         'gated': False,
+        'license': 'apache-2.0',
         'max_tokens': 4096,
         'max_new_tokens': 512,
-    },
-    'Exaone - 2.4b': {
-        'model': 'Exaone - 2.4b',
-        'repo_id': 'LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct',
-        'cache_dir': 'LGAI-EXAONE--EXAONE-3.5-2.4B-Instruct',
-        'cps': 226.03,
-        'vram': 2720.43,
-        'function': 'Exaone',
-        'precision': 'float32',
-        'gated': False,
     },
     'Phi 4 Mini - 4b': {# transformers 4.45.0
         'model': 'Phi 4 Mini - 4b',
@@ -412,6 +405,7 @@ CHAT_MODELS = {
         'function': 'Phi4',
         'precision': 'bfloat16',
         'gated': False,
+        'license': 'mit',
         'max_tokens': 4096,
         'max_new_tokens': 2048,
     },
@@ -424,18 +418,9 @@ CHAT_MODELS = {
         'function': 'Qwen',
         'precision': 'bfloat16',
         'gated': False,
+        'license': 'apache-2.0',
         'max_tokens': 4096,
         'max_new_tokens': 2048,
-    },
-    'Exaone - 7.8b': {
-        'model': 'Exaone - 7.8b',
-        'repo_id': 'LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct',
-        'cache_dir': 'LGAI-EXAONE--EXAONE-3.5-7.8B-Instruct',
-        'cps': 211.23,
-        'vram': 6285.99,
-        'function': 'Exaone',
-        'precision': 'float32',
-        'gated': False,
     },
     'Qwen 3 - 8b': {
         'model': 'Qwen 3 - 8b',
@@ -446,6 +431,7 @@ CHAT_MODELS = {
         'function': 'Qwen',
         'precision': 'bfloat16',
         'gated': False,
+        'license': 'apache-2.0',
         'max_new_tokens': 2048,
     },
     'Deepseek R1 - 8b': {# 4.46.3
@@ -457,6 +443,7 @@ CHAT_MODELS = {
         'function': 'DeepseekR1',
         'precision': 'bfloat16',
         'gated': False,
+        'license': 'mit',
         'max_new_tokens': 2048,
     },
     'Seed Coder - 8b': {# transformers 4.46.2
@@ -468,6 +455,7 @@ CHAT_MODELS = {
         'function': 'SeedCoder',
         'precision': 'bfloat16',
         'gated': False,
+        'license': 'mit',
         'max_new_tokens': 2048,
     },
     'Granite - 8b': {
@@ -479,6 +467,7 @@ CHAT_MODELS = {
         'function': 'Granite',
         'precision': 'bfloat16',
         'gated': False,
+        'license': 'apache-2.0',
     },
     'MiniCPM4 - 8b': {
         'model': 'MiniCPM4 - 8b',
@@ -489,6 +478,7 @@ CHAT_MODELS = {
         'function': 'Minicpm',
         'precision': 'bfloat16',
         'gated': False,
+        'license': 'apache-2.0',
     },
     'GLM4-Z1 - 9b': {# transformers 4.52.0.dev0
         'model': 'GLM4-Z1 - 9b',
@@ -499,6 +489,7 @@ CHAT_MODELS = {
         'function': 'GLM4Z1',
         'precision': 'bfloat16',
         'gated': False,
+        'license': 'mit',
         'max_new_tokens': 2048,
     },
     'Qwen 3 - 14b': {
@@ -510,6 +501,7 @@ CHAT_MODELS = {
         'function': 'Qwen',
         'precision': 'bfloat16',
         'gated': False,
+        'license': 'apache-2.0',
         'max_new_tokens': 4096,
     },
     'Mistral Small 3 - 24b': {# transformers 4.49.0.dev0
@@ -521,17 +513,7 @@ CHAT_MODELS = {
         'function': 'Mistral_Small_24b',
         'precision': 'bfloat16',
         'gated': True,
-        'max_new_tokens': 4096,
-    },
-    'Exaone - 32b': {
-        'model': 'Exaone - 32b',
-        'repo_id': 'LGAI-EXAONE/EXAONE-3.5-32B-Instruct',
-        'cache_dir': 'LGAI-EXAONE--EXAONE-3.5-32B-Instruct',
-        'cps': 94.95,
-        'vram': 18876.37,
-        'function': 'Exaone',
-        'precision': 'float32',
-        'gated': False,
+        'license': 'apache-2.0',
         'max_new_tokens': 4096,
     },
     'Qwen 3 - 32b': {
@@ -543,6 +525,7 @@ CHAT_MODELS = {
         'function': 'Qwen',
         'precision': 'bfloat16',
         'gated': False,
+        'license': 'apache-2.0',
         'max_new_tokens': 4096,
     },
     'GLM4-Z1 - 32b': {
@@ -554,6 +537,7 @@ CHAT_MODELS = {
         'function': 'GLM4Z1',
         'precision': 'bfloat16',
         'gated': False,
+        'license': 'mit',
         'max_new_tokens': 4096,
     },
 }
@@ -1465,6 +1449,10 @@ scrape_documentation = {
     "click": {
         "URL": "https://click.palletsprojects.com/en/stable/",
         "folder": "click"
+    },
+    "CLIO": {
+        "URL": "https://help.clio.com/",
+        "folder": "CLIO"
     },
     "coloredlogs": {
         "URL": "https://coloredlogs.readthedocs.io/en/latest/",
@@ -3094,7 +3082,7 @@ r"""
 Torch and CUDA Compatibility
 ****************************
 
-# Unless you compile from source, Pytorch provides prebuilt wheels.
+# Unless compiling from source, Pytorch's wheels are as follows:
 +---------------+----------------------------------
 | Wheel Name    | Torch Versions Supported
 +---------------+----------------------------------
@@ -3102,8 +3090,9 @@ Torch and CUDA Compatibility
 | cu126         | 2.6.0, 2.7.0, 2.7.1
 | cu124         | 2.4.0, 2.4.1, 2.5.0, 2.5.1, 2.6.0
 
-# The "CUDA Toolkit" contains multiple "metapackages", each with their own versioning.
-# Taken from https://github.com/pytorch/pytorch/blob/main/.github/scripts/generate_binary_build_matrix.py
+# "CUDA Toolkit" and "CUDA" are synonymous, and each release contains multiple "metapackages" each with their own versioning.
+# It's unclear whether torch wheels with "cu126," for example, refer to CUDA release 12.6.0 or 12.6.1.
+# This can be determined by looking at https://github.com/pytorch/pytorch/blob/main/.github/scripts/generate_binary_build_matrix.py
 +--------------+------------+------------+------------+
 |              |   cu124    |   cu126    |   cu128    |
 +--------------+------------+------------+------------+
@@ -3121,9 +3110,7 @@ Torch and CUDA Compatibility
 | nvtx         | 12.4.127   | 12.6.77    | 12.8.55    |
 | nvjitlink    | 12.4.127   | 12.6.85    | 12.8.61    |
 +--------------+------------+------------+------------+
-* "CUDA" as a whole uses release numbers.  Pytorch does not always use individual CUDA libraries that were packaged in a CUDA release.
-* Moreover, "cu126" is ambiguous and could mean CUDA release 12.6.1 or 12.6.2, for example.
-* Trace back each: https://docs.nvidia.com/cuda/archive/12.6.3/cuda-toolkit-release-notes/index.html or https://developer.download.nvidia.com/compute/cuda/redist/
+* See also https://docs.nvidia.com/cuda/archive/12.6.3/cuda-toolkit-release-notes/index.html or https://developer.download.nvidia.com/compute/cuda/redist/
 
 
 ************************
@@ -3135,7 +3122,9 @@ Torch and CUDA Compatibility
 +-------+----------------------------+-------------------------------------------+----------------------------+
 | Torch | Python                     | Stable                                    | Experimental               |
 +-------+----------------------------+-------------------------------------------+----------------------------+
-| 2.7   | >=3.9, <=3.13              | CUDA 12.6 + cudnn 9.5.1.17                | CUDA 12.8 (CUDNN 9.7.1.26) |
+| 2.8   | >=3.9, <=3.13              | CUDA 12.6, 12.8 + CUDNN 9.10.2.21         | CUDA 12.9 (CUDNN 9.7.1.26) |
++-------+----------------------------+-------------------------------------------+----------------------------+
+| 2.7   | >=3.9, <=3.13              | CUDA 12.6 + CUDNN 9.5.1.17                | CUDA 12.8 (CUDNN 9.7.1.26) |
 +-------+----------------------------+-------------------------------------------+----------------------------+
 | 2.6   | >=3.9, <=3.13              | CUDA 12.4 + CUDNN 9.1.0.70                | CUDA 12.6 + CUDNN 9.5.1.17 |
 +-------+----------------------------+-------------------------------------------+----------------------------+
@@ -3149,6 +3138,7 @@ Torch and CUDA Compatibility
 +---------------+----------------------------------
 | v3.3.1-windows.post19 | 
 | v3.3.0-windows.post19 | torch>=2.7
+| v3.2.0-windows.post19 | ??? not on repo but on pypi
 | v3.2.0-windows.post18 | torch>=2.6<2.7
 | v3.2.0-windows.post17 | torch>=2.6<2.7
 | v3.2.0-windows.post16 | torch>=2.6<2.7
@@ -3161,11 +3151,11 @@ Torch and CUDA Compatibility
 | v3.2.0-windows.post9  | torch>=2.6<2.7
 
 
-***********************
-Torch & Python & Triton
-***********************
+****************************************
+Torch Compatibility with Python & Triton
+****************************************
 
-# Triton generates custom CUDA kernels for GPU execution and can (but is not required) to be used with torch
+# Triton generates custom CUDA kernels that can optionally be used with torch
 # The METADATA file for each torch wheel shows its compatibility with Python, Triton, and Sympy
 +--------+-------+--------+--------+----------+
 | Torch  | CUDA  | Python | Triton |   Sympy  |
@@ -3194,37 +3184,21 @@ Torch & Python & Triton
 | 2.5.0  | cu124 |  3.11  |  3.1.0 | 1.13.1   |
 +--------+-------+--------+--------+----------+
 * Excludes Python 3.10 wheels
-* Triton 3.0.0 and earlier wheels: https://github.com/jakaline-dev/Triton_win/releases (do not support Python 3.12)
 * Triton 3.1.0 and later wheels: https://github.com/woct0rdho/triton-windows/releases (supports Python 3.12)
 * Since triton-windows==3.2.0.post11, windows wheels are published to https://pypi.org/project/triton-windows/
-
-RTX 50xx (Blackwell)
-This only works with Triton >= 3.3, PyTorch >= 2.7, and CUDA 12.8 .
-
-RTX 40xx (Ada)
-This is officially supported by Triton.
-
-RTX 30xx (Ampere)
-fp8 only works on Nvidia GPUs with sm >= 89
-This is officially supported by Triton, but fp8 (also known as float8) will not work, see the known issue. I recommend to use
-GGUF instead of fp8 models in this case.
-
-RTX 20xx (Turing) or older
-This is not officially supported by Triton. It can run some simple AI models, but not always. fp8 (also known as float8) and bf16
-(also known as bfloat16) will not work. I recommend to use GGUF instead of fp8 or bf16 models in this case.
-
-Triton 3.3 works with PyTorch >= 2.7 .
-
-Triton 3.2 works with PyTorch >= 2.6 .
-
-Triton 3.1 works with PyTorch >= 2.4 . PyTorch 2.3 and older are not supported.
+* RTX 50xx (Blackwell) - Supported but requires Triton >= 3.3, PyTorch >= 2.7, and CUDA 12.8.
+* RTX 40xx (Ada) - Supported
+* RTX 30xx (Ampere) - Supported except fp8 only works on Nvidia GPUs with sm >= 89
+* RTX 20xx (Turing) or older - Not supported
+* Triton 3.3 works with PyTorch >= 2.7 .
+* Triton 3.2 works with PyTorch >= 2.6 .
+* Triton 3.1 works with PyTorch >= 2.4 . PyTorch 2.3 and older are not supported.
 
 
 ************
 cuDNN & CUDA
 ************
 
-# According to Nvidia, cuDNN 8.9.2.26 is only compatible up to CUDA 12.2
 # For cuDNN 9+, Nvidia promises compatibility for all CUDA 12.x releases, but static linking fluctuates
 
 
@@ -3237,6 +3211,8 @@ LINUX Flash Attention 2
 +--------------+------------------------------------------+--------+
 | FA2 Version  |         Torch (exclud torch<2)           |  CUDA  |
 +--------------+------------------------------------------+--------+
+| v2.8.2       | 2.4.0, 2.5.1, 2.6.0, 2.7.1               | 12.9.1 |
+| v2.8.1       | 2.4.0, 2.5.1, 2.6.0, 2.7.1               | 12.9.1 |
 | v2.8.0.post2 | 2.4.0, 2.5.1, 2.6.0, 2.7.1               | 12.9.0 |
 | v2.8.0.post1 | 2.4.0, 2.5.1, 2.6.0, 2.7.1               | 12.9.0 |
 | v2.8.0       | 2.4.0, 2.5.1, 2.6.0, 2.7.1               | 12.9.0 |
@@ -3294,8 +3270,9 @@ Xformers & Flash Attention 2 & CUDA
 +------------------+-------+---------------+----------------+---------------+
 | Xformers Version | Torch |      FA2      |       CUDA (excl. 11.x)        |
 +------------------+-------+---------------+--------------------------------+
-| v0.0.31          | 2.7.1 | 2.7.1 - 2.8.0 | 12.6.3, 12.8.1                 | *doublecheck this due to now incorporation FA3?
-| v0.0.30          | 2.7.0 | 2.7.1 - 2.7.4 | 12.6.3, 12.8.1                 | *pypi *
+| v0.0.31.post1    | 2.7.1 | 2.7.1 - 2.8.0 | 12.8.1                         | *
+| v0.0.31          | 2.7.1 | 2.7.1 - 2.8.0 | 12.8.1                         | *
+| v0.0.30          | 2.7.0 | 2.7.1 - 2.7.4 | 12.6.3, 12.8.1                 | *pypi
 | v0.0.29.post3    | 2.6.0 | 2.7.1 - 2.7.2 | 12.1.0, 12.4.1, 12.6.3, 12.8.0 | *pypi * current
 | v0.0.29.post2    | 2.6.0 | 2.7.1 - 2.7.2 | 12.1.0, 12.4.1, 12.6.3, 12.8.0 | *pypi
 | v0.0.29.post1    | 2.5.1 | 2.7.1 - 2.7.2 | 12.1.0, 12.4.1                 | *only from pytorch
@@ -3307,46 +3284,6 @@ Xformers & Flash Attention 2 & CUDA
 * FA2 support determined by by https://github.com/facebookresearch/xformers/blob/main/xformers/ops/fmha/flash.py
 * CUDA support determined by https://github.com/facebookresearch/xformers/blob/main/.github/actions/setup-build-cuda/action.yml
 
-***********
-Python 3.12
-***********
-
-Python 3.12.4 is incompatible with pydantic.v1 as of pydantic==2.7.3
-https://github.com/langchain-ai/langchain/issues/22692
-***Everything should now be fine as long as Langchain 0.3+ is used, which requires pydantic version 2+***
-
-Other libraries can be checked at: https://pyreadiness.org/3.12/
-
-****************
-**One Big Mess**
-****************
-
-PER CTRANSLATE2...
-
-Starting from version 4.5.0, ctranslate2 is compatible with cuDNN 9+.
-
----
-
-According to Ashraf...
-
-either use ct2<4.5 along with torch<2.4 or ct2==4.5 along with torch>=2.4
-
-v4.5.0 works just fine with pip installed cudnn, but if you have a torch version where the cuda binaries are
-precompiled such as torch==2.5.0+cu121 or any version that ends with +cu12, this error comes up, the only
-solution is downgrade to v4.4.0 at the moment which is strange because it was compiled using cudnn 8.9
-
-+---------------+---------------------+
-| Torch Version | Ctranslate2 Version |
-+---------------+---------------------+
-| 2.*.*+cu121   | <=4.4.0             |
-| 2.*.*+cu124   | >=4.5.0             |
-| >=2.4.0       | >=4.5.0             |
-| <2.4.0        | <4.5.0              |
-+---------------+---------------------+
-* torch(CUDA or CPU) are compatible with CT2 except for torch +cu121, which requires CT2 <=4.4.0
-
-Update: it's compatible with torch==2.*+cu124 so it's only incompatible with 12.1, I'll open a PR to solve this
-  * but his fix didn't work: https://github.com/OpenNMT/CTranslate2/pull/1807
 
 ***************
 **CTRANSLATE2**
@@ -3354,6 +3291,6 @@ Update: it's compatible with torch==2.*+cu124 so it's only incompatible with 12.
 
 Ctranslate2 3.24.0 - last to use cuDNN 8.1.1 with CUDA 11.2.2 by default
 Ctranslate2 4.0.0 - first to use cuDNN 8.8.0 with CUDA 12.2 by default
-Ctranslate2 4.5.0 - first to use cuDNN 9.1 with CUDA 12.2 by default
+Ctranslate2 4.5.0 - first to use cuDNN 9.1.0 with CUDA 12.2 by default
 
 # based on /blob/master/python/tools/prepare_build_environment_windows.sh"""
