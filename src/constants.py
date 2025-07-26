@@ -553,7 +553,8 @@ VECTOR_MODELS = {
             'cache_dir': 'BAAI--bge-small-en-v1.5',
             'type': 'vector',
             'parameters': '33.4m',
-            'precision': 'float32'
+            'precision': 'float32',
+            'license': 'mit',
         },
         {
             'name': 'bge-base-en-v1.5',
@@ -564,7 +565,8 @@ VECTOR_MODELS = {
             'cache_dir': 'BAAI--bge-base-en-v1.5',
             'type': 'vector',
             'parameters': '109m',
-            'precision': 'float32'
+            'precision': 'float32',
+            'license': 'mit',
         },
         {
             'name': 'bge-large-en-v1.5',
@@ -575,7 +577,8 @@ VECTOR_MODELS = {
             'cache_dir': 'BAAI--bge-large-en-v1.5',
             'type': 'vector',
             'parameters': '335m',
-            'precision': 'float32'
+            'precision': 'float32',
+            'license': 'mit',
         },
         # {
             # 'name': 'bge-code-v1',# transformers 4.49.0
@@ -586,7 +589,8 @@ VECTOR_MODELS = {
             # 'cache_dir': 'BAAI--bge-code-v1',
             # 'type': 'vector',
             # 'parameters': '1540m',
-            # 'precision': 'float32'
+            # 'precision': 'float32',
+            # 'license': 'apache-2.0',
         # },
     ],
     'IBM': [
@@ -599,7 +603,8 @@ VECTOR_MODELS = {
             'cache_dir': 'ibm-granite--granite-embedding-30m-english',
             'type': 'vector',
             'parameters': '30.3m',
-            'precision': 'bfloat16'
+            'precision': 'bfloat16',
+            'license': 'apache-2.0',
         },
         {
             'name': 'Granite-125m-English',
@@ -610,7 +615,8 @@ VECTOR_MODELS = {
             'cache_dir': 'ibm-granite--granite-embedding-125m-english',
             'type': 'vector',
             'parameters': '125m',
-            'precision': 'bfloat16'
+            'precision': 'bfloat16',
+            'license': 'apache-2.0',
         },
     ],
     'infly': [
@@ -623,7 +629,8 @@ VECTOR_MODELS = {
             'cache_dir': 'infly--inf-retriever-v1-1.5b',
             'type': 'vector',
             'parameters': '1540m',
-            'precision': 'bfloat16'
+            'precision': 'bfloat16',
+            'license': 'apache-2.0',
         },
         {
             'name': 'inf-retriever-v1-7b',# transformers 4.44.2
@@ -634,7 +641,8 @@ VECTOR_MODELS = {
             'cache_dir': 'infly--inf-retriever-v1-7b',
             'type': 'vector',
             'parameters': '7070m',
-            'precision': 'bfloat16'
+            'precision': 'bfloat16',
+            'license': 'apache-2.0',
         },
     ],
     'intfloat': [
@@ -647,7 +655,8 @@ VECTOR_MODELS = {
             'cache_dir': 'intfloat--e5-small-v2',
             'type': 'vector',
             'parameters': '33.4m',
-            'precision': 'float32'
+            'precision': 'float32',
+            'license': 'mit',
         },
         {
             'name': 'e5-base-v2',
@@ -658,7 +667,8 @@ VECTOR_MODELS = {
             'cache_dir': 'intfloat--e5-base-v2',
             'type': 'vector',
             'parameters': '109m',
-            'precision': 'float32'
+            'precision': 'float32',
+            'license': 'mit',
         },
         {
             'name': 'e5-large-v2',
@@ -669,7 +679,8 @@ VECTOR_MODELS = {
             'cache_dir': 'intfloat--e5-large-v2',
             'type': 'vector',
             'parameters': '335m',
-            'precision': 'float32'
+            'precision': 'float32',
+            'license': 'mit',
         },
     ],
     'Qwen': [
@@ -682,7 +693,8 @@ VECTOR_MODELS = {
             'cache_dir': 'Qwen--Qwen3-Embedding-0.6B',
             'type': 'vector',
             'parameters': '596m',
-            'precision': 'bfloat16'
+            'precision': 'bfloat16',
+            'license': 'apache-2.0',
         },
         {
             'name': 'Qwen3-Embedding-4B',
@@ -693,7 +705,8 @@ VECTOR_MODELS = {
             'cache_dir': 'Qwen--Qwen3-Embedding-4B',
             'type': 'vector',
             'parameters': '4020m',
-            'precision': 'bfloat16'
+            'precision': 'bfloat16',
+            'license': 'apache-2.0',
         },
         {
             'name': 'Qwen3-Embedding-8B',
@@ -704,7 +717,8 @@ VECTOR_MODELS = {
             'cache_dir': 'Qwen--Qwen3-Embedding-8B',
             'type': 'vector',
             'parameters': '7570m',
-            'precision': 'bfloat16'
+            'precision': 'bfloat16',
+            'license': 'apache-2.0',
         },
     ],
     'Snowflake': [
@@ -717,7 +731,8 @@ VECTOR_MODELS = {
             'cache_dir': 'Snowflake--snowflake-arctic-embed-m-v2.0',
             'type': 'vector',
             'parameters': '305m',
-            'precision': 'float32'
+            'precision': 'float32',
+            'license': 'apache-2.0',
         },
         {
             'name': 'arctic-embed-l-v2.0',
@@ -728,7 +743,8 @@ VECTOR_MODELS = {
             'cache_dir': 'Snowflake--snowflake-arctic-embed-l-v2.0',
             'type': 'vector',
             'parameters': '568m',
-            'precision': 'float32'
+            'precision': 'float32',
+            'license': 'apache-2.0',
         },
     ],
 }
@@ -742,7 +758,8 @@ VISION_MODELS = {
         'cache_dir': 'OpenGVLab--InternVL3-1B',
         'requires_cuda': False,
         'vram': '2.4 GB',
-        'loader': 'loader_internvl'
+        'loader': 'loader_internvl',
+        'license': 'apache-2.0',
     },
     'Ovis2 - 1b': {
         'precision': 'bfloat16',
@@ -752,7 +769,8 @@ VISION_MODELS = {
         'cache_dir': 'AIDC-AI--Ovis2-1B',
         'requires_cuda': False,
         'vram': '2.4 GB',
-        'loader': 'loader_ovis'
+        'loader': 'loader_ovis',
+        'license': 'apache-2.0',
     },
     'InternVL3 - 2b': {
         'precision': 'bfloat16',
@@ -762,7 +780,8 @@ VISION_MODELS = {
         'cache_dir': 'OpenGVLab--InternVL3-2B',
         'requires_cuda': False,
         'vram': '3.2 GB',
-        'loader': 'loader_internvl'
+        'loader': 'loader_internvl',
+        'license': 'apache-2.0',
     },
     'Granite Vision - 2b': {# transformers 4.46.0.dev0
         'precision': 'bfloat16',
@@ -772,7 +791,8 @@ VISION_MODELS = {
         'cache_dir': 'ibm-granite--granite-vision-3.2-2b',
         'requires_cuda': False,
         'vram': '4.1 GB',
-        'loader': 'loader_granite'
+        'loader': 'loader_granite',
+        'license': 'apache-2.0',
     },
     'Ovis2 - 2b': {
         'precision': 'bfloat16',
@@ -782,7 +802,8 @@ VISION_MODELS = {
         'cache_dir': 'AIDC-AI--Ovis2-2B',
         'requires_cuda': False,
         'vram': '2.4 GB',
-        'loader': 'loader_ovis'
+        'loader': 'loader_ovis',
+        'license': 'apache-2.0',
     },
     'Qwen VL - 3b': {
         'precision': 'bfloat16',
@@ -792,7 +813,8 @@ VISION_MODELS = {
         'cache_dir': 'Qwen--Qwen2.5-VL-3B-Instruct',
         'requires_cuda': True,
         'vram': '6.3 GB',
-        'loader': 'loader_qwenvl'
+        'loader': 'loader_qwenvl',
+        'license': 'Custom Non-Commercial',
     },
     'InternVL3 - 8b': {
         'precision': 'bfloat16',
@@ -802,7 +824,8 @@ VISION_MODELS = {
         'cache_dir': 'OpenGVLab--InternVL3-8B',
         'requires_cuda': True,
         'vram': '8.2 GB',
-        'loader': 'loader_internvl'
+        'loader': 'loader_internvl',
+        'license': 'apache-2.0',
     },
     'Qwen VL - 7b': {# transformers 4.41.2
         'precision': 'bfloat16',
@@ -812,7 +835,19 @@ VISION_MODELS = {
         'cache_dir': 'Qwen--Qwen2.5-VL-7B-Instruct',
         'requires_cuda': True,
         'vram': '9.6 GB',
-        'loader': 'loader_qwenvl'
+        'loader': 'loader_qwenvl',
+        'license': 'Custom Non-Commercial',
+    },
+    'GLM-4.1V-9B-Thinking': {# transformers 4.53.2
+        'precision': 'bfloat16',
+        'quant': '4-bit',
+        'size': '9b',
+        'repo_id': 'THUDM/GLM-4.1V-9B-Thinking',
+        'cache_dir': 'THUDM--GLM-4.1V-9B-Thinking',
+        'requires_cuda': True,
+        'vram': '9.9 GB',
+        'loader': 'loader_glmv4_thinking',
+        'license': 'mit',
     },
     'THUDM glm4v - 9b': {# transformers 4.44.0
         'precision': 'bfloat16',
@@ -832,7 +867,8 @@ VISION_MODELS = {
         'cache_dir': 'ctranslate2-4you--molmo-7B-D-0924-bnb-4bit',
         'requires_cuda': True,
         'vram': '10.5 GB',
-        'loader': 'loader_molmo'
+        'loader': 'loader_molmo',
+        'license': 'apache-2.0',
     },
     'InternVL3 - 14b': {
         'precision': 'bfloat16',
@@ -842,7 +878,8 @@ VISION_MODELS = {
         'cache_dir': 'OpenGVLab--InternVL3-14B',
         'requires_cuda': True,
         'vram': '12.6 GB',
-        'loader': 'loader_internvl'
+        'loader': 'loader_internvl',
+        'license': 'apache-2.0',
     },
 }
 
@@ -853,6 +890,7 @@ OCR_MODELS = {
         'repo_id': 'ctranslate2-4you/GOT-OCR2_0-Customized',
         'cache_dir': 'ctranslate2-4you--GOT-OCR2_0-Customized',
         'requires_cuda': True,
+        'license': 'apache-2.0',
     },
 }
 
@@ -865,6 +903,7 @@ TTS_MODELS = {
         "vram": "2GB",
         "precision": "float32",
         "gated": False,
+        'license': 'apache-2.0',
         "allow_patterns": [
             "voices/**",
             "config.json",
@@ -883,6 +922,7 @@ TTS_MODELS = {
         "vram": "4GB",
         "precision": "float32",
         "gated": False,
+        'license': 'mit',
         "allow_patterns": [
             "voices/**",
             "config.json",
@@ -909,6 +949,7 @@ TTS_MODELS = {
         "vram": "4GB",
         "precision": "float32",
         "gated": False,
+        'license': 'mit',
         "allow_patterns": [
             "voices/**",
             "config.json",
@@ -935,6 +976,7 @@ TTS_MODELS = {
         "vram": "4GB",
         "precision": "fp32",
         "gated": False,
+        'license': 'mit',
         "allow_patterns": [
             "voices/**",
             "config.json",
@@ -961,6 +1003,7 @@ TTS_MODELS = {
         "vram": "4GB",
         "precision": "fp32",
         "gated": False,
+        'license': 'CCA Non-Commercial 4.0',
         "allow_patterns": [
             "asset/**",
             "config/**",
@@ -977,15 +1020,6 @@ TTS_MODELS = {
 }
 
 JEEVES_MODELS = {
-    "Exaone - 2.4b": {
-        "original_repo": "LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct",
-        "repo": "ctranslate2-4you/EXAONE-3.5-2.4B-Instruct-ct2-int8",
-        "folder_name": "ctranslate2-4you--EXAONE-3.5-2.4B-Instruct-Llamafied-ct2-int8",
-        "prompt_format": """[|system|]{jeeves_system_message}[|endofturn|]
-[|user|]{user_message}
-[|endofturn|]
-[|assistant|]"""
-    },
     "Llama - 3b": {
         "original_repo": "meta-llama/Llama-3.2-3B-Instruct",
         "repo": "ctranslate2-4you/Llama-3.2-3B-Instruct-ct2-int8",
@@ -1015,15 +1049,6 @@ Cutting Knowledge Date: December 2023
         "repo": "ctranslate2-4you/h2o-danube3-4b-chat-ct2-int8",
         "folder_name": "ctranslate2-4you--h2o-danube3.1-4b-chat-ct2-int8",
         "prompt_format": """<|system|>{jeeves_system_message}</s><|prompt|>{user_message}</s><|answer|>"""
-    },
-    "Exaone - 7.8b": {
-        "original_repo": "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct",
-        "repo": "ctranslate2-4you/EXAONE-3.5-7.8B-Instruct-ct2-int8",
-        "folder_name": "ctranslate2-4you--EXAONE-3.5-7.8B-Instruct-Llamafied-ct2-int8",
-        "prompt_format": """[|system|]{jeeves_system_message}[|endofturn|]
-[|user|]{user_message}
-[|endofturn|]
-[|assistant|]"""
     },
 }
 

@@ -20,7 +20,8 @@ from transformers import (
     Qwen2_5_VLForConditionalGeneration,
     GenerationConfig,
     AutoConfig,
-    AutoModelForVision2Seq
+    AutoModelForVision2Seq,
+    Glm4vForConditionalGeneration
 )
 from langchain_community.docstore.document import Document
 from extract_metadata import extract_image_metadata
@@ -92,6 +93,8 @@ def choose_image_loader():
         loader_func = loader_internvl(config).process_images
     elif chosen_model in ['Qwen VL - 3b', 'Qwen VL - 7b']:
         loader_func = loader_qwenvl(config).process_images
+    elif chosen_model == 'GLM-4.1V-9B-Thinking':
+        loader_func = loader_glmv4_thinking(config).process_images
     else:
         my_cprint("No valid image model specified in config.yaml", "red")
         return []
@@ -604,4 +607,74 @@ class loader_qwenvl(BaseLoader):
         )
         response = self.processor.decode(output[0], skip_special_tokens=True)
         response = response.split('assistant')[-1].strip()
+        return ' '.join(line.strip() for line in response.split('\n') if line.strip())
+
+class loader_glmv4_thinking(BaseLoader):
+    def initialize_model_and_tokenizer(self):
+        chosen_model = self.config['vision']['chosen_model']
+        info = VISION_MODELS[chosen_model]
+        model_id = info['repo_id']
+        save_dir = info["cache_dir"]
+        cache_dir = CACHE_DIR / save_dir
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.device = torch.device("cuda")
+        use_bf16 = torch.cuda.get_device_capability()[0] >= 8
+        dtype = torch.bfloat16 if use_bf16 else torch.float16
+        
+        quant_config = BitsAndBytesConfig(
+            load_in_4bit=True, 
+            bnb_4bit_quant_type="nf4", 
+            bnb_4bit_compute_dtype=dtype
+        )
+        
+        # Import the specific model class
+        from transformers import Glm4vForConditionalGeneration
+        
+        model = Glm4vForConditionalGeneration.from_pretrained(
+            model_id, 
+            token=False, 
+            torch_dtype=dtype, 
+            low_cpu_mem_usage=True, 
+            trust_remote_code=True, 
+            quantization_config=quant_config, 
+            cache_dir=cache_dir,
+            device_map="auto",
+            attn_implementation="sdpa"
+        ).eval()
+        
+        processor = AutoProcessor.from_pretrained(
+            model_id, 
+            use_fast=True, 
+            trust_remote_code=True, 
+            cache_dir=cache_dir
+        )
+        
+        precision_str = "bfloat16" if use_bf16 else "float16"
+        device_str = "CUDA" if self.device == "cuda" else "CPU"
+        my_cprint(f"{chosen_model} (Thinking Mode) loaded into memory on {device_str} ({precision_str})", "green")
+        
+        return model, None, processor
+
+    @torch.inference_mode()
+    def process_single_image(self, raw_image):
+        if raw_image.mode != "RGB":
+            raw_image = raw_image.convert("RGB")
+
+        user_prompt = "Describe this image in as much detail as possible but do not repeat yourself."
+        prompt = f"[gMASK]<sop><|user|>\n<|begin_of_image|><|image|><|end_of_image|>{user_prompt}<|assistant|>\n"
+        
+        inputs = self.processor(text=prompt, images=raw_image, return_tensors="pt").to(self.device)
+        
+        outputs = self.model.generate(**inputs, max_new_tokens=1024, do_sample=False)
+        
+        generated_tokens = outputs[0][len(inputs.input_ids[0]):]
+        response = self.processor.decode(generated_tokens, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip()
+        
+        # Extract content between <answer> and </answer> tags
+        if '<answer>' in response and '</answer>' in response:
+            start_idx = response.find('<answer>') + len('<answer>')
+            end_idx = response.find('</answer>')
+            response = response[start_idx:end_idx].strip()
+        
         return ' '.join(line.strip() for line in response.split('\n') if line.strip())
