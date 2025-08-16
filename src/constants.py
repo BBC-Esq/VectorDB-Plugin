@@ -750,7 +750,20 @@ VECTOR_MODELS = {
 }
 
 VISION_MODELS = {
-    'Liquid-VL - 1.6B': {# transformers 4.48.3
+    'Liquid-VL - 480M': {
+        'precision': 'bfloat16',
+        'quant': 'n/a',
+        'size': '480m',
+        'repo_id': 'LiquidAI/LFM2-VL-450M',
+        'cache_dir': 'LiquidAI--LFM2-VL-450M',
+        'requires_cuda': False,
+        'vram': '628 MB',
+        'speed': '497.64 char/s',
+        'avg_length': 964,
+        'loader': 'loader_liquidvl',
+        'license': 'lfm1.0',
+    },
+    'Liquid-VL - 1.6B': {
         'precision': 'bfloat16',
         'quant': 'n/a',
         'size': '1.6b',
@@ -759,7 +772,8 @@ VISION_MODELS = {
         'requires_cuda': False,
         'vram': '1.4 GB',
         'speed': '437.5 char/s',
-        'loader': 'loader_internvl',
+        'avg_length': 856,
+        'loader': 'loader_liquidvl',
         'license': 'lfm1.0',
     },
     'InternVL3 - 1b': {# transformers 4.48.3
@@ -770,6 +784,7 @@ VISION_MODELS = {
         'cache_dir': 'OpenGVLab--InternVL3-1B',
         'requires_cuda': False,
         'vram': '2.4 GB',
+        'avg_length': 527,
         'loader': 'loader_internvl',
         'license': 'apache-2.0',
     },
@@ -792,6 +807,7 @@ VISION_MODELS = {
         'cache_dir': 'OpenGVLab--InternVL3-2B',
         'requires_cuda': False,
         'vram': '3.2 GB',
+        'avg_length': 560,
         'loader': 'loader_internvl',
         'license': 'apache-2.0',
     },
@@ -825,6 +841,7 @@ VISION_MODELS = {
         'cache_dir': 'Qwen--Qwen2.5-VL-3B-Instruct',
         'requires_cuda': True,
         'vram': '6.3 GB',
+        'avg_length': 668,
         'loader': 'loader_qwenvl',
         'license': 'Custom Non-Commercial',
     },
@@ -836,6 +853,7 @@ VISION_MODELS = {
         'cache_dir': 'OpenGVLab--InternVL3-8B',
         'requires_cuda': True,
         'vram': '8.2 GB',
+        'avg_length': 743,
         'loader': 'loader_internvl',
         'license': 'apache-2.0',
     },
@@ -847,6 +865,7 @@ VISION_MODELS = {
         'cache_dir': 'Qwen--Qwen2.5-VL-7B-Instruct',
         'requires_cuda': True,
         'vram': '9.6 GB',
+        'avg_length': 577,
         'loader': 'loader_qwenvl',
         'license': 'Custom Non-Commercial',
     },

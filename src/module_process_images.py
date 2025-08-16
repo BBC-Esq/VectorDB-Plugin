@@ -63,6 +63,7 @@ def run_loader_in_process(loader_func):
         my_cprint(error_message, "red")
         return []
 
+
 def choose_image_loader():
     with open('config.yaml', 'r') as file:
         config = yaml.safe_load(file)
@@ -81,7 +82,7 @@ def choose_image_loader():
         loader_func = loader_qwenvl(config).process_images
     elif chosen_model == 'GLM-4.1V-9B-Thinking':
         loader_func = loader_glmv4_thinking(config).process_images
-    elif chosen_model in ['Liquid-VL - 1.6B']:
+    elif chosen_model in ['Liquid-VL - 1.6B', 'Liquid-VL - 480M']:
         loader_func = loader_liquidvl(config).process_images
     else:
         my_cprint("No valid image model specified in config.yaml", "red")
@@ -641,14 +642,14 @@ class loader_qwenvl(BaseLoader):
         model.eval()
 
         precision_str = "bfloat16" if use_bf16 else "float16"
-        device_str = device_str_from_model(model, fallback_device=self.device)
+        device_str = "CUDA" if self.device == "cuda" else "CPU"
         my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
 
         return model, None, processor
 
     @torch.inference_mode()
     def process_single_image(self, raw_image):
-        user_message = "Describe in as much detail as possible what this image depicts?"
+        user_message = "Explain everything you see in this picture but your response should be no more than one paragraph, but the paragraph can be as long as you want."
         prompt = (
             "<|im_start|>user\n"
             f"{user_message} <|vis_start|><|image_pad|><|vis_end|>\n"
