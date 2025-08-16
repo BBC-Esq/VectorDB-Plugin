@@ -99,32 +99,6 @@ def choose_image_loader():
         return processed_docs or []
 
 
-def device_str_from_model(model, fallback_device=None):
-    devs = set()
-    offload = False
-    if hasattr(model, "hf_device_map") and model.hf_device_map:
-        for loc in model.hf_device_map.values():
-            if not loc:
-                continue
-            if loc == "disk":
-                offload = True
-                continue
-            devs.add(loc.split(":")[0])
-    else:
-        try:
-            devs |= {p.device.type for p in model.parameters() if p.device.type != "meta"}
-            devs |= {b.device.type for b in model.buffers() if b.device.type != "meta"}
-        except Exception:
-            dev = getattr(fallback_device, "type", fallback_device or "unknown")
-            devs.add(dev)
-
-    names = {"cuda": "CUDA", "cpu": "CPU", "mps": "MPS", "xpu": "XPU", "npu": "NPU"}
-    label = "+".join(sorted(names.get(d, d.upper()) for d in devs)) or "UNKNOWN"
-    if offload:
-        label += " (+offload)"
-    return label
-
-
 class BaseLoader:
     def __init__(self, config):
         self.config = config
@@ -213,7 +187,7 @@ class loader_glmv4(BaseLoader):
         )
         
         precision_str = "bfloat16" if use_bf16 else "float16"
-        device_str = device_str_from_model(model, fallback_device=self.device)
+        device_str = "CUDA"
         my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
         
         return model, tokenizer, None
@@ -247,7 +221,7 @@ class loader_molmo(BaseLoader):
         source = info.get('model_path') or info['repo_id']
         cache_dir = CACHE_DIR / info.get('cache_dir', '')
         cache_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self.processor = AutoProcessor.from_pretrained(
             source,
             token=False,
@@ -256,14 +230,14 @@ class loader_molmo(BaseLoader):
             device_map='auto',
             cache_dir=cache_dir
         )
-        
+
         quant_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_compute_dtype=torch.bfloat16,
             bnb_4bit_quant_type="nf4",
             bnb_4bit_use_double_quant=True
         )
-        
+
         self.model = AutoModelForCausalLM.from_pretrained(
             source,
             token=False,
@@ -273,11 +247,14 @@ class loader_molmo(BaseLoader):
             device_map='auto',
             cache_dir=cache_dir
         )
-        
+
         self.model.model.vision_backbone = self.model.model.vision_backbone.to(torch.float32)
         self.model.eval()
-        
-        device_str = device_str_from_model(self.model, fallback_device=self.device)
+
+        if torch.cuda.is_available():
+            device_str = "CUDA"
+        else:
+            device_str = "CPU"
         precision_str = "bfloat16"
         my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
 
@@ -317,8 +294,12 @@ class loader_ovis(BaseLoader):
         if self.device == "cuda":
             use_bf16 = torch.cuda.get_device_capability()[0] >= 8
             dtype = torch.bfloat16 if use_bf16 else torch.float16
+            precision_str = "bfloat16" if use_bf16 else "float16"
+            device_str = "CUDA"
         else:
             dtype = torch.float32
+            precision_str = "float32"
+            device_str = "CPU"
 
         self.model_dtype = dtype
 
@@ -338,8 +319,6 @@ class loader_ovis(BaseLoader):
 
         self.model = model
 
-        precision_str = "bfloat16" if dtype == torch.bfloat16 else "float16" if dtype == torch.float16 else "float32"
-        device_str = device_str_from_model(model, fallback_device=self.device)
         my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
 
         return model, text_tokenizer, visual_tokenizer
@@ -418,6 +397,7 @@ class loader_internvl(BaseLoader):
                 cache_dir=cache_dir,
                 token=False
             ).eval()
+            device_str = "CUDA"
         else:
             # CPU fallback
             dtype = torch.float32
@@ -431,9 +411,9 @@ class loader_internvl(BaseLoader):
                 token=False,
                 device_map={"": "cpu"}
             ).eval()
+            device_str = "CPU"
 
         self.model_dtype = dtype
-        device_str = device_str_from_model(model, fallback_device=self.device)
         my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
 
         tokenizer = AutoTokenizer.from_pretrained(
@@ -603,9 +583,6 @@ class loader_qwenvl(BaseLoader):
 
         use_bf16 = torch.cuda.get_device_capability()[0] >= 8
         dtype = torch.bfloat16 if use_bf16 else torch.float16
-        precision_str = "bfloat16" if use_bf16 else "float16"
-        device_str = device_str_from_model(model, fallback_device=self.device)
-        my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
 
         quantization_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -640,6 +617,7 @@ class loader_qwenvl(BaseLoader):
                 "visual.blocks.31.mlp.down_proj"
             ]
         )
+
         processor = AutoProcessor.from_pretrained(
             model_id,
             use_fast=True,
@@ -649,6 +627,7 @@ class loader_qwenvl(BaseLoader):
             cache_dir=cache_dir,
             token=False
         )
+
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             model_id,
             quantization_config=quantization_config,
@@ -660,7 +639,9 @@ class loader_qwenvl(BaseLoader):
         )
         model = model.to(self.device)
         model.eval()
+
         precision_str = "bfloat16" if use_bf16 else "float16"
+        device_str = device_str_from_model(model, fallback_device=self.device)
         my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
 
         return model, None, processor
@@ -692,6 +673,7 @@ class loader_qwenvl(BaseLoader):
         response = response.split('assistant')[-1].strip()
 
         return ' '.join(line.strip() for line in response.split('\n') if line.strip())
+
 
 class loader_glmv4_thinking(BaseLoader):
     def initialize_model_and_tokenizer(self):
@@ -732,7 +714,7 @@ class loader_glmv4_thinking(BaseLoader):
         )
 
         precision_str = "bfloat16" if use_bf16 else "float16"
-        device_str = device_str_from_model(model, fallback_device=self.device)
+        device_str = "CUDA"
         my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
 
         return model, None, processor
@@ -795,7 +777,10 @@ class loader_liquidvl(BaseLoader):
         if hasattr(processor, "tokenizer") and hasattr(processor.tokenizer, "add_bos_token"):
             processor.tokenizer.add_bos_token = False
 
-        device_str = device_str_from_model(model, fallback_device=self.device)
+        if torch.cuda.is_available():
+            device_str = "CUDA"
+        else:
+            device_str = "CPU"
         my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
 
         return model, None, processor
