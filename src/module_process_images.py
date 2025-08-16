@@ -21,7 +21,8 @@ from transformers import (
     GenerationConfig,
     AutoConfig,
     AutoModelForVision2Seq,
-    Glm4vForConditionalGeneration
+    Glm4vForConditionalGeneration,
+    AutoModelForImageTextToText
 )
 from langchain_community.docstore.document import Document
 from extract_metadata import extract_image_metadata
@@ -38,21 +39,6 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 def get_best_device():
     return 'cuda' if torch.cuda.is_available() else 'cpu'
-
-# def check_for_images(image_dir: Path) -> bool:
-    # """
-    # Return True if the folder contains at least one file whose suffix is in
-    # ALLOWED_EXTENSIONS.  Materialising the iterator avoids the scandir/thread
-    # race that caused the access-violation on Windows + multiprocessing.
-    # """
-    # try:
-        # entries = list(Path(image_dir).iterdir())   # <- prevents the crash
-    # except FileNotFoundError:
-        # return False       # directory doesn’t exist yet
-    # except OSError:
-        # return False       # permissions or other FS error
-
-    # return any(p.suffix.lower() in ALLOWED_EXTENSIONS for p in entries)
 
 def check_for_images(image_dir: Path) -> bool:
     """
@@ -95,6 +81,8 @@ def choose_image_loader():
         loader_func = loader_qwenvl(config).process_images
     elif chosen_model == 'GLM-4.1V-9B-Thinking':
         loader_func = loader_glmv4_thinking(config).process_images
+    elif chosen_model in ['Liquid-VL - 1.6B']:
+        loader_func = loader_liquidvl(config).process_images
     else:
         my_cprint("No valid image model specified in config.yaml", "red")
         return []
@@ -109,6 +97,32 @@ def choose_image_loader():
             my_cprint(f"Error occurred during image processing: {e}", "red")
             return []
         return processed_docs or []
+
+
+def device_str_from_model(model, fallback_device=None):
+    devs = set()
+    offload = False
+    if hasattr(model, "hf_device_map") and model.hf_device_map:
+        for loc in model.hf_device_map.values():
+            if not loc:
+                continue
+            if loc == "disk":
+                offload = True
+                continue
+            devs.add(loc.split(":")[0])
+    else:
+        try:
+            devs |= {p.device.type for p in model.parameters() if p.device.type != "meta"}
+            devs |= {b.device.type for b in model.buffers() if b.device.type != "meta"}
+        except Exception:
+            dev = getattr(fallback_device, "type", fallback_device or "unknown")
+            devs.add(dev)
+
+    names = {"cuda": "CUDA", "cpu": "CPU", "mps": "MPS", "xpu": "XPU", "npu": "NPU"}
+    label = "+".join(sorted(names.get(d, d.upper()) for d in devs)) or "UNKNOWN"
+    if offload:
+        label += " (+offload)"
+    return label
 
 
 class BaseLoader:
@@ -164,16 +178,44 @@ class loader_glmv4(BaseLoader):
         save_dir = info["cache_dir"]
         cache_dir = CACHE_DIR / save_dir
         cache_dir.mkdir(parents=True, exist_ok=True)
+        
         self.device = torch.device("cuda")
         use_bf16 = torch.cuda.get_device_capability()[0] >= 8
         dtype = torch.bfloat16 if use_bf16 else torch.float16
-        quant_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=dtype)
-        AutoConfig.from_pretrained(model_id, cache_dir=cache_dir, trust_remote_code=True).vision_config.update(image_size=448)
-        model = AutoModelForCausalLM.from_pretrained(model_id, token=False, torch_dtype=dtype, low_cpu_mem_usage=True, trust_remote_code=True, quantization_config=quant_config, cache_dir=cache_dir).eval()
-        tokenizer = AutoTokenizer.from_pretrained(model_id, token=False, trust_remote_code=True, cache_dir=cache_dir)
+        
+        quant_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=dtype
+        )
+        
+        AutoConfig.from_pretrained(
+            model_id,
+            cache_dir=cache_dir,
+            trust_remote_code=True
+        ).vision_config.update(image_size=448)
+        
+        model = AutoModelForCausalLM.from_pretrained(
+            model_id,
+            token=False,
+            torch_dtype=dtype,
+            low_cpu_mem_usage=True,
+            trust_remote_code=True,
+            quantization_config=quant_config,
+            cache_dir=cache_dir
+        ).eval()
+        
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_id,
+            token=False,
+            trust_remote_code=True,
+            cache_dir=cache_dir
+        )
+        
         precision_str = "bfloat16" if use_bf16 else "float16"
-        device_str = "CUDA" if self.device == "cuda" else "CPU"
+        device_str = device_str_from_model(model, fallback_device=self.device)
         my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
+        
         return model, tokenizer, None
 
     @torch.inference_mode()
@@ -194,6 +236,7 @@ class loader_glmv4(BaseLoader):
             outputs = self.model.generate(**inputs, max_length=1024, do_sample=False)
 
         outputs = outputs[:, inputs["input_ids"].shape[1]:]
+
         return self.tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
 
 
@@ -202,15 +245,42 @@ class loader_molmo(BaseLoader):
         chosen_model = self.config['vision']['chosen_model']
         info = VISION_MODELS[chosen_model]
         source = info.get('model_path') or info['repo_id']
-        cache_dir = CACHE_DIR / info.get('cache_dir','')
+        cache_dir = CACHE_DIR / info.get('cache_dir', '')
         cache_dir.mkdir(parents=True, exist_ok=True)
-        self.processor = AutoProcessor.from_pretrained(source, token=False, trust_remote_code=True, torch_dtype=torch.bfloat16, device_map='auto', cache_dir=cache_dir)
-        quant_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.bfloat16, bnb_4bit_quant_type="nf4", bnb_4bit_use_double_quant=True)
-        self.model = AutoModelForCausalLM.from_pretrained(source, token=False, trust_remote_code=True, quantization_config=quant_config, torch_dtype=torch.bfloat16, device_map='auto', cache_dir=cache_dir)
+        
+        self.processor = AutoProcessor.from_pretrained(
+            source,
+            token=False,
+            trust_remote_code=True,
+            torch_dtype=torch.bfloat16,
+            device_map='auto',
+            cache_dir=cache_dir
+        )
+        
+        quant_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True
+        )
+        
+        self.model = AutoModelForCausalLM.from_pretrained(
+            source,
+            token=False,
+            trust_remote_code=True,
+            quantization_config=quant_config,
+            torch_dtype=torch.bfloat16,
+            device_map='auto',
+            cache_dir=cache_dir
+        )
+        
         self.model.model.vision_backbone = self.model.model.vision_backbone.to(torch.float32)
         self.model.eval()
-        device_str = "CUDA" if self.device == "cuda" else "CPU"
-        my_cprint(f"{chosen_model} loaded into memory on {device_str} (bfloat16)", "green")
+        
+        device_str = device_str_from_model(self.model, fallback_device=self.device)
+        precision_str = "bfloat16"
+        my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
+
         return self.model, None, self.processor
 
     @torch.inference_mode()
@@ -225,9 +295,11 @@ class loader_molmo(BaseLoader):
             out = self.model.generate_from_batch(inputs, gen_cfg, tokenizer=self.processor.tokenizer)
             tokens = out[0, inputs['input_ids'].size(1):]
             text = self.processor.tokenizer.decode(tokens, skip_special_tokens=True)
+
             return ' '.join(line.strip() for line in text.split('\n') if line.strip())
         except Exception as e:
             my_cprint(f"Error processing image: {e}", "red")
+
             return ""
 
 
@@ -267,8 +339,9 @@ class loader_ovis(BaseLoader):
         self.model = model
 
         precision_str = "bfloat16" if dtype == torch.bfloat16 else "float16" if dtype == torch.float16 else "float32"
-        device_str = "CUDA" if self.device == "cuda" else "CPU"
+        device_str = device_str_from_model(model, fallback_device=self.device)
         my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
+
         return model, text_tokenizer, visual_tokenizer
 
     @torch.inference_mode()
@@ -298,7 +371,7 @@ class loader_ovis(BaseLoader):
             "use_cache": True,
         }
 
-        # **Pass input_ids positionally** so Ovis2's generate() sees it as text_input_ids
+        # Pass input_ids positionally so Ovis2's generate() sees it as text_input_ids
         output_ids = self.model.generate(
             input_ids,
             pixel_values=pixel_values,
@@ -307,6 +380,7 @@ class loader_ovis(BaseLoader):
         )[0]
 
         description = self.tokenizer.decode(output_ids, skip_special_tokens=True)
+
         return " ".join(line.strip() for line in description.split("\n") if line.strip())
 
 
@@ -359,7 +433,8 @@ class loader_internvl(BaseLoader):
             ).eval()
 
         self.model_dtype = dtype
-        device_str = "CUDA" if self.device == "cuda" else "CPU"
+        device_str = device_str_from_model(model, fallback_device=self.device)
+        my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
 
         tokenizer = AutoTokenizer.from_pretrained(
             info['repo_id'],
@@ -367,7 +442,7 @@ class loader_internvl(BaseLoader):
             cache_dir=cache_dir,
             token=False
         )
-        my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
+
         return model, tokenizer, None
 
     def find_closest_aspect_ratio(self, aspect_ratio, ratios, w, h, sz):
@@ -380,6 +455,7 @@ class loader_internvl(BaseLoader):
             if diff < best_diff or (diff == best_diff and area > 0.5 * sz * sz * r[0] * r[1]):
                 best_diff = diff
                 best = r
+
         return best
 
     def _build_transform(self, size):
@@ -415,11 +491,13 @@ class loader_internvl(BaseLoader):
             parts.append(resized.crop((x, y, x + image_size, y + image_size)))
         if use_thumbnail and len(parts) != 1:
             parts.append(img.resize((image_size, image_size)))
+
         return parts
 
     def _prepare_image(self, raw_image, input_size=448, max_num=24):
         imgs = self.dynamic_preprocess(raw_image, image_size=input_size, use_thumbnail=True, max_num=max_num)
         tf = self._build_transform(input_size)
+
         return torch.stack([tf(im) for im in imgs])
 
     @torch.inference_mode()
@@ -433,6 +511,7 @@ class loader_internvl(BaseLoader):
             'pad_token_id': self.tokenizer.pad_token_id
         }
         resp = self.model.chat(self.tokenizer, pv, question, gen_cfg)
+
         return ' '.join(line.strip() for line in resp.split('\n') if line.strip())
 
 
@@ -494,6 +573,7 @@ class loader_granite(BaseLoader):
             my_cprint(f"{chosen_model} loaded into memory on CPU (float32)", "green")
         
         model.eval()
+
         return model, None, processor
 
     @torch.inference_mode()
@@ -508,6 +588,7 @@ class loader_granite(BaseLoader):
         inputs = self.processor(images=raw_image, text=prompt, return_tensors="pt").to(self.device)
         output = self.model.generate(**inputs, max_new_tokens=1024, do_sample=False, num_beams=1)
         resp = self.processor.decode(output[0], skip_special_tokens=True).split('<|assistant|>')[-1].strip()
+
         return " ".join(line.strip() for line in resp.split("\n") if line.strip())
 
 
@@ -523,8 +604,9 @@ class loader_qwenvl(BaseLoader):
         use_bf16 = torch.cuda.get_device_capability()[0] >= 8
         dtype = torch.bfloat16 if use_bf16 else torch.float16
         precision_str = "bfloat16" if use_bf16 else "float16"
-        device_str = "CUDA" if self.device == "cuda" else "CPU"
-        
+        device_str = device_str_from_model(model, fallback_device=self.device)
+        my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
+
         quantization_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",
@@ -580,6 +662,7 @@ class loader_qwenvl(BaseLoader):
         model.eval()
         precision_str = "bfloat16" if use_bf16 else "float16"
         my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
+
         return model, None, processor
 
     @torch.inference_mode()
@@ -607,6 +690,7 @@ class loader_qwenvl(BaseLoader):
         )
         response = self.processor.decode(output[0], skip_special_tokens=True)
         response = response.split('assistant')[-1].strip()
+
         return ' '.join(line.strip() for line in response.split('\n') if line.strip())
 
 class loader_glmv4_thinking(BaseLoader):
@@ -628,9 +712,6 @@ class loader_glmv4_thinking(BaseLoader):
             bnb_4bit_compute_dtype=dtype
         )
 
-        # Import the specific model class
-        from transformers import Glm4vForConditionalGeneration
-
         model = Glm4vForConditionalGeneration.from_pretrained(
             model_id, 
             token=False, 
@@ -651,9 +732,9 @@ class loader_glmv4_thinking(BaseLoader):
         )
 
         precision_str = "bfloat16" if use_bf16 else "float16"
-        device_str = "CUDA" if self.device == "cuda" else "CPU"
-        my_cprint(f"{chosen_model} (Thinking Mode) loaded into memory on {device_str} ({precision_str})", "green")
-        
+        device_str = device_str_from_model(model, fallback_device=self.device)
+        my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
+
         return model, None, processor
 
     @torch.inference_mode()
@@ -671,10 +752,96 @@ class loader_glmv4_thinking(BaseLoader):
         generated_tokens = outputs[0][len(inputs.input_ids[0]):]
         response = self.processor.decode(generated_tokens, skip_special_tokens=True, clean_up_tokenization_spaces=False).strip()
 
-        # Extract content between <answer> and </answer> tags
         if '<answer>' in response and '</answer>' in response:
             start_idx = response.find('<answer>') + len('<answer>')
             end_idx = response.find('</answer>')
             response = response[start_idx:end_idx].strip()
 
         return ' '.join(line.strip() for line in response.split('\n') if line.strip())
+
+
+class loader_liquidvl(BaseLoader):
+    def initialize_model_and_tokenizer(self):
+        chosen_model = self.config['vision']['chosen_model']
+        info = VISION_MODELS[chosen_model]
+        source = info.get('model_path') or info['repo_id']
+        cache_dir = CACHE_DIR / info.get('cache_dir', '')
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        if torch.cuda.is_available():
+            use_bf16 = torch.cuda.get_device_capability()[0] >= 8
+            dtype = torch.bfloat16 if use_bf16 else torch.float16
+            precision_str = "bfloat16" if use_bf16 else "float16"
+            device_map = "auto"
+        else:
+            dtype = torch.float32
+            precision_str = "float32"
+            device_map = {"": "cpu"}
+
+        model = AutoModelForImageTextToText.from_pretrained(
+            source,
+            trust_remote_code=True,
+            torch_dtype=dtype,
+            cache_dir=cache_dir,
+            device_map=device_map,
+        ).eval()
+
+        processor = AutoProcessor.from_pretrained(
+            source,
+            trust_remote_code=True,
+            cache_dir=cache_dir,
+        )
+
+        if hasattr(processor, "tokenizer") and hasattr(processor.tokenizer, "add_bos_token"):
+            processor.tokenizer.add_bos_token = False
+
+        device_str = device_str_from_model(model, fallback_device=self.device)
+        my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
+
+        return model, None, processor
+
+    @torch.inference_mode()
+    def process_single_image(self, raw_image):
+        if raw_image.mode != "RGB":
+            raw_image = raw_image.convert("RGB")
+
+        system_text = "You are a helpful multimodal assistant."
+        user_text = "Explain everything you see in this picture but your response should be no more than one paragraph, but the paragraph can be as long as you want."
+
+        chatml = (
+            "<|startoftext|><|im_start|>system\n"
+            f"{system_text}<|im_end|>\n"
+            "<|im_start|>user\n"
+            f"<image>{user_text}<|im_end|>\n"
+            "<|im_start|>assistant\n"
+        )
+
+        inputs = self.processor(
+            text=[chatml],
+            images=[[raw_image]],
+            return_tensors="pt",
+            use_image_special_tokens=True,
+            do_image_splitting=True,
+            min_image_tokens=64,
+            max_image_tokens=256,
+        )
+
+        move_to = getattr(self.model, "device", None)
+        if move_to is not None:
+            inputs = inputs.to(move_to)
+
+        input_len = inputs["input_ids"].shape[1]
+        eos_id = self.processor.tokenizer.convert_tokens_to_ids("<|im_end|>")
+        pad_id = self.processor.tokenizer.pad_token_id or eos_id
+
+        outputs = self.model.generate(
+            **inputs,
+            max_new_tokens=384,
+            do_sample=False,
+            eos_token_id=eos_id,
+            pad_token_id=pad_id,
+        )
+
+        new_tokens = outputs[:, input_len:]
+        text = self.processor.batch_decode(new_tokens, skip_special_tokens=True)[0].strip()
+        return " ".join(line.strip() for line in text.split("\n") if line.strip())

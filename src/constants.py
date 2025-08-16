@@ -115,39 +115,39 @@ priority_libs = {
 }
 
 libs = [
-    "accelerate==1.9.0",
+    "accelerate==1.10.0",
     "aiofiles==24.1.0",
     "aiohappyeyeballs==2.6.1",
-    "aiohttp==3.12.14", # langchain libraries require <4
+    "aiohttp==3.12.15", # langchain libraries require <4
     "aiosignal==1.4.0", #aiohttp requires >=1.4.0
     "anndata==0.11.4", # 0.12+ requires additional dependencies; doublecheck if worth it
     "annotated-types==0.7.0",
-    "anyio==4.9.0",
+    "anyio==4.10.0",
     "array_api_compat==1.12.0", # only anndata requires
     "async-timeout==5.0.1",
     "attrs==25.3.0",
     "av==15.0.0",
     "backoff==2.2.1",
     "beautifulsoup4==4.13.4",
-    "bitsandbytes==0.46.1",
+    "bitsandbytes==0.47.0",
     "braceexpand==0.1.7",
-    "certifi==2025.7.14",
+    "certifi==2025.8.3",
     "cffi==1.17.1",
     "chardet==5.2.0",
-    "charset-normalizer==3.4.2", # requests requires <4
+    "charset-normalizer==3.4.3", # requests requires <4
     "git+https://github.com/BBC-Esq/chatterbox-light",
     "chattts==0.2.4",
     "click==8.1.8", # gtts 2.5.4 requires <8.2, >=7.1
     "cloudpickle==3.1.1", # only required by tiledb-cloud and 3+ is only supported by tiledb-cloud 0.13+
     "colorama==0.4.6",
     "coloredlogs==15.0.1",
-    "contourpy==1.3.2", # only required by matplotlib
-    "cryptography==45.0.5", # only required by unstructured and pdfminer.six
+    "contourpy==1.3.3", # only required by matplotlib
+    "cryptography==45.0.6", # only required by unstructured and pdfminer.six
     "ctranslate2==4.6.0",
     "cycler==0.12.1",
     "dataclasses-json==0.6.7",
     "datasets==4.0.0",
-    "deepdiff==8.5.0", # required by unstructured
+    "deepdiff==8.6.0", # required by unstructured
     "Deprecated==1.2.18", # only needed by pikepdf
     "deprecation==2.1.0", # only needed by ocrmypdf
     "diffusers==0.34.0", # required by chatterbox-lite
@@ -163,21 +163,21 @@ libs = [
     "fastcore==1.8.7", # only required by whisperspeech
     "fastprogress==1.0.3", # only required by whisperspeech
     "filetype==1.2.0",
-    "filelock==3.18.0",
-    "fonttools==4.59.0", # only required by matplotlib
+    "filelock==3.19.1",
+    "fonttools==4.59.1", # only required by matplotlib
     "frozendict==2.4.6",
     "frozenlist==1.7.0",
     "fsspec[http]==2025.3.0", # datasets requires <=2025.3.0
-    "greenlet==3.2.3",
+    "greenlet==3.2.4",
     "gTTS==2.5.4",
-    "hf_xet==1.1.5",
     "h11==0.16.0",
     "h5py==3.14.0",
+    "hf_xet==1.1.7",
     "html5lib==1.1", # only required by unstructured
     "httpcore==1.0.9",
     "httpx==0.28.1",
     "httpx-sse==0.4.1",
-    "huggingface-hub==0.34.1", # tokenizers requires <1.0
+    "huggingface-hub==0.34.4", # tokenizers requires <1.0
     "humanfriendly==10.0",
     "HyperPyYAML==1.2.2",
     "idna==3.10",
@@ -189,27 +189,27 @@ libs = [
     "jsonpatch==1.33",
     "jsonpath-python==1.0.6",
     "jsonpointer==3.0.0",
-    "kiwisolver==1.4.8",
-    "langchain==0.3.25",
-    "langchain-community==0.3.25",
-    "langchain-core==0.3.65",
-    "langchain-huggingface==0.3.0",
-    "langchain-text-splitters==0.3.8",
+    "kiwisolver==1.4.9",
+    "langchain==0.3.27",
+    "langchain-community==0.3.27",
+    "langchain-core==0.3.74",
+    "langchain-huggingface==0.3.1",
+    "langchain-text-splitters==0.3.9",
     "langdetect==1.0.9",
-    "langsmith==0.3.45",
+    "langsmith==0.4.14",
     "llvmlite==0.44.0", # only required by numba
     "lxml==6.0.0",
     "Markdown==3.8.2",
-    "markdown-it-py==3.0.0",
+    "markdown-it-py==4.0.0",
     "MarkupSafe==3.0.2",
     "marshmallow==3.26.1", # dataclasses-json requires <4.0.0
-    "matplotlib==3.10.3", # uniquely requires pyparsing, cycler, and kiwisolver
+    "matplotlib==3.10.5", # uniquely requires pyparsing, cycler, and kiwisolver
     "mdurl==0.1.2",
     "more-itertools==10.7.0",
     # "moshi==0.2.8", # installed at runtime if needed
     "mpmath==1.3.0", # sympy 1.13.1 requires <1.4
     "msg-parser==1.2.0",
-    "multidict==6.6.3",
+    "multidict==6.6.4",
     "multiprocess==0.70.16", # datasets requires <0.70.17
     "mypy-extensions==1.1.0",
     "natsort==8.4.0",
@@ -221,14 +221,14 @@ libs = [
     "ocrmypdf==16.10.4",
     "olefile==0.47",
     "onnx==1.18.0", # required by chatterbox-lite
-    "openai==1.97.1", # only required by chat_lm_studio.py script and whispers2t (if using openai vanilla backend)
+    "openai==1.99.9", # only required by chat_lm_studio.py script and whispers2t (if using openai vanilla backend)
     "openai-whisper==20250625", # only required by whisper_s2t (if using openai vanilla backend)
     "openpyxl==3.1.5",
-    "optimum==1.26.1",
+    "optimum==1.27.0",
     "ordered-set==4.1.0",
     "orderly-set==5.5.0", # deepdiff 8.2.0 requires >=5.3.0,<6
-    "orjson==3.11.1",
-    "packaging==24.2", # langchain-core==0.3.60 requires <25
+    "orjson==3.11.2",
+    "packaging==25.0",
     "pandas==2.3.1",
     "pdfminer.six==20250506", # ocrmypdf 16.10.1 requires >=20220319
     "pikepdf==9.10.2", # only needed by ocrmypdf
@@ -251,7 +251,7 @@ libs = [
     "PyOpenGL-accelerate==3.1.9",
     "pypandoc==1.15",
     "pyparsing==3.2.3",
-    "pypdf==5.8.0",
+    "pypdf==6.0.0",
     "pyreadline3==3.5.4",
     "python-dateutil==2.9.0.post0",
     "python-docx==1.2.0",
@@ -262,18 +262,18 @@ libs = [
     "pytz==2025.2",
     "PyYAML==6.0.2",
     "rapidfuzz==3.13.0",
-    "regex==2024.11.6",
+    "regex==2025.7.34",
     "requests==2.32.4",
     "requests-toolbelt==1.0.0",
     "rich==14.1.0",
     "ruamel.yaml==0.18.14",
     "ruamel.yaml.clib==0.2.12",
     "s3tokenizer==0.2.0", # required by chatterbox-lite
-    "safetensors==0.5.3",
+    "safetensors==0.6.2",
     "scikit-learn==1.7.1",
-    "scipy==1.16.0",
+    "scipy==1.16.1",
     "sentence-transformers==4.1.0",
-    "sentencepiece==0.2.0",
+    "sentencepiece==0.2.1",
     "six==1.17.0",
     "sniffio==1.3.1",
     "sounddevice==0.5.2",
@@ -281,7 +281,7 @@ libs = [
     "soupsieve==2.7",
     # "sphn==0.2.0", # installed at runtime when needed
     "speechbrain==0.5.16",
-    "SQLAlchemy==2.0.41", # langchain and langchain-community require <3.0.0
+    "SQLAlchemy==2.0.43", # langchain and langchain-community require <3.0.0
     "sseclient-py==1.8.0", # only required by Kobold
     "sympy==1.13.1", # torch 2.6.0 requires ==1.13.1
     # "tabulate==0.9.0",
@@ -292,17 +292,17 @@ libs = [
     "tessdata==1.0.0",
     "tessdata.eng==1.0.0",
     "threadpoolctl==3.6.0",
-    "tiktoken==0.9.0",
-    "tiledb==0.34.1",
+    "tiktoken==0.11.0",
+    "tiledb==0.34.2",
     "tiledb-cloud==0.13.0",
     "tiledb-vector-search==0.13.0",
     "timm==1.0.19",
-    "tokenizers==0.21.2",
+    "tokenizers==0.21.4",
     "tqdm==4.67.1",
     "transformers==4.54.0",
     "typing-inspection==0.4.1", # required by pydantic and pydantic-settings
     "typing_extensions==4.14.1",
-    "unstructured-client==0.41.0",
+    "unstructured-client==0.42.3",
     "tzdata==2025.2",
     "urllib3==2.5.0", # requests requires <3
     "vector-quantize-pytorch==1.22.18",
@@ -310,7 +310,7 @@ libs = [
     "watchdog==6.0.0",
     "webdataset==0.2.111", # only requires by Whisperspeech; next is 1.0.2 so hesitate to upgrade
     "webencodings==0.5.1", # only required by html5lib
-    "wrapt==1.17.2",
+    "wrapt==1.17.3",
     "xlrd==2.0.2",
     "xxhash==3.5.0",
     "yarl==1.20.1", # aiohttp requires <2
@@ -321,7 +321,7 @@ libs = [
 full_install_libs = [
     "PySide6==6.9.1",
     "pymupdf==1.26.3",
-    "unstructured==0.18.11"
+    "unstructured==0.18.13"
 ]
 
 BACKEND_DEPENDENCIES = {
@@ -750,6 +750,18 @@ VECTOR_MODELS = {
 }
 
 VISION_MODELS = {
+    'Liquid-VL - 1.6B': {# transformers 4.48.3
+        'precision': 'bfloat16',
+        'quant': 'n/a',
+        'size': '1.6b',
+        'repo_id': 'LiquidAI/LFM2-VL-1.6B',
+        'cache_dir': 'LiquidAI--LFM2-VL-1.6B',
+        'requires_cuda': False,
+        'vram': '1.4 GB',
+        'speed': '437.5 char/s',
+        'loader': 'loader_internvl',
+        'license': 'lfm1.0',
+    },
     'InternVL3 - 1b': {# transformers 4.48.3
         'precision': 'bfloat16',
         'quant': '4-bit',
@@ -842,11 +854,13 @@ VISION_MODELS = {
         'precision': 'bfloat16',
         'quant': '4-bit',
         'size': '9b',
-        'repo_id': 'THUDM/GLM-4.1V-9B-Thinking',
-        'cache_dir': 'THUDM--GLM-4.1V-9B-Thinking',
+        'repo_id': 'zai-org/GLM-4.1V-9B-Thinking',
+        'cache_dir': 'zai-org--GLM-4.1V-9B-Thinking',
         'requires_cuda': True,
-        'vram': '9.9 GB',
+        'vram': '10 GB',
         'loader': 'loader_glmv4_thinking',
+        'vision_component': 'AIMv2-Huge-336',
+        'chat_component': 'GLM-4-9B-0414',
         'license': 'mit',
     },
     'THUDM glm4v - 9b': {# transformers 4.44.0
@@ -3107,35 +3121,50 @@ r"""
 Torch and CUDA Compatibility
 ****************************
 
-# Unless compiling from source, Pytorch's wheels are as follows:
-+---------------+----------------------------------
++---------------+-----------------------------------
 | Wheel Name    | Torch Versions Supported
-+---------------+----------------------------------
-| cu128         | 2.7.0, 2.7.1
-| cu126         | 2.6.0, 2.7.0, 2.7.1
++---------------+-----------------------------------
+| cu129         | 2.8.0
+| cu128         | 2.7.0, 2.7.1, 2.8.0
+| cu126         | 2.6.0, 2.7.0, 2.7.1, 2.8.0
 | cu124         | 2.4.0, 2.4.1, 2.5.0, 2.5.1, 2.6.0
++---------------+-----------------------------------
+# Torch wheels with these monikers support the specified torch versions
 
-# "CUDA Toolkit" and "CUDA" are synonymous, and each release contains multiple "metapackages" each with their own versioning.
-# It's unclear whether torch wheels with "cu126," for example, refer to CUDA release 12.6.0 or 12.6.1.
-# This can be determined by looking at https://github.com/pytorch/pytorch/blob/main/.github/scripts/generate_binary_build_matrix.py
-+--------------+------------+------------+------------+
-|              |   cu124    |   cu126    |   cu128    |
-+--------------+------------+------------+------------+
-| cuda-nvrtc   | 12.4.127   | 12.6.77    | 12.8.61    |
-| cuda-runtime | 12.4.127   | 12.6.77    | 12.8.57    |
-| cuda-cupti   | 12.4.127   | 12.6.80    | 12.8.57    |
-| cudnn        | 9.1.0.70   | 9.5.1.17   | 9.7.1.26   |
-| cublas       | 12.4.5.8   | 12.6.4.1   | 12.8.3.14  |
-| cufft        | 11.2.1.3   | 11.3.0.4   | 11.3.3.41  |
-| curand       | 10.3.5.147 | 10.3.7.77  | 10.3.9.55  |
-| cusolver     | 11.6.1.9   | 11.7.1.2   | 11.7.2.55  |
-| cusparse     | 12.3.1.170 | 12.5.4.2   | 12.5.7.53  |
-| cusparselt   | 0.6.2      | 0.6.3      | 0.6.3      |
-| nccl         | 2.25.1     | 2.21.5     | 2.26.2     |
-| nvtx         | 12.4.127   | 12.6.77    | 12.8.55    |
-| nvjitlink    | 12.4.127   | 12.6.85    | 12.8.61    |
-+--------------+------------+------------+------------+
-* See also https://docs.nvidia.com/cuda/archive/12.6.3/cuda-toolkit-release-notes/index.html or https://developer.download.nvidia.com/compute/cuda/redist/
++-------+-------------------------
+| Torch | Specific CUDA Release
++-------+-------------------------
+| 2.8.0 | 12.6.3, 12.8.1, 12.9.1
+| 2.7.1 | 11.8.0, 12.6.3, 12.8.0
+| 2.7.0 | 11.8.0, 12.6.3, 12.8.0
+| 2.6.0 | 11.8.0, 12.4.1, 12.6.3
+| 2.5.1 | 11.8.0, 12.1.1, 12.4.1
+| 2.5.0 | 11.8.0, 12.1.1, 12.4.1
+| 2.4.1 | 11.8.0, 12.1.1, 12.4.0
++-------+-------------------------
+# The specified torch versions are built for compatibility with the following specific CUDA releases
+# Obtained from: https://github.com/pytorch/pytorch/blob/main/.github/scripts/generate_binary_build_matrix.py
+
+
++--------------+------------+------------+------------+------------+------------+
+|              |   12.4.1   |   12.6.3   |   12.8.0   |   12.8.1   |   12.9.1   |
++--------------+------------+------------+------------+------------+------------+
+| cuda-nvrtc   | 12.4.127   | 12.6.77    | 12.8.61    | 12.8.93    | 12.9.86    |
+| cuda-runtime | 12.4.127   | 12.6.77    | 12.8.57    | 12.8.90    | 12.9.79    |
+| cuda-cupti   | 12.4.127   | 12.6.80    | 12.8.57    | 12.8.90    | 12.9.79    |
+| cublas       | 12.4.5.8   | 12.6.4.1   | 12.8.3.14  | 12.8.4.1   | 12.9.1.4   |
+| cufft        | 11.2.1.3   | 11.3.0.4   | 11.3.3.41  | 11.3.3.83  | 11.4.1.4   |
+| curand       | 10.3.5.147 | 10.3.7.77  | 10.3.9.55  | 10.3.9.90  | 10.3.10.19 |
+| cusolver     | 11.6.1.9   | 11.7.1.2   | 11.7.2.55  | 11.7.3.90  | 11.7.5.82  |
+| cusparse     | 12.3.1.170 | 12.5.4.2   | 12.5.7.53  | 12.5.8.93  | 12.5.10.65 |
+| cusparselt   | 0.6.2      | 0.6.3      | 0.6.3      | 0.6.3      | 0.6.3      |
+| nccl         | 2.25.1     | 2.21.5     | 2.26.2     | 2.26.2     | 2.26.2     |
+| nvtx         | 12.4.127   | 12.6.77    | 12.8.55    | 12.8.90    | 12.9.79    |
+| nvjitlink    | 12.4.127   | 12.6.85    | 12.8.61    | 12.8.93    | 12.9.86    |
++--------------+------------+------------+------------+------------+------------+
+# The version of "metapackages" within each CUDA release.
+# Obtained from: https://docs.nvidia.com/cuda/archive/12.6.3/cuda-toolkit-release-notes/index.html
+# or here: https://developer.download.nvidia.com/compute/cuda/redist/
 
 
 ************************
@@ -3161,7 +3190,7 @@ Torch and CUDA Compatibility
 +-----------------------+----------------------------------
 | Release               | Compatible Torch
 +---------------+----------------------------------
-| v3.3.1-windows.post19 | 
+| v3.3.1-windows.post19 | torch>=2.8
 | v3.3.0-windows.post19 | torch>=2.7
 | v3.2.0-windows.post19 | ??? not on repo but on pypi
 | v3.2.0-windows.post18 | torch>=2.6<2.7
@@ -3224,15 +3253,15 @@ Torch Compatibility with Python & Triton
 cuDNN & CUDA
 ************
 
-# For cuDNN 9+, Nvidia promises compatibility for all CUDA 12.x releases, but static linking fluctuates
+# Nvidia promises that all cuDNN 9+ releases are compatible with all CUDA 12.x releases.
+# However, certain version of the torch library are built/tested with certain versions of cuDNN.  Doesn't always mean incompatibility.
 
 
 ***********************
 LINUX Flash Attention 2
 ***********************
 
-# Obtained from https://github.com/Dao-AILab/flash-attention/blob/main/.github/workflows/publish.yml
-* HIGHLY CUDA SPECIFIC
+# HIGHLY CUDA SPECIFIC
 +--------------+------------------------------------------+--------+
 | FA2 Version  |         Torch (exclud torch<2)           |  CUDA  |
 +--------------+------------------------------------------+--------+
@@ -3261,30 +3290,34 @@ LINUX Flash Attention 2
 | v2.6.0       | 2.0.1, 2.1.2, 2.2.2, 2.3.1               | 12.2.2 |
 | v2.5.9.post1 | 2.0.1, 2.0.1, 2.2.2, 2.3.0               | 12.2.2 |
 +--------------+------------------------------------------+--------+
+# Obtained from https://github.com/Dao-AILab/flash-attention/blob/main/.github/workflows/publish.yml
 
 
 *************************
 WINDOWS Flash Attention 2
 *************************
-
-* Obtained from examining releases since workflows aren't consistent.
-* HIGHLY CUDA SPECIFIC
-+--------------+----------------------------+----------------+
-| FA2          |       Torch                | CUDA           |
-+--------------+----------------------------+----------------+
-| v2.7.4.post1 | 2.4.0, 2.5.1, 2.6.0, 2.7.0 | 12.4.1, 12.8.1 |
-| v2.7.1.post1 | 2.3.1, 2.4.0, 2.5.1        | 12.4.1         |
-| v2.7.0.post2 | 2.3.1, 2.4.0, 2.5.1        | 12.4.1         |
-| v2.6.3       | 2.2.2, 2.3.1, 2.4.0        | 12.3.2         |
-| v2.6.1       | 2.2.2, 2.3.1               | 12.3.2         |
-| v2.5.9.post2 | 2.2.2, 2.3.1               | 12.2.2         |
-| v2.5.9.post1 | 2.2.2, 2.3.0               | 12.2.2         |
-| v2.5.8       | 2.2.2, 2.3.0               | 12.2.2         |
-| v2.5.6       | 2.1.2, 2.2.2               | 12.2.2         |
-| v2.5.2       | 2.1.2, 2.2.0               | 12.2.2         |
-| v2.4.2       | 2.1.2, 2.2.0               | 12.2.2         |
-+--------------+----------------------------+----------------+
+# HIGHLY CUDA SPECIFIC
 # Windows wheels: https://github.com/kingbri1/flash-attention
+
+FlashAttention 2.7.4.post1
++-------------+------------+
+| Torch       | CUDA       |
++-------------+------------+
+| 2.4.0       | 12.4.1     |
+| 2.5.1       | 12.4.1     |
+| 2.6.0       | 12.4.1     |
+| 2.7.0       | 12.8.1     |
++-------------+------------+
+
+FlashAttention 2.7.1.post1
++-------------+---------+
+| Torch       | CUDA    |
++-------------+---------+
+| 2.3.1       | 12.4.1  |
+| 2.4.0       | 12.4.1  |
+| 2.5.1       | 12.4.1  |
++-------------+---------+
+
 
 
 ***********************************
