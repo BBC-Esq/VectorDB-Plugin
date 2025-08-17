@@ -16,8 +16,7 @@ def create_vision_models_comparison_plot():
     }
 
     data = [
-        {"model": "THUDM glm4v - 9b", "cps": 200.96, "memory": 9802.12},
-        {"model": "Molmo-D-0924 - 8b", "cps": 194.65, "memory": 7693.93},
+        {"model": "GLM-4.1V-9B-Thinking", "cps": 200.96, "memory": 9802.12},
         {"model": "Qwen VL - 3b", "cps": 178.31, "memory": 6306.30},
         {"model": "Qwen VL - 7b", "cps": 173.67, "memory": 9559.89},
         {"model": "Granite Vision - 2b", "cps": 217.64, "memory": 4094.18},
@@ -25,8 +24,8 @@ def create_vision_models_comparison_plot():
         {"model": "InternVL3 - 2b", "cps": 244.36, "memory": 3153.87},
         {"model": "InternVL3 - 8b", "cps": 255.95, "memory": 8153.30},
         {"model": "InternVL3 - 14b", "cps": 162.58, "memory": 12998.80},
-        {"model": "Ovis2 - 1b", "cps": 286.39, "memory": 4071.93},
-        {"model": "Ovis2 - 2b", "cps": 312.08, "memory": 5846.49},
+        {"model": "Liquid-VL - 1.6B", "cps": 437.50, "memory": 1396.00},
+        {"model": "Liquid-VL - 450m", "cps": 497.64, "memory": 497.64},
     ]
 
     df = pd.DataFrame(data)
