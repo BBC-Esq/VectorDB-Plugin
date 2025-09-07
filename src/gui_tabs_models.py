@@ -25,6 +25,7 @@ class VectorModelsTab(QWidget):
            # 'NovaSearch': 3,
            'intfloat': 4,
            # 'Alibaba-NLP': 2,
+           # 'Google': 2,
            'IBM': 3,
            'infly': 3,
            'Snowflake': 3,
@@ -145,7 +146,7 @@ class VectorModelsTab(QWidget):
            _, (_, model_info) = list(self.downloaded_labels.items())[selected_id - 1]
            model_downloader = ModelDownloader(model_info, model_info['type'])
 
-           download_thread = threading.Thread(target=lambda: model_downloader.download_model())
+           download_thread = threading.Thread(target=lambda: model_downloader.download())
            download_thread.start()
 
     def update_model_downloaded_status(self, model_name, model_type):

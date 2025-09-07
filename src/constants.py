@@ -324,7 +324,7 @@ libs = [
     "timm==1.0.19",
     "tokenizers==0.22.0",
     "tqdm==4.67.1",
-    "transformers==4.56.0",
+    "transformers==4.56.1",
     "typing-inspection==0.4.1", # required by pydantic and pydantic-settings
     "typing_extensions==4.15.0",
     "unstructured-client==0.42.3",
@@ -592,7 +592,7 @@ CHAT_MODELS = {
 VECTOR_MODELS = {
     'BAAI': [
         {
-            'name': 'bge-small-en-v1.5',# transformers 4.30.0
+            'name': 'bge-small-en-v1.5',
             'dimensions': 384,
             'max_sequence': 512,
             'size_mb': 134,
@@ -627,22 +627,24 @@ VECTOR_MODELS = {
             'precision': 'float32',
             'license': 'mit',
         },
-        # {
-            # 'name': 'bge-code-v1',# transformers 4.49.0
-            # 'dimensions': 1536,
-            # 'max_sequence': 4096,
-            # 'size_mb': 1340,
-            # 'repo_id': 'BAAI/bge-code-v1',
-            # 'cache_dir': 'BAAI--bge-code-v1',
-            # 'type': 'vector',
-            # 'parameters': '1540m',
-            # 'precision': 'float32',
-            # 'license': 'apache-2.0',
-        # },
     ],
+    # 'Google': [
+        # {
+            # 'name': 'embeddinggemma-300m',
+            # 'dimensions': 768,
+            # 'max_sequence': 2048,
+            # 'size_mb': 1210,
+            # 'repo_id': 'google/embeddinggemma-300m',
+            # 'cache_dir': 'google--embeddinggemma-300m',
+            # 'type': 'vector',
+            # 'parameters': '303m',
+            # 'precision': 'float32',
+            # 'license': 'gemma - commercial ok',
+        # },
+    # ],
     'IBM': [
         {
-            'name': 'Granite-30m-English',# transformers 4.38.2
+            'name': 'Granite-30m-English',
             'dimensions': 384,
             'max_sequence': 512,
             'size_mb': 61,
@@ -668,7 +670,7 @@ VECTOR_MODELS = {
     ],
     'infly': [
         {
-            'name': 'inf-retriever-v1-1.5b',# transformers 4.48.1
+            'name': 'inf-retriever-v1-1.5b',
             'dimensions': 1536,
             'max_sequence': 8192,
             'size_mb': 3090,
@@ -680,7 +682,7 @@ VECTOR_MODELS = {
             'license': 'apache-2.0',
         },
         {
-            'name': 'inf-retriever-v1-7b',# transformers 4.44.2
+            'name': 'inf-retriever-v1-7b',
             'dimensions': 3584,
             'max_sequence': 8192,
             'size_mb': 14130,
@@ -694,7 +696,7 @@ VECTOR_MODELS = {
     ],
     'intfloat': [
         {
-            'name': 'e5-small-v2',# 4.29.0.dev0
+            'name': 'e5-small-v2',
             'dimensions': 384,
             'max_sequence': 512,
             'size_mb': 134,
@@ -732,7 +734,7 @@ VECTOR_MODELS = {
     ],
     'Qwen': [
         {
-            'name': 'Qwen3-Embedding-0.6B',# transformers 4.51.3
+            'name': 'Qwen3-Embedding-0.6B',
             'dimensions': 1024,
             'max_sequence':8192,
             'size_mb': 1190,
@@ -770,7 +772,7 @@ VECTOR_MODELS = {
     ],
     'Snowflake': [
         {
-            'name': 'arctic-embed-m-v2.0',# transformers 4.39.3
+            'name': 'arctic-embed-m-v2.0',
             'dimensions': 768,
             'max_sequence':8192,
             'size_mb': 1220,
@@ -1561,11 +1563,6 @@ scrape_documentation = {
         "folder": "cuDF",
         "scraper_class": "PydataThemeScraper"
     },
-    # "CuPy": {
-        # "URL": "https://docs.cupy.dev/en/stable/",
-        # "folder": "cupy",
-        # "scraper_class": "PydataThemeScraper"
-    # },
     "cycler": {
         "URL": "https://matplotlib.org/cycler/",
         "folder": "cycler"
@@ -1891,11 +1888,6 @@ scrape_documentation = {
         "folder": "platformdirs",
         "scraper_class": "FuroThemeScraper"
     },
-    # "Playwright": {
-        # "URL": "https://playwright.dev/python/",
-        # "folder": "playwright",
-        # "scraper_class": "DivClassThemeDocMarkdownMarkdownScraper"
-    # },
     "pluggy": {
         "URL": "https://pluggy.readthedocs.io/en/stable/",
         "folder": "pluggy",
@@ -3159,7 +3151,6 @@ jeeves_system_message = "You are a helpful British butler who clearly and direct
 system_message = "You are a helpful person who clearly and directly answers questions in a succinct fashion based on contexts provided to you. If you cannot find the answer within the contexts simply tell me that the contexts do not provide an answer. However, if the contexts partially address my question I still want you to answer based on what the contexts say and then briefly summarize the parts of my question that the contexts didn't provide an answer."
 rag_string = "Here are the contexts to base your answer on.  However, I need to reiterate that I only want you to base your response on these contexts and do not use outside knowledge that you may have been trained with."
 
-
 r"""
 
 ====================================================================
@@ -3326,7 +3317,6 @@ Torch Compatibility with Python & Triton
 * Triton 3.2 works with PyTorch >= 2.6 .
 * Triton 3.1 works with PyTorch >= 2.4 . PyTorch 2.3 and older are not supported.
 
-
 ************
 cuDNN & CUDA
 ************
@@ -3334,14 +3324,12 @@ cuDNN & CUDA
 # Nvidia promises that all cuDNN 9+ releases are compatible with all CUDA 12.x releases.
 # However, certain version of the torch library are built/tested with certain versions of cuDNN.  Doesn't always mean incompatibility.
 
-
 ***********************
 LINUX Flash Attention 2
 ***********************
 
 # HIGHLY CUDA SPECIFIC
 # Obtained from https://github.com/Dao-AILab/flash-attention/blob/main/.github/workflows/publish.yml
-
 
 *************************
 WINDOWS Flash Attention 2
@@ -3357,7 +3345,6 @@ WINDOWS Flash Attention 2
 | v2.7.1.post1 | 2.3.1, 2.4.0, 2.5.1                     | 12.4       |
 +--------------+-----------------------------------------+------------+
 # Windows wheels: https://github.com/kingbri1/flash-attention
-
 
 ********
 Xformers
@@ -3381,7 +3368,6 @@ Xformers
 * Torch support determined by https://github.com/facebookresearch/xformers/blob/main/.github/workflows/wheels.yml
 * FA2 support determined by by https://github.com/facebookresearch/xformers/blob/main/xformers/ops/fmha/flash.py
 * CUDA support determined by https://github.com/facebookresearch/xformers/blob/main/.github/actions/setup-build-cuda/action.yml
-
 
 ***************
 **CTRANSLATE2**
