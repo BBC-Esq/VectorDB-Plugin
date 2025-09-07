@@ -588,6 +588,8 @@ class TTSWorker(QObject):
                 self.error.emit(str(e))
 
 def launch_jeeves_process():
+    from utilities import set_cuda_paths
+    set_cuda_paths()
     from PySide6.QtWidgets import QApplication
     from PySide6.QtCore import Qt
 

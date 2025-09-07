@@ -9,8 +9,6 @@ from constants import WHISPER_SPEECH_MODELS
 
 
 class TTSSettingsTab(QWidget):
-    """A single-row, space-saving TTS settings panel."""
-
     # 1. Describe every backend (easy to extend later)
     BACKENDS = {
         "bark": {
@@ -95,27 +93,25 @@ class TTSSettingsTab(QWidget):
         layout.setColumnStretch(1, 0)
         layout.setColumnStretch(2, 1)
 
-        # static backend picker (always column-1)
         layout.addWidget(QLabel("TTS Backend:"), 0, 0)
         self.backend_combo = QComboBox()
         for key, spec in self.BACKENDS.items():
             self.backend_combo.addItem(spec["label"], userData=key)
         layout.addWidget(self.backend_combo, 0, 1)
 
-        # dynamic extras live in this container (always column-2)
         self._extras_box = QWidget()
         self._extras_layout = QHBoxLayout(self._extras_box)
         self._extras_layout.setContentsMargins(0, 0, 0, 0)
         self._extras_layout.setSpacing(10)
         layout.addWidget(self._extras_box, 0, 2)
 
-        # build, but don’t place, every backend’s extra widgets
         self.widgets_for_backend: dict[str, dict[str, tuple[QLabel, QComboBox]]] = {}
         for key, spec in self.BACKENDS.items():
             wdict = {}
             for extra_key, meta in spec["extras"].items():
                 lbl = QLabel(meta["label"])
                 cmb = QComboBox()
+                cmb.setObjectName(extra_key)
                 cmb.addItems(meta["options"])
                 cmb.currentTextChanged.connect(self._save_to_yaml)
                 wdict[extra_key] = (lbl, cmb)
@@ -128,7 +124,6 @@ class TTSSettingsTab(QWidget):
         return Path("config.yaml")
 
     def _load_from_yaml(self):
-        """Read config.yaml and populate widgets."""
         cfg = self._try_read_yaml()
 
         # backend
@@ -137,7 +132,6 @@ class TTSSettingsTab(QWidget):
         idx = self.backend_combo.findData(backend)
         self.backend_combo.setCurrentIndex(idx if idx != -1 else 0)
 
-        # extras
         # Bark
         bark_cfg = cfg.get("bark", {}) if cfg else {}
         for (lbl, cmb) in self.widgets_for_backend["bark"].values():
@@ -170,12 +164,10 @@ class TTSSettingsTab(QWidget):
     def _save_to_yaml(self):
         cfg = self._try_read_yaml()
 
-        # backend
         backend_key = self.backend_combo.currentData()
         tts_cfg = cfg.setdefault("tts", {})
         tts_cfg["model"] = backend_key
 
-        # extras
         if backend_key == "bark":
             bark = cfg.setdefault("bark", {})
             bark["size"] = self.widgets_for_backend["bark"]["size"][1].currentText()

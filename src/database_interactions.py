@@ -1,6 +1,8 @@
 import gc
 import logging
 import os
+# os.environ["TOKENIZERS_PARALLELISM"] = "false"
+# os.environ["TOKENIZERS_NUM_THREADS"] = "1"
 import time
 from copy import deepcopy
 from pathlib import Path
@@ -33,9 +35,39 @@ logging.basicConfig(level=logging.CRITICAL, force=True)
 logger = logging.getLogger(__name__)
 
 
+def _flatten_to_text(x):
+    """Convert any input to a string, handling all edge cases."""
+    if x is None:
+        return ""
+    if isinstance(x, str):
+        return x
+    if isinstance(x, bytes):
+        try:
+            return x.decode("utf-8", "ignore")
+        except Exception:
+            return ""
+    if isinstance(x, (bool, int, float)):
+        return str(x)
+    # Handle iterables
+    if hasattr(x, '__iter__') and not isinstance(x, (str, bytes)):
+        parts = []
+        try:
+            for item in x:
+                s = _flatten_to_text(item)
+                if s:
+                    parts.append(s)
+            return " ".join(parts)
+        except Exception:
+            return str(x)
+    # Fallback for any other type
+    try:
+        return str(x)
+    except Exception:
+        return ""
+
 class BaseEmbeddingModel:
     """
-    Wrapper that prepares structured kwargs for HuggingFaceEmbeddings (SentenceTransformer).
+    Prepares the structured kwargs for HuggingFaceEmbeddings (SentenceTransformer).
 
     Outer dict keys map directly to SentenceTransformer.__init__ parameters:
       - device
@@ -50,8 +82,8 @@ class BaseEmbeddingModel:
 
     def __init__(self, model_name, model_kwargs, encode_kwargs, is_query: bool = False):
         self.model_name = model_name
-        self.model_kwargs = model_kwargs            # OUTER kwargs to SentenceTransformer
-        self.encode_kwargs = encode_kwargs          # kwargs to .encode()
+        self.model_kwargs = model_kwargs
+        self.encode_kwargs = encode_kwargs
         self.is_query = is_query
 
     def prepare_kwargs(self):
@@ -62,18 +94,20 @@ class BaseEmbeddingModel:
         hf_embed_kw.setdefault("device", "cpu")
         hf_embed_kw.setdefault("trust_remote_code", True)
 
-        # Ensure tokenizer kwargs (outer-level)
+        # Ensure tokenizer kwargs with proper settings
         tok_kw = hf_embed_kw.setdefault("tokenizer_kwargs", {})
-        tok_kw.setdefault("trust_remote_code", True)
-        tok_kw.setdefault("use_fast", True)
-        tok_kw.setdefault("padding", True)
-        tok_kw.setdefault("truncation", True)
-        tok_kw.setdefault("return_token_type_ids", False)
-        tok_kw.setdefault("model_max_length", 512)
+        tok_kw.update({
+            "trust_remote_code": True,
+            "use_fast": False,
+            "padding": True,
+            "truncation": True,
+            "return_token_type_ids": False,
+            "model_max_length": 512,
+            "max_length": 512  # Add this as well for some tokenizers
+        })
 
-        # Inner model_kwargs (low-level HF AutoModel args) should exist only if needed
+        # Clean up model_kwargs
         inner = hf_embed_kw.get("model_kwargs", {})
-        # Remove meaningless None values
         inner = {k: v for k, v in inner.items() if v is not None}
         if inner:
             hf_embed_kw["model_kwargs"] = inner
@@ -83,11 +117,21 @@ class BaseEmbeddingModel:
         return hf_embed_kw
 
     def prepare_encode_kwargs(self):
+        """Prepare encode_kwargs, ensuring no tokenizer params leak in."""
+        encode_kwargs = deepcopy(self.encode_kwargs)
+        
         if self.is_query:
-            self.encode_kwargs.setdefault("batch_size", 1)
-            self.encode_kwargs.setdefault("max_length", 512)
-            self.encode_kwargs.setdefault("normalize_embeddings", True)
-        return self.encode_kwargs
+            encode_kwargs.setdefault("batch_size", 1)
+            encode_kwargs.setdefault("normalize_embeddings", True)
+        else:
+            encode_kwargs.setdefault("normalize_embeddings", True)
+        
+        # Remove tokenizer-specific parameters that don't belong in encode_kwargs
+        tokenizer_params = ['padding', 'truncation', 'max_length', 'model_max_length', 'return_token_type_ids']
+        for param in tokenizer_params:
+            encode_kwargs.pop(param, None)
+        
+        return encode_kwargs
 
     def create(self):
         model_kwargs = self.prepare_kwargs()
@@ -106,7 +150,7 @@ class SnowflakeEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
         snow_kwargs = super().prepare_kwargs()
 
-        # Large variant override
+        # Large variant requires specific settings
         if "large" in self.model_name.lower():
             tok_kw = snow_kwargs.setdefault("tokenizer_kwargs", {})
             tok_kw.update({"model_max_length": 8192})
@@ -119,51 +163,12 @@ class SnowflakeEmbedding(BaseEmbeddingModel):
         tok_kw = snow_kwargs.setdefault("tokenizer_kwargs", {})
         tok_kw.update({"model_max_length": 8192})
 
-        # Memory efficient attention flags
         snow_kwargs["config_kwargs"] = {
             "use_memory_efficient_attention": use_xformers,
             "unpad_inputs": use_xformers,
             "attn_implementation": "eager" if use_xformers else "sdpa",
         }
         return snow_kwargs
-
-
-class StellaEmbedding(BaseEmbeddingModel):
-    def prepare_kwargs(self):
-        stella_kwargs = super().prepare_kwargs()
-        tok_kw = stella_kwargs.setdefault("tokenizer_kwargs", {})
-        tok_kw.update({"model_max_length": 512})
-        return stella_kwargs
-
-    def prepare_encode_kwargs(self):
-        encode_kwargs = super().prepare_encode_kwargs()
-        if self.is_query:
-            encode_kwargs["prompt_name"] = "s2p_query"
-        return encode_kwargs
-
-
-class Stella400MEmbedding(BaseEmbeddingModel):
-    def prepare_kwargs(self):
-        stella_kwargs = super().prepare_kwargs()
-        device = stella_kwargs.get("device", "")
-        is_cuda = device.lower().startswith("cuda")
-        use_xformers = is_cuda and supports_flash_attention()
-
-        tok_kw = stella_kwargs.setdefault("tokenizer_kwargs", {})
-        tok_kw.update({"model_max_length": 512})
-
-        stella_kwargs["config_kwargs"] = {
-            "use_memory_efficient_attention": use_xformers,
-            "unpad_inputs": use_xformers,
-            "attn_implementation": "eager",  # required eager
-        }
-        return stella_kwargs
-
-    def prepare_encode_kwargs(self):
-        encode_kwargs = super().prepare_encode_kwargs()
-        if self.is_query:
-            encode_kwargs["prompt_name"] = "s2p_query"
-        return encode_kwargs
 
 
 class BgeCodeEmbedding(BaseEmbeddingModel):
@@ -204,11 +209,28 @@ class QwenEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
         q_kwargs = super().prepare_kwargs()
 
-        # Inner model kwargs only if needed
+        device = (q_kwargs.get("device") or "").lower()
+        is_cuda = device.startswith("cuda")
+        use_flash = is_cuda and supports_flash_attention()
+
         inner = q_kwargs.setdefault("model_kwargs", {})
-        inner.update({
-            "attn_implementation": "sdpa",
-        })
+
+        if use_flash:
+            # FlashAttention requires fp16 or bf16
+            try:
+                # Prefer bf16 on newer GPUs if available, else fp16
+                dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 8 else torch.float16
+            except Exception:
+                dtype = torch.float16
+            inner.update({
+                "torch_dtype": dtype,
+                "attn_implementation": "flash_attention_2",
+            })
+        else:
+            # CPU or no flash-attn support, use SDPA with fp32
+            inner.update({
+                "attn_implementation": "sdpa",
+            })
 
         tok_kw = q_kwargs.setdefault("tokenizer_kwargs", {})
         tok_kw.update({
@@ -222,15 +244,8 @@ class QwenEmbedding(BaseEmbeddingModel):
         encode_kwargs["max_length"] = 8192
         return encode_kwargs
 
-def create_vector_db_in_process(database_name):
-    # to address potential conflict with python 3.12 and tokenizers
-    import faulthandler, os
-    faulthandler.enable(all_threads=True,
-                        file=open(f"faulthandler_{os.getpid()}.log", "w"))
-    os.environ["TOKENIZERS_PARALLELISM"] = "false"
-    # import torch
-    # torch.set_num_threads(1)
 
+def create_vector_db_in_process(database_name):
     set_cuda_paths()
     create_vector_db = CreateVectorDB(database_name=database_name)
     create_vector_db.run()
@@ -290,18 +305,10 @@ class CreateVectorDB:
             # tokenizer_kwargs / config_kwargs added by subclass overrides
         }
 
-        # Clean inner None values
-        inner = outer_model_kwargs["model_kwargs"]
-        inner = {k: v for k, v in inner.items() if v is not None}
-        if inner:
-            outer_model_kwargs["model_kwargs"] = inner
-        else:
-            outer_model_kwargs.pop("model_kwargs", None)
-
         encode_kwargs = {
             'batch_size': 8,
-            'padding': True,
-            'truncation': True,
+            # 'padding': True,
+            # 'truncation': True,
             "normalize_embeddings": True,
         }
 
@@ -313,7 +320,6 @@ class CreateVectorDB:
                 'Qwen3-Embedding-8B': 2,
                 'Qwen3-Embedding-4B': 3,
                 'inf-retriever-v1-1.5b': 3,
-                'stella_en_1.5B': 4,
                 'e5-base': 6,
                 'e5-large': 7,
                 'arctic-embed-l': 7,
@@ -323,7 +329,6 @@ class CreateVectorDB:
                 'bge-small': 12,
                 'gte-base': 14,
                 'arctic-embed-m': 14,
-                'stella_en_400M_v5': 20,
             }
             for key, value in batch_size_mapping.items():
                 if key in embedding_model_name:
@@ -343,14 +348,6 @@ class CreateVectorDB:
         elif "alibaba" in name_lower:
             print("Using AlibabaEmbedding class.")
             model = AlibabaEmbedding(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
-
-        elif "400m" in name_lower:
-            print("Using Stella400MEmbedding class.")
-            model = Stella400MEmbedding(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
-
-        elif "stella_en_1.5b_v5" in name_lower:
-            print("Using StellaEmbedding class.")
-            model = StellaEmbedding(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
 
         elif "bge-code" in name_lower:
             print("Using BgeCodeEmbedding class.")
@@ -377,7 +374,6 @@ class CreateVectorDB:
 
     @torch.inference_mode()
     def create_database(self, texts, embeddings):
-
         my_cprint("\nComputing vectors...", "yellow")
         start_time = time.time()
 
@@ -385,10 +381,8 @@ class CreateVectorDB:
         MAX_UINT64 = 18446744073709551615
 
         # atomically create the DB folder
-        created_new_dir = False
         try:
             self.PERSIST_DIRECTORY.mkdir(parents=True, exist_ok=False)
-            created_new_dir = True
             my_cprint(f"Created directory: {self.PERSIST_DIRECTORY}", "green")
         except FileExistsError:
             raise FileExistsError(
@@ -401,35 +395,109 @@ class CreateVectorDB:
             all_metadatas = []
             all_ids = []
             chunk_counters = defaultdict(int)
+            
+            # Track problematic chunks for debugging
+            skipped_chunks = 0
 
-            # Process all texts and generate IDs
-            for doc in texts:
-                file_hash = doc.metadata.get('hash')
-                chunk_counters[file_hash] += 1
-                tiledb_id = str(random.randint(0, MAX_UINT64 - 1))
+            # Process all texts and ensure they're clean strings
+            for idx, doc in enumerate(texts):
+                try:
+                    # Get the content
+                    if hasattr(doc, 'page_content'):
+                        raw_content = doc.page_content
+                    else:
+                        raw_content = doc
+                    
+                    # Check if raw_content is None or not string-like
+                    if raw_content is None:
+                        skipped_chunks += 1
+                        continue
+                    
+                    # Force to string if it isn't already
+                    if not isinstance(raw_content, str):
+                        raw_content = str(raw_content)
+                    
+                    # Clean the content
+                    clean_content = _flatten_to_text(raw_content)
+                    
+                    # Ensure the result is a string
+                    if not isinstance(clean_content, str):
+                        print(f"Warning: _flatten_to_text returned non-string type {type(clean_content)} at index {idx}")
+                        clean_content = str(clean_content) if clean_content is not None else ""
+                    
+                    # Remove null bytes and normalize whitespace
+                    clean_content = clean_content.replace('\x00', ' ')
+                    clean_content = re.sub(r'\s+', ' ', clean_content)
+                    clean_content = clean_content.strip()
+                    
+                    # Skip empty chunks
+                    if not clean_content or len(clean_content) == 0:
+                        skipped_chunks += 1
+                        continue
+                    
+                    # Final type check
+                    if not isinstance(clean_content, str):
+                        print(f"ERROR: Non-string content at index {idx}: type={type(clean_content)}")
+                        skipped_chunks += 1
+                        continue
+                    
+                    file_hash = doc.metadata.get('hash') if hasattr(doc, 'metadata') else None
+                    chunk_counters[file_hash] += 1
+                    tiledb_id = str(random.randint(0, MAX_UINT64 - 1))
 
-                all_texts.append(doc.page_content)
-                all_metadatas.append(doc.metadata)
-                all_ids.append(tiledb_id)
-                hash_id_mappings.append((tiledb_id, file_hash))
+                    all_texts.append(clean_content)
+                    all_metadatas.append(doc.metadata if hasattr(doc, 'metadata') else {})
+                    all_ids.append(tiledb_id)
+                    hash_id_mappings.append((tiledb_id, file_hash))
+                    
+                except Exception as e:
+                    print(f"Error processing chunk {idx}: {e}")
+                    skipped_chunks += 1
+                    continue
+
+            if skipped_chunks > 0:
+                print(f"Skipped {skipped_chunks} problematic chunks")
+
+            if not all_texts:
+                raise ValueError("No valid text content found to embed")
+
+            print(f"Total chunks to embed: {len(all_texts)}")
+            
+            # # Validate all texts are strings before embedding
+            # for i, text in enumerate(all_texts):
+                # if not isinstance(text, str):
+                    # print(f"ERROR: Non-string found at position {i}: type={type(text)}, value={text[:100] if hasattr(text, '__getitem__') else text}")
+                    # all_texts[i] = str(text) if text is not None else ""
 
             with open(self.ROOT_DIRECTORY / "config.yaml", 'r', encoding='utf-8') as config_file:
                 config_data = yaml.safe_load(config_file)
 
-            # create embeddings
+            # Create embeddings
             embedding_start_time = time.time()
+
+            for i, text in enumerate(all_texts):
+                if not isinstance(text, str):
+                    print(f"ERROR: Non-string found at position {i}: type={type(text)}, value={text[:100] if hasattr(text, '__getitem__') else text}")
+                    text = str(text) if text is not None else ""
+                    all_texts[i] = text
+                if not text.strip():
+                    print(f"ERROR: Empty or whitespace-only string at index {i}: {repr(text)}")
+                    all_texts[i] = ""
+
             vectors = embeddings.embed_documents(all_texts)
+            
             embedding_end_time = time.time()
             embedding_elapsed = embedding_end_time - embedding_start_time
             my_cprint(f"Embedding computation completed in {embedding_elapsed:.2f} seconds.", "cyan")
+            time.sleep(5)
 
-            # Build (text, embedding) tuples in correct order
+            # Build (text, embedding) tuples
             text_embed_pairs = [
                 (txt, vec.tolist() if hasattr(vec, 'tolist') else list(vec))
                 for txt, vec in zip(all_texts, vectors)
             ]
 
-            # create TileDB vector store
+            # Create TileDB vector store
             TileDB.from_embeddings(
                 text_embeddings=text_embed_pairs,
                 embedding=embeddings,
@@ -450,7 +518,6 @@ class CreateVectorDB:
             return hash_id_mappings
 
         except Exception as e:
-            # show full traceback from child process
             traceback.print_exc()
             logging.error(f"Error creating database: {str(e)}")
             if self.PERSIST_DIRECTORY.exists():
@@ -556,14 +623,14 @@ class CreateVectorDB:
         documents = [doc for doc in documents if doc.metadata.get("file_type") != ".pdf"]
 
         # load image descriptions
-        print("Loading any images...")
+        print("Processing any images...")
         image_documents = choose_image_loader()
         if isinstance(image_documents, list) and image_documents:
             if len(image_documents) > 0:
                 documents.extend(image_documents)
 
         # load audio transcriptions
-        print("Loading any audio transcripts...")
+        print("Processing any audio transcripts...")
         audio_documents = self.load_audio_documents()
         if isinstance(audio_documents, list) and audio_documents:
             documents.extend(audio_documents)
@@ -613,7 +680,6 @@ class QueryVectorDB:
         if not self._initialized:
             self.config = self.load_configuration()
 
-            # upfront validation of the request
             if not selected_database:
                 raise ValueError("No vector database selected.")
             if selected_database not in self.config["created_databases"]:
@@ -662,17 +728,25 @@ class QueryVectorDB:
         self.model_name = os.path.basename(model_path)
         compute_device = self.config['Compute_Device']['database_query']
 
+        use_half = self.config.get("database", {}).get("half", False)
+        model_native_precision = get_model_native_precision(self.model_name, VECTOR_MODELS)
+        torch_dtype = get_appropriate_dtype(compute_device, use_half, model_native_precision)
+
         outer_model_kwargs = {
             "device": compute_device,
             "trust_remote_code": True,
-            # Add inner 'model_kwargs' only if you later decide to pass low-level model args (e.g. torch_dtype)
-            # "model_kwargs": {"torch_dtype": torch.bfloat16},
+            "model_kwargs": {
+                # let BaseEmbeddingModel strip None later if it ends up being None
+                "torch_dtype": torch_dtype if torch_dtype is not None else None,
+                # safe default on CPU; GPU/backends can override internally if needed
+                "attn_implementation": "sdpa",
+            },
         }
 
         encode_kwargs = {
             "batch_size": 1,
-            'padding': True,
-            'truncation': True,
+            # 'padding': True,
+            # 'truncation': True,
             "normalize_embeddings": True,
         }
 
@@ -708,15 +782,6 @@ class QueryVectorDB:
             code_instruction = "Given a question in text, retrieve relevant code that is relevant."
             encode_kwargs["prompt"] = f"<instruct>{code_instruction}\n<query>"
             embeddings = BgeCodeEmbedding(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
-
-        elif "stella" in mp_lower:
-            encode_kwargs["prompt"] = (
-                "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
-            )
-            if "400m" in mp_lower:
-                embeddings = Stella400MEmbedding(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
-            else:
-                embeddings = StellaEmbedding(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
 
         elif "bge" in mp_lower:
             encode_kwargs["prompt"] = "Represent this sentence for searching relevant passages: "

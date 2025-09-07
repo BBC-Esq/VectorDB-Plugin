@@ -287,6 +287,78 @@ class BaseModel(ABC):
         gc.collect()
 
 
+class LiquidAI(BaseModel):
+    def __init__(self, generation_settings, model_name):
+        model_info = CHAT_MODELS[model_name]
+
+        if torch.cuda.is_available():
+            settings = copy.deepcopy(bnb_bfloat16_settings)
+            settings['model_settings']['attn_implementation'] = "sdpa"
+        else:
+            settings = {
+                'tokenizer_settings': {
+                    'torch_dtype': torch.float32,
+                },
+                'model_settings': {
+                    'torch_dtype': torch.float32,
+                    'device_map': 'cpu',
+                }
+            }
+
+        super().__init__(model_info, settings, generation_settings)
+
+        if self.tokenizer.pad_token_id is None and self.tokenizer.eos_token_id is not None:
+            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+
+    def create_prompt(self, augmented_query):
+        return f"""<|startoftext|><|im_start|>system
+{system_message}<|im_end|>
+<|im_start|>user
+{augmented_query}<|im_end|>
+<|im_start|>assistant
+"""
+
+    def create_inputs(self, prompt):
+        inputs = self.tokenizer(
+            prompt,
+            return_tensors="pt",
+            return_attention_mask=True,
+            return_token_type_ids=False,
+        )
+        if inputs['input_ids'].size(1) > self.max_length:
+            raise ValueError(
+                f"Input prompt is too long ({inputs['input_ids'].size(1)} tokens). "
+                f"Maximum length is {self.max_length} tokens."
+            )
+        return {k: v.to(self.device) for k, v in inputs.items()}
+
+    @torch.inference_mode()
+    def generate_response(self, inputs, remove_token_type_ids: bool = False):
+        inputs.pop('token_type_ids', None)
+
+        streamer = TextIteratorStreamer(
+            self.tokenizer,
+            skip_prompt=True,
+            skip_special_tokens=True
+        )
+
+        all_settings = {
+            **inputs,
+            **self.generation_settings,
+            "streamer": streamer,
+            "eos_token_id": self.tokenizer.eos_token_id,
+            "pad_token_id": self.tokenizer.pad_token_id,
+        }
+
+        gen_thread = threading.Thread(target=self.model.generate, kwargs=all_settings, daemon=True)
+        gen_thread.start()
+
+        for chunk in streamer:
+            yield chunk
+
+        gen_thread.join()
+
+
 class Granite(BaseModel):
     def __init__(self, generation_settings, model_name):
         model_info = CHAT_MODELS[model_name]
@@ -341,7 +413,7 @@ class Qwen(BaseModel):
             settings = {}
         else:
             settings = bnb_bfloat16_settings
-            
+
         super().__init__(model_info, settings, generation_settings)
 
     def create_prompt(self, augmented_query):
@@ -557,24 +629,6 @@ class Phi4(BaseModel):
                 sent = len(clean)
 
         gen_thread.join()
-
-
-class Minicpm(Qwen):
-    def __init__(self, generation_settings, model_name):
-        model_info = CHAT_MODELS[model_name]
-        settings = copy.deepcopy(bnb_bfloat16_settings)
-        settings['tokenizer_settings']['trust_remote_code'] = True
-        settings['model_settings']['trust_remote_code'] = True
-
-        is_small_model = ('0.5b' in model_name.lower())
-        no_cuda = not torch.cuda.is_available()
-        if is_small_model and no_cuda:
-            settings = {
-                'tokenizer_settings': {'trust_remote_code': True},
-                'model_settings': {'trust_remote_code': True}
-            }
-
-        BaseModel.__init__(self, model_info, settings, generation_settings)
 
 def generate_response(model_instance, augmented_query):
     prompt = model_instance.create_prompt(augmented_query)

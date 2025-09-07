@@ -1,3 +1,4 @@
+# gui_tabs_settings_vision.py
 import yaml
 from pathlib import Path
 import torch
@@ -5,125 +6,124 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QGridLayout, QVBoxLayout, QComboBox, QWidget
 from constants import VISION_MODELS
 
+CONFIG_FILE = "config.yaml"
+
+
+def _read_cfg() -> dict:
+    p = Path(CONFIG_FILE)
+    if not p.exists():
+        return {}
+    try:
+        with p.open("r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return {}
+
+
+def _write_cfg(cfg: dict) -> None:
+    with Path(CONFIG_FILE).open("w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=True)
+
+
 def is_cuda_available():
     return torch.cuda.is_available()
+
 
 def get_cuda_capability():
     if is_cuda_available():
         return torch.cuda.get_device_capability(0)
     return (0, 0)
 
+
+# ---------------------- UI Tab ----------------------
 class VisionSettingsTab(QWidget):
+    """
+    Settings UI for choosing a vision model.
+    - Populates a combobox with VISION_MODELS keys.
+    - Restores last saved selection from config.yaml (vision.chosen_model).
+    - Persists any change immediately to config.yaml so the Tools tab can read it.
+    - Updates read-only info labels for the selected model.
+    """
+
     def __init__(self):
         super().__init__()
         mainVLayout = QVBoxLayout()
         self.setLayout(mainVLayout)
+
         gridLayout = QGridLayout()
         mainVLayout.addLayout(gridLayout)
 
         label_model = QLabel("Model")
-        gridLayout.addWidget(label_model, 0, 1)
-        gridLayout.setAlignment(label_model, Qt.AlignCenter)
+        gridLayout.addWidget(label_model, 0, 0, Qt.AlignCenter)
 
         label_size = QLabel("Size")
-        gridLayout.addWidget(label_size, 0, 3)
-        gridLayout.setAlignment(label_size, Qt.AlignCenter)
-
-        label_precision = QLabel("Precision")
-        gridLayout.addWidget(label_precision, 0, 5)
-        gridLayout.setAlignment(label_precision, Qt.AlignCenter)
+        gridLayout.addWidget(label_size, 0, 1, Qt.AlignCenter)
 
         label_vram = QLabel("VRAM")
-        gridLayout.addWidget(label_vram, 0, 7)
-        gridLayout.setAlignment(label_vram, Qt.AlignCenter)
+        gridLayout.addWidget(label_vram, 0, 2, Qt.AlignCenter)
 
-        label_quant = QLabel("Quant")
-        gridLayout.addWidget(label_quant, 0, 9)
-        gridLayout.setAlignment(label_quant, Qt.AlignCenter)
+        label_vision = QLabel("Vision Component")
+        gridLayout.addWidget(label_vision, 0, 3, Qt.AlignCenter)
 
+        label_chat = QLabel("Chat Component")
+        gridLayout.addWidget(label_chat, 0, 4, Qt.AlignCenter)
+
+        label_avg = QLabel("Avg Length")
+        gridLayout.addWidget(label_avg, 0, 5, Qt.AlignCenter)
+
+        # Values row (row 1)
         self.modelComboBox = QComboBox()
         self.populate_model_combobox()
         self.modelComboBox.setMinimumWidth(175)
-        gridLayout.addWidget(self.modelComboBox, 0, 2)
+        gridLayout.addWidget(self.modelComboBox, 1, 0, Qt.AlignCenter)
 
-        self.sizeLabel = QLabel()
-        gridLayout.addWidget(self.sizeLabel, 0, 4)
+        self.sizeLabel = QLabel("—")
+        gridLayout.addWidget(self.sizeLabel, 1, 1, Qt.AlignCenter)
 
-        self.precisionLabel = QLabel()
-        gridLayout.addWidget(self.precisionLabel, 0, 6)
+        self.vramLabel = QLabel("—")
+        gridLayout.addWidget(self.vramLabel, 1, 2, Qt.AlignCenter)
 
-        self.vramLabel = QLabel()
-        gridLayout.addWidget(self.vramLabel, 0, 8)
+        self.visionComponentLabel = QLabel("—")
+        self.visionComponentLabel.setWordWrap(True)
+        gridLayout.addWidget(self.visionComponentLabel, 1, 3, Qt.AlignCenter)
 
-        self.quantLabel = QLabel()
-        gridLayout.addWidget(self.quantLabel, 0, 10)
+        self.chatComponentLabel = QLabel("—")
+        self.chatComponentLabel.setWordWrap(True)
+        gridLayout.addWidget(self.chatComponentLabel, 1, 4, Qt.AlignCenter)
 
-        self.modelComboBox.currentIndexChanged.connect(self.updateModelInfo)
+        self.avgLenLabel = QLabel("—")
+        gridLayout.addWidget(self.avgLenLabel, 1, 5, Qt.AlignCenter)
 
-        self.set_initial_model()
+        cfg = _read_cfg()
+        saved = (cfg.get("vision") or {}).get("chosen_model")
+        if saved and saved in VISION_MODELS:
+            self.modelComboBox.setCurrentText(saved)
+
+        self.modelComboBox.currentTextChanged.connect(self._apply_model_to_labels)
+
+        self._apply_model_to_labels(self.modelComboBox.currentText())
 
     def populate_model_combobox(self):
-        cuda_available = is_cuda_available()
-        cuda_capability = get_cuda_capability()
-        available_models = []
-        
-        for model, info in VISION_MODELS.items():
-            requires_cuda = info.get('requires_cuda', True)
-            precision = info.get('precision')
-            
-            if cuda_available:
-                if requires_cuda:
-                    if precision == 'bfloat16':
-                        if cuda_capability >= (8, 6):
-                            available_models.append(model)
-                    else:
-                        available_models.append(model)
-                else:
-                    available_models.append(model)
-            else:
-                if not requires_cuda:
-                    available_models.append(model)
-        
-        self.modelComboBox.addItems(available_models)
+        self.modelComboBox.clear()
+        self.modelComboBox.addItems(VISION_MODELS.keys())
 
-    def set_initial_model(self):
-        config = self.read_config()
-        saved_model = config.get('vision', {}).get('chosen_model')
+    def _apply_model_to_labels(self, model_name: str):
+        info = VISION_MODELS.get(model_name, {}) or {}
 
-        if saved_model and saved_model in [self.modelComboBox.itemText(i) for i in range(self.modelComboBox.count())]:
-            index = self.modelComboBox.findText(saved_model)
-            self.modelComboBox.setCurrentIndex(index)
-        else:
-            self.modelComboBox.setCurrentIndex(0)
-        
-        self.updateModelInfo()
+        size = info.get("size", "—")
+        vram = info.get("vram", "—")
+        vision_component = info.get("vision_component", "—")
+        chat_component = info.get("chat_component", "—")
+        avg_length = info.get("avg_length", "—")
 
-    def updateModelInfo(self):
-        chosen_model = self.modelComboBox.currentText()
-        self.updateConfigFile('chosen_model', chosen_model)
-        
-        model_info = VISION_MODELS[chosen_model]
-        self.sizeLabel.setText(model_info['size'])
-        self.precisionLabel.setText(model_info['precision'])
-        self.vramLabel.setText(model_info['vram'])
-        self.quantLabel.setText(model_info['quant'])
+        self.sizeLabel.setText(str(size))
+        self.vramLabel.setText(str(vram))
+        self.visionComponentLabel.setText(str(vision_component))
+        self.chatComponentLabel.setText(str(chat_component))
+        self.avgLenLabel.setText(str(avg_length))
 
-    def read_config(self):
-        config_file_path = Path('config.yaml')
-        if config_file_path.exists():
-            try:
-                with open(config_file_path, 'r', encoding='utf-8') as file:
-                    return yaml.safe_load(file)
-            except Exception:
-                pass
-        return {}
-
-    def updateConfigFile(self, key, value):
-        current_config = self.read_config()
-        vision_config = current_config.get('vision', {})
-        if vision_config.get(key) != value:
-            vision_config[key] = value
-            current_config['vision'] = vision_config
-            config_file_path = Path('config.yaml')
-            with open(config_file_path, 'w', encoding='utf-8') as file:
-                yaml.dump(current_config, file)
+        cfg = _read_cfg()
+        cfg.setdefault("vision", {})
+        if cfg["vision"].get("chosen_model") != model_name:
+            cfg["vision"]["chosen_model"] = model_name
+            _write_cfg(cfg)

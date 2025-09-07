@@ -29,20 +29,19 @@ from langchain_community.document_loaders import (
 
 from typing import Optional, Any, Iterator, Union
 from langchain_community.document_loaders.blob_loaders import Blob
-
 from langchain_community.document_loaders.parsers import PyMuPDFParser
 import pymupdf
 
 from constants import DOCUMENT_LOADERS
 from extract_metadata import extract_document_metadata, add_pymupdf_page_metadata, compute_content_hash
 
-logging.basicConfig(
-    level=logging.ERROR,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('document_processor.log', mode='w')
-    ]
-)
+# logging.basicConfig(
+    # level=logging.ERROR,
+    # format='%(asctime)s - %(levelname)s - %(message)s',
+    # handlers=[
+        # logging.FileHandler('document_processor.log', mode='w')
+    # ]
+# )
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -55,12 +54,12 @@ INGEST_THREADS = max(2, os.cpu_count() - 12)
 from typing import List
 
 class FixedSizeTextSplitter:
-    """Splits text into equally-sized character chunks without regex.
+    """Splits text into equally-sized character chunks.
 
     Parameters
     ----------
     chunk_size : int
-        Maximum characters per chunk.  Comes straight from config.yaml.
+        Maximum characters per chunk.  Taken from config.yaml.
     """
 
     def __init__(self, chunk_size: int):
@@ -104,7 +103,7 @@ class CustomPyMuPDFLoader(PyMuPDFLoader):
             extract_images=kwargs.get('extract_images', False)
         )
 
-# ensure all loader class names map correctly
+# map loaders
 for ext, loader_name in DOCUMENT_LOADERS.items():
     DOCUMENT_LOADERS[ext] = globals()[loader_name]
 
