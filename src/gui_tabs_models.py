@@ -22,21 +22,22 @@ class VectorModelsTab(QWidget):
        self.model_radiobuttons.setExclusive(True)
        self.stretch_factors = {
            'BAAI': 4,
-           # 'NovaSearch': 3,
            'intfloat': 4,
-           # 'Alibaba-NLP': 2,
-           # 'Google': 2,
            'IBM': 3,
            'infly': 3,
            'Snowflake': 3,
-           'Qwen': 4
+           'Qwen': 4,
+           'Google': 2,  # Added if you use it
        }
 
        models_dir = Path('Models')
        if not models_dir.exists():
            models_dir.mkdir(parents=True)
 
+       # Use consistent lowercase 'vector'
        vector_models_dir = models_dir / "vector"
+       if not vector_models_dir.exists():
+           vector_models_dir.mkdir(parents=True)
 
        existing_vector_directories = {d.name for d in vector_models_dir.iterdir() if d.is_dir()}
 
@@ -63,7 +64,7 @@ class VectorModelsTab(QWidget):
            group_layout.setVerticalSpacing(0)
            group_layout.setHorizontalSpacing(0)
            group_box.setLayout(group_layout)
-           group_layout.setContentsMargins(0, 10, 0, 0)  # left, top, right, bottom
+           group_layout.setContentsMargins(0, 10, 0, 0)
            
            size_policy = group_box.sizePolicy()
            size_policy.setVerticalStretch(self.stretch_factors.get(vendor, 1))
@@ -87,7 +88,7 @@ class VectorModelsTab(QWidget):
                row = grid.rowCount()
 
                radiobutton = QRadioButton()
-               radiobutton.setToolTip(TOOLTIPS["VECTOR_MODEL_SELECT"])
+               radiobutton.setToolTip(TOOLTIPS.get("VECTOR_MODEL_SELECT", ""))
                self.model_radiobuttons.addButton(radiobutton, row_counter)
                add_centered_widget(grid, radiobutton, row, 0)
 
@@ -96,11 +97,11 @@ class VectorModelsTab(QWidget):
                model_name_label.setText(f'<a style="color: #00bf9e" href="https://huggingface.co/{model["repo_id"]}">{model["name"]}</a>')
                model_name_label.setOpenExternalLinks(False)
                model_name_label.linkActivated.connect(self.open_link)
-               model_name_label.setToolTip(TOOLTIPS["VECTOR_MODEL_NAME"])
+               model_name_label.setToolTip(TOOLTIPS.get("VECTOR_MODEL_NAME", ""))
                add_centered_widget(grid, model_name_label, row, 1)
 
                precision_label = QLabel(str(model.get('precision', 'N/A')))
-               precision_label.setToolTip(TOOLTIPS["VECTOR_MODEL_PRECISION"])
+               precision_label.setToolTip(TOOLTIPS.get("VECTOR_MODEL_PRECISION", ""))
                add_centered_widget(grid, precision_label, row, 2)
 
                parameters_label = QLabel(str(model.get('parameters', 'N/A')))
@@ -108,25 +109,30 @@ class VectorModelsTab(QWidget):
                add_centered_widget(grid, parameters_label, row, 3)
 
                dimensions_label = QLabel(str(model['dimensions']))
-               dimensions_label.setToolTip(TOOLTIPS["VECTOR_MODEL_DIMENSIONS"])
+               dimensions_label.setToolTip(TOOLTIPS.get("VECTOR_MODEL_DIMENSIONS", ""))
                add_centered_widget(grid, dimensions_label, row, 4)
 
                max_sequence_label = QLabel(str(model['max_sequence']))
-               max_sequence_label.setToolTip(TOOLTIPS["VECTOR_MODEL_MAX_SEQUENCE"])
+               max_sequence_label.setToolTip(TOOLTIPS.get("VECTOR_MODEL_MAX_SEQUENCE", ""))
                add_centered_widget(grid, max_sequence_label, row, 5)
 
                size_label = QLabel(str(model['size_mb']))
-               size_label.setToolTip(TOOLTIPS["VECTOR_MODEL_SIZE"])
+               size_label.setToolTip(TOOLTIPS.get("VECTOR_MODEL_SIZE", ""))
                add_centered_widget(grid, size_label, row, 6)
 
-               expected_dir_name = ModelDownloader(model_info, model['type']).get_model_directory_name()
+               # Use cache_dir if it exists, otherwise generate from repo_id
+               if 'cache_dir' in model:
+                   expected_dir_name = model['cache_dir']
+               else:
+                   expected_dir_name = ModelDownloader(model_info, model['type']).get_model_directory_name()
+               
                is_downloaded = expected_dir_name in existing_vector_directories
                downloaded_label = QLabel('Yes' if is_downloaded else 'No')
-               downloaded_label.setToolTip(TOOLTIPS["VECTOR_MODEL_DOWNLOADED"])
+               downloaded_label.setToolTip(TOOLTIPS.get("VECTOR_MODEL_DOWNLOADED", ""))
                add_centered_widget(grid, downloaded_label, row, 7)
                radiobutton.setEnabled(not is_downloaded)
 
-               self.downloaded_labels[f"{vendor}/{model['name']}"] = (downloaded_label, model_info)
+               self.downloaded_labels[f"{vendor}/{model['name']}"] = (downloaded_label, model_info, radiobutton)
 
                row_counter += 1
 
@@ -134,7 +140,7 @@ class VectorModelsTab(QWidget):
            self.main_layout.addWidget(group_box)
 
        self.download_button = QPushButton('Download Selected Model')
-       self.download_button.setToolTip(TOOLTIPS["DOWNLOAD_MODEL"])
+       self.download_button.setToolTip(TOOLTIPS.get("DOWNLOAD_MODEL", ""))
        self.download_button.clicked.connect(self.initiate_model_download)
        self.main_layout.addWidget(self.download_button)
 
@@ -143,7 +149,7 @@ class VectorModelsTab(QWidget):
     def initiate_model_download(self):
        selected_id = self.model_radiobuttons.checkedId()
        if selected_id != -1:
-           _, (_, model_info) = list(self.downloaded_labels.items())[selected_id - 1]
+           _, model_info, _ = list(self.downloaded_labels.values())[selected_id - 1]
            model_downloader = ModelDownloader(model_info, model_info['type'])
 
            download_thread = threading.Thread(target=lambda: model_downloader.download())
@@ -151,20 +157,23 @@ class VectorModelsTab(QWidget):
 
     def update_model_downloaded_status(self, model_name, model_type):
        models_dir = Path('Models')
-       vector_models_dir = models_dir / "Vector"
+       # Use consistent lowercase 'vector'
+       vector_models_dir = models_dir / "vector"
 
        existing_vector_directories = {d.name for d in vector_models_dir.iterdir() if d.is_dir()}
 
        for vendor, models in VECTOR_MODELS.items():
            for model in models:
-               if model['cache_dir'] == model_name:
-                   downloaded_label, _ = self.downloaded_labels.get(f"{vendor}/{model['name']}", (None, None))
-                   if downloaded_label:
+               # Check both cache_dir and the generated directory name
+               cache_dir = model.get('cache_dir', '')
+               generated_dir = model['repo_id'].replace('/', '--')
+               
+               if cache_dir == model_name or generated_dir == model_name:
+                   key = f"{vendor}/{model['name']}"
+                   if key in self.downloaded_labels:
+                       downloaded_label, _, radiobutton = self.downloaded_labels[key]
                        downloaded_label.setText('Yes')
-                       for button in self.model_radiobuttons.buttons():
-                           if button.text() == model['name']:
-                               button.setEnabled(False)
-                               break
+                       radiobutton.setEnabled(False)
                    self.refresh_gui()
                    return
        
