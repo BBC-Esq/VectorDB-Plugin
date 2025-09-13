@@ -156,7 +156,7 @@ libs = [
     "bitsandbytes==0.47.0",
     "braceexpand==0.1.7",
     "certifi==2025.8.3",
-    "cffi==1.17.1",
+    "cffi==2.0.0",
     "chardet==5.2.0",
     "charset-normalizer==3.4.3", # requests requires <4
     "git+https://github.com/BBC-Esq/chatterbox-light",
@@ -166,12 +166,12 @@ libs = [
     "colorama==0.4.6",
     "coloredlogs==15.0.1",
     "contourpy==1.3.3", # only required by matplotlib
-    "cryptography==45.0.6", # only required by unstructured and pdfminer.six
+    "cryptography==45.0.7", # only required by unstructured and pdfminer.six
     "ctranslate2==4.6.0",
     "cycler==0.12.1",
     "dataclasses-json==0.6.7",
     "datasets==4.0.0",
-    "deepdiff==8.6.0", # required by unstructured
+    "deepdiff==8.6.1", # required by unstructured
     "Deprecated==1.2.18", # only needed by pikepdf
     "deprecation==2.1.0", # only needed by ocrmypdf
     "diffusers==0.35.1", # required by chatterbox-lite
@@ -196,7 +196,7 @@ libs = [
     "gTTS==2.5.4",
     "h11==0.16.0",
     "h5py==3.14.0",
-    "hf-xet==1.1.9",
+    "hf-xet==1.1.10",
     "html5lib==1.1", # only required by unstructured
     "httpcore==1.0.9",
     "httpx==0.28.1",
@@ -209,27 +209,27 @@ libs = [
     "importlib_metadata==8.7.0",
     "Jinja2==3.1.6",
     "jiter==0.10.0", # required by openai newer versions
-    "joblib==1.5.1",
+    "joblib==1.5.2",
     "jsonpatch==1.33",
     "jsonpath-python==1.0.6",
     "jsonpointer==3.0.0",
     "kiwisolver==1.4.9",
     "langchain==0.3.27",
     "langchain-community==0.3.29",
-    "langchain-core==0.3.75",
+    "langchain-core==0.3.76",
     "langchain-huggingface==0.3.1",
-    "langchain-text-splitters==0.3.10",
+    "langchain-text-splitters==0.3.11",
     "langdetect==1.0.9",
     "langsmith==0.4.14",
     "llvmlite==0.44.0", # only required by numba
     "lxml==6.0.1",
-    "Markdown==3.8.2",
+    "Markdown==3.9",
     "markdown-it-py==4.0.0",
     "MarkupSafe==3.0.2",
     "marshmallow==3.26.1", # dataclasses-json requires <4.0.0
     "matplotlib==3.10.6", # uniquely requires pyparsing, cycler, and kiwisolver
     "mdurl==0.1.2",
-    "more-itertools==10.7.0",
+    "more-itertools==10.8.0",
     # "moshi==0.2.8", # installed at runtime if needed
     "mpmath==1.3.0", # sympy 1.13.1 requires <1.4
     "msg-parser==1.2.0",
@@ -245,7 +245,7 @@ libs = [
     "ocrmypdf==16.10.4",
     "olefile==0.47",
     "onnx==1.19.0", # required by chatterbox-lite
-    "openai==1.102.0", # only required by chat_lm_studio.py script and whispers2t (if using openai vanilla backend)
+    "openai==1.107.0", # only required by chat_lm_studio.py script and whispers2t (if using openai vanilla backend)
     "openai-whisper==20250625", # only required by whisper_s2t (if using openai vanilla backend)
     "openpyxl==3.1.5",
     "optimum==1.27.0",
@@ -255,20 +255,20 @@ libs = [
     "packaging==25.0",
     "pandas==2.3.2",
     "pdfminer.six==20250506", # ocrmypdf 16.10.1 requires >=20220319
-    "pikepdf==9.10.2", # only needed by ocrmypdf
+    "pikepdf==9.11.0", # only needed by ocrmypdf
     "pillow==11.3.0",
     # "pi-heif==0.22.0", # only needed by ocrmypdf, but not for my usage of ocrmypdf
     "pipdeptree",
     "platformdirs==4.4.0",
     "pluggy==1.6.0", # only needed by ocrmypdf
     "propcache==0.3.2",
-    "protobuf==6.32.0",
+    "protobuf==6.32.1",
     "psutil==7.0.0",
     "pyarrow==21.0.0",
     "pybase16384==0.3.8", # only required by chattts
-    "pycparser==2.22",
-    "pydantic==2.11.7",
-    "pydantic_core==2.37.2", # pydantic 2.11.7 requires ==2.37.2; CAUTION, package checker is incorrect, check repo instead
+    "pycparser==2.23",
+    "pydantic==2.11.8",
+    "pydantic_core==2.37.2", # pydantic 2.11.8 requires 2.38.0; CAUTION, check pyproject.toml from pydantic repo instead
     "pydantic-settings==2.10.1", # langchain-community requires >=2.4.0,<3.0.0
     "Pygments==2.19.2",
     "PyOpenGL==3.1.10",
@@ -285,8 +285,8 @@ libs = [
     "python-oxmsg==0.0.2", # only required by unstructured library
     "pytz==2025.2",
     "PyYAML==6.0.2",
-    "rapidfuzz==3.14.0",
-    "regex==2025.8.29",
+    "rapidfuzz==3.14.1",
+    "regex==2025.9.1",
     "requests==2.32.5",
     "requests-toolbelt==1.0.0",
     "rich==14.1.0",
@@ -294,8 +294,8 @@ libs = [
     "ruamel.yaml.clib==0.2.12",
     "s3tokenizer==0.2.0", # required by chatterbox-lite
     "safetensors==0.6.2",
-    "scikit-learn==1.7.1",
-    "scipy==1.16.1",
+    "scikit-learn==1.7.2",
+    "scipy==1.16.2",
     "sentence-transformers==4.1.0",
     "sentencepiece==0.2.1",
     "six==1.17.0",
@@ -319,12 +319,13 @@ libs = [
     "threadpoolctl==3.6.0",
     "tiktoken==0.11.0",
     "tiledb==0.34.2",
-    "tiledb-cloud==0.13.0",
+    "tiledb-cloud==0.14.1",
     "tiledb-vector-search==0.13.0",
     "timm==1.0.19",
     "tokenizers==0.22.0",
     "tqdm==4.67.1",
-    "transformers==4.56.1",
+    # "transformers==4.56.1",
+    "git+https://github.com/huggingface/transformers@v4.56.0-Embedding-Gemma-preview",
     "typing-inspection==0.4.1", # required by pydantic and pydantic-settings
     "typing_extensions==4.15.0",
     "unstructured-client==0.42.3",
@@ -333,7 +334,7 @@ libs = [
     "vector-quantize-pytorch==1.23.2",
     "vocos==0.1.0",
     "watchdog==6.0.0",
-    "webdataset==0.2.111", # only requires by Whisperspeech; next is 1.0.2 so hesitate to upgrade
+    "webdataset==1.0.2", # only requires by Whisperspeech; next is 1.0.2 so hesitate to upgrade
     "webencodings==0.5.1", # only required by html5lib
     "wrapt==1.17.3",
     "xlrd==2.0.2",
@@ -628,20 +629,20 @@ VECTOR_MODELS = {
             'license': 'mit',
         },
     ],
-    # 'Google': [
-        # {
-            # 'name': 'embeddinggemma-300m',
-            # 'dimensions': 768,
-            # 'max_sequence': 2048,
-            # 'size_mb': 1210,
-            # 'repo_id': 'google/embeddinggemma-300m',
-            # 'cache_dir': 'google--embeddinggemma-300m',
-            # 'type': 'vector',
-            # 'parameters': '303m',
-            # 'precision': 'float32',
-            # 'license': 'gemma - commercial ok',
-        # },
-    # ],
+    'Google': [
+        {
+            'name': 'embeddinggemma-300m',
+            'dimensions': 768,
+            'max_sequence': 2048,
+            'size_mb': 1210,
+            'repo_id': 'google/embeddinggemma-300m',
+            'cache_dir': 'google--embeddinggemma-300m',
+            'type': 'vector',
+            'parameters': '303m',
+            'precision': 'float32',
+            'license': 'gemma - commercial ok',
+        },
+    ],
     'IBM': [
         {
             'name': 'Granite-30m-English',
@@ -882,7 +883,7 @@ VISION_MODELS = {
         'avg_length': 975,
         'loader': 'loader_qwenvl',
         'vision_component': 'Custom ViT',
-        'chat_component': 'Qwen2.5-VL-3B-Instruct',
+        'chat_component': 'Qwen2.5-3B-Instruct',
         'license': 'Custom Non-Commercial',
     },
     'InternVL3 - 8b': {
@@ -910,7 +911,7 @@ VISION_MODELS = {
         'avg_length': 918,
         'loader': 'loader_qwenvl',
         'vision_component': 'Custom ViT',
-        'chat_component': 'Qwen2.5-VL-3B-Instruct',
+        'chat_component': 'Qwen2.5-7-Instruct',
         'license': 'Custom Non-Commercial',
     },
     'GLM-4.1V-9B-Thinking': {
