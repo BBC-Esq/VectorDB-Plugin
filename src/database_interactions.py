@@ -485,7 +485,14 @@ class CreateVectorDB:
                     all_texts[i] = ""
 
             vectors = embeddings.embed_documents(all_texts)
-            
+
+            # DEBUG
+            # print(f"DEBUG: Created {len(vectors)} vectors")
+            # if vectors:
+                # print(f"DEBUG: First vector shape: {len(vectors[0])}")
+                # print(f"DEBUG: First vector sample: {vectors[0][:5]}")  # Show first 5 dimensions
+                # print(f"DEBUG: Vector norm: {np.linalg.norm(vectors[0])}")
+
             embedding_end_time = time.time()
             embedding_elapsed = embedding_end_time - embedding_start_time
             my_cprint(f"Embedding computation completed in {embedding_elapsed:.2f} seconds.", "cyan")
@@ -813,6 +820,12 @@ class QueryVectorDB:
         
         k = k if k is not None else int(self.config['database']['contexts'])
         score_threshold = score_threshold if score_threshold is not None else float(self.config['database']['similarity'])
+
+        # DEBUG
+        # query_embedding = self.embeddings.embed_query(query)
+        # print(f"DEBUG: Query embedding shape: {len(query_embedding)}")
+        # print(f"DEBUG: Query embedding sample: {query_embedding[:5]}")
+        # print(f"DEBUG: Query embedding norm: {np.linalg.norm(query_embedding)}")
 
         relevant_contexts = self.db.similarity_search_with_score(
             query,
