@@ -1,9 +1,7 @@
 import gc
-import logging
 import os
-# os.environ["TOKENIZERS_PARALLELISM"] = "false"
-# os.environ["TOKENIZERS_NUM_THREADS"] = "1"
 import time
+import json
 from copy import deepcopy
 from pathlib import Path
 from typing import Optional
@@ -12,15 +10,12 @@ import re
 import sqlite3
 import torch
 import yaml
-import concurrent.futures
-import queue
-from collections import defaultdict, deque
+from collections import defaultdict
 import shutil
 import random
 import sys
 import traceback
 
-import numpy as np
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from langchain_core.documents import Document
@@ -31,12 +26,8 @@ from module_process_images import choose_image_loader
 from utilities import my_cprint, get_model_native_precision, get_appropriate_dtype, supports_flash_attention, set_cuda_paths
 from constants import VECTOR_MODELS
 
-logging.basicConfig(level=logging.CRITICAL, force=True)
-logger = logging.getLogger(__name__)
-
 
 def _flatten_to_text(x):
-    """Convert any input to a string, handling all edge cases."""
     if x is None:
         return ""
     if isinstance(x, str):
@@ -48,7 +39,6 @@ def _flatten_to_text(x):
             return ""
     if isinstance(x, (bool, int, float)):
         return str(x)
-    # Handle iterables
     if hasattr(x, '__iter__') and not isinstance(x, (str, bytes)):
         parts = []
         try:
@@ -59,26 +49,12 @@ def _flatten_to_text(x):
             return " ".join(parts)
         except Exception:
             return str(x)
-    # Fallback for any other type
     try:
         return str(x)
     except Exception:
         return ""
 
 class BaseEmbeddingModel:
-    """
-    Prepares the structured kwargs for HuggingFaceEmbeddings (SentenceTransformer).
-
-    Outer dict keys map directly to SentenceTransformer.__init__ parameters:
-      - device
-      - trust_remote_code
-      - prompts / default_prompt_name (not used here but supported)
-      - model_kwargs        (inner dict: low-level HF AutoModel args)
-      - tokenizer_kwargs    (outer-level sibling)
-      - config_kwargs       (outer-level sibling)
-
-    encode_kwargs are passed to SentenceTransformer.encode().
-    """
 
     def __init__(self, model_name, model_kwargs, encode_kwargs, is_query: bool = False):
         self.model_name = model_name
@@ -87,50 +63,41 @@ class BaseEmbeddingModel:
         self.is_query = is_query
 
     def prepare_kwargs(self):
-        # shallow copy to avoid mutating caller's dict
         hf_embed_kw = deepcopy(self.model_kwargs)
 
-        # Required outer-level defaults
         hf_embed_kw.setdefault("device", "cpu")
         hf_embed_kw.setdefault("trust_remote_code", True)
 
-        # Ensure tokenizer kwargs with proper settings
         tok_kw = hf_embed_kw.setdefault("tokenizer_kwargs", {})
         tok_kw.update({
             "trust_remote_code": True,
-            "use_fast": False,
-            "padding": True,
-            "truncation": True,
-            "return_token_type_ids": False,
+            "use_fast": True,
             "model_max_length": 512,
-            "max_length": 512  # Add this as well for some tokenizers
         })
 
-        # Clean up model_kwargs
-        inner = hf_embed_kw.get("model_kwargs", {})
-        inner = {k: v for k, v in inner.items() if v is not None}
-        if inner:
-            hf_embed_kw["model_kwargs"] = inner
-        else:
-            hf_embed_kw.pop("model_kwargs", None)
+        hf_embed_kw.pop("model_kwargs", None)
+        hf_embed_kw.pop("config_kwargs", None)
 
         return hf_embed_kw
 
     def prepare_encode_kwargs(self):
-        """Prepare encode_kwargs, ensuring no tokenizer params leak in."""
         encode_kwargs = deepcopy(self.encode_kwargs)
-        
+
         if self.is_query:
             encode_kwargs.setdefault("batch_size", 1)
             encode_kwargs.setdefault("normalize_embeddings", True)
         else:
             encode_kwargs.setdefault("normalize_embeddings", True)
-        
-        # Remove tokenizer-specific parameters that don't belong in encode_kwargs
-        tokenizer_params = ['padding', 'truncation', 'max_length', 'model_max_length', 'return_token_type_ids']
-        for param in tokenizer_params:
+
+        encode_kwargs.setdefault("convert_to_tensor", False)
+        encode_kwargs.setdefault("show_progress_bar", not self.is_query)
+
+        params_to_remove = ['model_max_length', 'return_token_type_ids', 'show_progress_bar', 
+                            'padding', 'truncation', 'max_length']
+
+        for param in params_to_remove:
             encode_kwargs.pop(param, None)
-        
+
         return encode_kwargs
 
     def create(self):
@@ -150,7 +117,6 @@ class SnowflakeEmbedding(BaseEmbeddingModel):
     def prepare_kwargs(self):
         snow_kwargs = super().prepare_kwargs()
 
-        # Large variant requires specific settings
         if "large" in self.model_name.lower():
             tok_kw = snow_kwargs.setdefault("tokenizer_kwargs", {})
             tok_kw.update({"model_max_length": 8192})
@@ -213,24 +179,17 @@ class QwenEmbedding(BaseEmbeddingModel):
         is_cuda = device.startswith("cuda")
         use_flash = is_cuda and supports_flash_attention()
 
-        inner = q_kwargs.setdefault("model_kwargs", {})
-
         if use_flash:
-            # FlashAttention requires fp16 or bf16
             try:
-                # Prefer bf16 on newer GPUs if available, else fp16
                 dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 8 else torch.float16
             except Exception:
                 dtype = torch.float16
-            inner.update({
+            q_kwargs.update({
                 "torch_dtype": dtype,
                 "attn_implementation": "flash_attention_2",
             })
         else:
-            # CPU or no flash-attn support, use SDPA with fp32
-            inner.update({
-                "attn_implementation": "sdpa",
-            })
+            q_kwargs["attn_implementation"] = "sdpa"
 
         tok_kw = q_kwargs.setdefault("tokenizer_kwargs", {})
         tok_kw.update({
@@ -241,14 +200,17 @@ class QwenEmbedding(BaseEmbeddingModel):
 
     def prepare_encode_kwargs(self):
         encode_kwargs = super().prepare_encode_kwargs()
-        encode_kwargs["max_length"] = 8192
         return encode_kwargs
 
 
 def create_vector_db_in_process(database_name):
-    set_cuda_paths()
-    create_vector_db = CreateVectorDB(database_name=database_name)
-    create_vector_db.run()
+    try:
+        set_cuda_paths()
+        create_vector_db = CreateVectorDB(database_name=database_name)
+        result = create_vector_db.run()
+        return result
+    except Exception as e:
+        raise
 
 def process_chunks_only_query(database_name, query, result_queue):
     try:
@@ -273,7 +235,7 @@ def process_chunks_only_query(database_name, query, result_queue):
         result_queue.put(f"Error querying database: {str(e)}")
     finally:
         if 'query_db' in locals():
-            query_db.cleanup()
+            pass
 
 
 class CreateVectorDB:
@@ -293,24 +255,19 @@ class CreateVectorDB:
         model_native_precision = get_model_native_precision(embedding_model_name, VECTOR_MODELS)
         torch_dtype = get_appropriate_dtype(compute_device, use_half, model_native_precision)
 
-        # Outer kwargs for SentenceTransformer
         outer_model_kwargs = {
             "device": compute_device,
             "trust_remote_code": True,
-            # Inner low-level HF model args ONLY if needed
-            "model_kwargs": {
-                "torch_dtype": torch_dtype if torch_dtype is not None else None,
-                "attn_implementation": "sdpa",   # keep if supported by model
-            },
-            # tokenizer_kwargs / config_kwargs added by subclass overrides
+            "torch_dtype": torch_dtype if torch_dtype is not None else None,
+            "attn_implementation": "sdpa",
         }
 
         encode_kwargs = {
             'batch_size': 8,
-            # 'padding': True,
-            # 'truncation': True,
             "normalize_embeddings": True,
         }
+
+        name_lower = embedding_model_name.lower()
 
         if compute_device.lower() == 'cpu':
             encode_kwargs['batch_size'] = 2
@@ -331,11 +288,9 @@ class CreateVectorDB:
                 'arctic-embed-m': 14,
             }
             for key, value in batch_size_mapping.items():
-                if key in embedding_model_name:
+                if key in name_lower:
                     encode_kwargs['batch_size'] = value
                     break
-
-        name_lower = embedding_model_name.lower()
 
         if "qwen3-embedding" in name_lower:
             print("Using QwenEmbedding class.")
@@ -380,7 +335,6 @@ class CreateVectorDB:
         hash_id_mappings = []
         MAX_UINT64 = 18446744073709551615
 
-        # atomically create the DB folder
         try:
             self.PERSIST_DIRECTORY.mkdir(parents=True, exist_ok=False)
             my_cprint(f"Created directory: {self.PERSIST_DIRECTORY}", "green")
@@ -395,52 +349,31 @@ class CreateVectorDB:
             all_metadatas = []
             all_ids = []
             chunk_counters = defaultdict(int)
-            
-            # Track problematic chunks for debugging
             skipped_chunks = 0
 
-            # Process all texts and ensure they're clean strings
             for idx, doc in enumerate(texts):
                 try:
-                    # Get the content
                     if hasattr(doc, 'page_content'):
                         raw_content = doc.page_content
                     else:
                         raw_content = doc
                     
-                    # Check if raw_content is None or not string-like
                     if raw_content is None:
                         skipped_chunks += 1
                         continue
-                    
-                    # Force to string if it isn't already
+
                     if not isinstance(raw_content, str):
                         raw_content = str(raw_content)
-                    
-                    # Clean the content
-                    clean_content = _flatten_to_text(raw_content)
-                    
-                    # Ensure the result is a string
-                    if not isinstance(clean_content, str):
-                        print(f"Warning: _flatten_to_text returned non-string type {type(clean_content)} at index {idx}")
-                        clean_content = str(clean_content) if clean_content is not None else ""
-                    
-                    # Remove null bytes and normalize whitespace
-                    clean_content = clean_content.replace('\x00', ' ')
-                    clean_content = re.sub(r'\s+', ' ', clean_content)
-                    clean_content = clean_content.strip()
-                    
-                    # Skip empty chunks
-                    if not clean_content or len(clean_content) == 0:
+
+                    clean_content = raw_content.replace('\x00', ' ')
+
+                    words = clean_content.split()
+                    clean_content = ' '.join(words)
+
+                    if not clean_content:
                         skipped_chunks += 1
                         continue
-                    
-                    # Final type check
-                    if not isinstance(clean_content, str):
-                        print(f"ERROR: Non-string content at index {idx}: type={type(clean_content)}")
-                        skipped_chunks += 1
-                        continue
-                    
+
                     file_hash = doc.metadata.get('hash') if hasattr(doc, 'metadata') else None
                     chunk_counters[file_hash] += 1
                     tiledb_id = str(random.randint(0, MAX_UINT64 - 1))
@@ -462,49 +395,23 @@ class CreateVectorDB:
                 raise ValueError("No valid text content found to embed")
 
             print(f"Total chunks to embed: {len(all_texts)}")
-            
-            # # Validate all texts are strings before embedding
-            # for i, text in enumerate(all_texts):
-                # if not isinstance(text, str):
-                    # print(f"ERROR: Non-string found at position {i}: type={type(text)}, value={text[:100] if hasattr(text, '__getitem__') else text}")
-                    # all_texts[i] = str(text) if text is not None else ""
 
             with open(self.ROOT_DIRECTORY / "config.yaml", 'r', encoding='utf-8') as config_file:
                 config_data = yaml.safe_load(config_file)
 
-            # Create embeddings
             embedding_start_time = time.time()
 
-            for i, text in enumerate(all_texts):
-                if not isinstance(text, str):
-                    print(f"ERROR: Non-string found at position {i}: type={type(text)}, value={text[:100] if hasattr(text, '__getitem__') else text}")
-                    text = str(text) if text is not None else ""
-                    all_texts[i] = text
-                if not text.strip():
-                    print(f"ERROR: Empty or whitespace-only string at index {i}: {repr(text)}")
-                    all_texts[i] = ""
-
             vectors = embeddings.embed_documents(all_texts)
-
-            # DEBUG
-            # print(f"DEBUG: Created {len(vectors)} vectors")
-            # if vectors:
-                # print(f"DEBUG: First vector shape: {len(vectors[0])}")
-                # print(f"DEBUG: First vector sample: {vectors[0][:5]}")  # Show first 5 dimensions
-                # print(f"DEBUG: Vector norm: {np.linalg.norm(vectors[0])}")
 
             embedding_end_time = time.time()
             embedding_elapsed = embedding_end_time - embedding_start_time
             my_cprint(f"Embedding computation completed in {embedding_elapsed:.2f} seconds.", "cyan")
-            time.sleep(5)
 
-            # Build (text, embedding) tuples
             text_embed_pairs = [
                 (txt, vec.tolist() if hasattr(vec, 'tolist') else list(vec))
                 for txt, vec in zip(all_texts, vectors)
             ]
 
-            # Create TileDB vector store
             TileDB.from_embeddings(
                 text_embeddings=text_embed_pairs,
                 embedding=embeddings,
@@ -526,13 +433,12 @@ class CreateVectorDB:
 
         except Exception as e:
             traceback.print_exc()
-            logging.error(f"Error creating database: {str(e)}")
+            
             if self.PERSIST_DIRECTORY.exists():
                 try:
                     shutil.rmtree(self.PERSIST_DIRECTORY)
-                    logging.info(f"Cleaned up failed database creation at: {self.PERSIST_DIRECTORY}")
                 except Exception as cleanup_error:
-                    logging.error(f"Failed to clean up database directory: {cleanup_error}")
+                    pass
             raise
 
     def create_metadata_db(self, documents, hash_id_mappings):
@@ -561,13 +467,12 @@ class CreateVectorDB:
         ''')
 
         try:
-            # Prepare batch data for documents
             doc_rows = [
                 (
-                    doc.metadata.get("file_name", ""),
-                    doc.metadata.get("hash", ""),
-                    doc.metadata.get("file_path", ""),
-                    doc.page_content
+                    getattr(doc, 'metadata', {}).get("file_name", ""),
+                    getattr(doc, 'metadata', {}).get("hash", ""),
+                    getattr(doc, 'metadata', {}).get("file_path", ""),
+                    getattr(doc, 'page_content', "")
                 )
                 for doc in documents
             ]
@@ -576,7 +481,6 @@ class CreateVectorDB:
                 VALUES (?, ?, ?, ?)
             ''', doc_rows)
 
-            # Batch insert hash–ID mappings
             cursor.executemany('''
                 INSERT INTO hash_chunk_ids (tiledb_id, hash)
                 VALUES (?, ?)
@@ -587,7 +491,6 @@ class CreateVectorDB:
             conn.close()
 
     def load_audio_documents(self, source_dir: Path = None) -> list:
-        # checks the DocsforDB folder for .json files, which audio transcriptions are always saved to, and loads them
         if source_dir is None:
             source_dir = self.SOURCE_DIRECTORY
         json_paths = [f for f in source_dir.iterdir() if f.suffix.lower() == '.json']
@@ -597,7 +500,11 @@ class CreateVectorDB:
             try:
                 with open(json_path, 'r', encoding='utf-8') as json_file:
                     json_str = json_file.read()
-                    doc = Document.parse_raw(json_str)
+                    data = json.loads(json_str)
+                    doc = Document(
+                        page_content=data.get('page_content', ''),
+                        metadata=data.get('metadata', {})
+                    )
                     docs.append(doc)
             except Exception as e:
                 my_cprint(f"Error loading {json_path}: {e}", "red")
@@ -617,40 +524,32 @@ class CreateVectorDB:
         config_data = self.load_config(self.ROOT_DIRECTORY)
         EMBEDDING_MODEL_NAME = config_data.get("EMBEDDING_MODEL_NAME")
 
-        # list to hold document objects
         documents = []
 
-        # load text document objects
         text_documents = load_documents(self.SOURCE_DIRECTORY)
         if isinstance(text_documents, list) and text_documents:
             documents.extend(text_documents)
 
-        # separate lists for pdf and non-pdf document objects
         text_documents_pdf = [doc for doc in documents if doc.metadata.get("file_type") == ".pdf"]
         documents = [doc for doc in documents if doc.metadata.get("file_type") != ".pdf"]
 
-        # load image descriptions
         print("Processing any images...")
         image_documents = choose_image_loader()
         if isinstance(image_documents, list) and image_documents:
             if len(image_documents) > 0:
                 documents.extend(image_documents)
 
-        # load audio transcriptions
         print("Processing any audio transcripts...")
         audio_documents = self.load_audio_documents()
         if isinstance(audio_documents, list) and audio_documents:
             documents.extend(audio_documents)
 
-        # create a list to save pre-split text for sqliteDB
         json_docs_to_save = []
         json_docs_to_save.extend(documents)
         json_docs_to_save.extend(text_documents_pdf)
 
-        # blank list to hold all split document objects
         texts = []
 
-        # split document objects and add to list
         if (isinstance(documents, list) and documents) or (isinstance(text_documents_pdf, list) and text_documents_pdf):
             texts = split_documents(documents, text_documents_pdf)
             print(f"Documents split into {len(texts)} chunks.")
@@ -658,17 +557,14 @@ class CreateVectorDB:
         del documents, text_documents_pdf
         gc.collect()
 
-        # create db
         if isinstance(texts, list) and texts:
             embeddings, encode_kwargs = self.initialize_vector_model(EMBEDDING_MODEL_NAME, config_data)
 
-            # Get hash->ID mappings and create the vector database
             hash_id_mappings = self.create_database(texts, embeddings)
 
             del texts
             gc.collect()
 
-            # Pass mappings to metadata db creation
             self.create_metadata_db(json_docs_to_save, hash_id_mappings)
             del json_docs_to_save
             gc.collect()
@@ -690,10 +586,10 @@ class QueryVectorDB:
             if not selected_database:
                 raise ValueError("No vector database selected.")
             if selected_database not in self.config["created_databases"]:
-                raise ValueError(f'Database “{selected_database}” not found in config.')
+                raise ValueError(f'Database "{selected_database}" not found in config.')
             db_path = Path(__file__).resolve().parent / "Vector_DB" / selected_database
             if not db_path.exists():
-                raise FileNotFoundError(f'Database folder “{selected_database}” is missing on disk.')
+                raise FileNotFoundError(f'Database folder "{selected_database}" is missing on disk.')
 
             self.selected_database = selected_database
             self.embeddings = None
@@ -701,7 +597,6 @@ class QueryVectorDB:
             self.model_name = None
             self._debug_id = id(self)
             self._initialized = True
-            logging.debug(f"Created new QueryVectorDB instance {self._debug_id} for database {selected_database}")
 
     @classmethod
     def get_instance(cls, selected_database):
@@ -711,8 +606,6 @@ class QueryVectorDB:
                     print(f"Database changed from {cls._instance.selected_database} to {selected_database}")
                     cls._instance.cleanup()
                     cls._instance = None
-                else:
-                    logging.debug(f"Reusing existing instance {cls._instance._debug_id} for database {selected_database}")
 
             if cls._instance is None:
                 cls._instance = object.__new__(cls)
@@ -726,7 +619,6 @@ class QueryVectorDB:
             with open(config_path, 'r', encoding='utf-8') as file:
                 return yaml.safe_load(file)
         except Exception as e:
-            logging.error(f"Error loading configuration: {e}")
             raise
 
     @torch.inference_mode()
@@ -742,18 +634,12 @@ class QueryVectorDB:
         outer_model_kwargs = {
             "device": compute_device,
             "trust_remote_code": True,
-            "model_kwargs": {
-                # let BaseEmbeddingModel strip None later if it ends up being None
-                "torch_dtype": torch_dtype if torch_dtype is not None else None,
-                # safe default on CPU; GPU/backends can override internally if needed
-                "attn_implementation": "sdpa",
-            },
+            "torch_dtype": torch_dtype if torch_dtype is not None else None,
+            "attn_implementation": "sdpa",
         }
 
         encode_kwargs = {
             "batch_size": 1,
-            # 'padding': True,
-            # 'truncation': True,
             "normalize_embeddings": True,
         }
 
@@ -807,11 +693,9 @@ class QueryVectorDB:
     @torch.inference_mode()
     def search(self, query, k: Optional[int] = None, score_threshold: Optional[float] = None):
         if not self.embeddings:
-            logging.info(f"Initializing embedding model for database {self.selected_database}")
             self.embeddings = self.initialize_vector_model()
 
         if not self.db:
-            logging.info(f"Initializing database connection for {self.selected_database}")
             self.db = self.initialize_database()
 
         self.config = self.load_configuration()
@@ -820,12 +704,6 @@ class QueryVectorDB:
         
         k = k if k is not None else int(self.config['database']['contexts'])
         score_threshold = score_threshold if score_threshold is not None else float(self.config['database']['similarity'])
-
-        # DEBUG
-        # query_embedding = self.embeddings.embed_query(query)
-        # print(f"DEBUG: Query embedding shape: {len(query_embedding)}")
-        # print(f"DEBUG: Query embedding sample: {query_embedding[:5]}")
-        # print(f"DEBUG: Query embedding norm: {np.linalg.norm(query_embedding)}")
 
         relevant_contexts = self.db.similarity_search_with_score(
             query,
@@ -838,7 +716,7 @@ class QueryVectorDB:
         if search_term:
             filtered_contexts = [
                 (doc, score) for doc, score in relevant_contexts
-                if search_term in doc.page_content.lower()
+                if search_term in str(doc.page_content).lower()
             ]
         else:
             filtered_contexts = relevant_contexts
@@ -853,21 +731,15 @@ class QueryVectorDB:
         return contexts, metadata_list
 
     def cleanup(self):
-        logging.info(f"Cleaning up QueryVectorDB instance {self._debug_id} for database {self.selected_database}")
-
         if self.embeddings:
-            logging.debug(f"Unloading embedding model for database {self.selected_database}")
             del self.embeddings
             self.embeddings = None
 
         if self.db:
-            logging.debug(f"Closing database connection for {self.selected_database}")
             del self.db
             self.db = None
 
         if torch.cuda.is_available():
-            logging.debug("Clearing CUDA cache")
             torch.cuda.empty_cache()
 
         gc.collect()
-        logging.debug(f"Cleanup completed for instance {self._debug_id}")
