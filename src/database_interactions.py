@@ -1,7 +1,6 @@
 import gc
 import os
 import time
-import json
 from copy import deepcopy
 from pathlib import Path
 from typing import Optional
@@ -75,8 +74,12 @@ class BaseEmbeddingModel:
             "model_max_length": 512,
         })
 
-        hf_embed_kw.pop("model_kwargs", None)
-        hf_embed_kw.pop("config_kwargs", None)
+        inner = hf_embed_kw.get("model_kwargs", {})
+        inner = {k: v for k, v in inner.items() if v is not None}
+        if inner:
+            hf_embed_kw["model_kwargs"] = inner
+        else:
+            hf_embed_kw.pop("model_kwargs", None)
 
         return hf_embed_kw
 
@@ -179,17 +182,21 @@ class QwenEmbedding(BaseEmbeddingModel):
         is_cuda = device.startswith("cuda")
         use_flash = is_cuda and supports_flash_attention()
 
+        inner = q_kwargs.setdefault("model_kwargs", {})
+
         if use_flash:
             try:
                 dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 8 else torch.float16
             except Exception:
                 dtype = torch.float16
-            q_kwargs.update({
+            inner.update({
                 "torch_dtype": dtype,
                 "attn_implementation": "flash_attention_2",
             })
         else:
-            q_kwargs["attn_implementation"] = "sdpa"
+            inner.update({
+                "attn_implementation": "sdpa",
+            })
 
         tok_kw = q_kwargs.setdefault("tokenizer_kwargs", {})
         tok_kw.update({
@@ -258,8 +265,10 @@ class CreateVectorDB:
         outer_model_kwargs = {
             "device": compute_device,
             "trust_remote_code": True,
-            "torch_dtype": torch_dtype if torch_dtype is not None else None,
-            "attn_implementation": "sdpa",
+            "model_kwargs": {
+                "torch_dtype": torch_dtype if torch_dtype is not None else None,
+                "attn_implementation": "sdpa",
+            },
         }
 
         encode_kwargs = {
@@ -634,8 +643,10 @@ class QueryVectorDB:
         outer_model_kwargs = {
             "device": compute_device,
             "trust_remote_code": True,
-            "torch_dtype": torch_dtype if torch_dtype is not None else None,
-            "attn_implementation": "sdpa",
+            "model_kwargs": {
+                "torch_dtype": torch_dtype if torch_dtype is not None else None,
+                "attn_implementation": "sdpa",
+            },
         }
 
         encode_kwargs = {
