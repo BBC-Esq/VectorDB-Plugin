@@ -89,8 +89,6 @@ class ManageDatabasesTab(QWidget):
         self.create_buttons()
         self.layout.addLayout(self.buttons_layout)
 
-        self.groups = {self.documents_group_box: 1}
-
     def load_created_databases(self):
         if self.config_path.exists():
             with open(self.config_path, 'r', encoding='utf-8') as file:
@@ -100,6 +98,8 @@ class ManageDatabasesTab(QWidget):
         return []
 
     def display_no_databases_message(self):
+        self.model._data = []
+        self.model.layoutChanged.emit()
         self.documents_group_box.hide()
         self.database_info_label.setText("No database selected.")
 

@@ -1,30 +1,22 @@
-# import multiprocessing
-# if __name__ == '__main__':
-    # multiprocessing.set_start_method('spawn', force=True)
-# to address potential conflict with python 3.12 and tokenizers
 import faulthandler, signal
 faulthandler.enable(all_threads=True)
 import os
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import sys
-import warnings
-warnings.filterwarnings("ignore", message="pkg_resources is deprecated", category=UserWarning)
 
 from pathlib import Path
 
 from utilities import set_cuda_paths
 set_cuda_paths()
 
-from ctypes import windll, byref, sizeof, c_void_p, c_int
+from ctypes import windll, byref, sizeof, c_int
 from ctypes.wintypes import BOOL, HWND, DWORD
 
 from PySide6.QtCore import QTimer
 
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QTabWidget,
-    QMenuBar, QHBoxLayout, QMessageBox, QInputDialog
+    QMenuBar, QHBoxLayout, QMessageBox
 )
-import yaml
 from initialize import main as initialize_system
 from metrics_bar import MetricsWidget as MetricsBar
 from gui_tabs import create_tabs
@@ -38,8 +30,7 @@ from utilities import (
     download_with_threadpool,
 )
 from gui_file_credentials import manage_credentials
-from module_ask_jeeves import ChatWindow, launch_jeeves_process
-from constants import JEEVES_MODELS
+from module_ask_jeeves import launch_jeeves_process
 
 script_dir = Path(__file__).parent.resolve()
 
@@ -51,7 +42,6 @@ class DocQA_GUI(QWidget):
         self.tab_widget = create_tabs()
         self.init_ui()
         self.init_menu()
-        self.chat_window = None
         self.jeeves_process = None
         self.set_dark_titlebar()
 
@@ -67,9 +57,8 @@ class DocQA_GUI(QWidget):
             sizeof(rendering_policy)
         )
 
-        # Make window border black (Windows 11+)
         DWMWA_BORDER_COLOR = DWORD(34)
-        black_color = c_int(0xFF000000)  # ABGR = 0xAARRGGBB => FF 00 00 00 = fully opaque black
+        black_color = c_int(0xFF000000)
         set_window_attribute(
             hwnd,
             DWMWA_BORDER_COLOR,
@@ -89,13 +78,13 @@ class DocQA_GUI(QWidget):
         metrics_layout = QHBoxLayout()
         metrics_layout.addWidget(self.metrics_bar)
 
-        # max height for the MetricsBar
         self.metrics_bar.setMaximumHeight(80)
 
         main_layout.addLayout(metrics_layout)
 
     def init_menu(self):
         self.menu_bar = QMenuBar(self)
+        self.layout().setMenuBar(self.menu_bar)
 
         self.file_menu = self.menu_bar.addMenu('File')
 
@@ -113,6 +102,8 @@ class DocQA_GUI(QWidget):
         self.jeeves_action.triggered.connect(self.open_chat_window)
 
     def open_chat_window(self):
+        import multiprocessing
+        
         self.jeeves_action.setEnabled(False)
         QTimer.singleShot(5000, lambda: self.jeeves_action.setEnabled(True))
 
@@ -156,23 +147,23 @@ class DocQA_GUI(QWidget):
             self.jeeves_process.join(timeout=3)
             if self.jeeves_process.is_alive():
                 self.jeeves_process.kill()
+                self.jeeves_process.join()
+            self.jeeves_process.close()
 
         if sys.platform == 'win32':
-            import multiprocessing
             multiprocessing.freeze_support()
-            self.jeeves_process = multiprocessing.Process(target=launch_jeeves_process)
-            self.jeeves_process.start()
-        else:
-            self.jeeves_process = multiprocessing.Process(target=launch_jeeves_process)
-            self.jeeves_process.start()
+        
+        self.jeeves_process = multiprocessing.Process(target=launch_jeeves_process)
+        self.jeeves_process.start()
 
     def closeEvent(self, event):
-        # Clean shutdown of Jeeves process
         if self.jeeves_process and self.jeeves_process.is_alive():
             self.jeeves_process.terminate()
             self.jeeves_process.join(timeout=3)
             if self.jeeves_process.is_alive():
                 self.jeeves_process.kill()
+                self.jeeves_process.join()
+            self.jeeves_process.close()
 
         docs_dir = Path(__file__).parent / 'Docs_for_DB'
         for item in docs_dir.glob('*'):
@@ -180,7 +171,6 @@ class DocQA_GUI(QWidget):
                 item.unlink()
         self.metrics_bar.stop_metrics_collector()
 
-        # Clean up individual tabs if they have cleanup methods
         for i in range(self.tab_widget.count()):
             tab = self.tab_widget.widget(i)
             if hasattr(tab, 'cleanup') and callable(tab.cleanup):
@@ -197,10 +187,6 @@ def main():
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
 
     app = QApplication(sys.argv)
-
-    # font = app.font()
-    # font.setPointSize(10)  # Adjust as necessary
-    # app.setFont(font)
 
     theme = ensure_theme_config()
     app.setStyleSheet(load_stylesheet(theme))

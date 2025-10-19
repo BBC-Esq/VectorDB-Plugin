@@ -32,20 +32,15 @@ def extract_common_metadata(file_path, content_hash=None):
         "modification_date": modification_date,
         "hash": file_hash
     }
-    
-    #=========================================================================
+
     clean_metadata = {}
     for k, v in metadata.items():
         if isinstance(v, (str, int, float, bool, type(None))):
             clean_metadata[k] = v
-        elif isinstance(v, enumerate):
-            print(f"❌ ENUMERATE in metadata key '{k}' - converting to string")
-            clean_metadata[k] = str(list(v))
         else:
             clean_metadata[k] = str(v)
-    
+
     return clean_metadata
-    #=========================================================================
 
 def extract_image_metadata(file_path):
     metadata = extract_common_metadata(file_path)
@@ -81,21 +76,21 @@ def add_pymupdf_page_metadata(doc: Document, chunk_size: int = 1200, chunk_overl
                 end = len(clean_text)
             chunk = clean_text[start:end].strip()
 
-            page_num = None
+            page_num = 1
             for marker_pos, page in reversed(page_markers):
                 if marker_pos <= start:
                     page_num = page
                     break
 
-            if chunk and page_num is not None:
+            if chunk:
                 chunks.append((chunk, page_num))
+            
             start += chunk_size - chunk_overlap
 
         return chunks
 
     chunks = split_text(doc.page_content, chunk_size, chunk_overlap)
 
-    #================================================================================================
     new_docs = []
     for chunk, page_num in chunks:
         new_metadata = {}
@@ -105,9 +100,6 @@ def add_pymupdf_page_metadata(doc: Document, chunk_size: int = 1200, chunk_overl
                     key = str(k)
                     if isinstance(v, (str, int, float, bool)):
                         new_metadata[key] = v
-                    elif isinstance(v, enumerate):
-                        print(f"❌ ENUMERATE in chunk metadata key '{key}' - converting to string")
-                        new_metadata[key] = str(list(v))
                     else:
                         new_metadata[key] = str(v)
 
@@ -118,6 +110,5 @@ def add_pymupdf_page_metadata(doc: Document, chunk_size: int = 1200, chunk_overl
             metadata=new_metadata
         )
         new_docs.append(new_doc)
-        #================================================================================================
 
     return new_docs

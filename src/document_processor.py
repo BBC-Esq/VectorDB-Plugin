@@ -27,21 +27,13 @@ from langchain_community.document_loaders import (
     BSHTMLLoader
 )
 
-from typing import Optional, Any, Iterator, Union
+from typing import Optional, Any, Iterator, Union, List
 from langchain_community.document_loaders.blob_loaders import Blob
 from langchain_community.document_loaders.parsers import PyMuPDFParser
 import pymupdf
 
 from constants import DOCUMENT_LOADERS
 from extract_metadata import extract_document_metadata, add_pymupdf_page_metadata, compute_content_hash
-
-# logging.basicConfig(
-    # level=logging.ERROR,
-    # format='%(asctime)s - %(levelname)s - %(message)s',
-    # handlers=[
-        # logging.FileHandler('document_processor.log', mode='w')
-    # ]
-# )
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -51,32 +43,24 @@ SOURCE_DIRECTORY = ROOT_DIRECTORY / "Docs_for_DB"
 INGEST_THREADS = max(2, os.cpu_count() - 12)
 
 
-from typing import List
-
 class FixedSizeTextSplitter:
-    """Splits text into equally-sized character chunks.
 
-    Parameters
-    ----------
-    chunk_size : int
-        Maximum characters per chunk.  Taken from config.yaml.
-    """
-
-    def __init__(self, chunk_size: int):
+    def __init__(self, chunk_size: int, chunk_overlap: int = 0):
         self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
 
     def split_documents(self, docs: List[Document]) -> List[Document]:
         chunks: List[Document] = []
         for doc in docs:
             text = doc.page_content or ""
-            for start in range(0, len(text), self.chunk_size):
-                piece = text[start : start + self.chunk_size].strip()
-                if not piece:
-                    continue
-                # shallow-copy metadata so each chunk carries origin info
-                chunks.append(Document(page_content=piece, metadata=dict(doc.metadata)))
+            start = 0
+            while start < len(text):
+                end = start + self.chunk_size
+                piece = text[start:end].strip()
+                if piece:
+                    chunks.append(Document(page_content=piece, metadata=dict(doc.metadata)))
+                start += self.chunk_size - self.chunk_overlap
         return chunks
-
 
 class CustomPyMuPDFParser(PyMuPDFParser):
     def _lazy_parse(self, blob: Blob, text_kwargs: Optional[dict[str, Any]] = None) -> Iterator[Document]:
@@ -103,7 +87,6 @@ class CustomPyMuPDFLoader(PyMuPDFLoader):
             extract_images=kwargs.get('extract_images', False)
         )
 
-# map loaders
 for ext, loader_name in DOCUMENT_LOADERS.items():
     DOCUMENT_LOADERS[ext] = globals()[loader_name]
 
@@ -208,7 +191,6 @@ def load_documents(source_dir: Path) -> list:
     if doc_paths:
         n_workers = min(INGEST_THREADS, max(len(doc_paths), 1))
 
-        total_cores = os.cpu_count()
         threads_per_process = 2
 
         with ProcessPoolExecutor(n_workers) as executor:
@@ -228,24 +210,17 @@ def split_documents(documents=None, text_documents_pdf=None):
    try:
        print("\nSplitting documents into chunks.")
 
-       with open("config.yaml", "r", encoding='utf-8') as config_file:
+       config_path = Path(__file__).resolve().parent / "config.yaml"
+       with open(config_path, "r", encoding='utf-8') as config_file:
            config = yaml.safe_load(config_file)
            chunk_size = config["database"]["chunk_size"]
            chunk_overlap = config["database"]["chunk_overlap"]
 
-       # instantiate text splitter
-       text_splitter = FixedSizeTextSplitter(chunk_size=chunk_size)
-
-       # text_splitter = RecursiveCharacterTextSplitter(
-           # chunk_size=chunk_size,
-           # chunk_overlap=chunk_overlap,
-           # keep_separator=False,
-       # )
+       text_splitter = FixedSizeTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
        texts = []
 
        if documents:
-           # use text splitter directly
            texts = text_splitter.split_documents(documents)
 
        if text_documents_pdf:

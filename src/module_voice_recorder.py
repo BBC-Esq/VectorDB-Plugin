@@ -52,7 +52,7 @@ class TranscriptionThread(QThread):
         self.transcription_complete.emit(transcription_text)
         
         Path(self.audio_file).unlink()
-        self.voice_recorder.ReleaseTranscriber()
+        # self.voice_recorder.ReleaseTranscriber()
 
         del self.model
         # my_cprint("Whisper model removed from memory.", 'red')

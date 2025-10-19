@@ -279,23 +279,19 @@ class DatabasesTab(QWidget):
         self.process_timer.stop()
 
         try:
-            # ✅ Capture exitcode BEFORE join() in case process gets closed
+            self.db_process.wait(timeout=5.0)
+            
             exit_code = self.db_process.process.exitcode
-            
-            # Now join the process
-            self.db_process.process.join()
-            
-            # Optional: Clean up process resources on Python 3.10+
+
             if hasattr(self.db_process.process, 'close'):
                 self.db_process.process.close()
-            
-            # ✅ Use the captured exit_code instead of accessing it after join
+
             if exit_code == 0:
                 my_cprint(f"{self.current_model_name} removed from memory.", "red")
                 self.update_config_with_database_name()
                 backup_database_incremental(self.current_database_name)
                 QMessageBox.information(self, "Success", "Database created successfully!")
-                
+
             else:
                 err_msg = (f"Database build failed (exit code {exit_code}). "
                           "Check the log window for details.")

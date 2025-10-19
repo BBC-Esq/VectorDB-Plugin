@@ -27,14 +27,13 @@ class VectorModelsTab(QWidget):
            'infly': 3,
            'Snowflake': 3,
            'Qwen': 4,
-           'Google': 2,  # Added if you use it
+           'Google': 2,
        }
 
        models_dir = Path('Models')
        if not models_dir.exists():
            models_dir.mkdir(parents=True)
 
-       # Use consistent lowercase 'vector'
        vector_models_dir = models_dir / "vector"
        if not vector_models_dir.exists():
            vector_models_dir.mkdir(parents=True)
@@ -120,7 +119,6 @@ class VectorModelsTab(QWidget):
                size_label.setToolTip(TOOLTIPS.get("VECTOR_MODEL_SIZE", ""))
                add_centered_widget(grid, size_label, row, 6)
 
-               # Use cache_dir if it exists, otherwise generate from repo_id
                if 'cache_dir' in model:
                    expected_dir_name = model['cache_dir']
                else:
@@ -157,14 +155,12 @@ class VectorModelsTab(QWidget):
 
     def update_model_downloaded_status(self, model_name, model_type):
        models_dir = Path('Models')
-       # Use consistent lowercase 'vector'
        vector_models_dir = models_dir / "vector"
 
        existing_vector_directories = {d.name for d in vector_models_dir.iterdir() if d.is_dir()}
 
        for vendor, models in VECTOR_MODELS.items():
            for model in models:
-               # Check both cache_dir and the generated directory name
                cache_dir = model.get('cache_dir', '')
                generated_dir = model['repo_id'].replace('/', '--')
                

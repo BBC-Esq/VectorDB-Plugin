@@ -135,8 +135,8 @@ class ChatWindow(QMainWindow):
         self.context_label.setFixedHeight(30)
 
         self.context_spin = QSpinBox()
-        self.context_spin.setRange(1, 10)      # allow 1-20
-        self.context_spin.setValue(5)          # default 5
+        self.context_spin.setRange(1, 10)
+        self.context_spin.setValue(5)
         self.context_spin.setFixedHeight(30)
 
         model_layout.addWidget(self.context_label)
@@ -239,10 +239,6 @@ class ChatWindow(QMainWindow):
         self.is_speaking = False
 
     def _ensure_model(self) -> None:
-        """
-        Download or resume-download the model if *model.bin* is missing.
-        (Keeps everything else that is already in the cache.)
-        """
         model_dir = Path(self.model_dir)
         if not (model_dir / "model.bin").exists():
             print("model.bin missing – redownloading just that file …")
@@ -297,7 +293,7 @@ class ChatWindow(QMainWindow):
             )
             self.downloader.moveToThread(self.download_worker)
 
-            self.download_worker.started.connect(self.downloader.download_model)
+            self.download_worker.started.connect(self.downloader.download)
             model_downloaded_signal.downloaded.connect(self.on_model_downloaded)
 
             self.download_worker.start()

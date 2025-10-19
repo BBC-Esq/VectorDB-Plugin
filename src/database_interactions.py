@@ -1,6 +1,10 @@
 import gc
 import os
+
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+
 import time
+import json
 from copy import deepcopy
 from pathlib import Path
 from typing import Optional
@@ -26,33 +30,6 @@ from utilities import my_cprint, get_model_native_precision, get_appropriate_dty
 from constants import VECTOR_MODELS
 
 
-def _flatten_to_text(x):
-    if x is None:
-        return ""
-    if isinstance(x, str):
-        return x
-    if isinstance(x, bytes):
-        try:
-            return x.decode("utf-8", "ignore")
-        except Exception:
-            return ""
-    if isinstance(x, (bool, int, float)):
-        return str(x)
-    if hasattr(x, '__iter__') and not isinstance(x, (str, bytes)):
-        parts = []
-        try:
-            for item in x:
-                s = _flatten_to_text(item)
-                if s:
-                    parts.append(s)
-            return " ".join(parts)
-        except Exception:
-            return str(x)
-    try:
-        return str(x)
-    except Exception:
-        return ""
-
 class BaseEmbeddingModel:
 
     def __init__(self, model_name, model_kwargs, encode_kwargs, is_query: bool = False):
@@ -70,7 +47,7 @@ class BaseEmbeddingModel:
         tok_kw = hf_embed_kw.setdefault("tokenizer_kwargs", {})
         tok_kw.update({
             "trust_remote_code": True,
-            "use_fast": True,
+            "use_fast": False,
             "model_max_length": 512,
         })
 
@@ -95,10 +72,10 @@ class BaseEmbeddingModel:
         encode_kwargs.setdefault("convert_to_tensor", False)
         encode_kwargs.setdefault("show_progress_bar", not self.is_query)
 
-        params_to_remove = ['model_max_length', 'return_token_type_ids', 'show_progress_bar', 
-                            'padding', 'truncation', 'max_length']
+        encode_kwargs.setdefault("padding", True)
+        encode_kwargs.setdefault("truncation", True)
 
-        for param in params_to_remove:
+        for param in ['model_max_length', 'return_token_type_ids', 'show_progress_bar']:
             encode_kwargs.pop(param, None)
 
         return encode_kwargs
@@ -360,28 +337,47 @@ class CreateVectorDB:
             chunk_counters = defaultdict(int)
             skipped_chunks = 0
 
-            for idx, doc in enumerate(texts):
+            for original_idx, doc in enumerate(texts):
+                raw_content = None
+                clean_content = None
+
                 try:
                     if hasattr(doc, 'page_content'):
                         raw_content = doc.page_content
                     else:
                         raw_content = doc
-                    
+
                     if raw_content is None:
+                        print(f"Skipping chunk {original_idx}: no content")
+                        skipped_chunks += 1
+                        continue
+
+                    if isinstance(raw_content, (list, tuple, dict)):
+                        print(f"Skipping chunk {original_idx}: invalid type {type(raw_content)}")
                         skipped_chunks += 1
                         continue
 
                     if not isinstance(raw_content, str):
-                        raw_content = str(raw_content)
+                        try:
+                            raw_content = str(raw_content)
+                        except Exception as e:
+                            print(f"Skipping chunk {original_idx}: cannot coerce {type(raw_content)} to str ({e})")
+                            skipped_chunks += 1
+                            continue
 
                     clean_content = raw_content.replace('\x00', ' ')
+                    clean_content = ' '.join(clean_content.split())
 
-                    words = clean_content.split()
-                    clean_content = ' '.join(words)
-
-                    if not clean_content:
+                    if not clean_content or not clean_content.strip():
                         skipped_chunks += 1
                         continue
+
+                    if isinstance(clean_content, (list, tuple, dict)):
+                        print(f"Skipping chunk {original_idx}: invalid type after clean {type(clean_content)}")
+                        skipped_chunks += 1
+                        continue
+
+                    clean_content.encode('utf-8')
 
                     file_hash = doc.metadata.get('hash') if hasattr(doc, 'metadata') else None
                     chunk_counters[file_hash] += 1
@@ -391,9 +387,19 @@ class CreateVectorDB:
                     all_metadatas.append(doc.metadata if hasattr(doc, 'metadata') else {})
                     all_ids.append(tiledb_id)
                     hash_id_mappings.append((tiledb_id, file_hash))
-                    
+
                 except Exception as e:
-                    print(f"Error processing chunk {idx}: {e}")
+                    preview = None
+                    try:
+                        preview = (clean_content if isinstance(clean_content, str) else raw_content)
+                        if isinstance(preview, str):
+                            preview = preview[:120].replace('\n', ' ')
+                        else:
+                            preview = repr(preview)[:120]
+                    except Exception:
+                        preview = "<unavailable>"
+
+                    print(f"Error processing chunk {original_idx}: {e} | preview: {preview}")
                     skipped_chunks += 1
                     continue
 
@@ -409,6 +415,10 @@ class CreateVectorDB:
                 config_data = yaml.safe_load(config_file)
 
             embedding_start_time = time.time()
+
+            for i, t in enumerate(all_texts):
+                if not isinstance(t, str):
+                    raise TypeError(f"Non-string at index {i}: {type(t)}")
 
             vectors = embeddings.embed_documents(all_texts)
 
@@ -486,12 +496,12 @@ class CreateVectorDB:
                 for doc in documents
             ]
             cursor.executemany('''
-                INSERT INTO document_metadata (file_name, hash, file_path, page_content)
+                INSERT OR REPLACE INTO document_metadata (file_name, hash, file_path, page_content)
                 VALUES (?, ?, ?, ?)
             ''', doc_rows)
 
             cursor.executemany('''
-                INSERT INTO hash_chunk_ids (tiledb_id, hash)
+                INSERT OR REPLACE INTO hash_chunk_ids (tiledb_id, hash)
                 VALUES (?, ?)
             ''', hash_id_mappings)
 
@@ -727,7 +737,7 @@ class QueryVectorDB:
         if search_term:
             filtered_contexts = [
                 (doc, score) for doc, score in relevant_contexts
-                if search_term in str(doc.page_content).lower()
+                if search_term not in str(doc.page_content).lower()
             ]
         else:
             filtered_contexts = relevant_contexts

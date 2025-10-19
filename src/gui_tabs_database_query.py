@@ -236,21 +236,6 @@ class DatabaseQueryTab(QWidget):
             "o3-pro"
         ])
 
-        """
-        +--------------+--------+--------+-------------+------------+
-        |     Model    | Input  | Output | Max Context | Max Output |
-        +--------------+--------+--------+-------------+------------+
-        | gpt-4.1-nano | $0.10  | $0.40  | 1,047,576   | 32,768     |
-        | gpt-4o-mini  | $0.15  | $0.60  | 128,000     | 16,384     |
-        | gpt-4.1-mini | $0.40  | $1.60  | 1,047,576   | 32,768     |
-        | 04-mini      | $1.10  | $4.40  | 200,000     | 100,000    |
-        | gpt-4.1      | $2.00  | $8.00  | 1,047,576   | 32,768     |
-        | o3           | $2.00  | $8.00  | 200,000     | 100,000    |
-        | gpt-4o       | $2.50  | $10.00 | 128,000     | 16,384     |
-        | o3-pro       | $20.00 | $80.00 | 200,000     | 100,000    |
-        +--------------+--------+--------+-------------+------------+
-        """
-
         self.model_source_combo.setCurrentText("Local Model")
         self.model_source_combo.currentTextChanged.connect(self.on_model_source_changed)
         hbox1_layout.addWidget(self.model_source_combo)
@@ -542,10 +527,12 @@ class DatabaseQueryTab(QWidget):
 
     def update_response_local_model(self, chunk: str):
         # 1) Track entering/exiting <think> blocks
-        if "<think>" in chunk.lower():
-            self.in_think_block = True
-        if "</think>" in chunk.lower():
-            self.in_think_block = False
+        chunk_lower = chunk.lower()
+        open_pos = chunk_lower.rfind("<think>")
+        close_pos = chunk_lower.rfind("</think>")
+        
+        if open_pos != -1 or close_pos != -1:
+            self.in_think_block = open_pos > close_pos
 
         # 2) Show or hide both label and busy bar
         visible = self.in_think_block and not self.show_thinking_checkbox.isChecked()

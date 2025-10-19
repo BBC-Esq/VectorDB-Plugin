@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QVBoxLayout,
 import yaml
 import logging
 import traceback
+from utilities import my_cprint
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
 
@@ -93,7 +94,7 @@ class CredentialManager(ABC):
             button_box.rejected.connect(dialog.reject)
             clear_button.clicked.connect(clear_credential)
 
-            dialog.exec_()
+            dialog.exec()
 
         except Exception as e:
             logging.error(f"Error managing {self.credential_name}: {str(e)}")

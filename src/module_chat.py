@@ -18,6 +18,7 @@ import threading
 from abc import ABC, abstractmethod
 import builtins
 from contextlib import contextmanager
+from huggingface_hub import HfApi
 
 from constants import CHAT_MODELS, system_message, GLM4Z1_CHAT_TEMPLATE
 from utilities import my_cprint, has_bfloat16_support
@@ -27,7 +28,6 @@ logging.getLogger("transformers").setLevel(logging.ERROR)
 
 @contextmanager
 def utf8_file_operations():
-    """Context manager that ensures all file operations use UTF-8 encoding by default."""
     original_open = builtins.open
     
     def utf8_open(path, *args, **kwargs):
@@ -42,10 +42,6 @@ def utf8_file_operations():
         builtins.open = original_open
 
 def _configure_device_settings(settings, model_info):
-    """
-    Configure device, dtype, and quantization based on model_info precision.
-    Returns 'cuda' or 'cpu'.
-    """
     device = "cuda" if torch.cuda.is_available() else "cpu"
     settings.setdefault('tokenizer_settings', {})
     settings.setdefault('model_settings', {})
@@ -69,7 +65,6 @@ def _configure_device_settings(settings, model_info):
 
 def get_model_settings(base_settings, attn_implementation):
     settings = copy.deepcopy(base_settings)
-    # settings['model_settings']['attn_implementation'] = attn_implementation
     return settings
     
 def get_max_length(model_name):
@@ -97,7 +92,6 @@ def get_generation_settings(max_length, max_new_tokens):
 bnb_bfloat16_settings = {
     'tokenizer_settings': {
         'torch_dtype': torch.bfloat16,
-        # 'add_bos_token': False, # doublecheck this
     },
     'model_settings': {
         'torch_dtype': torch.bfloat16,
@@ -108,14 +102,12 @@ bnb_bfloat16_settings = {
             bnb_4bit_use_double_quant=True,
         ),
         'low_cpu_mem_usage': True,
-        # 'attn_implementation': "sdpa"
     }
 }
 
 bnb_float16_settings = {
     'tokenizer_settings': {
         'torch_dtype': torch.float16,
-        # 'add_bos_token': False, # doublecheck this
     },
     'model_settings': {
         'torch_dtype': torch.float16,
@@ -126,7 +118,6 @@ bnb_float16_settings = {
             bnb_4bit_use_double_quant=True,
         ),
         'low_cpu_mem_usage': True,
-        # 'attn_implementation': "sdpa"
     }
 }
 
@@ -157,7 +148,6 @@ def check_if_model_is_gated(repo_id, hf_token):
 
 
 class _StopOnToken(StoppingCriteria):
-    """Stop generation when any ID in `stop_ids` is produced."""
     def __init__(self, stop_ids):
         self.stop_ids = set(stop_ids)
 
@@ -445,7 +435,6 @@ class DeepseekR1(BaseModel):
         settings = deepcopy(bnb_bfloat16_settings)
         settings["tokenizer_settings"]["trust_remote_code"] = True
         settings["model_settings"]["trust_remote_code"] = True
-        # settings["model_settings"]["attn_implementation"] = "sdpa"
 
         custom_generation_settings = {
             "max_length": generation_settings["max_length"],
@@ -548,10 +537,6 @@ class SeedCoder(BaseModel):
 
     @torch.inference_mode()
     def generate_response(self, inputs):
-        """
-        SeedCoder does not accept `token_type_ids`, so remove them
-        before calling the parent generator.
-        """
         inputs.pop("token_type_ids", None)
         yield from super().generate_response(inputs)
 
@@ -564,7 +549,6 @@ class Phi4(BaseModel):
         settings["model_settings"]["attn_implementation"] = "sdpa"
         settings["model_settings"]["device_map"] = "auto"
 
-        # Pure-CPU fallback: no quant-weights on GPU, force everything to CPU
         if not torch.cuda.is_available():
             settings = {"tokenizer_settings": {}, "model_settings": {"device_map": "cpu"}}
 

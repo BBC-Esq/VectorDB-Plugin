@@ -47,7 +47,7 @@ class KoboldChat:
 
         response = None
         try:
-            response = requests.post(self.api_url, json=payload, stream=True)
+            response = requests.post(self.api_url, json=payload, stream=True, timeout=20)
             response.raise_for_status()
             client = sseclient.SSEClient(response)
 
