@@ -23,13 +23,13 @@ Create and search a vector database to get a response from the large language mo
 <div align="center">
   <h3><u>Requirements</u></h3>
 
-| [Python 3.11](https://www.python.org/downloads/release/python-3119/) or [Python 3.12](https://www.python.org/downloads/release/python-31210/) or [Python 3.13](https://www.python.org/downloads/release/python-31311/)&nbsp;&bull;&nbsp; [Git](https://git-scm.com/downloads) &nbsp;&bull;&nbsp; [Git LFS](https://git-lfs.com/) &nbsp;&bull;&nbsp; [Pandoc](https://github.com/jgm/pandoc/releases) &nbsp;&bull;&nbsp; [Compiler](https://visualstudio.microsoft.com/) |
+| [Python 3.11](https://www.python.org/downloads/release/python-3119/) or [Python 3.12](https://www.python.org/downloads/release/python-31210/) or [Python 3.13](https://www.python.org/downloads/release/python-31311/) & [Git](https://git-scm.com/downloads) & [Git LFS](https://git-lfs.com/) & [Pandoc](https://github.com/jgm/pandoc/releases) & [Compiler](https://visualstudio.microsoft.com/) |
 |---|
 
-The above link downloads Visual Studio as an example.  Make sure to install the required SDKs, however.
+> Visual Studio's compiler is recommended, but make sure and install the necessary SDKs:
 
 > <details>
->   <summary>EXAMPLE error when no compiler installed:</summary>
+>   <summary>EXAMPLE error when no compiler is installed:</summary>
 >   <img src="https://github.com/BBC-Esq/VectorDB-Plugin-for-LM-Studio/blob/main/src/Assets/sample_error.png?raw=true">
 > </details>
 > 
