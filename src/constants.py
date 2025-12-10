@@ -50,69 +50,88 @@ GLM4Z1_CHAT_TEMPLATE = """[gMASK]<sop>
 priority_libs = {
     "cp311": {
         "GPU": [
-            # torch 2.8.0 based
-            "https://github.com/kingbri1/flash-attention/releases/download/v2.8.2/flash_attn-2.8.2+cu128torch2.8.0cxx11abiFALSE-cp311-cp311-win_amd64.whl",
-            "https://download.pytorch.org/whl/cu128/torch-2.8.0%2Bcu128-cp311-cp311-win_amd64.whl",
+            "https://github.com/kingbri1/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu128torch2.8.0cxx11abiFALSE-cp311-cp311-win_amd64.whl",
+            "https://download.pytorch.org/whl/cu128/torch-2.9.0%2Bcu128-cp311-cp311-win_amd64.whl#sha256=dc6f6c6e7d7eed20c687fc189754a6ea6bf2da9c64eff59fd6753b80ed4bca05",
             "https://download.pytorch.org/whl/cu128/torchvision-0.23.0%2Bcu128-cp311-cp311-win_amd64.whl#sha256=70b3d8bfe04438006ec880c162b0e3aaac90c48b759aa41638dd714c732b182c",
-            "https://download.pytorch.org/whl/cu128/torchaudio-2.8.0%2Bcu128-cp311-cp311-win_amd64.whl#sha256=7a1eb6154e05b8056b34c7a41495e09d57f79eb0180eb4e7f3bb2a61845ca8ea",
+            "https://download.pytorch.org/whl/cu128/torchaudio-2.9.0%2Bcu128-cp311-cp311-win_amd64.whl#sha256=daa01250079ef024987622429f379723d306e92fad42290868041a60d4fef2e6",
             "triton-windows==3.4.0.post20",
-            "git+https://github.com/shashikg/WhisperS2T.git@e7f7e6dbfdc7f3a39454feb9dd262fd3653add8c",
-            "git+https://github.com/BBC-Esq/WhisperSpeech.git@795f60157136b0052b9a1f576e88803f7783ab1f",
-            "xformers==0.0.32.post2",
+            "xformers==0.0.33.post1",
             "nvidia-cuda-runtime-cu12==12.8.90",
             "nvidia-cublas-cu12==12.8.4.1",
             "nvidia-cuda-nvrtc-cu12==12.8.93",
-            "nvidia-cuda-nvcc-cu12==12.4.131",
-            "nvidia-cufft-cu12==11.2.1.3",
+            "nvidia-cuda-nvcc-cu12==12.8.93",
+            "nvidia-cufft-cu12==11.3.3.83",
             "nvidia-cudnn-cu12==9.10.2.21",
             "nvidia-ml-py==13.580.82",
         ],
         "CPU": [
-            "https://download.pytorch.org/whl/cpu/torch-2.8.0%2Bcpu-cp311-cp311-win_amd64.whl",
-            "https://download.pytorch.org/whl/cpu/torchvision-0.23.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=51603eb071d0681abc4db98b10ff394ace31f425852e8de249b91c09c60eb19a",
-            "https://download.pytorch.org/whl/cpu/torchaudio-2.8.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=db37df7eee906f8fe0a639fdc673f3541cb2e173169b16d4133447eb922d1938"
+            # "https://download.pytorch.org/whl/cpu/torch-2.8.0%2Bcpu-cp311-cp311-win_amd64.whl",
+            # "https://download.pytorch.org/whl/cpu/torchvision-0.23.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=51603eb071d0681abc4db98b10ff394ace31f425852e8de249b91c09c60eb19a",
+            # "https://download.pytorch.org/whl/cpu/torchaudio-2.8.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=db37df7eee906f8fe0a639fdc673f3541cb2e173169b16d4133447eb922d1938"
         ],
         "COMMON": [
-            "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.8.0-tesseract-5.5.0/tesserocr-2.8.0-cp311-cp311-win_amd64.whl",
+            # "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.8.0-tesseract-5.5.0/tesserocr-2.8.0-cp311-cp311-win_amd64.whl",
         ],
     },
     "cp312": {
         "GPU": [
-            # torch 2.8.0 based
-            "https://github.com/kingbri1/flash-attention/releases/download/v2.8.2/flash_attn-2.8.2+cu128torch2.8.0cxx11abiFALSE-cp312-cp312-win_amd64.whl",
-            "https://download.pytorch.org/whl/cu128/torch-2.8.0%2Bcu128-cp312-cp312-win_amd64.whl",
-            "https://download.pytorch.org/whl/cu128/torchvision-0.23.0%2Bcu128-cp312-cp312-win_amd64.whl#sha256=20fa9c7362a006776630b00b8a01919fedcf504a202b81358d32c5aef39956fe",
-            "https://download.pytorch.org/whl/cu128/torchaudio-2.8.0%2Bcu128-cp312-cp312-win_amd64.whl#sha256=cce3a60cd9a97f7360c8f95504ac349311fb7d6b9b826135936764f4de5f782d",
+            "https://github.com/kingbri1/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu128torch2.8.0cxx11abiFALSE-cp312-cp312-win_amd64.whl",
+            "https://download.pytorch.org/whl/cu128/torch-2.9.0%2Bcu128-cp312-cp312-win_amd64.whl#sha256=c97dc47a1f64745d439dd9471a96d216b728d528011029b4f9ae780e985529e0",
+            "https://download.pytorch.org/whl/cu128/torchvision-0.24.0%2Bcu128-cp312-cp312-win_amd64.whl#sha256=1aa36ac00106e1381c38348611a1ec0eebe942570ebaf0490f026b061dfc212c",
+            "https://download.pytorch.org/whl/cu128/torchaudio-2.9.0%2Bcu128-cp312-cp312-win_amd64.whl#sha256=90cd2b4d7c375c9a5c2d79117985f8f506718f494914ad9b5c5dee5581216898",
             "triton-windows==3.4.0.post20",
-            "git+https://github.com/shashikg/WhisperS2T.git@e7f7e6dbfdc7f3a39454feb9dd262fd3653add8c",
-            "git+https://github.com/BBC-Esq/WhisperSpeech.git@795f60157136b0052b9a1f576e88803f7783ab1f",
-            "xformers==0.0.32.post2",
+            "xformers==0.0.33.post1",
             "nvidia-cuda-runtime-cu12==12.8.90",
             "nvidia-cublas-cu12==12.8.4.1",
             "nvidia-cuda-nvrtc-cu12==12.8.93",
-            "nvidia-cuda-nvcc-cu12==12.4.131",
-            "nvidia-cufft-cu12==11.2.1.3",
+            "nvidia-cuda-nvcc-cu12==12.8.93",
+            "nvidia-cufft-cu12==11.3.3.83",
             "nvidia-cudnn-cu12==9.10.2.21",
             "nvidia-ml-py==13.580.82",
         ],
         "CPU": [
-            "https://download.pytorch.org/whl/cpu/torch-2.8.0%2Bcpu-cp312-cp312-win_amd64.whl",
-            "https://download.pytorch.org/whl/cpu/torchvision-0.23.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=a651ccc540cf4c87eb988730c59c2220c52b57adc276f044e7efb9830fa65a1d",
-            "https://download.pytorch.org/whl/cpu/torchaudio-2.8.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=9b302192b570657c1cc787a4d487ae4bbb7f2aab1c01b1fcc46757e7f86f391e"
+            # "https://download.pytorch.org/whl/cpu/torch-2.8.0%2Bcpu-cp312-cp312-win_amd64.whl",
+            # "https://download.pytorch.org/whl/cpu/torchvision-0.23.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=a651ccc540cf4c87eb988730c59c2220c52b57adc276f044e7efb9830fa65a1d",
+            # "https://download.pytorch.org/whl/cpu/torchaudio-2.8.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=9b302192b570657c1cc787a4d487ae4bbb7f2aab1c01b1fcc46757e7f86f391e"
         ],
         "COMMON": [
-            "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.8.0-tesseract-5.5.0/tesserocr-2.8.0-cp312-cp312-win_amd64.whl",
+            # "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.8.0-tesseract-5.5.0/tesserocr-2.8.0-cp312-cp312-win_amd64.whl",
+        ]
+    },
+    "cp313": {
+        "GPU": [
+            "https://github.com/kingbri1/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu128torch2.8.0cxx11abiFALSE-cp312-cp312-win_amd64.whl",
+            "https://download.pytorch.org/whl/cu128/torch-2.9.0%2Bcu128-cp313-cp313-win_amd64.whl#sha256=9cba9f0fa2e1b70fffdcec1235a1bb727cbff7e7b118ba111b2b7f984b7087e2",
+            "https://download.pytorch.org/whl/cu128/torchvision-0.24.0%2Bcu128-cp313-cp313-win_amd64.whl#sha256=f82cd941bc36033ebdb2974c83caa2913cc37e6567fe97cdd69f5a568ff182c8",
+            "https://download.pytorch.org/whl/cu128/torchaudio-2.9.0%2Bcu128-cp313-cp313-win_amd64.whl#sha256=76df3fdb5e1194b51e69187e00d53d18bb5c2e0f3904d105e644b5c3aba5c9f4",
+            "triton-windows==3.4.0.post20",
+            "xformers==0.0.33.post1",
+            "nvidia-cuda-runtime-cu12==12.8.90",
+            "nvidia-cublas-cu12==12.8.4.1",
+            "nvidia-cuda-nvrtc-cu12==12.8.93",
+            "nvidia-cuda-nvcc-cu12==12.8.93",
+            "nvidia-cufft-cu12==11.3.3.83",
+            "nvidia-cudnn-cu12==9.10.2.21",
+            "nvidia-ml-py==13.580.82",
+        ],
+        "CPU": [
+            # "https://download.pytorch.org/whl/cpu/torch-2.8.0%2Bcpu-cp312-cp312-win_amd64.whl",
+            # "https://download.pytorch.org/whl/cpu/torchvision-0.23.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=a651ccc540cf4c87eb988730c59c2220c52b57adc276f044e7efb9830fa65a1d",
+            # "https://download.pytorch.org/whl/cpu/torchaudio-2.8.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=9b302192b570657c1cc787a4d487ae4bbb7f2aab1c01b1fcc46757e7f86f391e"
+        ],
+        "COMMON": [
+            # "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.8.0-tesseract-5.5.0/tesserocr-2.8.0-cp312-cp312-win_amd64.whl",
         ]
     }
 }
 
 libs = [
-    "accelerate==1.10.1",
+    "accelerate==1.11.0",
     "aiofiles==25.1.0",
     "aiohappyeyeballs==2.6.1",
-    "aiohttp==3.13.1", # langchain libraries require <4
+    "aiohttp==3.13.2", # langchain libraries require <4
     "aiosignal==1.4.0", #aiohttp requires >=1.4.0
-    "anndata==0.11.4", # 0.12+ requires additional dependencies; doublecheck if worth it
+    "anndata==0.12.5", # 0.12+ requires additional dependencies; doublecheck if worth it
     "annotated-types==0.7.0",
     "anyio==4.11.0",
     "array_api_compat==1.12.0", # only anndata requires
@@ -121,7 +140,7 @@ libs = [
     "av==16.0.1",
     "backoff==2.2.1",
     "beautifulsoup4==4.14.2",
-    "bitsandbytes==0.48.1",
+    "bitsandbytes==0.48.2",
     "braceexpand==0.1.7",
     "certifi==2025.10.5",
     "cfgv==3.4.0", # only required by pre_commit
@@ -131,8 +150,8 @@ libs = [
     "git+https://github.com/BBC-Esq/chatterbox-light",
     "chattts==0.2.4",
     "chromadb==1.2.0",
-    "click==8.1.8", # gtts 2.5.4 requires <8.2, >=7.1
-    "cloudpickle==3.1.1", # only required by tiledb-cloud and 3+ is only supported by tiledb-cloud 0.13+
+    "click==8.3.0", # gtts 2.5.4 requires <8.2, >=7.1
+    "cloudpickle==3.1.2", # only required by tiledb-cloud and 3+ is only supported by tiledb-cloud 0.13+
     "colorama==0.4.6",
     "coloredlogs==15.0.1",
     "contourpy==1.3.3", # only required by matplotlib
@@ -140,12 +159,12 @@ libs = [
     "ctranslate2==4.6.0",
     "cycler==0.12.1",
     "dataclasses-json==0.6.7",
-    "datasets==4.2.0",
+    "datasets==4.3.0",
     "deepdiff==8.6.1", # required by unstructured
     "Deprecated==1.2.18", # only needed by pikepdf
     "deprecation==2.1.0", # only needed by ocrmypdf
     "diffusers==0.35.2", # required by chatterbox-lite
-    "dill==0.4.0", # datasets 4.2.0 requires <0.4.1; multiprocess requires >=0.3.8
+    "dill==0.3.8", # datasets 4.2.0 requires <0.4.1; multiprocess requires >=0.3.8
     "distlib==0.4.0", # required by virtualenv
     "distro==1.9.0",
     "docx2txt==0.9",
@@ -169,12 +188,12 @@ libs = [
     "gTTS==2.5.4",
     "h11==0.16.0",
     "h5py==3.15.1",
-    "hf-xet==1.1.10",
+    "hf-xet==1.2.0",
     "html5lib==1.1", # only required by unstructured
     "httpcore==1.0.9",
     "httpx==0.28.1",
     "httpx-sse==0.4.3",
-    "huggingface-hub==0.35.3", # tokenizers requires <1.0
+    "huggingface-hub==0.36.0", # tokenizers requires <1.0
     "humanfriendly==10.0",
     "HyperPyYAML==1.2.2",
     "identify==2.6.15", # only required by pre-commit
@@ -224,7 +243,7 @@ libs = [
     "ocrmypdf==16.11.1",
     "olefile==0.47",
     "onnx==1.19.1", # required by chatterbox-lite
-    "openai==2.5.0", # only required by chat_lm_studio.py script and whispers2t (if using openai vanilla backend)
+    "openai==2.6.1", # only required by chat_lm_studio.py script and whispers2t (if using openai vanilla backend)
     "openai-whisper==20250625", # only required by whisper_s2t (if using openai vanilla backend)
     "openpyxl==3.1.5",
     "opentelemetry-api==1.38.0", # only required by chromadb
@@ -233,10 +252,10 @@ libs = [
     "opentelemetry-semantic-conventions", # only required by chromadb
     "opentelemetry-exporter-otlp-proto-common==1.38.0", # only required by chromadb
     "opentelemetry-proto==1.38.0", # only required by chromadb
-    "optimum==1.27.0",
+    "optimum==2.0.0",
     "ordered-set==4.1.0",
     "orderly-set==5.5.0", # deepdiff 8.2.0 requires >=5.3.0,<6
-    "orjson==3.11.3",
+    "orjson==3.11.4",
     "overrides==7.7.0", # only required by chromadb
     "packaging==25.0",
     "pandas==2.3.3",
@@ -251,8 +270,8 @@ libs = [
     "pre-commit==4.3.0", # only required by s3tokenizer
     "propcache==0.4.1",
     "protobuf==6.33.0",
-    "psutil==7.1.0",
-    "pyarrow==21.0.0",
+    "psutil==7.1.3",
+    "pyarrow==22.0.0",
     "pybase16384==0.3.8", # only required by chattts
     "pybase64==1.4.2", # only required by chromadb
     "pycparser==2.23",
@@ -264,7 +283,7 @@ libs = [
     "PyOpenGL-accelerate==3.1.10",
     "pypandoc==1.15",
     "pyparsing==3.2.5",
-    "pypdf==6.1.1",
+    "pypdf==6.1.3",
     "pyreadline3==3.5.4",
     "python-dateutil==2.9.0.post0",
     "python-docx==1.2.0",
@@ -274,24 +293,24 @@ libs = [
     "python-oxmsg==0.0.2", # only required by unstructured library
     "pytz==2025.2",
     "PyYAML==6.0.3",
-    "rapidfuzz==3.14.1",
+    "rapidfuzz==3.14.3",
     "referencing==0.37.0", # only required by jsonschema
-    "regex==2025.9.18",
+    "regex==2025.10.23",
     "requests==2.32.5",
     "requests-toolbelt==1.0.0",
     "rpds-py", # only required by jsonschema
     "rich==14.2.0",
-    "ruamel.yaml==0.18.15",
+    "ruamel.yaml==0.18.16",
     "ruamel.yaml.clib==0.2.14",
     "s3tokenizer==0.2.0", # required by chatterbox-lite
     "safetensors==0.6.2",
     "scikit-learn==1.7.2",
-    "scipy==1.16.2",
-    "sentence-transformers==5.1.1",
+    "scipy==1.16.3",
+    "sentence-transformers==5.1.2",
     "sentencepiece==0.2.1",
     "six==1.17.0",
     "sniffio==1.3.1",
-    "sounddevice==0.5.2",
+    "sounddevice==0.5.3",
     "soundfile==0.13.1",
     "soupsieve==2.8",
     # "sphn==0.2.0", # installed at runtime when needed
@@ -302,7 +321,7 @@ libs = [
     "tabulate2==1.10.2",
     # "tblib==3.1.0", # only tiledb-cloud requires
     "tenacity==9.1.2",
-    "termcolor==3.1.0",
+    "termcolor==3.2.0",
     "tessdata==1.0.0",
     "tessdata.eng==1.0.0",
     "threadpoolctl==3.6.0",
@@ -320,7 +339,7 @@ libs = [
     "virtualenv==20.35.3", # required by pre_commit
     "tzdata==2025.2",
     "urllib3==2.5.0", # requests requires <3
-    "vector-quantize-pytorch==1.23.5",
+    "vector-quantize-pytorch==1.24.2",
     "vocos==0.1.0",
     "watchdog==6.0.0",
     "wcwidth==0.2.14", # only required by tabulate2
@@ -878,6 +897,20 @@ VISION_MODELS = {
         'chat_component': 'granite-3.1-2b-instruct',
         'license': 'apache-2.0',
     },
+    'Qwen VL - 2b': {
+        'precision': 'bfloat16',
+        'quant': '4-bit',
+        'size': '2b',
+        'repo_id': 'Qwen/Qwen3-VL-2B-Instruct',
+        'cache_dir': 'Qwen--Qwen3-VL-2B-Instruct',
+        'requires_cuda': True,
+        'vram': '4.1 GB',
+        'avg_length': 975,
+        'loader': 'loader_qwenvl',
+        'vision_component': 'Custom ViT',
+        'chat_component': 'Qwen2.5-3B-Instruct',
+        'license': 'apache-2.0',
+    },
     'Liquid-VL - 3B': {
         'precision': 'bfloat16',
         'quant': '4-bit',
@@ -886,7 +919,7 @@ VISION_MODELS = {
         'cache_dir': 'LiquidAI--LFM2-VL-3B',
         'requires_cuda': True,
         'vram': '6.3 GB',
-        'avg_length': 975,
+        'avg_length': 807,
         'loader': 'loader_liquidvl',
         'vision_component': 'SigLIP2 400M NaFlex',
         'chat_component': 'LFM2-2.6B',
@@ -900,11 +933,25 @@ VISION_MODELS = {
         'cache_dir': 'Qwen--Qwen2.5-VL-3B-Instruct',
         'requires_cuda': True,
         'vram': '6.3 GB',
-        'avg_length': 975,
+        'avg_length': 703,
         'loader': 'loader_qwenvl',
         'vision_component': 'Custom ViT',
         'chat_component': 'Qwen2.5-3B-Instruct',
         'license': 'Custom Non-Commercial',
+    },
+    'Qwen VL - 4b': {
+        'precision': 'bfloat16',
+        'quant': '4-bit',
+        'size': '4b',
+        'repo_id': 'Qwen/Qwen3-VL-4B-Instruct',
+        'cache_dir': 'Qwen--Qwen3-VL-4B-Instruct',
+        'requires_cuda': True,
+        'vram': '6.3 GB',
+        'avg_length': 975,
+        'loader': 'loader_qwenvl',
+        'vision_component': 'Custom ViT',
+        'chat_component': 'Qwen3-3B-Instruct',
+        'license': 'apache-2.0',
     },
     'InternVL3 - 8b': {
         'precision': 'bfloat16',
@@ -3171,231 +3218,3 @@ master_questions = [
 jeeves_system_message = "You are a helpful British butler who clearly and directly answers questions in a succinct fashion based on contexts provided to you. If you cannot find the answer within the contexts simply tell me that the contexts do not provide an answer. However, if the contexts partially address a question you answer based on what the contexts say and then briefly summarize the parts of the question that the contexts didn't provide an answer to.  Also, you should be very respectful to the person asking the question and frequently offer traditional butler services like various fancy drinks, snacks, various butler services like shining of shoes, pressing of suites, and stuff like that. Also, if you can't answer the question at all based on the provided contexts, you should apologize profusely and beg to keep your job.  Lastly, it is essential that if there are no contexts actually provided it means that a user's question wasn't relevant and you should state that you can't answer based off of the contexts because there are none.  And it goes without saying you should refuse to answer any questions that are not directly answerable by the provided contexts.  Moreover, some of the contexts might not have relevant information and you should simply ignore them and focus on only answering a user's question.  I cannot emphasize enough that you must gear your answer towards using this program and based your response off of the contexts you receive.  Lastly, in addition to offering to perform stereotypical butler services in the midst of your response, you must always always always end your response with some kind of offering of butler services even they don't want it."
 system_message = "You are a helpful person who clearly and directly answers questions in a succinct fashion based on contexts provided to you. If you cannot find the answer within the contexts simply tell me that the contexts do not provide an answer. However, if the contexts partially address my question I still want you to answer based on what the contexts say and then briefly summarize the parts of my question that the contexts didn't provide an answer."
 rag_string = "Here are the contexts to base your answer on.  However, I need to reiterate that I only want you to base your response on these contexts and do not use outside knowledge that you may have been trained with."
-
-r"""
-
-====================================================================
-torch==2.6.0
-- supports fa2 2.7.4.post1, 2.8.2, and 2.8.3 (only cp311) on Windows
-- requires triton 3.2.0
-- requires sympy >=1.13.1
-
-fa2 2.8.2
-- supports torch 2.6.0 and cuda 12.4 or 12.8
-
-triton 3.2.0
-- requires torch>=2.6.0
-
-xformers 0.0.29.post3
-- require torch 2.6.0
-- supports fa2 2.7.1 - 2.8.2
-- supports cuda 12.6.3 and 12.8.0
-===================================================================
-
-============================================
-torch==2.8.0
-- supports fa2 2.8.2 and 2.8.3 on Windows
-- requires triton 3.4.0
-- requires sympy >=1.13.3
-
-fa2 2.8.2
-- supports torch 2.8.0 and cuda 12.4 or 12.8
-
-triton 3.4.0
-- requires torch>=2.8.0
-
-xformers 0.0.32.post1 and .post2
-- require torch 2.8.0
-- support fa2 2.7.1 - 2.8.2
-===========================================
-
-****************************
-Torch and CUDA Compatibility
-****************************
-
-+---------------+-----------------------------------
-| Wheel Name    | Torch Versions Supported
-+---------------+-----------------------------------
-| cu129         | 2.8.0
-| cu128         | 2.7.0, 2.7.1, 2.8.0
-| cu126         | 2.6.0, 2.7.0, 2.7.1, 2.8.0
-| cu124         | 2.4.0, 2.4.1, 2.5.0, 2.5.1, 2.6.0
-+---------------+-----------------------------------
-# Torch wheels with these monikers support the specified torch versions
-
-+-------+-------------------------
-| Torch | Specific CUDA Release
-+-------+-------------------------
-| 2.8.0 | 12.6.3, 12.8.1, 12.9.1
-| 2.7.1 | 11.8.0, 12.6.3, 12.8.0
-| 2.7.0 | 11.8.0, 12.6.3, 12.8.0
-| 2.6.0 | 11.8.0, 12.4.1, 12.6.3
-| 2.5.1 | 11.8.0, 12.1.1, 12.4.1
-| 2.5.0 | 11.8.0, 12.1.1, 12.4.1
-| 2.4.1 | 11.8.0, 12.1.1, 12.4.0
-+-------+-------------------------
-# The specified torch versions are built for compatibility with the following specific CUDA releases
-# Obtained from: https://github.com/pytorch/pytorch/blob/main/.github/scripts/generate_binary_build_matrix.py
-
-+--------------+------------+------------+------------+------------+------------+
-|              |   12.4.1   |   12.6.3   |   12.8.0   |   12.8.1   |   12.9.1   |
-+--------------+------------+------------+------------+------------+------------+
-| cuda-nvrtc   | 12.4.127   | 12.6.77    | 12.8.61    | 12.8.93    | 12.9.86    |
-| cuda-runtime | 12.4.127   | 12.6.77    | 12.8.57    | 12.8.90    | 12.9.79    |
-| cuda-cupti   | 12.4.127   | 12.6.80    | 12.8.57    | 12.8.90    | 12.9.79    |
-| cublas       | 12.4.5.8   | 12.6.4.1   | 12.8.3.14  | 12.8.4.1   | 12.9.1.4   |
-| cufft        | 11.2.1.3   | 11.3.0.4   | 11.3.3.41  | 11.3.3.83  | 11.4.1.4   |
-| curand       | 10.3.5.147 | 10.3.7.77  | 10.3.9.55  | 10.3.9.90  | 10.3.10.19 |
-| cusolver     | 11.6.1.9   | 11.7.1.2   | 11.7.2.55  | 11.7.3.90  | 11.7.5.82  |
-| cusparse     | 12.3.1.170 | 12.5.4.2   | 12.5.7.53  | 12.5.8.93  | 12.5.10.65 |
-| cusparselt   | 0.6.2      | 0.6.3      | 0.6.3      | 0.6.3      | 0.6.3      |
-| nccl         | 2.25.1     | 2.21.5     | 2.26.2     | 2.26.2     | 2.26.2     |
-| nvtx         | 12.4.127   | 12.6.77    | 12.8.55    | 12.8.90    | 12.9.79    |
-| nvjitlink    | 12.4.127   | 12.6.85    | 12.8.61    | 12.8.93    | 12.9.86    |
-+--------------+------------+------------+------------+------------+------------+
-# The version of "metapackages" within each CUDA release.
-# Obtained from: https://docs.nvidia.com/cuda/archive/12.6.3/cuda-toolkit-release-notes/index.html
-# or here: https://developer.download.nvidia.com/compute/cuda/redist/
-
-************************
-"Official" Support Matrix
-************************ 
-
-#Even though Pytorch may release wheels for a particular torch+CUDA combination, it still labels some as "experimental."
-# https://github.com/pytorch/pytorch/blob/main/RELEASE.md#release-compatibility-matrix
-+-------+----------------------------+-------------------------------------------+----------------------------+
-| Torch | Python                     | Stable                                    | Experimental               |
-+-------+----------------------------+-------------------------------------------+----------------------------+
-| 2.8   | >=3.9, <=3.13              | CUDA 12.6, 12.8 + CUDNN 9.10.2.21         | CUDA 12.9 (CUDNN 9.7.1.26) |
-+-------+----------------------------+-------------------------------------------+----------------------------+
-| 2.7   | >=3.9, <=3.13              | CUDA 12.6 + CUDNN 9.5.1.17                | CUDA 12.8 (CUDNN 9.7.1.26) |
-+-------+----------------------------+-------------------------------------------+----------------------------+
-| 2.6   | >=3.9, <=3.13              | CUDA 12.4 + CUDNN 9.1.0.70                | CUDA 12.6 + CUDNN 9.5.1.17 |
-+-------+----------------------------+-------------------------------------------+----------------------------+
-| 2.5   | >=3.9, <=3.12, (3.13 exp.) | CUDA 12.1, 12.4 + CUDNN 9.1.0.70          | None                       |
-+-------+----------------------------+-------------------------------------------+----------------------------+
-
-# https://github.com/woct0rdho/triton-windows/releases
-+-----------------------+----------------------------------
-| Release               | Compatible Torch
-+---------------+----------------------------------
-| v3.4.0-windows.post20 | torch>=2.8
-| v3.3.1-windows.post19 | torch>=2.8
-| v3.3.0-windows.post19 | torch>=2.7
-| v3.2.0-windows.post19 | ??? not on repo but on pypi
-| v3.2.0-windows.post18 | torch>=2.6<2.7
-| v3.2.0-windows.post17 | torch>=2.6<2.7
-| v3.2.0-windows.post16 | torch>=2.6<2.7
-| v3.2.0-windows.post15 | torch>=2.6<2.7
-| v3.2.0-windows.post14 | torch>=2.6<2.7
-| v3.2.0-windows.post13 | torch>=2.6<2.7
-| v3.2.0-windows.post12 | torch>=2.6<2.7
-| v3.2.0-windows.post11 | torch>=2.6<2.7
-| v3.2.0-windows.post10 | torch>=2.6<2.7
-| v3.2.0-windows.post9  | torch>=2.6<2.7
-
-****************************************
-Torch Compatibility with Python & Triton
-****************************************
-
-# Triton generates custom CUDA kernels that can optionally be used with torch
-# The METADATA file for each torch wheel shows its compatibility with Python, Triton, and Sympy
-+--------+-------+--------+--------+----------+
-| Torch  | CUDA  | Python | Triton |   Sympy  |
-+--------+-------+--------+--------+----------+
-| 2.8.0  | cu129 |  3.12  |  3.4.0 | >=1.13.3 |
-| 2.8.0  | cu129 |  3.11  |  3.4.0 | >=1.13.3 |
-| 2.8.0  | cu128 |  3.12  |  3.4.0 | >=1.13.3 |
-| 2.8.0  | cu128 |  3.11  |  3.4.0 | >=1.13.3 |
-| 2.8.0  | cu126 |  3.12  |  3.4.0 | >=1.13.3 |
-| 2.8.0  | cu126 |  3.11  |  3.4.0 | >=1.13.3 |
-| 2.7.1  | cu128 |  3.13  |  3.3.1 | >=1.13.3 |
-| 2.7.1  | cu128 |  3.12  |  3.3.1 | >=1.13.3 |
-| 2.7.1  | cu128 |  3.11  |  3.3.1 | >=1.13.3 |
-| 2.7.1  | cu126 |  3.13  |  3.3.1 | >=1.13.3 |
-| 2.7.1  | cu126 |  3.12  |  3.3.1 | >=1.13.3 |
-| 2.7.1  | cu126 |  3.11  |  3.3.1 | >=1.13.3 |
-| 2.7.0  | cu128 |  3.13  |  3.3.0 | >=1.13.3 |
-| 2.7.0  | cu128 |  3.12  |  3.3.0 | >=1.13.3 |
-| 2.7.0  | cu128 |  3.11  |  3.3.0 | >=1.13.3 |
-| 2.7.0  | cu126 |  3.13  |  3.3.0 | >=1.13.3 |
-| 2.7.0  | cu126 |  3.12  |  3.3.0 | >=1.13.3 |
-| 2.7.0  | cu126 |  3.11  |  3.3.0 | >=1.13.3 |
-| 2.6.0  | cu126 |  3.13  |  3.2.0 | 1.13.1   |
-| 2.6.0  | cu126 |  3.12  |  3.2.0 | 1.13.1   |
-| 2.6.0  | cu126 |  3.11  |  3.2.0 | 1.13.1   |
-| 2.6.0  | cu124 |  3.13  |  3.2.0 | 1.13.1   |
-| 2.6.0  | cu124 |  3.12  |  3.2.0 | 1.13.1   |
-| 2.6.0  | cu124 |  3.11  |  3.2.0 | 1.13.1   |
-+--------+-------+--------+--------+----------+
-* Triton 3.1.0 and later wheels: https://github.com/woct0rdho/triton-windows/releases (supports Python 3.12)
-* Since triton-windows==3.2.0.post11, windows wheels are published to https://pypi.org/project/triton-windows/
-* RTX 50xx (Blackwell) - Supported but requires Triton >= 3.3, PyTorch >= 2.7, and CUDA 12.8.
-* RTX 40xx (Ada) - Supported
-* RTX 30xx (Ampere) - Supported except fp8 only works on Nvidia GPUs with sm >= 89
-* RTX 20xx (Turing) or older - Not supported
-* Triton 3.3 works with PyTorch >= 2.7 .
-* Triton 3.2 works with PyTorch >= 2.6 .
-* Triton 3.1 works with PyTorch >= 2.4 . PyTorch 2.3 and older are not supported.
-
-************
-cuDNN & CUDA
-************
-
-# Nvidia promises that all cuDNN 9+ releases are compatible with all CUDA 12.x releases.
-# However, certain version of the torch library are built/tested with certain versions of cuDNN.  Doesn't always mean incompatibility.
-
-***********************
-LINUX Flash Attention 2
-***********************
-
-# HIGHLY CUDA SPECIFIC
-# Obtained from https://github.com/Dao-AILab/flash-attention/blob/main/.github/workflows/publish.yml
-
-*************************
-WINDOWS Flash Attention 2
-*************************
-
-# HIGHLY CUDA SPECIFIC
-+--------------+-----------------------------------------+------------+
-| FA2 Version  |                  Torch                  |    CUDA    |
-+--------------+-----------------------------------------+------------+
-| v2.8.3       | 2.6.0 (only cp311), 2.7.0, 2.8.0        | 12.4, 12.8 |
-| v2.8.2       | 2.6.0, 2.7.0, 2.8.0                     | 12.4, 12.8 |
-| v2.7.4.post1 | 2.4.0, 2.5.1, 2.6.0, 2.7.0              | 12.4, 12.8 |
-| v2.7.1.post1 | 2.3.1, 2.4.0, 2.5.1                     | 12.4       |
-+--------------+-----------------------------------------+------------+
-# Windows wheels: https://github.com/kingbri1/flash-attention
-
-********
-Xformers
-********
-
-# HIGHLY TORCH SPECIFIC
-+------------------+-------+---------------+----------------+---------------+
-| Xformers Version | Torch |      FA2      |       CUDA (excl. 11.x)        |
-+------------------+-------+---------------+--------------------------------+
-| v0.0.32.post2    | 2.8.0 | 2.7.1 - 2.8.2 | 12.8.1, 12.9.0                 |
-| v0.0.32.post1    | 2.8.0 | 2.7.1 - 2.8.2 | 12.8.1, 12.9.0                 |
-| v0.0.32          | 2.7.1 | 2.7.1 - 2.8.2 | 12.8.1, 12.9.0                 | * BUG
-| v0.0.31.post1    | 2.7.1 | 2.7.1 - 2.8.0 | 12.8.1                         |
-| v0.0.31          | 2.7.1 | 2.7.1 - 2.8.0 | 12.6.3, 12.8.1                 |
-| v0.0.30          | 2.7.0 | 2.7.1 - 2.7.4 | 12.6.3, 12.8.1                 |
-| v0.0.29.post3    | 2.6.0 | 2.7.1 - 2.7.2 | 12.1.0, 12.4.1, 12.6.3, 12.8.0 |
-| v0.0.29.post2    | 2.6.0 | 2.7.1 - 2.7.2 | 12.1.0, 12.4.1, 12.6.3, 12.8.0 |
-| v0.0.29.post1    | 2.5.1 | 2.7.1 - 2.7.2 | 12.1.0, 12.4.1                 | *only from pytorch
-| v0.0.29          | 2.5.1 |               |                                | *only from pytorch, BUG
-+------------------+-------+---------------+--------------------------------+
-* Torch support determined by https://github.com/facebookresearch/xformers/blob/main/.github/workflows/wheels.yml
-* FA2 support determined by by https://github.com/facebookresearch/xformers/blob/main/xformers/ops/fmha/flash.py
-* CUDA support determined by https://github.com/facebookresearch/xformers/blob/main/.github/actions/setup-build-cuda/action.yml
-
-***************
-**CTRANSLATE2**
-***************
-
-Ctranslate2 3.24.0 - last to use cuDNN 8.1.1 with CUDA 11.2.2 by default
-Ctranslate2 4.0.0 - first to use cuDNN 8.8.0 with CUDA 12.2 by default
-Ctranslate2 4.5.0 - first to use cuDNN 9.1.0 with CUDA 12.2 by default
-
-# based on /blob/master/python/tools/prepare_build_environment_windows.sh"""

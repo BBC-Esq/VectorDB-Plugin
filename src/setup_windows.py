@@ -61,7 +61,7 @@ def tkinter_message_box(title, message, type="info", yes_no=False):
 
 def check_python_version_and_confirm():
     major, minor = map(int, sys.version.split()[0].split('.')[:2])
-    if major == 3 and minor in [11, 12]:
+    if major == 3 and minor in [11, 12, 13]:
         return tkinter_message_box(
             "Confirmation",
             f"Python version {sys.version.split()[0]} was detected, which is compatible.\n\nClick YES to proceed or NO to exit.",
@@ -70,7 +70,7 @@ def check_python_version_and_confirm():
     else:
         tkinter_message_box(
             "Python Version Error",
-            "This program requires Python 3.11 or 3.12\n\nPython versions prior to 3.11 or after 3.12 are not supported.\n\nExiting the installer...",
+            "This program requires Python 3.11, 3.12 or 3.13\n\nPython versions prior to 3.11 or after 3.14 are not yet supported.\n\nExiting the installer...",
             type="error"
         )
         return False
