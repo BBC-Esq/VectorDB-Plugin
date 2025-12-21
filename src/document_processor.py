@@ -9,9 +9,8 @@ from contextlib import redirect_stdout
 import yaml
 import math
 from pathlib import Path, PurePath
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from langchain_core.documents import Document
-from langchain_text_splitters.character import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import (
     PyMuPDFLoader,
     Docx2txtLoader,
@@ -40,7 +39,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 ROOT_DIRECTORY = Path(__file__).parent
 SOURCE_DIRECTORY = ROOT_DIRECTORY / "Docs_for_DB"
-INGEST_THREADS = max(2, os.cpu_count() - 12)
+INGEST_THREADS = max(2, os.cpu_count() - 2)
 
 
 class FixedSizeTextSplitter:
@@ -62,6 +61,7 @@ class FixedSizeTextSplitter:
                 start += self.chunk_size - self.chunk_overlap
         return chunks
 
+
 class CustomPyMuPDFParser(PyMuPDFParser):
     def _lazy_parse(self, blob: Blob, text_kwargs: Optional[dict[str, Any]] = None) -> Iterator[Document]:
         with PyMuPDFParser._lock:
@@ -75,9 +75,10 @@ class CustomPyMuPDFParser(PyMuPDFParser):
                         full_content.append(f"[[page{page.number + 1}]]{page_content}")
 
                 yield Document(
-                    page_content="".join(full_content),
+                    page_content="\n\n".join(full_content),
                     metadata=self._extract_metadata(doc, blob)
                 )
+
 
 class CustomPyMuPDFLoader(PyMuPDFLoader):
     def __init__(self, file_path: Union[str, PurePath], **kwargs: Any) -> None:
@@ -87,8 +88,10 @@ class CustomPyMuPDFLoader(PyMuPDFLoader):
             extract_images=kwargs.get('extract_images', False)
         )
 
+
 for ext, loader_name in DOCUMENT_LOADERS.items():
     DOCUMENT_LOADERS[ext] = globals()[loader_name]
+
 
 def load_single_document(file_path: Path) -> Document:
     file_extension = file_path.suffix.lower()
@@ -110,7 +113,7 @@ def load_single_document(file_path: Path) -> Document:
     elif file_extension == ".pdf":
         loader_options.update({
             "extract_images": False,
-            "text_kwargs": {},  # Optional: passed to https://pymupdf.readthedocs.io/en/latest/page.html#Page.get_text
+            "text_kwargs": {},
         })
     elif file_extension in [".eml", ".msg"]:
         loader_options.update({
@@ -124,14 +127,10 @@ def load_single_document(file_path: Path) -> Document:
         loader_options.update({
             "open_encoding": "utf-8",
             "bs_kwargs": {
-                "features": "lxml",  # Specify the parser to use (lxml is generally fast and lenient)
-                # "parse_only": SoupStrainer("body"),  # Optionally parse only the body tag
-                # "from_encoding": "utf-8",  # Specify a different input encoding if needed
+                "features": "html.parser",
+                "from_encoding": "utf-8",
             },
-            "get_text_separator": "\n",  # Use newline as separator when extracting text
-            # "file_path": "path/to/file.html",  # Usually set automatically by the loader
-            # "open_encoding": None,  # Set to None to let BeautifulSoup detect encoding
-            # "get_text_separator": " ",  # Use space instead of newline if preferred
+            "get_text_separator": "\n",
         })
     elif file_extension in [".xlsx", ".xls", ".xlsm"]:
         loader_options.update({
@@ -176,11 +175,6 @@ def load_single_document(file_path: Path) -> Document:
         logging.error(f"Unexpected error processing file: {file_path.name} - Error: {str(e)}")
         return None
 
-def load_document_batch(filepaths, threads_per_process):
-    with ThreadPoolExecutor(threads_per_process) as exe:
-        futures = [exe.submit(load_single_document, name) for name in filepaths]
-        data_list = [future.result() for future in futures]
-    return (data_list, filepaths)
 
 def load_documents(source_dir: Path) -> list:
     valid_extensions = {ext.lower() for ext in DOCUMENT_LOADERS.keys()}
@@ -191,53 +185,59 @@ def load_documents(source_dir: Path) -> list:
     if doc_paths:
         n_workers = min(INGEST_THREADS, max(len(doc_paths), 1))
 
-        threads_per_process = 2
-
-        with ProcessPoolExecutor(n_workers) as executor:
-            chunksize = math.ceil(len(doc_paths) / n_workers)
-            futures = []
-            for i in range(0, len(doc_paths), chunksize):
-                chunk_paths = doc_paths[i:i + chunksize]
-                futures.append(executor.submit(load_document_batch, chunk_paths, threads_per_process))
-
+        executor = None
+        try:
+            executor = ThreadPoolExecutor(n_workers)
+            futures = [executor.submit(load_single_document, path) for path in doc_paths]
             for future in as_completed(futures):
-                contents, _ = future.result()
-                docs.extend([d for d in contents if d is not None])
+                try:
+                    result = future.result()
+                    if result is not None:
+                        docs.append(result)
+                except Exception as e:
+                    logging.error(f"Error processing document: {e}")
+        except Exception as e:
+            logging.error(f"Error in document loading executor: {e}")
+            raise
+        finally:
+            if executor:
+                executor.shutdown(wait=True, cancel_futures=True)
 
     return docs
 
+
 def split_documents(documents=None, text_documents_pdf=None):
-   try:
-       print("\nSplitting documents into chunks.")
+    try:
+        print("\nSplitting documents into chunks.")
 
-       config_path = Path(__file__).resolve().parent / "config.yaml"
-       with open(config_path, "r", encoding='utf-8') as config_file:
-           config = yaml.safe_load(config_file)
-           chunk_size = config["database"]["chunk_size"]
-           chunk_overlap = config["database"]["chunk_overlap"]
+        config_path = Path(__file__).resolve().parent / "config.yaml"
+        with open(config_path, "r", encoding='utf-8') as config_file:
+            config = yaml.safe_load(config_file)
+            chunk_size = config["database"]["chunk_size"]
+            chunk_overlap = config["database"]["chunk_overlap"]
 
-       text_splitter = FixedSizeTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+        text_splitter = FixedSizeTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
-       texts = []
+        texts = []
 
-       if documents:
-           texts = text_splitter.split_documents(documents)
+        if documents:
+            texts = text_splitter.split_documents(documents)
 
-       if text_documents_pdf:
-           processed_pdf_docs = []
-           for doc in text_documents_pdf:
-               chunked_docs = add_pymupdf_page_metadata(
-                   doc,
-                   chunk_size=chunk_size,
-                   chunk_overlap=chunk_overlap,
-               )
-               processed_pdf_docs.extend(chunked_docs)
-           
-           texts.extend(processed_pdf_docs)
+        if text_documents_pdf:
+            processed_pdf_docs = []
+            for doc in text_documents_pdf:
+                chunked_docs = add_pymupdf_page_metadata(
+                    doc,
+                    chunk_size=chunk_size,
+                    chunk_overlap=chunk_overlap,
+                )
+                processed_pdf_docs.extend(chunked_docs)
 
-       return texts
+            texts.extend(processed_pdf_docs)
 
-   except Exception as e:
-       logging.exception("Error during document splitting")
-       logging.error(f"Error type: {type(e)}")
-       raise
+        return texts
+
+    except Exception as e:
+        logging.exception("Error during document splitting")
+        logging.error(f"Error type: {type(e)}")
+        raise
