@@ -6,29 +6,6 @@
 
 </div>
 
-<div align="center">
-
-### Inputs → Processing → Vector Database
-
-|                |                                                                                                                                                                                                          |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 📂 **Ingest**  | 📄 `.pdf`, `.docx`, `.txt`, `.html`, `.csv`, `.xls`, `.xlsx`, `.rtf`, `.odt`  <br> 🖼️ `.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif`, `.tif`, `.tiff`  <br> 🎵 `.mp3`, `.wav`, `.m4a`, `.ogg`, `.wma`, `.flac` |
-| ⚙️ **Process** | 📝 Extract text from documents  <br> 🖼️ Generate descriptions from images  <br> 🎧 Transcribe speech from audio                                                                                         |
-| 🧠 **Store**   | All processed content is embedded and saved into the vector database for searching.                                                                                                              |
-
-### Query → LLM → Output
-
-|                 |                                                             |
-| --------------- | ----------------------------------------------------------- |
-| ❓ **Ask**       | ⌨️ Type **or** 🎙️ record a question                    |
-| 🧠 **Retrieve** | Relevant chunks are pulled from the vector database         |
-| 🤖 **Generate** | Sent to an LLM (Local Model, [Kobold](https://github.com/LostRuins/koboldcpp), [LM Studio](https://lmstudio.ai/), or ChatGPT) |
-| 💬 **Respond**  | LLM returns an answer based on the context you provided        |
-| 🔊 **Optional** | Text-to-speech can read the response aloud                  |
-
-</div>
-
-</div>
 
 <div align="center">
   <h3><u>Requirements</u></h3>
@@ -87,6 +64,28 @@ python -m venv .
 ```
 python setup_windows.py
 ```
+
+<div align="center">
+
+### Inputs → Processing → Vector Database
+
+|                |                                                                                                                                                                                                          |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 📂 **Ingest**  | 📄 `.pdf`, `.docx`, `.txt`, `.html`, `.csv`, `.xls`, `.xlsx`, `.rtf`, `.odt`  <br> 🖼️ `.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif`, `.tif`, `.tiff`  <br> 🎵 `.mp3`, `.wav`, `.m4a`, `.ogg`, `.wma`, `.flac` |
+| ⚙️ **Process** | 📝 Extract text from documents  <br> 🖼️ Generate descriptions from images  <br> 🎧 Transcribe speech from audio                                                                                         |
+| 🧠 **Store**   | All processed content is embedded and saved into the vector database for searching.                                                                                                              |
+
+### Query → LLM → Output
+
+|                 |                                                             |
+| --------------- | ----------------------------------------------------------- |
+| ❓ **Ask**       | ⌨️ Type **or** 🎙️ record a question                    |
+| 🧠 **Retrieve** | Relevant chunks are pulled from the vector database         |
+| 🤖 **Generate** | Sent to an LLM (Local Model, [Kobold](https://github.com/LostRuins/koboldcpp), [LM Studio](https://lmstudio.ai/), or ChatGPT) |
+| 💬 **Respond**  | LLM returns an answer based on the context you provided        |
+| 🔊 **Optional** | Text-to-speech can read the response aloud                  |
+
+</div>
 
 <div align="center"> <h2>Usage</h2></div>
 
