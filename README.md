@@ -1,120 +1,106 @@
 <div align="center">
-  <h1>🚀 Supercharged Vector Database!</h1>
 
-  <a href="#requirements">Requirements</a>
-  &nbsp;&bull;&nbsp;
-  <a href="#installation">Installation</a>
-  &nbsp;&bull;&nbsp;
-  <a href="#using-the-program">Using the Program</a>
-  &nbsp;&bull;&nbsp;
-  <a href="#request-a-feature-or-report-a-bug">Request a Feature or Report a Bug</a>
-  &nbsp;&bull;&nbsp;
-  <a href="#contact">Contact</a>
+<img width="1536" height="248" alt="splash" src="https://github.com/user-attachments/assets/8ecfa804-8c98-4219-9204-bc5b7aaa69da" />
+
+### Create and search a vector database from a wide variety of file types and get more reliable [responses from an LLM](https://www.youtube.com/watch?v=8-ZAYI4MvtA).  This is commonly referred to as ["retrieval augmented generation."](https://medium.com/@vici0549/search-images-with-vector-database-retrieval-augmented-generation-rag-3d5a48881de5)
+
 </div>
 
-Create and search a vector database to get a response from the large language model that's more accurate.  This is commonly referred to as "retrieval augmented generation" (RAG)!  You can watch an introductory [Video](https://www.youtube.com/watch?v=8-ZAYI4MvtA) or read a [Medium article](https://medium.com/@vici0549/search-images-with-vector-database-retrieval-augmented-generation-rag-3d5a48881de5) about the program. <br>
+<div align="center">
 
-<details><summary>Graphic of How This Program Works</summary>
-  
-![image](https://github.com/user-attachments/assets/b3784da7-91a5-426b-882c-756468ffdc20)
+### Inputs → Processing → Vector Database
 
-</details>
+|                |                                                                                                                                                                                                          |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 📂 **Ingest**  | 📄 `.pdf`, `.docx`, `.txt`, `.html`, `.csv`, `.xls`, `.xlsx`, `.rtf`, `.odt`  <br> 🖼️ `.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif`, `.tif`, `.tiff`  <br> 🎵 `.mp3`, `.wav`, `.m4a`, `.ogg`, `.wma`, `.flac` |
+| ⚙️ **Process** | 📝 Extract text from documents  <br> 🖼️ Generate descriptions from images  <br> 🎧 Transcribe speech from audio                                                                                         |
+| 🧠 **Store**   | All processed content is embedded and saved into the vector database for searching.                                                                                                              |
+
+### Query → LLM → Output
+
+|                 |                                                             |
+| --------------- | ----------------------------------------------------------- |
+| ❓ **Ask**       | ⌨️ Type **or** 🎙️ record a question                    |
+| 🧠 **Retrieve** | Relevant chunks are pulled from the vector database         |
+| 🤖 **Generate** | Sent to an LLM (Local Model, [Kobold](https://github.com/LostRuins/koboldcpp), [LM Studio](https://lmstudio.ai/), or ChatGPT) |
+| 💬 **Respond**  | LLM returns an answer based on the context you provided        |
+| 🔊 **Optional** | Text-to-speech can read the response aloud                  |
+
+</div>
+
+</div>
 
 <div align="center">
   <h3><u>Requirements</u></h3>
 
-| [Python 3.11](https://www.python.org/downloads/release/python-3119/) or [Python 3.12](https://www.python.org/downloads/release/python-31210/) or [Python 3.13](https://www.python.org/downloads/release/python-31311/) & [Git](https://git-scm.com/downloads) & [Git LFS](https://git-lfs.com/) & [Pandoc](https://github.com/jgm/pandoc/releases) & [Compiler](https://visualstudio.microsoft.com/) |
-|---|
+| Tool                                                                                     | Purpose                                           |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| 🪟 Microsoft Windows                                                                     | **Only** for Windows but open to pull requests |
+| 🐍 [Python 3.11–3.13](https://www.python.org/downloads/)                                 | Run the application                               |
+| 🌿 [Git](https://git-scm.com/downloads)                                                  | Clone / manage the repository                     |
+| 🧲 [Git LFS](https://git-lfs.com/)                                                       | Handle large model files                          |
+| 📄 [Pandoc](https://github.com/jgm/pandoc/releases)                                      | Document parsing support                          |
+| 🛠️ [Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) | Required for compiling dependencies               |
 
-> Visual Studio's compiler is recommended, but make sure and install the necessary SDKs:
+<details>
+<summary>What happens if the compiler is missing?</summary>
 
-> <details>
->   <summary>EXAMPLE error when no compiler is installed:</summary>
->   <img src="https://github.com/BBC-Esq/VectorDB-Plugin-for-LM-Studio/blob/main/src/Assets/sample_error.png?raw=true">
-> </details>
-> 
-> <details>
->   <summary>EXAMPLE of installing the correct SDKs:</summary>
->   <img src="https://github.com/BBC-Esq/VectorDB-Plugin-for-LM-Studio/blob/main/src/Assets/build_tools.png?raw=true">
-> </details>
+<img src="https://github.com/BBC-Esq/VectorDB-Plugin-for-LM-Studio/blob/main/src/Assets/sample_error.png?raw=true">
+
+</details>
+
+<details>
+<summary>Correct SDK options to select during installation</summary>
+
+<img src="https://github.com/BBC-Esq/VectorDB-Plugin-for-LM-Studio/blob/main/src/Assets/build_tools.png?raw=true">
+
+</details>
+
+<details>
+<summary>Or you can run these commands in Powershell on Windows:</summary>
+
+### Install:
+
+```powershell
+winget install Microsoft.VisualStudio.2022.BuildTools --silent --accept-source-agreements --accept-package-agreements --override "--wait --quiet --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621"
+```
+
+### Verify installation:
+```
+Test-Path "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC"
+```
+</details>
 
 </div>
-
-[Back to Top](#top)
 
 <a name="installation"></a>
 <div align="center"> <h2>Installation</h2></div>
   
-### Step 1
-Download the ZIP file for the latest "release."  Extract its contents and navigate to the `src` folder.
-> [!CAUTION]
-> If you simply clone this repository you will get the development version, which might not be stable.
-### Step 2
-Within the `src` folder, create a [virtual environment](https://realpython.com/python-virtual-environments-a-primer/):
+### Download the latest "release," extract, navigate to the `src` folder, and run the following commands:
+
 ```
 python -m venv .
 ```
-### Step 3
-Activate the virtual environment:
 ```
 .\Scripts\activate
 ```
-### Step 4
-Run the setup script:
-   > Only ```Windows``` is supported for now.
-
 ```
 python setup_windows.py
 ```
 
-[Back to Top](#top)
+<div align="center"> <h2>Usage</h2></div>
 
-<a name="using-the-program"></a>
-<div align="center"> <h2>🖥️Usage🖥️</h2></div>
-
-> [!IMPORTANT]
+> [!NOTE]
 > Instructions on how to use the program are being consolidated into the `Ask Jeeves` functionality, which can be accessed from the "Ask Jeeves" menu option.  Please create an issue if Jeeves is not working.
 
-### Start the Program
-```
-.\Scripts\activate
-```
-```
-python gui.py
-```
-
-### 🏗️ Create a Vector Database Download an embedding model from the ```Models Tab```.
-1. Set the `chunk size` and `chunk overlap` settings within the `Settings Tab`.
-2. Within the `Create Database Tab`, select the files that you want in the vector database.
-> 🖼️ images can be selected by clicking the `Choose Files` button.\
-> 🎵 Audio files must be transcribed first within the `Tools Tab`.
-3. Select the embedding model you want to use.
-4. Click `Create Vector Database`.
-
-### 🔍 Query a Vector Database
-* Select the database you want to search within the `Query Database Tab`.
-* Select `Local Models`, `Kobold`, `LM Studio` or `ChatGPT` for the backend that you want to provide a response to your question.
-* Click `Submit Question`.
-  > The `chunks only` checkbox will display the results from the vector database without getting a response.
-
-### ❓ Which Backend Should I Use?
-If you use either the `Kobold` or `LM Studio` you must be familiar with those programs.  For example, `LM Studio` must be running in "server mode" and handles the prompt formatting.  However,`Kobold` automatically starts in server mode but requires you to specify the prompt formatting.
-> [!TIP]
-> Kobold [home page](https://github.com/LostRuins/koboldcpp), [instructions](https://github.com/LostRuins/koboldcpp/wiki), and [Discord server](https://koboldai.org/discord)\
-> LM Studio [home page](https://lmstudio.ai/), [instructions](https://lmstudio.ai/docs), and [Discord server](https://discord.gg/aPQfnNkxGC).
-
-### 🗑️ Deleting a Database
-* In the `Manage Databases Tab`, select a database and click `Delete Database`.
-
-[Back to Top](#top)
-
 <a name="request-a-feature-or-report-a-bug"></a>
-## Request a Feature or Report a Bug
+
+<div align="center"> <h2>Request a Feature or Report a Bug</h2></div>
 
 Feel free to report bugs or request enhancements by creating an issue on github and I will respond promptly.
 
 <a name="contact"></a>
-<div align="center"><h3>CONTACT</h3></div>
+<div align="center"><h2>Contact</h2></div>
 
 I welcome all suggestions - both positive and negative.  You can e-mail me directly at "bbc@chintellalaw.com" or I can frequently be seen on the ```KoboldAI``` Discord server (moniker is ```vic49```).  I am always happy to answer any quesitons or discuss anything vector database related!  (no formal affiliation with ```KoboldAI```).
 
