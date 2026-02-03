@@ -64,6 +64,9 @@ python -m venv .
 ```
 python setup_windows.py
 ```
+```
+python gui.py
+```
 
 <div align="center">
 
