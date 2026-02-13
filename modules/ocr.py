@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 from io import BytesIO
 from abc import ABC, abstractmethod
+from core.constants import PROJECT_ROOT
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import Process, Queue
 
@@ -99,7 +100,7 @@ class TesseractOCR(OCRProcessor):
         self.show_progress = True
 
     def initialize(self):
-        script_dir = Path(__file__).resolve().parent
+        script_dir = PROJECT_ROOT
         self.temp_dir = script_dir / "temp_ocr"
         self.temp_dir.mkdir(exist_ok=True)
         os.environ['TMP'] = str(self.temp_dir)

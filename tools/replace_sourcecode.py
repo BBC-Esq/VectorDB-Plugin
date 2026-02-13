@@ -4,6 +4,8 @@ import shutil
 import sys
 import zipfile
 
+from core.constants import PROJECT_ROOT
+
 class DependencyUpdater:
     def __init__(self):
         self.site_packages_path = self.get_site_packages_path()
@@ -46,7 +48,7 @@ class DependencyUpdater:
             self.print_status("ERROR", "Target dependency path not found.")
             return
 
-        source_path = Path(__file__).parent / source_folder / file_name
+        source_path = PROJECT_ROOT / source_folder / file_name
         if not source_path.exists():
             self.print_status("ERROR", f"{file_name} not found in {source_folder}.")
             return
@@ -66,10 +68,10 @@ class DependencyUpdater:
     @staticmethod
     def print_status(status, message):
         colors = {
-            "SUCCESS": "\033[92m",  # Green
-            "SKIP": "\033[93m",     # Yellow
-            "ERROR": "\033[91m",    # Red
-            "INFO": "\033[94m"      # Blue
+            "SUCCESS": "\033[92m",
+            "SKIP": "\033[93m",
+            "ERROR": "\033[91m",
+            "INFO": "\033[94m"
         }
         reset_color = "\033[0m"
         print(f"{colors.get(status, reset_color)}[{status}] {message}{reset_color}")
@@ -116,7 +118,7 @@ def add_cuda_files():
     target_file = target_path / "ptxas.exe"
     updater.copy_and_overwrite_if_necessary(source_file, target_file)
 
-    zip_path = Path(__file__).parent / "Assets" / "cudart_lib.zip"
+    zip_path = PROJECT_ROOT / "Assets" / "cudart_lib.zip"
     if not zip_path.exists():
         updater.print_status("ERROR", "cudart_lib.zip not found.")
         return
@@ -140,13 +142,13 @@ def add_cuda_files():
 def setup_vector_db():
     updater = DependencyUpdater()
 
-    zip_path = Path(__file__).parent / "Assets" / "user_manual_db.zip"
+    zip_path = PROJECT_ROOT / "Assets" / "user_manual_db.zip"
     if not zip_path.exists():
         updater.print_status("ERROR", "user_manual_db.zip not found in Assets folder.")
         return
 
-    vector_db_path = Path(__file__).parent / "Vector_DB"
-    vector_db_backup_path = Path(__file__).parent / "Vector_DB_Backup"
+    vector_db_path = PROJECT_ROOT / "Vector_DB"
+    vector_db_backup_path = PROJECT_ROOT / "Vector_DB_Backup"
 
     try:
         vector_db_path.mkdir(exist_ok=True)
@@ -191,7 +193,7 @@ def setup_vector_db():
 def check_embedding_model_dimensions():
     import yaml
     updater = DependencyUpdater()
-    config_path = Path(__file__).parent / "config.yaml"
+    config_path = PROJECT_ROOT / "config.yaml"
 
     if not config_path.exists():
         updater.print_status("ERROR", "config.yaml not found in current directory.")

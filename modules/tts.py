@@ -6,7 +6,6 @@ from pathlib import Path
 import io
 import numpy as np
 import sounddevice as sd
-# print(sd.query_devices()) # DEBUG
 import torch
 import yaml
 from tqdm import tqdm
@@ -17,10 +16,10 @@ import soundfile as sf
 from gtts import gTTS
 from gtts.tokenizer import pre_processors, tokenizer_cases
 
-from utilities import my_cprint
-from constants import WHISPER_SPEECH_MODELS
+from core.utilities import my_cprint
+from core.constants import WHISPER_SPEECH_MODELS, PROJECT_ROOT
 
-current_directory = Path(__file__).parent
+current_directory = PROJECT_ROOT
 CACHE_DIR = current_directory / "models" / "tts"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -78,8 +77,8 @@ class BaseAudio:
             print(f"Error reading {input_text_file}: {e}")
             return
 
-        self.processing_thread = threading.Thread(target=self.process_text_to_audio, args=(sentences,)) # thread 1
-        playback_thread = threading.Thread(target=self.play_audio_from_queue) # thread 2
+        self.processing_thread = threading.Thread(target=self.process_text_to_audio, args=(sentences,))
+        playback_thread = threading.Thread(target=self.play_audio_from_queue)
 
         self.processing_thread.daemon = True
         playback_thread.daemon = True
@@ -96,50 +95,14 @@ class BaseAudio:
 
 
 class ChatterboxAudio(BaseAudio):
-    """
-    Fully-featured Chatterbox backend with **all tuning knobs hard-coded
-    (but commented)** so you can flip them on/off while testing.
 
-    ── HOW TO USE ─────────────────────────────────────────────────────────────
-    1. Uncomment any knob under “USER-TUNABLE KNOBS”, tweak the value,
-       run, listen.  Re-comment (or move to YAML) when satisfied.
-    2. Nothing outside this subclass is required for the new features.
-    """
+    PITCH_FACTOR = 0.93
+    SPEED_FACTOR = 0.93
 
-    # ── USER-TUNABLE KNOBS ───────────────────────────────────────────────────
-    # DEVICE = "auto"            # "cpu" | "gpu"/"cuda" | "auto"
-    # GPU_STRICT = False         # True → raise if CUDA unavailable
-    #
-    # # Style presets ----------- #
-    # ACCENT_PRESET = "midwest"  # one of ACCENT_SETTINGS keys below
-    #
-    # # Or direct overrides ------#
-    # EXAGGERATION = 0.5         # 0.0-1.0 (higher = more expressive)
-    # CFG_WEIGHT   = 0.3         # 0.0-1.0 (lower = slower / deliberate)
-    #
-    # # Post-processing ----------#
-    PITCH_FACTOR = 0.93         # >1 pitch-up, <1 pitch-down
-    SPEED_FACTOR = 0.93         # >1 faster, <1 slower
-    # TONE         = "neutral"   # "neutral"|"happy"|"serious"|"calm"|"excited"
-    # NORMALISE    = True        # Peak-normalise to ±1
-    # INT16_OUTPUT = False       # Queue int16 instead of float32
-    # ─────────────────────────────────────────────────────────────────────────
-
-    # ACCENT_SETTINGS = {
-        # "midwest":    {"exaggeration": 0.4, "cfg_weight": 0.5},
-        # "southern":   {"exaggeration": 0.6, "cfg_weight": 0.4},
-        # "british":    {"exaggeration": 0.3, "cfg_weight": 0.6},
-        # "australian": {"exaggeration": 0.5, "cfg_weight": 0.4},
-        # "canadian":   {"exaggeration": 0.3, "cfg_weight": 0.5},
-        # "newyork":    {"exaggeration": 0.7, "cfg_weight": 0.3},
-        # "california": {"exaggeration": 0.4, "cfg_weight": 0.4},
-        # "texas":      {"exaggeration": 0.8, "cfg_weight": 0.3},
-    # }
 
     def __init__(self):
         super().__init__()
 
-        # Device selection
         import torch, warnings
         device_pref = getattr(self, "DEVICE", "auto")
         self.device = self._select_device(device_pref)
@@ -151,14 +114,12 @@ class ChatterboxAudio(BaseAudio):
         if self.device == "cuda":
             torch.backends.cudnn.benchmark = True
 
-        # Model load
         from chatterbox.tts import ChatterboxTTS
         print(f"Loading Chatterbox TTS on [{self.device}] …")
         self.model = ChatterboxTTS.from_pretrained(device=self.device)
         self.sr = self.model.sr
         print("Model ready!")
 
-        # Style parameters
         accent = getattr(self, "ACCENT_PRESET", None)
         if accent and hasattr(self, "ACCENT_SETTINGS"):
             style = self.ACCENT_SETTINGS.get(accent, {})
@@ -168,7 +129,6 @@ class ChatterboxAudio(BaseAudio):
             self.exaggeration = getattr(self, "EXAGGERATION", 0.5)
             self.cfg_weight   = getattr(self, "CFG_WEIGHT",   0.5)
 
-        # Post-FX settings
         self.pitch_factor = getattr(self, "PITCH_FACTOR", 1.0)
         self.speed_factor = getattr(self, "SPEED_FACTOR", 1.0)
         self.tone         = getattr(self, "TONE", "neutral")
@@ -278,7 +238,6 @@ class BarkAudio(BaseAudio):
             torch_dtype=torch.float16,
             cache_dir=CACHE_DIR,
             token=False
-            # attn_implementation="flash_attention_2"
         ).to(self.device)
 
         self.model.eval()
@@ -299,9 +258,6 @@ class BarkAudio(BaseAudio):
                         **inputs,
                         use_cache=True,
                         do_sample=True,
-                        # temperature=0.2,
-                        # top_k=50,
-                        # top_p=0.95,
                         pad_token_id=0,
                     )
 
@@ -366,39 +322,6 @@ class WhisperSpeechAudio(BaseAudio):
 
 
 class ChatTTSAudio(BaseAudio):
-    """
-    +----------------+------------------+------------------------+---------------+
-    | Source         | Parameters       | Behavior             | Repo Structure? |
-    +----------------+------------------+------------------------+---------------+
-    | "huggingface"  | (default)        | ~/.cache/huggingface | No              |
-    | "huggingface"  | cache_dir="path" | Downloads to path    | No              |
-    | "huggingface"  | local_dir="path" | Downloads to path    | Yes             |
-    +----------------+------------------+----------------------+-----------------+
-    | "local"        | (default)        | Current directory    | No              |
-    | "local"        | cache_dir="path" | Downloads to path    | No              |
-    | "local"        | local_dir="path" | Downloads to path    | Yes             |
-    +----------------+------------------+----------------------+-----------------+
-    | "custom"       | custom_path      | Uses existing files  | n/a             |
-    | "custom"       | +cache_dir       | cache_dir ignored    | n/a             |
-    | "custom"       | +local_dir       | local_dir ignored    | n/a             |
-    +----------------+------------------+----------------------+-----------------+
-
-    1. `local_dir` takes precedence over everything else:
-    ```python
-    chat.load(source="huggingface", local_dir="path/to/dir", cache_dir="path/to/cache")  # local_dir wins
-    ```
-
-    2. If `local_dir` is not specified but `cache_dir` is, cache_dir is used:
-    ```python
-    chat.load(source="huggingface", cache_dir="path/to/cache")  # cache_dir used
-    ```
-
-    3. If neither is specified, the default location is used:
-    ```python
-    chat.load(source="huggingface")  # Uses ~/.cache/huggingface
-    chat.load(source="local")        # Uses current directory
-    ```
-    """
     def __init__(self):
         super().__init__()
         
@@ -449,7 +372,7 @@ class ChatTTSAudio(BaseAudio):
                     sentence,
                     params_refine_text=self.params_refine_text,
                     params_infer_code=self.params_infer_code,
-                    split_text=False # new in version 0.2.2
+                    split_text=False
                 )
 
                 if wavs is not None and len(wavs) > 0:
@@ -476,39 +399,6 @@ class ChatTTSAudio(BaseAudio):
 
 
 class GoogleTTSAudio:
-    """
-    WWW.CHINTELLALAW.COM
-    
-    GoogleTTSAudio: A class for processing text into speech with advanced audio handling.
-
-    This class provides functionality to convert text to speech using Google's Text-to-Speech 
-    (gTTS) API, with additional features for audio processing and text segmentation.
-
-    Key features:
-    1. Text Preprocessing: Handles abbreviations, end-of-line characters, and tone marks.
-    2. Intelligent Text Segmentation: Splits text into sentences and chunks of up to 100 
-       characters, preserving sentence integrity where possible.
-    3. Continuation Marking: Adds "<continue>" markers to chunks split mid-sentence to 
-       potentially preserve prosody and intonation.
-    4. Audio Generation: Converts text chunks to speech using gTTS.
-    5. Silence Trimming: Removes excessive silence from the generated audio, with 
-       configurable threshold and maximum silence duration.
-    6. Audio Concatenation: Combines all generated audio segments into a single, 
-       continuous audio stream.
-    7. Playback: Provides functionality to play the processed audio.
-
-    The class allows for customization of language, speech rate, and TLD for gTTS, 
-    as well as silence threshold and maximum silence duration for audio processing.
-
-    Usage:
-    - Initialize with desired parameters (language, speech rate, TLD, silence threshold, 
-      max silence duration).
-    - Call the 'run' method with a text file path to process and play the audio.
-
-    Note: This implementation focuses on improving text segmentation and audio quality. 
-    Further enhancements for prosody and intonation preservation may require additional 
-    libraries or post-processing techniques.
-    """
     
     def __init__(self, lang='en', slow=False, tld='com', silence_threshold=0.01, max_silence_ms=100):
         self.lang = lang
@@ -593,7 +483,6 @@ class GoogleTTSAudio:
 
         is_silent = np.abs(audio) < self.silence_threshold
 
-        # Find the boundaries of silent regions
         silent_regions = np.where(np.diff(is_silent.astype(int)))[0]
 
         if len(silent_regions) < 2:
@@ -605,10 +494,8 @@ class GoogleTTSAudio:
         for i in range(0, len(silent_regions) - 1, 2):
             silence_start, silence_end = silent_regions[i], silent_regions[i + 1]
 
-            # Trim silence at the beginning of the chunk
             chunk_start = max(start, silence_start - max_silence_samples)
 
-            # Trim silence at the end of the chunk
             chunk_end = min(silence_end, silence_start + max_silence_samples)
             
             processed_chunks.append(audio[chunk_start:chunk_end])
@@ -618,26 +505,6 @@ class GoogleTTSAudio:
 
         return np.concatenate(processed_chunks)
 
-
-"""
-FUTURE USAGE PATTERN
-class NewBackendAudio(BaseAudio):
-    REQUIRED_PACKAGES = {
-        "some_tts_lib": "1.2.3",
-        "another_dep": "4.5.6"
-    }
-    
-    def __init__(self):
-        super().__init__()
-        
-        from utilities import check_and_install_dependencies
-        
-        if not check_and_install_dependencies(
-            self.REQUIRED_PACKAGES, 
-            backend_name="NewBackend"
-        ):
-            raise RuntimeError("NewBackend dependencies not available")
-"""
 
 
 class KyutaiAudio(BaseAudio):
@@ -649,7 +516,7 @@ class KyutaiAudio(BaseAudio):
     def __init__(self):
         super().__init__()
 
-        from utilities import check_and_install_dependencies
+        from core.utilities import check_and_install_dependencies
 
         if not check_and_install_dependencies(
             self.REQUIRED_PACKAGES, 
@@ -662,7 +529,6 @@ class KyutaiAudio(BaseAudio):
         self.initialize_model()
 
     def create_checkpoint_info_from_cache(self, downloaded_paths):
-        """Create CheckpointInfo from downloaded files in cache."""
         from moshi.models.loaders import CheckpointInfo
         import json
         from pathlib import Path
@@ -767,7 +633,6 @@ class KyutaiAudio(BaseAudio):
             raise
 
     def setup_voice_conditioning(self):
-        """Setup voice conditioning for the model."""
         try:
             voice_name = self.config.get('voice', 'expresso/ex03-ex01_happy_001_channel1_334s.wav')
             cfg_coef = self.config.get('cfg_coef', 2.0)
@@ -785,7 +650,6 @@ class KyutaiAudio(BaseAudio):
 
     @torch.inference_mode()
     def generate_speech_for_sentence(self, sentence):
-        """Generate audio for a single sentence."""
         try:
             entries = self.tts_model.prepare_script([sentence], padding_between=1)
 
@@ -812,7 +676,6 @@ class KyutaiAudio(BaseAudio):
 
     @torch.inference_mode()
     def process_text_to_audio(self, sentences):
-        """Process sentences to audio and queue them for playback."""
         for sentence in tqdm(sentences, desc="Processing Sentences"):
             if not sentence.strip() or self.stop_event.is_set():
                 continue

@@ -1,4 +1,3 @@
-# The dictionary that this script relies on is within gpu_info.py, which must be generated running create_gpu_dictionary.py
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LinearSegmentedColormap

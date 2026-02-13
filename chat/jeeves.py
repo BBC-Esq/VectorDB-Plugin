@@ -3,11 +3,11 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 from pathlib import Path
 
-from utilities import set_cuda_paths
+from core.utilities import set_cuda_paths
 set_cuda_paths()
 
 import yaml
-from utilities import ensure_theme_config, load_stylesheet
+from core.utilities import ensure_theme_config, load_stylesheet
 
 from ctypes import windll, byref, sizeof, c_int
 from ctypes.wintypes import BOOL, HWND, DWORD
@@ -26,17 +26,18 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QThread, Signal, Qt, QTimer, QObject
 from PySide6.QtGui import QTextCursor, QPixmap
-from constants import (
-    jeeves_system_message, 
-    master_questions, 
-    CustomButtonStyles, 
+from core.constants import (
+    jeeves_system_message,
+    master_questions,
+    CustomButtonStyles,
     rag_string,
-    JEEVES_MODELS
+    JEEVES_MODELS,
+    PROJECT_ROOT,
 )
-from download_model import ModelDownloader, model_downloaded_signal
-from database_interactions import QueryVectorDB
-from module_kokoro import KokoroTTS
-from utilities import normalize_chat_text
+from gui.download_model import ModelDownloader, model_downloaded_signal
+from db.database_interactions import QueryVectorDB
+from modules.kokoro import KokoroTTS
+from core.utilities import normalize_chat_text
 
 
 class GenerationWorker(QThread):
@@ -107,7 +108,7 @@ class ChatWindow(QMainWindow):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(1)
 
-        image_path = Path(__file__).parent / "Assets" / "ask_jeeves_transparent.jpg"
+        image_path = PROJECT_ROOT / "Assets" / "ask_jeeves_transparent.jpg"
         if image_path.exists():
             pixmap = QPixmap(str(image_path))
             if not pixmap.isNull():
@@ -226,7 +227,7 @@ class ChatWindow(QMainWindow):
         self.input_field.textChanged.connect(self.debounce_update)
 
         try:
-            tts_path = Path(__file__).parent / "Models" / "tts" / "ctranslate2-4you--Kokoro-82M-light"
+            tts_path = PROJECT_ROOT / "Models" / "tts" / "ctranslate2-4you--Kokoro-82M-light"
             self.tts = KokoroTTS(repo_path=str(tts_path))
             self.speak_button.setEnabled(True)
             self.voice_select.setEnabled(True)
@@ -273,7 +274,7 @@ class ChatWindow(QMainWindow):
         model_name = self.model_selector.currentText()
         model_info = JEEVES_MODELS[model_name]
         
-        self.model_dir = str(Path(__file__).parent / "Models" / "Jeeves" / model_info["folder_name"])
+        self.model_dir = str(PROJECT_ROOT / "Models" / "Jeeves" / model_info["folder_name"])
 
         if not Path(self.model_dir).exists():
 
@@ -522,11 +523,6 @@ class ChatWindow(QMainWindow):
         if self.tts_worker:
             self.tts_worker.stop()
 
-    def handle_tts_error(self, error_message):
-        self.speak_button.setEnabled(True)
-        QMessageBox.warning(self, "TTS Error", 
-            f"An error occurred while trying to speak: {error_message}")
-
     def on_speech_finished(self):
         self.is_speaking = False
         self.speak_button.setText("Speak Response")
@@ -584,7 +580,7 @@ class TTSWorker(QObject):
                 self.error.emit(str(e))
 
 def launch_jeeves_process():
-    from utilities import set_cuda_paths
+    from core.utilities import set_cuda_paths
     set_cuda_paths()
     from PySide6.QtWidgets import QApplication
     from PySide6.QtCore import Qt

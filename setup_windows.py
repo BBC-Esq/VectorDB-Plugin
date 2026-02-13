@@ -18,7 +18,7 @@ import subprocess
 import time
 import tkinter as tk
 from tkinter import messagebox
-from replace_sourcecode import (
+from tools.replace_sourcecode import (
     replace_sentence_transformer_file,
     replace_chattts_file,
     add_cuda_files,
@@ -26,7 +26,7 @@ from replace_sourcecode import (
     check_embedding_model_dimensions,
 )
 
-from constants import priority_libs, libs, full_install_libs
+from core.constants import priority_libs, libs, full_install_libs
 
 start_time = time.time()
 
@@ -186,15 +186,12 @@ def install_libraries_with_deps(libraries):
 
     return failed_installations, multiple_attempts
 
-# 1. upgrade pip, setuptools, wheel
 print("Upgrading pip, setuptools, and wheel:")
 upgrade_pip_setuptools_wheel()
 
-# 2. install uv
 print("Installing uv:")
 subprocess.run(["pip", "install", "uv"], check=True)
 
-# 3. install priority_libs
 print("\nInstalling priority libraries:")
 try:
     hardware_specific_libs = priority_libs[python_version][hardware_type]
@@ -211,11 +208,9 @@ except KeyError:
     tkinter_message_box("Version Error", f"No libraries configured for Python {python_version} with {hardware_type} configuration", type="error")
     sys.exit(1)
 
-# 4. install libs
 print("\nInstalling other libraries:")
 other_failed, other_multiple = install_libraries(libs)
 
-# 5. install full_install_libs
 print("\nInstalling libraries with dependencies:")
 full_install_failed, full_install_multiple = install_libraries_with_deps(full_install_libs)
 
@@ -242,18 +237,15 @@ elif not all_failed:
 if all_failed:
     sys.exit(1)
 
-# 6. clear triton cache
-from utilities import clean_triton_cache
+from core.utilities import clean_triton_cache
 clean_triton_cache()
 
-# 7. replace sourcode files
 replace_sentence_transformer_file()
 replace_chattts_file()
 add_cuda_files()
 setup_vector_db()
 check_embedding_model_dimensions()
 
-# 8. Create directores if needed
 def create_directory_structure():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     models_dir = os.path.join(base_dir, "Models")
@@ -270,32 +262,7 @@ def create_directory_structure():
 
 create_directory_structure()
 
-# 9. Update config.yaml with necessary configurations, but only if needed
 def update_config_yaml():
-    """
-    1. If 'created_databases' parent key doesn't exist, creates it
-    2. If 'user_manual' mapping doesn't exist under 'created_databases', adds it with:
-       - chunk_overlap: 599
-       - chunk_size: 1200
-       - model: path to the BAAI vector model
-
-    3. If 'openai' parent key doesn't exist, creates it
-    4. For each child key under 'openai', adds only if missing:
-       - api_key: empty string
-       - model: 'gpt-4o-mini'
-       - reasoning_effort: 'medium'
-
-    5. If 'server' parent key doesn't exist, creates it
-    6. For each child key under 'server', adds only if missing:
-       - api_key: empty string
-       - connection_str: 'http://localhost:1234/v1'
-       - show_thinking: 'medium'
-
-    7. Removes any unauthorized child keys from the 'server' mapping,
-       keeping only 'api_key', 'connection_str', and 'show_thinking'
-
-    Existing values are preserved when already present in the configuration.
-    """
     import yaml
     script_dir = os.path.dirname(os.path.abspath(__file__))
     config_path = os.path.join(script_dir, 'config.yaml')

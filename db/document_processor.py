@@ -1,13 +1,8 @@
-# document_processor.py
 
 import os
-import sys
-import io
 import logging
 import warnings
-from contextlib import redirect_stdout
 import yaml
-import math
 from pathlib import Path, PurePath
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from langchain_core.documents import Document
@@ -31,13 +26,13 @@ from langchain_community.document_loaders.blob_loaders import Blob
 from langchain_community.document_loaders.parsers import PyMuPDFParser
 import pymupdf
 
-from constants import DOCUMENT_LOADERS
-from extract_metadata import extract_document_metadata, add_pymupdf_page_metadata, compute_content_hash
+from core.constants import DOCUMENT_LOADERS, PROJECT_ROOT
+from core.extract_metadata import extract_typed_metadata, add_pymupdf_page_metadata, compute_content_hash
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
-ROOT_DIRECTORY = Path(__file__).parent
+ROOT_DIRECTORY = PROJECT_ROOT
 SOURCE_DIRECTORY = ROOT_DIRECTORY / "Docs_for_DB"
 INGEST_THREADS = max(2, os.cpu_count() - 2)
 
@@ -161,7 +156,7 @@ def load_single_document(file_path: Path) -> Document:
         document = documents[0]
 
         content_hash = compute_content_hash(document.page_content)
-        metadata = extract_document_metadata(file_path, content_hash)
+        metadata = extract_typed_metadata(file_path, "document", content_hash)
         document.metadata.update(metadata)
         print(f"Loaded---> {file_path.name}")
         return document
@@ -210,7 +205,7 @@ def split_documents(documents=None, text_documents_pdf=None):
     try:
         print("\nSplitting documents into chunks.")
 
-        config_path = Path(__file__).resolve().parent / "config.yaml"
+        config_path = PROJECT_ROOT / "config.yaml"
         with open(config_path, "r", encoding='utf-8') as config_file:
             config = yaml.safe_load(config_file)
             chunk_size = config["database"]["chunk_size"]

@@ -1,10 +1,10 @@
 from PySide6.QtWidgets import QTabWidget
-from gui_tabs_settings import GuiSettingsTab
-from gui_tabs_tools import GuiSettingsTab as ToolsSettingsTab
-from gui_tabs_databases import DatabasesTab
-from gui_tabs_models import VectorModelsTab
-from gui_tabs_database_query import DatabaseQueryTab
-from gui_tabs_manage_databases import ManageDatabasesTab
+from gui.tabs_settings.settings import GuiSettingsTab
+from gui.tabs_tools.tools import GuiSettingsTab as ToolsSettingsTab
+from gui.tabs_databases.create import DatabasesTab
+from gui.tabs_models.models import VectorModelsTab
+from gui.tabs_databases.query import DatabaseQueryTab
+from gui.tabs_databases.manage import ManageDatabasesTab
 
 def create_tabs():
     tab_widget = QTabWidget()

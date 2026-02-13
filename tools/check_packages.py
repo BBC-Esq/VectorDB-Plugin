@@ -15,6 +15,24 @@ from PySide6.QtCore import Qt, QObject, QThread, Signal, QPoint
 
 from packaging import version
 
+
+def _get_latest_version(package_name):
+    url = f"https://pypi.org/pypi/{package_name}/json"
+    try:
+        with urllib.request.urlopen(url, timeout=10) as response:
+            if response.status != 200:
+                raise Exception(f"PyPI returned status code {response.status}")
+            return json.load(response)['info']['version']
+    except urllib.error.URLError as e:
+        raise Exception(f"Network error: {str(e)}")
+    except TimeoutError:
+        raise Exception("Connection timed out")
+    except json.JSONDecodeError:
+        raise Exception("Invalid response from PyPI")
+    except Exception as e:
+        raise Exception(f"Error fetching version: {str(e)}")
+
+
 class OutdatedPackagesWorker(QObject):
     finished = Signal(list)
     error = Signal(str)
@@ -25,27 +43,12 @@ class OutdatedPackagesWorker(QObject):
             for dist in installed_packages:
                 name = dist.metadata['Name']
                 version_installed = dist.version
-                latest_version = self.get_latest_version(name)
+                latest_version = _get_latest_version(name)
                 if latest_version and version.parse(latest_version) > version.parse(version_installed):
                     outdated_packages.append((name, version_installed, latest_version))
             self.finished.emit(outdated_packages)
         except Exception as e:
             self.error.emit(str(e))
-    def get_latest_version(self, package_name):
-        url = f"https://pypi.org/pypi/{package_name}/json"
-        try:
-            with urllib.request.urlopen(url, timeout=10) as response:
-                if response.status != 200:
-                    raise Exception(f"PyPI returned status code {response.status}")
-                return json.load(response)['info']['version']
-        except urllib.error.URLError as e: 
-            raise Exception(f"Network error: {str(e)}")
-        except TimeoutError:
-            raise Exception("Connection timed out")
-        except json.JSONDecodeError:
-            raise Exception("Invalid response from PyPI")
-        except Exception as e:
-            raise Exception(f"Error fetching version: {str(e)}")
 
 class VersionsWorker(QObject):
     finished = Signal(list)
@@ -126,25 +129,10 @@ class LatestVersionWorker(QObject):
         self.package_name = package_name
     def run(self):
         try:
-            latest_version = self.get_latest_version(self.package_name)
+            latest_version = _get_latest_version(self.package_name)
             self.finished.emit(latest_version)
         except Exception as e:
             self.error.emit(str(e))
-    def get_latest_version(self, package_name):
-        url = f"https://pypi.org/pypi/{package_name}/json"
-        try:
-            with urllib.request.urlopen(url, timeout=10) as response:
-                if response.status != 200:
-                    raise Exception(f"PyPI returned status code {response.status}")
-                return json.load(response)['info']['version']
-        except urllib.error.URLError as e:
-            raise Exception(f"Network error: {str(e)}")
-        except TimeoutError:
-            raise Exception("Connection timed out")
-        except json.JSONDecodeError:
-            raise Exception("Invalid response from PyPI")
-        except Exception as e:
-            raise Exception(f"Error fetching version: {str(e)}")
 
 class CompareDependenciesDialog(QDialog):
     def __init__(self, parent, package_name, current_version, latest_version, current_deps, latest_deps):

@@ -1,17 +1,18 @@
 from pathlib import Path
-from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QVBoxLayout, 
+from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QVBoxLayout,
                               QLabel, QLineEdit, QPushButton, QMessageBox)
 import yaml
 import logging
 import traceback
-from utilities import my_cprint
+from core.utilities import my_cprint
+from core.constants import PROJECT_ROOT
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
 
 class CredentialManager(ABC):
     def __init__(self, parent_widget):
         self.parent_widget = parent_widget
-        self.config_file_path = Path(__file__).parent / 'config.yaml'
+        self.config_file_path = PROJECT_ROOT / 'config.yaml'
         self.config = self._load_config()
 
     def _load_config(self) -> dict:

@@ -8,7 +8,6 @@ import platform
 import shutil
 import sys
 from pathlib import Path
-import pickle
 import psutil
 import subprocess
 import re
@@ -19,6 +18,8 @@ from packaging import version
 from PySide6.QtCore import QRunnable, QObject, Signal, QThreadPool
 from PySide6.QtWidgets import QApplication, QMessageBox
 from termcolor import cprint
+
+from core.constants import PROJECT_ROOT
 
 def set_cuda_paths():
     import sys
@@ -53,26 +54,13 @@ def set_cuda_paths():
 
 
 def check_backend_dependencies(backend_name: str, interactive: bool = True) -> bool:
-    """
-    Check if a TTS backend's dependencies are available.
+    from core.constants import BACKEND_DEPENDENCIES
 
-    Args:
-        backend_name: Name of the TTS backend (e.g., 'kyutai', 'bark')
-        interactive: Whether to prompt user for installation
-
-    Returns:
-        True if all dependencies are available, False otherwise
-    """
-    from constants import BACKEND_DEPENDENCIES
-
-    # Get required packages for this backend
     required_packages = BACKEND_DEPENDENCIES.get(backend_name, {})
     
-    # If no dependencies defined, assume it's available
     if not required_packages:
-        return True # ← This immediately returns True for empty dicts
+        return True
 
-    # Use existing function to check and install
     return check_and_install_dependencies(
         required_packages,
         backend_name=backend_name.title(),
@@ -80,7 +68,6 @@ def check_backend_dependencies(backend_name: str, interactive: bool = True) -> b
     )
 
 def is_package_available(pkg_name: str) -> tuple[bool, str]:
-    """Check if package is available and get its version."""
     import importlib.util
     import importlib.metadata
     
@@ -94,7 +81,6 @@ def is_package_available(pkg_name: str) -> tuple[bool, str]:
     return package_exists, package_version
 
 def verify_installation(package_name: str, expected_version: str) -> bool:
-    """Verify that a package is installed with the expected version."""
     try:
         import importlib.metadata
         installed_version = importlib.metadata.version(package_name)
@@ -103,16 +89,6 @@ def verify_installation(package_name: str, expected_version: str) -> bool:
         return False
 
 def install_packages(packages: list[tuple[str, str]], no_deps: bool = True) -> bool:
-    """
-    Install packages using pip.
-    
-    Args:
-        packages: List of (package_name, version) tuples
-        no_deps: Whether to use --no-deps flag
-        
-    Returns:
-        True if all packages installed successfully, False otherwise
-    """
     import subprocess
     import sys
     
@@ -155,21 +131,6 @@ def check_and_install_dependencies(required_packages: dict[str, str],
     return False
 
 def get_platform_info():
-    """
-    Returns
-    -------
-    dict
-        Dictionary containing platform details:
-        - 'system' (str): OS name ('Windows', 'Darwin', 'Linux', etc.)
-        - 'platform' (str): Detailed platform string (e.g., 'Windows-10-10.0.19045-SP0')
-        - 'architecture' (str): Machine architecture ('AMD64', 'arm64', 'x86_64', etc.)
-    
-    Examples
-    --------
-    Windows: {'system': 'Windows', 'platform': 'Windows-11-10.0.22621', 'architecture': 'AMD64'}
-    macOS: {'system': 'Darwin', 'platform': 'macOS-13.2.1-arm64-arm-64bit', 'architecture': 'arm64'}
-    Linux: {'system': 'Linux', 'platform': 'Linux-5.15.0-generic', 'architecture': 'x86_64'}
-    """
     import platform
     
     return {
@@ -180,20 +141,6 @@ def get_platform_info():
 
 
 def get_python_version():
-    """
-    Returns
-    -------
-    dict
-        Dictionary containing Python version details:
-        - 'major' (int): Major version number (e.g., 3)
-        - 'minor' (int): Minor version number (e.g., 11)
-        - 'version_string' (str): Full version string (e.g., '3.11')
-    
-    Examples
-    --------
-    Python 3.11:
-    {'major': 3, 'minor': 11, 'version_string': '3.11'}
-    """
     import sys
     
     major = sys.version_info.major
@@ -207,18 +154,6 @@ def get_python_version():
 
 
 def has_nvidia_gpu():
-    """
-    Returns
-    -------
-    bool
-        True if nvidia-smi command succeeds (NVIDIA GPU present), False otherwise.
-        Returns False if nvidia-smi is not found or returns non-zero exit code.
-
-    Notes
-    -----
-    This function does not require PyTorch or CUDA toolkit to be installed.
-    It only checks if NVIDIA drivers and nvidia-smi utility are available.
-    """
     import subprocess
     
     try:
@@ -232,57 +167,8 @@ def has_nvidia_gpu():
         return False
 
 
-def has_bfloat16_support():
-    """
-    Returns
-    -------
-    bool
-        True if PyTorch with CUDA is available AND GPU compute capability >= 8.0.
-        False if PyTorch is not installed, CUDA is not available, or compute capability < 8.0.
-
-    Notes
-    -----
-    bfloat16 support requires:
-    - PyTorch with CUDA support installed
-    - NVIDIA GPU with compute capability 8.0 or higher (Ampere architecture+)
-    - Examples of supported GPUs: RTX 3060+, RTX 4000 series, A100, H100, etc.
-    
-    This function will return False if PyTorch is not installed rather than raising an error.
-    """
-    import sys
-    
-    try:
-        # Check if torch is available
-        if 'torch' not in sys.modules:
-            try:
-                import torch
-            except ImportError:
-                return False
-        else:
-            import torch
-        
-        if not torch.cuda.is_available():
-            return False
-        
-        capability = torch.cuda.get_device_capability()
-        return capability >= (8, 0)
-        
-    except Exception:
-        return False
-
 
 def gpu_summary():
-    """
-    Returns
-    -------
-    list[dict]
-        Each dictionary contains:
-        - index (int)            : GPU index
-        - name (str)             : Marketing name (NVML)
-        - compute_cap (str)      : CUDA compute capability, e.g. "8.9"
-        - vram_gb (float)        : Total VRAM in GiB (rounded to 2 decimals)
-        - cuda_cores (int)       : Total CUDA cores
-    """
     from pynvml import (
         nvmlInit,
         nvmlShutdown,
@@ -293,17 +179,16 @@ def gpu_summary():
     )
     from numba import cuda
 
-    # Mapping: (compute_major, compute_minor) -> CUDA cores per SM
     cc_cores_per_SM = {
-        (2, 0): 32,  (2, 1): 48,                # Fermi
-        (3, 0): 192, (3, 5): 192, (3, 7): 192,  # Kepler
-        (5, 0): 128, (5, 2): 128,               # Maxwell
-        (6, 0): 64,  (6, 1): 128,               # Pascal
-        (7, 0): 64,  (7, 5): 64,                # Volta / Turing
-        (8, 0): 64,  (8, 6): 128, (8, 9): 128,  # Ampere / Ada
-        (9, 0): 128,                            # Hopper
-        (10, 0): 128,                           # Blackwell Data Center (B200/B100)
-        (12, 0): 128,                           # Blackwell Client/Workstation (RTX 5090 etc.)
+        (2, 0): 32,  (2, 1): 48,
+        (3, 0): 192, (3, 5): 192, (3, 7): 192,
+        (5, 0): 128, (5, 2): 128,
+        (6, 0): 64,  (6, 1): 128,
+        (7, 0): 64,  (7, 5): 64,
+        (8, 0): 64,  (8, 6): 128, (8, 9): 128,
+        (9, 0): 128,
+        (10, 0): 128,
+        (12, 0): 128,
     }
 
     nvmlInit()
@@ -353,7 +238,6 @@ def _needs_ocr_worker(path: str) -> bool:
 
 
 def clean_triton_cache():
-    """Remove Triton cache to ensure clean compilation with current CUDA paths."""
     import shutil
     from pathlib import Path
 
@@ -466,7 +350,7 @@ def download_kokoro_tts():
     import shutil
 
     repo_id = "ctranslate2-4you/Kokoro-82M-light"
-    tts_path = Path(__file__).parent / "Models" / "tts" / "ctranslate2-4you--Kokoro-82M-light"
+    tts_path = PROJECT_ROOT / "Models" / "tts" / "ctranslate2-4you--Kokoro-82M-light"
 
     try:
         tts_path.parent.mkdir(parents=True, exist_ok=True)
@@ -489,15 +373,6 @@ def download_kokoro_tts():
 
 
 def normalize_chat_text(text):
-    """
-    Normalizes chat text by processing numbers, currency, and various text patterns.
-    
-    Args:
-        text (str): The input text to normalize
-        
-    Returns:
-        str: The normalized text
-    """
     def split_num(num):
         num = num.group()
         if '.' in num:
@@ -539,40 +414,32 @@ def normalize_chat_text(text):
         a, b = num.group().split('.')
         return ' point '.join([a, ' '.join(b)])
 
-    # Replace section symbol
     text = text.replace('§', ' section ')
     
-    # Replace smart quotes and other special characters
     text = text.replace(chr(8216), "'").replace(chr(8217), "'")
     text = text.replace('«', '"').replace('»', '"')
     text = text.replace(chr(8220), '"').replace(chr(8221), '"')
     
-    # Normalize titles
     text = re.sub(r'\bD[Rr]\.(?= [A-Z])', 'Doctor', text)
     text = re.sub(r'\b(?:Mr\.|MR\.(?= [A-Z]))', 'Mister', text)
     text = re.sub(r'\b(?:Ms\.|MS\.(?= [A-Z]))', 'Miss', text)
     text = re.sub(r'\b(?:Mrs\.|MRS\.(?= [A-Z]))', 'Mrs', text)
     
-    # Process numbers and currency
     text = re.sub(r'\d*\.\d+|\b\d{4}s?\b|(?<!:)\b(?:[1-9]|1[0-2]):[0-5]\d\b(?!:)', split_num, text)
     text = re.sub(r'(?<=\d),(?=\d)', '', text)
     text = re.sub(r'(?i)[$£]\d+(?:\.\d+)?(?: hundred| thousand| (?:[bm]|tr)illion)*\b|[$£]\d+\.\d\d?\b', flip_money, text)
     text = re.sub(r'\d*\.\d+', point_num, text)
     
-    # Clean up spacing and format
     text = re.sub(r'[^\S \n]', ' ', text)
     text = re.sub(r'  +', ' ', text)
-    # text = re.sub(r'(?<=\n) +(?=\n)', '', text) # removes newlines
 
     text = text.strip()
     text = re.sub(r'^[^a-zA-Z]*', '', text)
-    # text = re.sub(r'\n{2,}', '\n', text) # remove newlines
 
     return text.strip()
 
 
 def supports_flash_attention():
-    """Check if the current CUDA device supports flash attention (compute capability >= 8.0)."""
     logging.debug("Checking flash attention support")
     
     if not torch.cuda.is_available():
@@ -588,10 +455,6 @@ def supports_flash_attention():
 
 
 def check_cuda_re_triton():
-    """
-    Checks whether the files required by Triton 3.1.0 are present in the relative paths.
-    This mirrors where the windows_utils.py script within the Triton library will look for them.
-    """
     logging.debug("Starting CUDA files check for Triton")
     venv_base = Path(sys.executable).parent.parent
     nvidia_base_path = venv_base / 'Lib' / 'site-packages' / 'nvidia'
@@ -704,9 +567,6 @@ def get_appropriate_dtype(compute_device, use_half, model_native_precision):
         return torch.float32
 
 def format_citations(metadata_list):
-    """
-    Create citations with relevance scores and, for .pdf files, page numbers.
-    """
     def group_metadata(metadata_list):
         grouped = {}
         for metadata in metadata_list:
@@ -762,12 +622,12 @@ def format_citations(metadata_list):
     return f"<ol>{list_items}</ol>"
 
 def list_theme_files():
-    script_dir = Path(__file__).parent
+    script_dir = PROJECT_ROOT
     theme_dir = script_dir / 'CSS'
     return [f.name for f in theme_dir.iterdir() if f.suffix == '.css']
 
 def load_stylesheet(filename):
-    script_dir = Path(__file__).parent
+    script_dir = PROJECT_ROOT
     stylesheet_path = script_dir / 'CSS' / filename
     with stylesheet_path.open('r') as file:
         stylesheet = file.read()
@@ -818,69 +678,42 @@ def make_theme_changer(theme_name):
         update_theme_in_config(theme_name)
     return change_theme
 
-def backup_database():
-   logging.debug("Starting database backup process")
+def backup_database(database_name=None):
    source_directory = Path('Vector_DB')
    backup_directory = Path('Vector_DB_Backup')
 
-   logging.debug(f"Source directory: {source_directory}")
-   logging.debug(f"Backup directory: {backup_directory}")
-
-   if backup_directory.exists():
-       logging.debug("Backup directory exists - cleaning existing contents")
-       for item in backup_directory.iterdir():
-           if item.is_dir():
-               logging.debug(f"Removing directory: {item}")
-               shutil.rmtree(item)
-           else:
-               logging.debug(f"Removing file: {item}")
-               item.unlink()
-   else:
-       logging.debug("Creating backup directory")
+   if database_name:
+       logging.debug("Starting incremental database backup")
        backup_directory.mkdir(parents=True, exist_ok=True)
-
-   logging.debug("Copying files from source to backup directory")
-   shutil.copytree(source_directory, backup_directory, dirs_exist_ok=True)
-   logging.debug("Database backup completed successfully")
-
-def backup_database_incremental(new_database_name):
-   logging.debug("Starting incremental database backup")
-   source_directory = Path('Vector_DB')
-   backup_directory = Path('Vector_DB_Backup')
-
-   logging.debug(f"Source directory: {source_directory}")
-   logging.debug(f"Backup directory: {backup_directory}")
-
-   backup_directory.mkdir(parents=True, exist_ok=True)
-   logging.debug("Created backup directory (if it didn't exist)")
-
-   source_db_path = source_directory / new_database_name
-   backup_db_path = backup_directory / new_database_name
-   logging.debug(f"Source DB path: {source_db_path}")
-   logging.debug(f"Backup DB path: {backup_db_path}")
-
-   if backup_db_path.exists():
-       logging.debug(f"Existing backup found for {new_database_name} - attempting to remove")
+       source_db_path = source_directory / database_name
+       backup_db_path = backup_directory / database_name
+       if backup_db_path.exists():
+           try:
+               shutil.rmtree(backup_db_path)
+           except Exception as e:
+               logging.debug(f"Failed to remove existing backup: {e}")
+               print(f"Warning: Could not remove existing backup of {database_name}: {e}")
        try:
-           shutil.rmtree(backup_db_path)
-           logging.debug("Successfully removed existing backup")
+           shutil.copytree(source_db_path, backup_db_path)
+           logging.debug(f"Successfully created backup of {database_name}")
        except Exception as e:
-           logging.debug(f"Failed to remove existing backup: {e}")
-           print(f"Warning: Could not remove existing backup of {new_database_name}: {e}")
-           
-   try:
-       shutil.copytree(source_db_path, backup_db_path)
-       logging.debug(f"Successfully created backup of {new_database_name}")
-   except Exception as e:
-       logging.debug(f"Backup failed: {e}")
-       print(f"Error backing up {new_database_name}: {e}")
+           logging.debug(f"Backup failed: {e}")
+           print(f"Error backing up {database_name}: {e}")
+   else:
+       logging.debug("Starting full database backup")
+       if backup_directory.exists():
+           for item in backup_directory.iterdir():
+               if item.is_dir():
+                   shutil.rmtree(item)
+               else:
+                   item.unlink()
+       else:
+           backup_directory.mkdir(parents=True, exist_ok=True)
+       shutil.copytree(source_directory, backup_directory, dirs_exist_ok=True)
+       logging.debug("Database backup completed successfully")
 
-    # log of the latest backup info
-    # with open(backup_directory / "backup_manifest.txt", "a") as manifest:
-        # manifest.write(f"{new_database_name} backed up at {datetime.now()}\n")
 
 def open_file(file_path):
-    # open a file with the system's default program
     try:
         if platform.system() == "Windows":
             os.startfile(file_path)
@@ -898,11 +731,9 @@ def delete_file(file_path):
         QMessageBox.warning(None, "Unable to delete file(s), please delete manually.")
 
 def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=False):
-    # checks if the db name is valid
     if not database_name or len(database_name) < 3 or database_name.lower() in ["null", "none"]:
         return False, "Name must be at least 3 characters long and not be 'null' or 'none.'"
 
-    # checks if the db name is already used
     vector_db_path = script_dir / "Vector_DB" / database_name
     if vector_db_path.exists():
         return False, (
@@ -910,7 +741,6 @@ def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=Fals
             "choose a different name or delete the old one first."
         )
 
-    # checks if config.yaml exists
     config_path = script_dir / 'config.yaml'
     if not config_path.exists():
         return False, "The configuration file (config.yaml) is missing."
@@ -918,22 +748,18 @@ def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=Fals
     with open(config_path, 'r') as file:
         config = yaml.safe_load(file)
 
-    # checks if trying to process images on a mac
     image_extensions = ['.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff']
     documents_dir = script_dir / "Docs_for_DB"
     if platform.system() == "Darwin" and any(file.suffix in image_extensions for file in documents_dir.iterdir() if file.is_file()):
         return False, "Image processing has been disabled for MacOS until a fix can be implemented. Please remove all image files and try again."
 
-    # checks if a vector model is selected
     embedding_model_name = config.get('EMBEDDING_MODEL_NAME')
     if not embedding_model_name:
         return False, "You must first download an embedding model, select it, and choose documents before proceeding."
 
-    # checks if documents are selected
     if not any(file.is_file() for file in documents_dir.iterdir()):
         return False, "No documents are yet added to be processed."
 
-    # checks if gpu-acceleration selected
     compute_device = config.get('Compute_Device', {}).get('available', [])
     database_creation = config.get('Compute_Device', {}).get('database_creation')
     if ("cuda" in compute_device or "mps" in compute_device) and database_creation == "cpu":
@@ -941,7 +767,6 @@ def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=Fals
                        "Please switch the database creation device to 'cuda' or 'mps', "
                        "or confirm your choice in the GUI.")
 
-    # checks if no cuda and half selected, inform user and exit early
     if not torch.cuda.is_available():
         if config.get('database', {}).get('half', False):
             message = ("CUDA is not available on your system, but half-precision (FP16) "
@@ -949,17 +774,14 @@ def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=Fals
                        "Please disable half-precision in the configuration or use a CUDA-enabled GPU.")
             return False, message
 
-    # optional check for PDFs that need OCR
     if not skip_ocr:
         ocr_check, ocr_message = check_pdfs_for_ocr(script_dir)
         if not ocr_check:
             return False, ocr_message
 
-    # final confirmation
     return True, ""
 
 
-# gui.py
 def check_preconditions_for_submit_question(script_dir):
     config_path = script_dir / 'config.yaml'
 
@@ -975,11 +797,9 @@ def check_preconditions_for_submit_question(script_dir):
 def my_cprint(*args, **kwargs):
     filename = os.path.basename(sys._getframe(1).f_code.co_filename)
     modified_message = f"{args[0]}"
-    # modified_message = f"{filename}: {args[0]}" # uncomment to print script name as well
     kwargs['flush'] = True
     cprint(modified_message, *args[1:], **kwargs)
 
-# returns True if cuda exists and supports compute 8.0 of higher
 def has_bfloat16_support():
    logging.debug("Checking bfloat16 support")
 
@@ -995,13 +815,6 @@ def has_bfloat16_support():
    return has_support
 
 def set_logging_level():
-    """
-    CRITICAL displays only CRITICAL.
-    ERROR displays ERROR and CRITICAL.
-    WARNING displays WARNING, ERROR, and CRITICAL.
-    INFO displays INFO, WARNING, ERROR, and CRITICAL.
-    DEBUG displays DEBUG, INFO, WARNING, ERROR, and CRITICAL.
-    """
     library_levels = {
         "accelerate": logging.WARNING,
         "bitsandbytes": logging.WARNING,
@@ -1046,16 +859,6 @@ def set_logging_level():
         logging.getLogger(lib).setLevel(level)
 
 def prepare_long_path(base_path: str, filename: str) -> str:
-    """
-    Prepares a path for long filenames, especially for Windows systems.
-    
-    Args:
-    base_path (str): The base directory path.
-    filename (str): The original filename.
-    
-    Returns:
-    str: Prepared full path, using extended-length path syntax if necessary.
-    """
     base_path = os.path.normpath(base_path)
     full_path = os.path.join(base_path, filename)
     

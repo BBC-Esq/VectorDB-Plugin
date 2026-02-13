@@ -16,7 +16,8 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 
-from create_symlinks import _create_single_symlink
+from db.create_symlinks import _create_single_symlink
+from core.constants import PROJECT_ROOT
 
 ALLOWED_EXTENSIONS = {
     ".pdf",
@@ -121,7 +122,7 @@ class SymlinkWorker(QThread):
 
 
 def choose_documents_directory():
-    current_dir = Path(__file__).parent.resolve()
+    current_dir = PROJECT_ROOT
     target_dir = current_dir / DOCS_FOLDER
     target_dir.mkdir(parents=True, exist_ok=True)
 

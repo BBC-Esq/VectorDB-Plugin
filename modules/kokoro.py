@@ -12,7 +12,7 @@ from typing import Optional, Union
 
 class KokoroTTS:
     VOICES = [
-        'af',        # (50-50 mix of Bella & Sarah)
+        'af',
         'af_bella',
         'af_sarah',
         'am_adam',
@@ -40,7 +40,7 @@ class KokoroTTS:
         self.stop_event = threading.Event()
 
         self.model = None
-        self.voicepack_cache = {}  # Cache for loaded voicepacks
+        self.voicepack_cache = {}
         self.current_voice_name = None
 
         warnings.filterwarnings("ignore", category=FutureWarning)
@@ -49,7 +49,6 @@ class KokoroTTS:
     def _load_model_and_voice(self, voice_name: str):
         device = 'cpu'
         
-        # Load model if not already loaded
         if self.model is None:
             model_path = self.REPO_PATH / 'kokoro-v0_19.pth'
             if not model_path.exists():
@@ -58,7 +57,6 @@ class KokoroTTS:
             from models import build_model
             self.model = build_model(str(model_path), device)
 
-        # Load voicepack if not already cached
         if voice_name not in self.voicepack_cache:
             voices_path = self.REPO_PATH / 'voices'
             if not voices_path.exists():
@@ -73,25 +71,19 @@ class KokoroTTS:
 
         self.current_voice_name = voice_name
 
+    @staticmethod
+    def _drain_queue(q):
+        while not q.empty():
+            try:
+                q.get_nowait()
+            except queue.Empty:
+                break
+
     def stop(self):
-        """Stop current audio playback - thread-safe version"""
         self.stop_event.set()
+        self._drain_queue(self.sentence_queue)
+        self._drain_queue(self.audio_queue)
         
-        # Clear queues
-        while not self.sentence_queue.empty():
-            try:
-                self.sentence_queue.get_nowait()
-            except queue.Empty:
-                break
-                
-        while not self.audio_queue.empty():
-            try:
-                self.audio_queue.get_nowait()
-            except queue.Empty:
-                break
-        
-        # DO NOT call sd.stop() here - let the playback thread handle it
-        # This prevents the thread-unsafe PortAudio call that causes crashes
 
     def _process_sentences(self, speed: float, force_accent: Optional[str]):
         while not self.stop_event.is_set():
@@ -114,7 +106,6 @@ class KokoroTTS:
                     break
 
                 try:
-                    # Use cached voicepack
                     voicepack = self.voicepack_cache[self.current_voice_name]
                     
                     audio, phonemes = self.generate_full(
@@ -155,11 +146,9 @@ class KokoroTTS:
                 try:
                     sd.play(audio, 24000)
                     
-                    # Check stop event periodically during playback instead of blocking
                     while sd.get_stream().active and not self.stop_event.is_set():
-                        sd.sleep(50)  # Check every 50ms
+                        sd.sleep(50)
                     
-                    # If we need to stop, do it from this thread (thread-safe)
                     if self.stop_event.is_set():
                         try:
                             sd.stop()
@@ -167,11 +156,9 @@ class KokoroTTS:
                             print(f"Safe stop error (expected): {e}")
                         break
                     else:
-                        # Normal completion - wait for it to finish
                         sd.wait()
                         
                 except Exception as e:
-                    # Handle any PortAudio errors gracefully
                     if not self.stop_event.is_set():
                         print(f"Audio playback error: {e}")
                     try:
@@ -183,7 +170,6 @@ class KokoroTTS:
             except queue.Empty:
                 continue
             except Exception as e:
-                # Handle case where playback is interrupted
                 if not self.stop_event.is_set():
                     print(f"Audio queue error: {e}")
                 break
@@ -193,15 +179,6 @@ class KokoroTTS:
              voice: str = 'bm_george',
              speed: float = 1.3,
              force_accent: Optional[str] = None) -> None:
-        """
-        Speak the provided text using Kokoro TTS.
-
-        Args:
-            text: The text to speak
-            voice: Voice ID from VOICES list (default: 'bm_george')
-            speed: Speech speed multiplier (default: 1.3)
-            force_accent: Force 'a' for American or 'b' for British accent (default: None)
-        """
         if voice not in self.VOICES:
             raise ValueError(f"Invalid voice. Choose from: {self.VOICES}")
 
@@ -215,7 +192,6 @@ class KokoroTTS:
         self.sentence_queue = queue.Queue()
         self.audio_queue = queue.Queue()
 
-        # Load model and voice (uses caching)
         self._load_model_and_voice(voice)
 
         sentences = [s.strip() for s in re.split(r'[.!?;]+\s*', text) if s.strip()]

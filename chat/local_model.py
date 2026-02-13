@@ -9,10 +9,10 @@ from multiprocessing import Process, Pipe
 from multiprocessing.connection import PipeConnection
 from PySide6.QtCore import QObject, Signal
 
-import module_chat
-from database_interactions import QueryVectorDB
-from utilities import format_citations, my_cprint, normalize_chat_text
-from constants import rag_string
+import chat.base as module_chat
+from db.database_interactions import QueryVectorDB
+from core.utilities import format_citations, my_cprint, normalize_chat_text
+from core.constants import rag_string, PROJECT_ROOT
 from pathlib import Path
 
 class MessageType(Enum):
@@ -31,12 +31,12 @@ class PipeMessage:
     payload: Any = None
 
 class LocalModelSignals(QObject):
-    response_signal = Signal(str)  # 7.
-    citations_signal = Signal(str)  # 8.
-    error_signal = Signal(str)  # 9.
-    finished_signal = Signal()  # 10.
-    model_loaded_signal = Signal()  # 3.
-    model_unloaded_signal = Signal()  # 11.
+    response_signal = Signal(str)
+    citations_signal = Signal(str)
+    error_signal = Signal(str)
+    finished_signal = Signal()
+    model_loaded_signal = Signal()
+    model_unloaded_signal = Signal()
     token_count_signal = Signal(str)
 
 class LocalModelChat:
@@ -57,7 +57,6 @@ class LocalModelChat:
             self.model_process.start()
             self.current_model = model_name
             self._start_listening_thread()
-            # 3. signal that model is loaded
             self.signals.model_loaded_signal.emit()
         else:
             logging.warning(f"Model {model_name} is already loaded")
@@ -160,7 +159,7 @@ class LocalModelChat:
         self.current_model = None
 
     @staticmethod
-    def _local_model_process(conn, model_name): # child process for local model's generation
+    def _local_model_process(conn, model_name):
         model_instance = module_chat.choose_model(model_name)
         query_vector_db = None
         current_database = None
@@ -178,7 +177,6 @@ class LocalModelChat:
                             conn.send(PipeMessage(MessageType.ERROR, "No relevant contexts found."))
                             conn.send(PipeMessage(MessageType.FINISHED))
                             continue
-                        # exit early with message if contexts length comes within 100 of model's max context limit
                         max_context_tokens = model_instance.max_length - 100
                         context_tokens = len(model_instance.tokenizer.encode("\n\n---\n\n".join(contexts)))
 
@@ -229,10 +227,9 @@ class LocalModelChat:
 
                         conn.send(PipeMessage(MessageType.TOKEN_COUNTS, token_count_string))
 
-                        script_dir = Path(__file__).resolve().parent
+                        script_dir = PROJECT_ROOT
                         with open(script_dir / 'chat_history.txt', 'w', encoding='utf-8') as f:
 
-                            # normalized_response = normalize_chat_text(full_response)
                             normalized_response = full_response
                             f.write(normalized_response)
                         citations = format_citations(metadata_list)

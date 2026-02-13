@@ -1,40 +1,21 @@
-import gc
 import json
 import logging
-from pathlib import Path
-import torch
-import yaml
 import requests
 import sseclient
-from PySide6.QtCore import QThread, Signal, QObject
+from PySide6.QtCore import QThread, Signal
 
-from database_interactions import QueryVectorDB
-from utilities import format_citations, normalize_chat_text
-from constants import rag_string
-
-ROOT_DIRECTORY = Path(__file__).resolve().parent
-
-contexts_output_file_path = ROOT_DIRECTORY / "contexts.txt"
-metadata_output_file_path = ROOT_DIRECTORY / "metadata.txt"
-
-class KoboldSignals(QObject):
-    response_signal = Signal(str)
-    error_signal = Signal(str)
-    finished_signal = Signal()
-    citations_signal = Signal(str)
+from db.database_interactions import QueryVectorDB
+from chat.base import ChatSignals, load_chat_config, save_metadata, build_augmented_query, write_chat_history, cleanup_gpu
+from core.utilities import format_citations
+from core.constants import PROJECT_ROOT
 
 class KoboldChat:
     def __init__(self):
-        self.signals = KoboldSignals()
-        self.config = self.load_configuration()
+        self.signals = ChatSignals()
+        self.config = load_chat_config()
         self.query_vector_db = None
         self.api_url = "http://localhost:5001/api/extra/generate/stream"
         self.stop_request = False
-
-    def load_configuration(self):
-        config_path = ROOT_DIRECTORY / 'config.yaml'
-        with open(config_path, 'r') as config_file:
-            return yaml.safe_load(config_file)
 
     def connect_to_kobold(self, augmented_query):
         payload = {
@@ -71,35 +52,24 @@ class KoboldChat:
 
     def handle_response_and_cleanup(self, full_response, metadata_list):
         citations = format_citations(metadata_list)
-
         if self.query_vector_db:
             self.query_vector_db.cleanup()
-
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        gc.collect()
-
+        cleanup_gpu()
         return citations
-
-    def save_metadata_to_file(self, metadata_list):
-        with metadata_output_file_path.open('w', encoding='utf-8') as output_file:
-            for metadata in metadata_list:
-                output_file.write(f"{metadata}\n")
 
     def ask_kobold(self, query, selected_database):
         if self.query_vector_db is None or self.query_vector_db.selected_database != selected_database:
             self.query_vector_db = QueryVectorDB.get_instance(selected_database)
 
         contexts, metadata_list = self.query_vector_db.search(query)
-
-        self.save_metadata_to_file(metadata_list)
+        save_metadata(metadata_list)
 
         if not contexts:
             self.signals.error_signal.emit("No relevant contexts found.")
             self.signals.finished_signal.emit()
             return
 
-        augmented_query = f"{rag_string}\n\n---\n\n" + "\n\n---\n\n".join(contexts) + f"\n\n-----\n\n{query}"
+        augmented_query = build_augmented_query(contexts, query)
 
         full_response = ""
         try:
@@ -110,11 +80,7 @@ class KoboldChat:
                 self.signals.response_signal.emit(response_chunk)
                 full_response += response_chunk
 
-            chat_history_path = ROOT_DIRECTORY / 'chat_history.txt'
-            with open(chat_history_path, 'w', encoding='utf-8') as f:
-                normalized_response = normalize_chat_text(full_response)
-                f.write(normalized_response)
-
+            write_chat_history(full_response)
             self.signals.response_signal.emit("\n")
 
             citations = self.handle_response_and_cleanup(full_response, metadata_list)

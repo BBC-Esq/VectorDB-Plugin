@@ -1,5 +1,7 @@
 Compute_Device:
   available:
+  - cpu
+  - cuda
   database_creation: cpu
   database_query: cpu
   gpu_brand: NVIDIA
@@ -9,9 +11,21 @@ Platform_Info:
   os: windows
 Supported_CTranslate2_Quantizations:
   CPU:
+  - float32
+  - int8_float32
+  - int8
   GPU:
+  - float32
+  - float16
+  - bfloat16
+  - int8_float32
+  - int8_float16
+  - int8_bfloat16
+  - int8
 WhisperSpeech:
   model: null
+appearance:
+  theme: custom_stylesheet_default.css
 bark:
   enable_cpu_offload: false
   model_precision: float16
@@ -19,7 +33,11 @@ bark:
   speaker: v2/en_speaker_6
 chatterbox:
   device: auto
-created_databases: {}
+created_databases:
+  user_manual:
+    chunk_overlap: 599
+    chunk_size: 1200
+    model: D:\Python_Programs\VectorDB-Plugin\Models\vector\BAAI--bge-small-en-v1.5
 database:
   chunk_overlap: 250
   chunk_size: 700
@@ -29,9 +47,9 @@ database:
   half: false
   search_term: ''
   similarity: 0.8
-hf_access_token:
+hf_access_token: null
 openai:
-  api_key:
+  api_key: null
   model: gpt-4o-mini
   reasoning_effort: medium
 server:
@@ -50,10 +68,10 @@ transcriber:
   quant: float32
 tts:
   model: googletts
-  s2a:
-  t2s:
+  s2a: null
+  t2s: null
 vision:
-  chosen_model: Florence-2-base
+  chosen_model: Liquid-VL - 480M
   chosen_quant: float16
   chosen_size: 2b
   flash_attention2: null

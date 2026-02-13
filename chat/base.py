@@ -20,11 +20,41 @@ import builtins
 from contextlib import contextmanager
 from huggingface_hub import HfApi
 
-from constants import CHAT_MODELS, system_message, GLM4Z1_CHAT_TEMPLATE
-from utilities import my_cprint, has_bfloat16_support
+from PySide6.QtCore import Signal, QObject
 
-# logging.getLogger("transformers").setLevel(logging.WARNING) # adjust to see deprecation and other non-fatal errors
+from core.constants import CHAT_MODELS, system_message, rag_string, GLM4Z1_CHAT_TEMPLATE, PROJECT_ROOT
+from core.utilities import my_cprint, has_bfloat16_support, format_citations, normalize_chat_text
+
 logging.getLogger("transformers").setLevel(logging.ERROR)
+
+metadata_output_file_path = PROJECT_ROOT / "metadata.txt"
+
+class ChatSignals(QObject):
+    response_signal = Signal(str)
+    error_signal = Signal(str)
+    finished_signal = Signal()
+    citations_signal = Signal(str)
+
+def load_chat_config():
+    with open(PROJECT_ROOT / 'config.yaml', 'r', encoding='utf-8') as f:
+        return yaml.safe_load(f)
+
+def save_metadata(metadata_list):
+    with metadata_output_file_path.open('w', encoding='utf-8') as f:
+        for m in metadata_list:
+            f.write(f"{m}\n")
+
+def build_augmented_query(contexts, query):
+    return f"{rag_string}\n\n---\n\n" + "\n\n---\n\n".join(contexts) + f"\n\n-----\n\n{query}"
+
+def write_chat_history(text):
+    with open(PROJECT_ROOT / 'chat_history.txt', 'w', encoding='utf-8') as f:
+        f.write(normalize_chat_text(text))
+
+def cleanup_gpu():
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
 
 @contextmanager
 def utf8_file_operations():
@@ -63,10 +93,6 @@ def _configure_device_settings(settings, model_info):
 
     return device
 
-def get_model_settings(base_settings, attn_implementation):
-    settings = copy.deepcopy(base_settings)
-    return settings
-    
 def get_max_length(model_name):
     if model_name in CHAT_MODELS:
         return CHAT_MODELS[model_name].get('max_tokens', 8192)
@@ -89,37 +115,23 @@ def get_generation_settings(max_length, max_new_tokens):
         'top_k': None,
     }
 
-bnb_bfloat16_settings = {
-    'tokenizer_settings': {
-        'torch_dtype': torch.bfloat16,
-    },
-    'model_settings': {
-        'torch_dtype': torch.bfloat16,
-        'quantization_config': BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.bfloat16,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_use_double_quant=True,
-        ),
-        'low_cpu_mem_usage': True,
+def make_bnb_settings(dtype):
+    return {
+        'tokenizer_settings': {'torch_dtype': dtype},
+        'model_settings': {
+            'torch_dtype': dtype,
+            'quantization_config': BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=dtype,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_use_double_quant=True,
+            ),
+            'low_cpu_mem_usage': True,
+        }
     }
-}
 
-bnb_float16_settings = {
-    'tokenizer_settings': {
-        'torch_dtype': torch.float16,
-    },
-    'model_settings': {
-        'torch_dtype': torch.float16,
-        'quantization_config': BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.float16,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_use_double_quant=True,
-        ),
-        'low_cpu_mem_usage': True,
-    }
-}
+bnb_bfloat16_settings = make_bnb_settings(torch.bfloat16)
+bnb_float16_settings = make_bnb_settings(torch.float16)
 
 @functools.lru_cache(maxsize=1)
 def get_hf_token():
@@ -155,20 +167,11 @@ class _StopOnToken(StoppingCriteria):
         return input_ids[0, -1].item() in self.stop_ids
 
 
-class StopAfterThink(StoppingCriteria):
-    def __init__(self, tokenizer):
-        self.tokenizer = tokenizer
-        self.buffer = ""
-
-    def __call__(self, input_ids, scores, **kwargs):
-        self.buffer += self.tokenizer.decode(input_ids[0, -1], skip_special_tokens=True)
-        return "</think>" in self.buffer
-
 
 class BaseModel(ABC):
     def __init__(self, model_info, settings, generation_settings, attn_implementation=None, tokenizer_kwargs=None, model_kwargs=None):
         if attn_implementation:
-            settings = get_model_settings(settings, attn_implementation)
+            settings = copy.deepcopy(settings)
         self.model_info = model_info
         self.settings = settings
         self.model_name = model_info['model']
@@ -177,7 +180,7 @@ class BaseModel(ABC):
 
         self.device = _configure_device_settings(self.settings, self.model_info)
 
-        script_dir = Path(__file__).resolve().parent
+        script_dir = PROJECT_ROOT
         cache_dir = script_dir / "Models" / "chat" / self.model_info['cache_dir']
 
         hf_token = get_hf_token()
@@ -393,7 +396,6 @@ class Qwen(BaseModel):
         model_info = CHAT_MODELS[model_name]
         
         is_small_model = (
-            # '4b' in model_name.lower() or
             '1.7b' in model_name.lower() or 
             '0.6b' in model_name.lower()
         )

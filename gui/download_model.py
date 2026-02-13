@@ -59,7 +59,6 @@ class ModelDownloader(QObject):
     def get_model_directory_name(self):
         repo_id = self.get_model_url()
         if isinstance(repo_id, str):
-            # Use double dash to match the cache_dir format in constants
             return repo_id.replace("/", "--")
         return str(repo_id)
 

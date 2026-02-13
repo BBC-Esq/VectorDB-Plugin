@@ -3,13 +3,8 @@ from matplotlib.patches import Patch
 from matplotlib.colors import LinearSegmentedColormap
 import pandas as pd
 
-from constants import CHAT_MODELS
+from core.constants import CHAT_MODELS
 
-# "color": "#CC5500", # orange
-# "color": "#8B0000", # red
-# "color": "#4682B4", # light blue
-# "color": "#2E8B57", # green
-# "color": "#6A0DAD", # purple
 
 def create_chat_models_comparison_plot():
     model_categories = {
@@ -103,7 +98,6 @@ def create_chat_models_comparison_plot():
     for i, cps in enumerate(df["cps"]):
         ax2.annotate(f'{cps:.2f}', (i, cps), textcoords="offset points", xytext=(0,10), ha='center', color='white', fontweight='bold')
 
-    # Keep all category patches for the legend, even if some categories are empty
     category_patches = [Patch(facecolor='none', edgecolor=cat["color"], label=cat["label"], linewidth=2) 
                         for cat in model_categories.values()]
 

@@ -42,19 +42,9 @@ def extract_common_metadata(file_path, content_hash=None):
 
     return clean_metadata
 
-def extract_image_metadata(file_path):
-    metadata = extract_common_metadata(file_path)
-    metadata["document_type"] = "image"
-    return metadata
-
-def extract_document_metadata(file_path, content_hash=None):
+def extract_typed_metadata(file_path, document_type, content_hash=None):
     metadata = extract_common_metadata(file_path, content_hash)
-    metadata["document_type"] = "document"
-    return metadata
-
-def extract_audio_metadata(file_path):
-    metadata = extract_common_metadata(file_path)
-    metadata["document_type"] = "audio"
+    metadata["document_type"] = document_type
     return metadata
 
 def add_pymupdf_page_metadata(doc: Document, chunk_size: int = 1200, chunk_overlap: int = 600) -> List[Document]:

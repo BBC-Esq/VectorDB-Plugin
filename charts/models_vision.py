@@ -7,8 +7,6 @@ def create_vision_models_comparison_plot():
     model_categories = {
         "florence": {
             "models": [
-                # "Florence2-Large (cpu)",
-                # "Florence2-Base (cpu)",
             ],
             "color": "#2E8B57",
             "label": "Can run on CPU"

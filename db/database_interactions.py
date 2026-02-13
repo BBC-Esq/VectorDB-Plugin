@@ -24,10 +24,10 @@ from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from langchain_core.documents import Document
 from langchain_community.vectorstores import TileDB
 
-from document_processor import load_documents, split_documents
-from module_process_images import choose_image_loader
-from utilities import my_cprint, get_model_native_precision, get_appropriate_dtype, supports_flash_attention, set_cuda_paths
-from constants import VECTOR_MODELS
+from db.document_processor import load_documents, split_documents
+from modules.process_images import choose_image_loader
+from core.utilities import my_cprint, get_model_native_precision, get_appropriate_dtype, supports_flash_attention, set_cuda_paths
+from core.constants import VECTOR_MODELS, PROJECT_ROOT
 
 
 class BaseEmbeddingModel:
@@ -125,22 +125,8 @@ class BgeCodeEmbedding(BaseEmbeddingModel):
         return bge_kwargs
 
 
-class AlibabaEmbedding(BaseEmbeddingModel):
-    def prepare_kwargs(self):
-        ali_kwargs = super().prepare_kwargs()
-        device = ali_kwargs.get("device", "").lower()
-        is_cuda = device.startswith("cuda")
-        use_xformers = is_cuda and supports_flash_attention()
-
-        tok_kw = ali_kwargs.setdefault("tokenizer_kwargs", {})
-        tok_kw.update({"model_max_length": 8192})
-
-        ali_kwargs["config_kwargs"] = {
-            "use_memory_efficient_attention": use_xformers,
-            "unpad_inputs": use_xformers,
-            "attn_implementation": "eager" if use_xformers else "sdpa",
-        }
-        return ali_kwargs
+class AlibabaEmbedding(SnowflakeEmbedding):
+    pass
 
 
 class InflyAndAlibabaEmbedding(BaseEmbeddingModel):
@@ -182,19 +168,27 @@ class QwenEmbedding(BaseEmbeddingModel):
         })
         return q_kwargs
 
-    def prepare_encode_kwargs(self):
-        encode_kwargs = super().prepare_encode_kwargs()
-        return encode_kwargs
+
+def _select_embedding_class(model_name):
+    name_lower = model_name.lower()
+    if "qwen3-embedding" in name_lower:
+        return QwenEmbedding
+    elif "snowflake" in name_lower:
+        return SnowflakeEmbedding
+    elif "alibaba" in name_lower:
+        return AlibabaEmbedding
+    elif "bge-code" in name_lower:
+        return BgeCodeEmbedding
+    elif "infly" in name_lower:
+        return InflyAndAlibabaEmbedding
+    return BaseEmbeddingModel
 
 
 def create_vector_db_in_process(database_name):
-    try:
-        set_cuda_paths()
-        create_vector_db = CreateVectorDB(database_name=database_name)
-        result = create_vector_db.run()
-        return result
-    except Exception as e:
-        raise
+    set_cuda_paths()
+    create_vector_db = CreateVectorDB(database_name=database_name)
+    result = create_vector_db.run()
+    return result
 
 def process_chunks_only_query(database_name, query, result_queue):
     try:
@@ -217,14 +211,11 @@ def process_chunks_only_query(database_name, query, result_queue):
         result_queue.put("\n".join(formatted_contexts))
     except Exception as e:
         result_queue.put(f"Error querying database: {str(e)}")
-    finally:
-        if 'query_db' in locals():
-            pass
 
 
 class CreateVectorDB:
     def __init__(self, database_name):
-        self.ROOT_DIRECTORY = Path(__file__).resolve().parent
+        self.ROOT_DIRECTORY = PROJECT_ROOT
         self.SOURCE_DIRECTORY = self.ROOT_DIRECTORY / "Docs_for_DB"
         self.PERSIST_DIRECTORY = self.ROOT_DIRECTORY / "Vector_DB" / database_name
 
@@ -278,34 +269,12 @@ class CreateVectorDB:
                     encode_kwargs['batch_size'] = value
                     break
 
-        if "qwen3-embedding" in name_lower:
-            print("Using QwenEmbedding class.")
-            model = QwenEmbedding(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
-
-        elif "snowflake" in name_lower:
-            print("Using SnowflakeEmbedding class.")
-            model = SnowflakeEmbedding(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
-
-        elif "alibaba" in name_lower:
-            print("Using AlibabaEmbedding class.")
-            model = AlibabaEmbedding(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
-
-        elif "bge-code" in name_lower:
-            print("Using BgeCodeEmbedding class.")
-            model = BgeCodeEmbedding(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
-
-        elif "infly" in name_lower:
-            print("Using InflyAndAlibabaEmbedding class.")
-            model = InflyAndAlibabaEmbedding(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
-
-        elif "e5" in name_lower:
-            print("Using BaseEmbeddingModel class with Intfloat prompt.")
+        if "e5" in name_lower:
             encode_kwargs["prompt"] = "passage: "
-            model = BaseEmbeddingModel(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
 
-        else:
-            print("Using BaseEmbeddingModel class.")
-            model = BaseEmbeddingModel(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
+        cls = _select_embedding_class(embedding_model_name)
+        print(f"Using {cls.__name__} class.")
+        model = cls(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
 
         model_name = os.path.basename(embedding_model_name)
         precision = "float32" if torch_dtype is None else str(torch_dtype).split('.')[-1]
@@ -606,7 +575,7 @@ class QueryVectorDB:
                 raise ValueError("No vector database selected.")
             if selected_database not in self.config["created_databases"]:
                 raise ValueError(f'Database "{selected_database}" not found in config.')
-            db_path = Path(__file__).resolve().parent / "Vector_DB" / selected_database
+            db_path = PROJECT_ROOT / "Vector_DB" / selected_database
             if not db_path.exists():
                 raise FileNotFoundError(f'Database folder "{selected_database}" is missing on disk.')
 
@@ -633,7 +602,7 @@ class QueryVectorDB:
             return cls._instance
 
     def load_configuration(self):
-        config_path = Path(__file__).resolve().parent / 'config.yaml'
+        config_path = PROJECT_ROOT / 'config.yaml'
         try:
             with open(config_path, 'r', encoding='utf-8') as file:
                 return yaml.safe_load(file)
@@ -666,48 +635,27 @@ class QueryVectorDB:
 
         mp_lower = model_path.lower()
 
-        if "qwen3-embedding" in mp_lower:
-            encode_kwargs["prompt"] = (
-                "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
-            )
-            embeddings = QwenEmbedding(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
-
-        elif "snowflake" in mp_lower:
+        instruct_prompt = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
+        if "qwen3-embedding" in mp_lower or "alibaba" in mp_lower or "infly" in mp_lower:
+            encode_kwargs["prompt"] = instruct_prompt
+        elif "snowflake" in mp_lower or "intfloat" in mp_lower:
             encode_kwargs["prompt"] = "query: "
-            embeddings = SnowflakeEmbedding(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
-
-        elif "intfloat" in mp_lower:
-            encode_kwargs["prompt"] = "query: "
-            embeddings = BaseEmbeddingModel(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
-
-        elif "alibaba" in mp_lower:
-            encode_kwargs["prompt"] = (
-                "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
-            )
-            embeddings = AlibabaEmbedding(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
-
-        elif "infly" in mp_lower:
-            encode_kwargs["prompt"] = (
-                "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
-            )
-            embeddings = InflyAndAlibabaEmbedding(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
-
         elif "bge-code" in mp_lower:
-            code_instruction = "Given a question in text, retrieve relevant code that is relevant."
-            encode_kwargs["prompt"] = f"<instruct>{code_instruction}\n<query>"
-            embeddings = BgeCodeEmbedding(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
-
+            encode_kwargs["prompt"] = "<instruct>Given a question in text, retrieve relevant code that is relevant.\n<query>"
         elif "bge" in mp_lower:
             encode_kwargs["prompt"] = "Represent this sentence for searching relevant passages: "
-            embeddings = BaseEmbeddingModel(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
 
+        if "intfloat" in mp_lower:
+            cls = BaseEmbeddingModel
+        elif "bge" in mp_lower and "bge-code" not in mp_lower:
+            cls = BaseEmbeddingModel
         else:
-            embeddings = BaseEmbeddingModel(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
+            cls = _select_embedding_class(model_path)
 
-        return embeddings
+        return cls(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
 
     def initialize_database(self):
-        persist_directory = Path(__file__).resolve().parent / "Vector_DB" / self.selected_database
+        persist_directory = PROJECT_ROOT / "Vector_DB" / self.selected_database
 
         return TileDB.load(index_uri=str(persist_directory), embedding=self.embeddings, allow_dangerous_deserialization=True)
 

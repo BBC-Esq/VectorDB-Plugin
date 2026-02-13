@@ -1,4 +1,3 @@
-import gc
 import tempfile
 from pathlib import Path
 
@@ -6,11 +5,10 @@ import psutil
 import sounddevice as sd
 import numpy as np
 import soundfile as sf
-import torch
 from PySide6.QtCore import QThread, Signal
 
 import whisper_s2t
-from utilities import my_cprint
+from core.utilities import my_cprint
 
 def get_logical_core_count():
     return psutil.cpu_count(logical=False)
@@ -52,10 +50,8 @@ class TranscriptionThread(QThread):
         self.transcription_complete.emit(transcription_text)
         
         Path(self.audio_file).unlink()
-        # self.voice_recorder.ReleaseTranscriber()
 
         del self.model
-        # my_cprint("Whisper model removed from memory.", 'red')
 
 class RecordingThread(QThread):
     def __init__(self, voice_recorder):
@@ -121,16 +117,3 @@ class VoiceRecorder:
             self.recording_thread.wait()
             self.save_audio()
 
-    def ReleaseTranscriber(self):
-        if hasattr(self, 'model'):
-            if hasattr(self.model, 'model'):
-                del self.model.model
-            if hasattr(self.model, 'feature_extractor'):
-                del self.model.feature_extractor
-            if hasattr(self.model, 'hf_tokenizer'):
-                del self.model.hf_tokenizer
-            del self.model
-        
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        gc.collect()

@@ -1,4 +1,7 @@
-# constants.py
+
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 GLM4Z1_CHAT_TEMPLATE = """[gMASK]<sop>
 {%- if tools -%}
@@ -65,12 +68,9 @@ priority_libs = {
             "nvidia-ml-py==13.580.82",
         ],
         "CPU": [
-            # "https://download.pytorch.org/whl/cpu/torch-2.8.0%2Bcpu-cp311-cp311-win_amd64.whl",
-            # "https://download.pytorch.org/whl/cpu/torchvision-0.23.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=51603eb071d0681abc4db98b10ff394ace31f425852e8de249b91c09c60eb19a",
-            # "https://download.pytorch.org/whl/cpu/torchaudio-2.8.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=db37df7eee906f8fe0a639fdc673f3541cb2e173169b16d4133447eb922d1938"
         ],
         "COMMON": [
-            # "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.8.0-tesseract-5.5.0/tesserocr-2.8.0-cp311-cp311-win_amd64.whl",
+            "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.9.1-tesseract-5.5.1/tesserocr-2.9.1-cp311-cp311-win_amd64.whl",
         ],
     },
     "cp312": {
@@ -90,12 +90,9 @@ priority_libs = {
             "nvidia-ml-py==13.580.82",
         ],
         "CPU": [
-            # "https://download.pytorch.org/whl/cpu/torch-2.8.0%2Bcpu-cp312-cp312-win_amd64.whl",
-            # "https://download.pytorch.org/whl/cpu/torchvision-0.23.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=a651ccc540cf4c87eb988730c59c2220c52b57adc276f044e7efb9830fa65a1d",
-            # "https://download.pytorch.org/whl/cpu/torchaudio-2.8.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=9b302192b570657c1cc787a4d487ae4bbb7f2aab1c01b1fcc46757e7f86f391e"
         ],
         "COMMON": [
-            # "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.8.0-tesseract-5.5.0/tesserocr-2.8.0-cp312-cp312-win_amd64.whl",
+            "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.9.1-tesseract-5.5.1/tesserocr-2.9.1-cp312-cp312-win_amd64.whl",
         ]
     },
     "cp313": {
@@ -115,12 +112,9 @@ priority_libs = {
             "nvidia-ml-py==13.580.82",
         ],
         "CPU": [
-            # "https://download.pytorch.org/whl/cpu/torch-2.8.0%2Bcpu-cp312-cp312-win_amd64.whl",
-            # "https://download.pytorch.org/whl/cpu/torchvision-0.23.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=a651ccc540cf4c87eb988730c59c2220c52b57adc276f044e7efb9830fa65a1d",
-            # "https://download.pytorch.org/whl/cpu/torchaudio-2.8.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=9b302192b570657c1cc787a4d487ae4bbb7f2aab1c01b1fcc46757e7f86f391e"
         ],
         "COMMON": [
-            # "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.8.0-tesseract-5.5.0/tesserocr-2.8.0-cp312-cp312-win_amd64.whl",
+            "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.9.1-tesseract-5.5.1/tesserocr-2.9.1-cp313-cp313-win_amd64.whl",
         ]
     }
 }
@@ -129,12 +123,12 @@ libs = [
     "accelerate==1.11.0",
     "aiofiles==25.1.0",
     "aiohappyeyeballs==2.6.1",
-    "aiohttp==3.13.2", # langchain libraries require <4
-    "aiosignal==1.4.0", #aiohttp requires >=1.4.0
-    "anndata==0.12.5", # 0.12+ requires additional dependencies; doublecheck if worth it
+    "aiohttp==3.13.2",
+    "aiosignal==1.4.0",
+    "anndata==0.12.5",
     "annotated-types==0.7.0",
     "anyio==4.11.0",
-    "array_api_compat==1.12.0", # only anndata requires
+    "array_api_compat==1.12.0",
     "async-timeout==5.0.1",
     "attrs==25.4.0",
     "av==16.0.1",
@@ -143,71 +137,71 @@ libs = [
     "bitsandbytes==0.48.2",
     "braceexpand==0.1.7",
     "certifi==2025.10.5",
-    "cfgv==3.4.0", # only required by pre_commit
+    "cfgv==3.4.0",
     "cffi==2.0.0",
     "chardet==5.2.0",
-    "charset-normalizer==3.4.4", # requests requires <4
+    "charset-normalizer==3.4.4",
     "git+https://github.com/BBC-Esq/chatterbox-light",
     "chattts==0.2.4",
     "chromadb==1.2.0",
-    "click==8.3.0", # gtts 2.5.4 requires <8.2, >=7.1
-    "cloudpickle==3.1.2", # only required by tiledb-cloud and 3+ is only supported by tiledb-cloud 0.13+
+    "click==8.3.0",
+    "cloudpickle==3.1.2",
     "colorama==0.4.6",
     "coloredlogs==15.0.1",
-    "contourpy==1.3.3", # only required by matplotlib
-    "cryptography==46.0.3", # only required by unstructured and pdfminer.six
-    "ctranslate2==4.6.0",
+    "contourpy==1.3.3",
+    "cryptography==46.0.3",
+    "ctranslate2==4.6.2",
     "cycler==0.12.1",
     "dataclasses-json==0.6.7",
     "datasets==4.3.0",
-    "deepdiff==8.6.1", # required by unstructured
-    "Deprecated==1.2.18", # only needed by pikepdf
-    "deprecation==2.1.0", # only needed by ocrmypdf
-    "diffusers==0.35.2", # required by chatterbox-lite
-    "dill==0.3.8", # datasets 4.2.0 requires <0.4.1; multiprocess requires >=0.3.8
-    "distlib==0.4.0", # required by virtualenv
+    "deepdiff==8.6.1",
+    "Deprecated==1.2.18",
+    "deprecation==2.1.0",
+    "diffusers==0.35.2",
+    "dill==0.3.8",
+    "distlib==0.4.0",
     "distro==1.9.0",
     "docx2txt==0.9",
     "einops==0.8.1",
     "einx==0.3.0",
     "emoji==2.15.0",
     "encodec==0.1.1",
-    "et-xmlfile==2.0.0", # openpyxl requires; caution...openpyxl 3.1.5 (6/28/2024) predates et-xmlfile 2.0.0 (10/25/2024)
-    "eval-type-backport==0.2.2", # only required by unstructured
-    "fastcore==1.8.13", # only required by whisperspeech
-    "fastprogress==1.0.3", # only required by whisperspeech
+    "et-xmlfile==2.0.0",
+    "eval-type-backport==0.2.2",
+    "fastcore==1.8.13",
+    "fastprogress==1.0.3",
     "filetype==1.2.0",
     "filelock==3.20.0",
-    "fonttools==4.60.1", # only required by matplotlib
+    "fonttools==4.60.1",
     "frozendict==2.4.6",
     "frozenlist==1.8.0",
-    "fsspec[http]==2025.9.0", # datasets requires <=2025.3.0
-    "googleapis-common-protos==1.70.0", # only required by chromadb
+    "fsspec[http]==2025.9.0",
+    "googleapis-common-protos==1.70.0",
     "greenlet==3.2.4",
-    "grpcio==1.75.1", # only required by chromadb
+    "grpcio==1.75.1",
     "gTTS==2.5.4",
     "h11==0.16.0",
     "h5py==3.15.1",
     "hf-xet==1.2.0",
-    "html5lib==1.1", # only required by unstructured
+    "html5lib==1.1",
     "httpcore==1.0.9",
     "httpx==0.28.1",
     "httpx-sse==0.4.3",
-    "huggingface-hub==0.36.0", # tokenizers requires <1.0
+    "huggingface-hub==0.36.0",
     "humanfriendly==10.0",
     "HyperPyYAML==1.2.2",
-    "identify==2.6.15", # only required by pre-commit
+    "identify==2.6.15",
     "idna==3.11",
     "img2pdf==0.6.1",
     "importlib_metadata==8.7.0",
     "Jinja2==3.1.6",
-    "jiter==0.11.1", # required by openai newer versions
+    "jiter==0.11.1",
     "joblib==1.5.2",
     "jsonpatch==1.33",
     "jsonpath-python==1.0.6",
     "jsonpointer==3.0.0",
-    "jsonschema==4.25.1", # only required by tiledb-cloud
-    "jsonschema-specifications==2025.9.1", # only required by jsonschema
+    "jsonschema==4.25.1",
+    "jsonschema-specifications==2025.9.1",
     "kiwisolver==1.4.9",
     "langchain==0.3.27",
     "langchain-chroma==1.0.0",
@@ -217,67 +211,66 @@ libs = [
     "langchain-text-splitters==0.3.11",
     "langdetect==1.0.9",
     "langsmith==0.4.37",
-    "llvmlite==0.45.1", # only required by numba
+    "llvmlite==0.45.1",
     "lxml==6.0.2",
     "Markdown==3.9",
     "markdown-it-py==4.0.0",
     "MarkupSafe==3.0.3",
-    "marshmallow==3.26.1", # dataclasses-json requires <4.0.0
-    "matplotlib==3.10.7", # uniquely requires pyparsing, cycler, and kiwisolver
+    "marshmallow==3.26.1",
+    "matplotlib==3.10.7",
     "mdurl==0.1.2",
-    "ml-dtypes==0.5.3", # only required by onnx
+    "ml-dtypes==0.5.3",
     "more-itertools==10.8.0",
-    # "moshi==0.2.8", # installed at runtime if needed
-    "mpmath==1.3.0", # sympy 1.13.1 requires <1.4
+    "mpmath==1.3.0",
     "msg-parser==1.2.0",
     "multidict==6.7.0",
-    "multiprocess==0.70.16", # datasets 4.2.0 requires <0.70.17
+    "multiprocess==0.70.16",
     "mypy-extensions==1.1.0",
     "natsort==8.4.0",
     "nest-asyncio==1.6.0",
     "networkx==3.5",
-    "nodeenv==1.9.1", # required by pre_commit
-    "nltk==3.9.1", # not higher; gives unexplained error
-    "numba==0.62.1", # only required by openai-whisper and chattts
-    "numpy==2.3.4", # numba 0.62.0 requires <2.4
+    "nodeenv==1.9.1",
+    "nltk==3.9.1",
+    "numba==0.62.1",
+    "numpy==2.3.4",
     "ocrmypdf==16.11.1",
     "olefile==0.47",
-    "onnx==1.19.1", # required by chatterbox-lite
-    "openai==2.6.1", # only required by chat_lm_studio.py script and whispers2t (if using openai vanilla backend)
-    "openai-whisper==20250625", # only required by whisper_s2t (if using openai vanilla backend)
+    "onnx==1.19.1",
+    "openai==2.6.1",
+    "openai-whisper==20250625",
     "openpyxl==3.1.5",
-    "opentelemetry-api==1.38.0", # only required by chromadb
-    "opentelemetry-exporter-otlp-proto-grpc==1.38.0", # only required by chromadb
-    "opentelemetry-sdk==1.38.0", # only required by chromadb
-    "opentelemetry-semantic-conventions", # only required by chromadb
-    "opentelemetry-exporter-otlp-proto-common==1.38.0", # only required by chromadb
-    "opentelemetry-proto==1.38.0", # only required by chromadb
+    "opentelemetry-api==1.38.0",
+    "opentelemetry-exporter-otlp-proto-grpc==1.38.0",
+    "opentelemetry-sdk==1.38.0",
+    "opentelemetry-semantic-conventions",
+    "opentelemetry-exporter-otlp-proto-common==1.38.0",
+    "opentelemetry-proto==1.38.0",
     "optimum==2.0.0",
     "ordered-set==4.1.0",
-    "orderly-set==5.5.0", # deepdiff 8.2.0 requires >=5.3.0,<6
+    "orderly-set==5.5.0",
     "orjson==3.11.4",
-    "overrides==7.7.0", # only required by chromadb
+    "overrides==7.7.0",
     "packaging==25.0",
     "pandas==2.3.3",
-    "pdfminer.six==20250506", # ocrmypdf 16.10.1 requires >=20220319
-    "pi-heif==1.1.1", # only needed by ocrmypdf, but not for my usage of ocrmypdf
-    "pikepdf==9.11.0", # only needed by ocrmypdf
+    "pdfminer.six==20250506",
+    "pi-heif==1.1.1",
+    "pikepdf==9.11.0",
     "pillow==12.0.0",
     "pipdeptree",
     "platformdirs==4.5.0",
-    "pluggy==1.6.0", # only needed by ocrmypdf
-    "posthog==5.4.0", # only required by chromadb and no greater than 5.4.0
-    "pre-commit==4.3.0", # only required by s3tokenizer
+    "pluggy==1.6.0",
+    "posthog==5.4.0",
+    "pre-commit==4.3.0",
     "propcache==0.4.1",
     "protobuf==6.33.0",
     "psutil==7.1.3",
     "pyarrow==22.0.0",
-    "pybase16384==0.3.8", # only required by chattts
-    "pybase64==1.4.2", # only required by chromadb
+    "pybase16384==0.3.8",
+    "pybase64==1.4.2",
     "pycparser==2.23",
-    "pydantic==2.12.3", # requires pydantic-core==2.41.1
-    "pydantic_core==2.41.4", # pydantic 2.12.3 requires 2.41.4; ALWAYS verify by checking pyproject.toml from pydantic repo
-    "pydantic-settings==2.11.0", # langchain-community requires >=2.4.0,<3.0.0
+    "pydantic==2.12.3",
+    "pydantic_core==2.41.4",
+    "pydantic-settings==2.11.0",
     "Pygments==2.19.2",
     "PyOpenGL==3.1.10",
     "PyOpenGL-accelerate==3.1.10",
@@ -290,19 +283,19 @@ libs = [
     "python-dotenv==1.1.1",
     "python-iso639==2025.2.18",
     "python-magic==0.4.27",
-    "python-oxmsg==0.0.2", # only required by unstructured library
+    "python-oxmsg==0.0.2",
     "pytz==2025.2",
     "PyYAML==6.0.3",
     "rapidfuzz==3.14.3",
-    "referencing==0.37.0", # only required by jsonschema
+    "referencing==0.37.0",
     "regex==2025.10.23",
     "requests==2.32.5",
     "requests-toolbelt==1.0.0",
-    "rpds-py", # only required by jsonschema
+    "rpds-py",
     "rich==14.2.0",
     "ruamel.yaml==0.18.16",
     "ruamel.yaml.clib==0.2.14",
-    "s3tokenizer==0.2.0", # required by chatterbox-lite
+    "s3tokenizer==0.2.0",
     "safetensors==0.6.2",
     "scikit-learn==1.7.2",
     "scipy==1.16.3",
@@ -313,44 +306,40 @@ libs = [
     "sounddevice==0.5.3",
     "soundfile==0.13.1",
     "soupsieve==2.8",
-    # "sphn==0.2.0", # installed at runtime when needed
     "speechbrain==0.5.16",
-    "SQLAlchemy==2.0.44", # langchain and langchain-community require <3.0.0
-    "sseclient-py==1.8.0", # only required by Kobold
-    "sympy==1.13.3", # torch 2.8.0 requires 1.13.3
+    "SQLAlchemy==2.0.44",
+    "sseclient-py==1.8.0",
+    "sympy==1.13.3",
     "tabulate2==1.10.2",
-    # "tblib==3.1.0", # only tiledb-cloud requires
     "tenacity==9.1.2",
     "termcolor==3.2.0",
     "tessdata==1.0.0",
     "tessdata.eng==1.0.0",
     "threadpoolctl==3.6.0",
     "tiktoken==0.12.0",
-    # "tiledb==0.34.2",
-    # "tiledb-cloud==0.14.1",
-    # "tiledb-vector-search==0.13.0",
     "timm==1.0.20",
     "tokenizers==0.22.1",
     "tqdm==4.67.1",
     "transformers==4.57.1",
-    "typing-inspection==0.4.2", # required by pydantic and pydantic-settings
+    "typing-inspection==0.4.2",
     "typing_extensions==4.15.0",
     "unstructured-client==0.42.3",
-    "virtualenv==20.35.3", # required by pre_commit
+    "virtualenv==20.35.3",
     "tzdata==2025.2",
-    "urllib3==2.5.0", # requests requires <3
+    "urllib3==2.5.0",
     "vector-quantize-pytorch==1.24.2",
     "vocos==0.1.0",
     "watchdog==6.0.0",
-    "wcwidth==0.2.14", # only required by tabulate2
-    "webdataset==1.0.2", # only requires by Whisperspeech; next is 1.0.2 so hesitate to upgrade
-    "webencodings==0.5.1", # only required by html5lib
+    "wcwidth==0.2.14",
+    "webdataset==1.0.2",
+    "webencodings==0.5.1",
+    "whisper-s2t-reborn @ git+https://github.com/BBC-Esq/WhisperS2T-reborn.git",
     "wrapt==1.17.3",
     "xlrd==2.0.2",
     "xxhash==3.6.0",
-    "yarl==1.22.0", # aiohttp requires <2
+    "yarl==1.22.0",
     "zipp==3.23.0",
-    "zstandard==0.25.0" # only required by langsmith 3+
+    "zstandard==0.25.0"
 ]
 
 full_install_libs = [
@@ -365,20 +354,15 @@ BACKEND_DEPENDENCIES = {
         "sphn": "0.2.0"
     },
     "bark": {
-        # Add any bark-specific deps if needed
-    }, # Empty dict = no dependency checking
+    },
     "whisperspeech": {
-        # Add any whisperspeech-specific deps if needed  
-    }, # Empty dict = no dependency checking
+    },
     "chattts": {
-        # Add any chattts-specific deps if needed
-    }, # Empty dict = no dependency checking
+    },
     "chatterbox": {
-        # Add any chatterbox-specific deps if needed
-    }, # Empty dict = no dependency checking
+    },
     "googletts": {
-        # Usually no extra deps beyond standard library
-    } # Empty dict = no dependency checking
+    }
 }
 
 CHAT_MODELS = {
@@ -1056,8 +1040,6 @@ TTS_MODELS = {
             "config.json",
             "istftnet.py",
             "kokoro-v0_19.pth",
-            # "kokoro.py", # using custom source code
-            # "models.py", # using custom source code
             "plbert.py"
         ],
         "ignore_patterns": [
@@ -1065,8 +1047,8 @@ TTS_MODELS = {
             "fp16/**",
             ".gitattributes",
             "kokoro-v0_19.onnx",
-            "kokoro.py", # using custom source code
-            "models.py", # using custom source code
+            "kokoro.py",
+            "models.py",
         ]
     },
     "Bark - Small": {
@@ -1083,8 +1065,6 @@ TTS_MODELS = {
             "config.json",
             "istftnet.py",
             "kokoro-v0_19.pth",
-            # "kokoro.py", # using custom source code
-            # "models.py", # using custom source code
             "plbert.py"
         ],
         "ignore_patterns": [
@@ -1092,8 +1072,8 @@ TTS_MODELS = {
             "fp16/**",
             ".gitattributes",
             "kokoro-v0_19.onnx",
-            "kokoro.py", # using custom source code
-            "models.py", # using custom source code
+            "kokoro.py",
+            "models.py",
         ]
     },
     "WhisperSpeech": {
@@ -1110,8 +1090,6 @@ TTS_MODELS = {
             "config.json",
             "istftnet.py",
             "kokoro-v0_19.pth",
-            # "kokoro.py", # using custom source code
-            # "models.py", # using custom source code
             "plbert.py"
         ],
         "ignore_patterns": [
@@ -1119,8 +1097,8 @@ TTS_MODELS = {
             "fp16/**",
             ".gitattributes",
             "kokoro-v0_19.onnx",
-            "kokoro.py", # using custom source code
-            "models.py", # using custom source code
+            "kokoro.py",
+            "models.py",
         ]
     },
     "ChatTTS": {
@@ -1141,8 +1119,8 @@ TTS_MODELS = {
             "fp16/**",
             ".gitattributes",
             "kokoro-v0_19.onnx",
-            "kokoro.py", # using custom source code
-            "models.py", # using custom source code
+            "kokoro.py",
+            "models.py",
         ]
     },
 }
@@ -1185,22 +1163,15 @@ WHISPER_SPEECH_MODELS = {
         "s2a-q4-tiny": ("s2a-q4-tiny-en+pl.model", 74),
         "s2a-q4-base": ("s2a-q4-base-en+pl.model", 203),
         "s2a-q4-hq-fast": ("s2a-q4-hq-fast-en+pl.model", 380),
-        # "s2a-v1.1-small": ("s2a-v1.1-small-en+pl-noyt.model", 437),
-        # "s2a-q4-small": ("s2a-q4-small-en+pl.model", 874),
     },
     "t2s": {
         "t2s-tiny": ("t2s-tiny-en+pl.model", 74),
         "t2s-base": ("t2s-base-en+pl.model", 193),
         "t2s-hq-fast": ("t2s-hq-fast-en+pl.model", 743),
-        # "t2s-fast-small": ("t2s-fast-small-en+pl.model", 743),
-        # "t2s-small": ("t2s-small-en+pl.model", 856),
-        # "t2s-v1.1-small": ("t2s-v1.1-small-en+pl.model", 429),
-        # "t2s-fast-medium": ("t2s-fast-medium-en+pl+yt.model", 1310)
     }
 }
 
 WHISPER_MODELS = {
-    # LARGE-V3
     'Distil Whisper large-v3 - float32': {
         'name': 'Distil Whisper large-v3',
         'precision': 'float32',
@@ -1249,7 +1220,6 @@ WHISPER_MODELS = {
         'optimal_batch_size': 3,
         'vram': '3.3 GB'
     },
-    # MEDIUM.EN
     'Distil Whisper medium.en - float32': {
         'name': 'Distil Whisper large-v3',
         'precision': 'float32',
@@ -1298,7 +1268,6 @@ WHISPER_MODELS = {
         'optimal_batch_size': 7,
         'vram': '1.8 GB'
     },
-    # SMALL.EN
     'Distil Whisper small.en - float32': {
         'name': 'Distil Whisper small.en',
         'precision': 'float32',
@@ -1347,7 +1316,6 @@ WHISPER_MODELS = {
         'optimal_batch_size': 15,
         'vram': '1.1 GB'
     },
-    # BASE.EN
     'Whisper base.en - float32': {
         'name': 'Whisper base.en',
         'precision': 'float32',
@@ -1372,7 +1340,6 @@ WHISPER_MODELS = {
         'optimal_batch_size': 23,
         'vram': '0.8 GB'
     },
-    # TINY.EN
     'Whisper tiny.en - float32': {
         'name': 'Whisper tiny.en',
         'precision': 'float32',
@@ -1400,7 +1367,6 @@ WHISPER_MODELS = {
 }
 
 DOCUMENT_LOADERS = {
-    # ".pdf": "PyMuPDFLoader",
     ".pdf": "CustomPyMuPDFLoader",
     ".docx": "Docx2txtLoader",
     ".txt": "TextLoader",
@@ -1418,11 +1384,9 @@ DOCUMENT_LOADERS = {
     ".html": "BSHTMLLoader",
 }
 
-# stuff to include/exclude based on whether "show_thinking" is true or false in config.yaml
 THINKING_TAGS = {
     "think": ("<think>", "</think>"),
     "thinking": ("<thinking>", "</thinking>")
-    # Add more tag pairs as needed
 }
 
 TOOLTIPS = {
@@ -1797,20 +1761,11 @@ scrape_documentation = {
         "folder": "llvmlite",
         "scraper_class": "RtdThemeScraper"
     },
-    # "LM Studio": {
-        # "URL": "https://lmstudio.ai/docs/",
-        # "folder": "lm_studio",
-    # },
     "Loguru": {
         "URL": "https://loguru.readthedocs.io/en/stable/",
         "folder": "loguru",
         "scraper_class": "RtdThemeScraper"
     },
-    # "lxml 5.4.0": {
-        # "URL": "https://lxml.de/5.4/",
-        # "folder": "lxml_540",
-        # "scraper_class": "DivClassDocumentScraper"
-    # },
     "lxml-html-clean": {
         "URL": "https://lxml-html-clean.readthedocs.io/en/stable/",
         "folder": "lxml_html_clean",
@@ -1906,11 +1861,6 @@ scrape_documentation = {
         "folder": "ocrmypdf",
         "scraper_class": "RtdThemeScraper"
     },
-    # "openai": {
-        # "URL": "https://raw.githubusercontent.com/openai/openai-openapi/master/openapi.yaml",
-        # "folder": "openai",
-        # "scraper_class": "FileDownloader"
-    # },
     "openpyxl": {
         "URL": "https://openpyxl.readthedocs.io/en/stable/",
         "folder": "openpyxl",
@@ -1966,11 +1916,6 @@ scrape_documentation = {
         "folder": "pillow",
         "scraper_class": "FuroThemeScraper"
     },
-    # "propcache": {
-        # "URL": "https://propcache.aio-libs.org/",
-        # "folder": "propcache",
-        # "scraper_class": "PropCacheScraper"
-    # },
     "protobuf": {
         "URL": "https://protobuf.dev/",
         "folder": "protobuf",
@@ -2025,12 +1970,8 @@ scrape_documentation = {
         "folder": "pypdf",
         "scraper_class": "RtdThemeScraper"
     },
-    # "Python 3.11": {
-        # "URL": "https://docs.python.org/3.11/",
-        # "folder": "Python_311",
-    # },
     "python-docx": {
-        "URL": "https://python-docx.readthedocs.io/en/stable/", # won't scrape
+        "URL": "https://python-docx.readthedocs.io/en/stable/",
         "folder": "python_docx",
         "scraper_class": "BodyRoleMainScraper"
     },
@@ -2185,7 +2126,6 @@ scrape_documentation = {
     "Tile DB": {
         "URL": "https://tiledb-inc-tiledb.readthedocs-hosted.com/projects/tiledb-py/en/stable/index.html",
         "folder": "tiledb",
-        # "scraper_class": "TileDBScraper"
         "scraper_class": "RstContentScraper"
     },
     "tiledb-vector-search": {
@@ -2296,10 +2236,6 @@ scrape_documentation = {
         "URL": "https://urllib3.readthedocs.io/en/stable/",
         "folder": "urllib3"
     },
-    # "Unstructured": {
-        # "URL": "https://docs.unstructured.io/api-reference/api-services/sdk-python",
-        # "folder": "unstructured"
-    # },
     "uv": {
         "URL": "https://docs.astral.sh/uv/",
         "folder": "uv",
@@ -2347,11 +2283,9 @@ scrape_documentation = {
 }
 
 class CustomButtonStyles:
-    # Base colors
     LIGHT_GREY = "#C8C8C8"
     DISABLED_TEXT = "#969696"
     
-    # Color definitions with their hover/pressed/disabled variations
     COLORS = {
         "RED": {
             "base": "#320A0A",

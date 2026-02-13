@@ -26,9 +26,9 @@ from transformers import (
     AutoModelForImageTextToText
 )
 from langchain_community.docstore.document import Document
-from extract_metadata import extract_image_metadata
-from utilities import my_cprint, has_bfloat16_support, set_cuda_paths
-from constants import VISION_MODELS
+from core.extract_metadata import extract_typed_metadata
+from core.utilities import my_cprint, has_bfloat16_support, set_cuda_paths
+from core.constants import VISION_MODELS, PROJECT_ROOT
 
 set_cuda_paths()
 
@@ -36,7 +36,7 @@ warnings.filterwarnings("ignore", message=".*Torch was not compiled with flash a
 
 ALLOWED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff']
 
-current_directory = Path(__file__).parent
+current_directory = PROJECT_ROOT
 CACHE_DIR = current_directory / "models" / "vision"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -49,9 +49,6 @@ def get_best_device():
     return 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def check_for_images(image_dir: Path) -> bool:
-    """
-    Return True if least one file whose suffix is in ALLOWED_EXTENSIONS. Uses os.listdir to avoid Windows pathlib race conditions.
-    """
     try:
         filenames = os.listdir(str(image_dir))
         return any(Path(f).suffix.lower() in ALLOWED_EXTENSIONS for f in filenames)
@@ -70,7 +67,6 @@ def run_loader_in_process(loader_func):
 
 
 def choose_image_loader(model_config: dict | None = None):
-    # 1) Get model_config either from caller or from config.yaml
     if model_config is None:
         cfg_path = Path('config.yaml')
         if not cfg_path.exists():
@@ -83,16 +79,14 @@ def choose_image_loader(model_config: dict | None = None):
     if not chosen_model:
         raise ValueError("vision.chosen_model missing in config/model_config")
 
-    # 2) Look up loader name from constants (single source of truth)
     if chosen_model not in VISION_MODELS:
         raise KeyError(f"Unknown vision model: {chosen_model}")
     loader_name = VISION_MODELS[chosen_model]['loader']
 
-    # 3) Instantiate and run the correct loader
     loader_class = globals()[loader_name]
     loader = loader_class(model_config)
 
-    image_dir = Path(__file__).parent / "Docs_for_DB"
+    image_dir = PROJECT_ROOT / "Docs_for_DB"
     if not check_for_images(image_dir):
         return []
 
@@ -114,11 +108,20 @@ class BaseLoader:
         self.tokenizer = None
         self.processor = None
 
+    @staticmethod
+    def detect_dtype():
+        use_bf16 = torch.cuda.get_device_capability()[0] >= 8
+        return (torch.bfloat16, "bfloat16") if use_bf16 else (torch.float16, "float16")
+
+    @staticmethod
+    def normalize_response(text):
+        return ' '.join(line.strip() for line in text.split('\n') if line.strip())
+
     def initialize_model_and_tokenizer(self):
         raise NotImplementedError
 
     def process_images(self):
-        image_dir = Path(__file__).parent / "Docs_for_DB"
+        image_dir = PROJECT_ROOT / "Docs_for_DB"
         documents = []
 
         try:
@@ -135,7 +138,7 @@ class BaseLoader:
                 try:
                     with Image.open(full_path) as raw_image:
                         extracted_text = self.process_single_image(raw_image)
-                        extracted_metadata = extract_image_metadata(full_path)
+                        extracted_metadata = extract_typed_metadata(full_path, "image")
                         documents.append(Document(page_content=extracted_text, metadata=extracted_metadata))
                         progress_bar.update(1)
                 except Exception as e:
@@ -158,9 +161,7 @@ class loader_internvl(BaseLoader):
         cache_dir.mkdir(parents=True, exist_ok=True)
         
         if self.device == "cuda":
-            use_bf16 = torch.cuda.get_device_capability()[0] >= 8
-            dtype = torch.bfloat16 if use_bf16 else torch.float16
-            precision_str = "bfloat16" if use_bf16 else "float16"
+            dtype, precision_str = self.detect_dtype()
 
             quant_config = BitsAndBytesConfig(
                 load_in_4bit=True,
@@ -186,7 +187,6 @@ class loader_internvl(BaseLoader):
             ).eval()
             device_str = "CUDA"
         else:
-            # CPU fallback
             dtype = torch.float32
             precision_str = "float32"
             model = AutoModel.from_pretrained(
@@ -281,13 +281,10 @@ class loader_internvl(BaseLoader):
         }
         resp = self.model.chat(self.tokenizer, pv, question, gen_cfg)
 
-        return ' '.join(line.strip() for line in resp.split('\n') if line.strip())
+        return self.normalize_response(resp)
 
 
 class loader_granite(BaseLoader):
-    """
-    Loader for Granite Vision (3.2-2B) with runtime overrides for `image_grid_pinpoints` to control VRAM usage.
-    """
 
     def initialize_model_and_tokenizer(self):
         chosen_model = self.config['vision']['chosen_model']
@@ -303,10 +300,8 @@ class loader_granite(BaseLoader):
             token=False
         )
 
-        # 1) Low
         low_tiling_pinpoints = [[384, 384], [768, 384], [384, 768]]
 
-        # 2) Medium
         medium_tiling_pinpoints = [
             [384, 384],
             [384, 768],
@@ -318,7 +313,6 @@ class loader_granite(BaseLoader):
             [1536, 384],
         ]
 
-        # High
         high_tiling_pinpoints = [
             [384, 384],
             [384, 768],
@@ -336,7 +330,6 @@ class loader_granite(BaseLoader):
             [2304, 384],
         ]
 
-        # 3) All (default from model JSON)
         all_tiling_pinpoints = [
             [384, 384], [384, 768], [384, 1152], [384, 1536],
             [384, 1920], [384, 2304], [384, 2688], [384, 3072],
@@ -348,13 +341,8 @@ class loader_granite(BaseLoader):
             [2304, 384], [2688, 384], [3072, 384], [3456, 384], [3840, 384]
         ]
 
-        # Pick a tiling pinpoint preset
-        # custom_pinpoints = low_tiling_pinpoints
         custom_pinpoints = medium_tiling_pinpoints
-        # custom_pinpoints = high_tiling_pinpoints
-        # custom_pinpoints = all_tiling_pinpoints
 
-        # Use custom_pinpoints during preprocessing
         try:
             processor.image_grid_pinpoints = custom_pinpoints
         except Exception:
@@ -365,9 +353,7 @@ class loader_granite(BaseLoader):
             ip.image_grid_pinpoints = custom_pinpoints
 
         if self.device == "cuda" and torch.cuda.is_available():
-            use_bf16 = torch.cuda.get_device_capability()[0] >= 8
-            dtype = torch.bfloat16 if use_bf16 else torch.float16
-            precision_str = "bfloat16" if use_bf16 else "float16"
+            dtype, precision_str = self.detect_dtype()
 
             quant_cfg = BitsAndBytesConfig(
                 load_in_4bit=True,
@@ -394,7 +380,6 @@ class loader_granite(BaseLoader):
             my_cprint(f"{chosen_model} loaded into memory on CUDA ({precision_str})", "green")
 
         else:
-            # CPU mode - no quantization
             model = AutoModelForVision2Seq.from_pretrained(
                 model_id,
                 torch_dtype=torch.float32,
@@ -405,7 +390,6 @@ class loader_granite(BaseLoader):
             )
             my_cprint(f"{chosen_model} loaded into memory on CPU (float32)", "green")
 
-        # Use custom_pinpoints during inference
         try:
             if hasattr(model, "config") and hasattr(model.config, "image_grid_pinpoints"):
                 model.config.image_grid_pinpoints = custom_pinpoints
@@ -441,7 +425,7 @@ class loader_granite(BaseLoader):
         )
 
         resp = self.processor.decode(output[0], skip_special_tokens=True).split('<|assistant|>')[-1].strip()
-        return " ".join(line.strip() for line in resp.split("\n") if line.strip())
+        return self.normalize_response(resp)
 
 
 class loader_qwenvl(BaseLoader):
@@ -453,8 +437,7 @@ class loader_qwenvl(BaseLoader):
         cache_dir = CACHE_DIR / save_dir
         cache_dir.mkdir(parents=True, exist_ok=True)
 
-        use_bf16 = torch.cuda.get_device_capability()[0] >= 8
-        dtype = torch.bfloat16 if use_bf16 else torch.float16
+        dtype, _ = self.detect_dtype()
 
         quantization_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -512,7 +495,7 @@ class loader_qwenvl(BaseLoader):
         model = model.to(self.device)
         model.eval()
 
-        precision_str = "bfloat16" if use_bf16 else "float16"
+        _, precision_str = self.detect_dtype()
         device_str = "CUDA" if self.device == "cuda" else "CPU"
         my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
 
@@ -544,20 +527,15 @@ class loader_qwenvl(BaseLoader):
         response = self.processor.decode(output[0], skip_special_tokens=True)
         response = response.split('assistant')[-1].strip()
 
-        return ' '.join(line.strip() for line in response.split('\n') if line.strip())
+        return self.normalize_response(response)
 
 
 class loader_glmv4_thinking(BaseLoader):
-    """
-    Loader for GLM-4v-thinking with a **pre-resize** pixel-budget cap to control VRAM.
-    We pre-resize the PIL image BEFORE passing it to the processor because the comments
-    within the transformers source code falsely states that longest_edge is exposed.
-    """
 
-    PIXELS_LOW     = 294_912 # ≈ 384×768
-    PIXELS_MEDIUM  = 589_824 # ≈ 768×768 or 384×1536
-    PIXELS_HIGH    = 1_179_648 # ≈ 768×1536 or 384×3072
-    PIXELS_DEFAULT = 4_816_896  # mirrors library default behavior
+    PIXELS_LOW     = 294_912
+    PIXELS_MEDIUM  = 589_824
+    PIXELS_HIGH    = 1_179_648
+    PIXELS_DEFAULT = 4_816_896
 
     def initialize_model_and_tokenizer(self):
         chosen_model = self.config['vision']['chosen_model']
@@ -575,11 +553,7 @@ class loader_glmv4_thinking(BaseLoader):
 
         processor = AutoProcessor.from_pretrained(model_id, use_fast=True, cache_dir=cache_dir)
 
-        # CHOOSE PIXEL BUDGET TIER (adjust here)
-        # self.pixel_cap = self.PIXELS_LOW
-        # self.pixel_cap = self.PIXELS_MEDIUM
         self.pixel_cap = self.PIXELS_HIGH
-        # self.pixel_cap = self.PIXELS_DEFAULT
 
         model = Glm4vForConditionalGeneration.from_pretrained(
             model_id,
@@ -602,7 +576,6 @@ class loader_glmv4_thinking(BaseLoader):
         w, h = pil_img.size
         area = w * h
 
-        # If already within budget, snap to multiples of divisor without enlarging.
         if area <= max_pixels_2d:
             new_w = max(divisor, (w // divisor) * divisor)
             new_h = max(divisor, (h // divisor) * divisor)
@@ -610,7 +583,6 @@ class loader_glmv4_thinking(BaseLoader):
                 return pil_img
             return pil_img.resize((new_w, new_h), Image.BICUBIC)
 
-        # Otherwise, scale by sqrt so area shrinks to the target budget, then snap to divisor.
         scale = (max_pixels_2d / float(area)) ** 0.5
         new_w = max(divisor, int((w * scale) // divisor * divisor))
         new_h = max(divisor, int((h * scale) // divisor * divisor))
@@ -678,9 +650,7 @@ class loader_liquidvl(BaseLoader):
         cache_dir.mkdir(parents=True, exist_ok=True)
 
         if torch.cuda.is_available():
-            use_bf16 = torch.cuda.get_device_capability()[0] >= 8
-            dtype = torch.bfloat16 if use_bf16 else torch.float16
-            precision_str = "bfloat16" if use_bf16 else "float16"
+            dtype, precision_str = self.detect_dtype()
             device_map = "auto"
         else:
             dtype = torch.float32
@@ -755,4 +725,4 @@ class loader_liquidvl(BaseLoader):
 
         new_tokens = outputs[:, input_len:]
         text = self.processor.batch_decode(new_tokens, skip_special_tokens=True)[0].strip()
-        return " ".join(line.strip() for line in text.split("\n") if line.strip())
+        return self.normalize_response(text)

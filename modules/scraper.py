@@ -32,92 +32,43 @@ class BaseScraper:
         return None
 
 
-class HuggingfaceScraper(BaseScraper):
+SCRAPER_SELECTORS = {
+    "HuggingfaceScraper": ("div", {"class_": "prose-doc prose relative mx-auto max-w-4xl break-words"}),
+    "ReadthedocsScraper": ("div", {"class_": "rst-content"}),
+    "PyTorchScraper": ("article", {"id": "pytorch-article", "class_": "pytorch-article", "attrs": {"itemprop": "articleBody"}}),
+    "TileDBScraper": ("main", {"id": "content"}),
+    "RstContentScraper": ("div", {"class_": "rst-content"}),
+    "FuroThemeScraper": ("article", {"id": "furo-main-content"}),
+    "PydataThemeScraper": ("article", {"class_": "bd-article"}),
+    "FastcoreScraper": ("main", {"id": "quarto-document-content", "class_": "content"}),
+    "RtdThemeScraper": ("div", {"attrs": {"itemprop": "articleBody"}}),
+    "BodyRoleMainScraper": ("div", {"class_": "body", "attrs": {"role": "main"}}),
+    "ArticleMdContentInnerMdTypesetScraper": ("article", {"class_": "md-content__inner md-typeset"}),
+    "DivClassDocumentScraper": ("div", {"class_": "document"}),
+    "MainIdMainContentRoleMainScraper": ("main", {"id": "main-content", "attrs": {"role": "main"}}),
+    "DivIdMainContentRoleMainScraper": ("div", {"id": "main-content", "attrs": {"role": "main"}}),
+    "MainScraper": ("main", {}),
+    "DivClassThemeDocMarkdownMarkdownScraper": ("div", {"class_": ["theme-doc-markdown", "markdown"]}),
+    "DivClassTdContentScraper": ("div", {"class_": "td-content"}),
+    "BodyScraper": ("body", {}),
+    "ArticleRoleMainScraper": ("article", {"attrs": {"role": "main"}}),
+    "ArticleClassMainContent8zFCHScraper": ("article", {"class_": "main_content__8zFCH"}),
+}
+
+
+class SelectorScraper(BaseScraper):
+    def __init__(self, url, folder, selector_key):
+        super().__init__(url, folder)
+        tag, kwargs = SCRAPER_SELECTORS[selector_key]
+        self._tag = tag
+        kwargs = dict(kwargs)
+        attrs = kwargs.pop("attrs", None)
+        if attrs:
+            kwargs["attrs"] = attrs
+        self._kwargs = kwargs
+
     def extract_main_content(self, soup):
-        return soup.find(
-            "div",
-            class_="prose-doc prose relative mx-auto max-w-4xl break-words",
-        )
-
-
-class ReadthedocsScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("div", class_="rst-content")
-
-
-class PyTorchScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("article", id="pytorch-article", class_="pytorch-article", attrs={"itemprop": "articleBody"})
-
-
-class TileDBScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("main", {"id": "content"})
-
-
-class RstContentScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("div", class_="rst-content")
-
-
-class FuroThemeScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("article", id="furo-main-content")
-
-
-class PydataThemeScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("article", class_="bd-article")
-
-
-class FastcoreScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("main", id="quarto-document-content", class_="content")
-
-
-class RtdThemeScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("div", attrs={"itemprop": "articleBody"})
-
-
-class BodyRoleMainScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("div", class_="body", attrs={"role": "main"})
-
-
-class ArticleMdContentInnerMdTypesetScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("article", class_="md-content__inner md-typeset")
-
-
-class DivClassDocumentScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("div", class_="document")
-
-
-class MainIdMainContentRoleMainScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("main", id="main-content", attrs={"role": "main"})
-
-
-class DivIdMainContentRoleMainScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("div", id="main-content", attrs={"role": "main"})
-
-
-class MainScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("main")
-
-
-class DivClassThemeDocMarkdownMarkdownScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("div", class_=["theme-doc-markdown", "markdown"])
-
-
-class DivClassTdContentScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("div", class_="td-content")
+        return soup.find(self._tag, **self._kwargs)
 
 
 class PymupdfScraper(BaseScraper):
@@ -128,43 +79,21 @@ class PymupdfScraper(BaseScraper):
         return None
 
 
-class BodyScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("body")
-
-
-class ArticleRoleMainScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("article", attrs={"role": "main"})
-
-
 class DivIdContentSecondScraper(BaseScraper):
     def extract_main_content(self, soup):
         content_divs = soup.find_all("div", id="content")
         if len(content_divs) >= 2:
-            return content_divs[1]  # Return the second one (index 1)
+            return content_divs[1]
         return None
 
 
-class ArticleClassMainContent8zFCHScraper(BaseScraper):
-    def extract_main_content(self, soup):
-        return soup.find("article", class_="main_content__8zFCH")
+class PropCacheScraper(BaseScraper):
+    def __init__(self, url, folder):
+        super().__init__(url, folder)
 
-
-class PropCacheScraper(ReadthedocsScraper):# only one thus far that modifies the crawling behavior
-    """Special-case scraper for https://propcache.aio-libs.org/ .
-
-    The bare domain 302-redirects to /en/latest/, so we force that
-    versioned path before link extraction to keep urljoin() correct.
-    """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # If user passed the root URL, rewrite it to the docs root.
         if self.url.rstrip("/").endswith("propcache.aio-libs.org"):
             self.url = urljoin(self.url, "en/latest/")
 
-        # Always keep a trailing “/” for consistent joins.
         if not self.url.endswith("/"):
             self.url += "/"
 
@@ -175,7 +104,6 @@ class PropCacheScraper(ReadthedocsScraper):# only one thus far that modifies the
 
 
 class FileDownloader(BaseScraper):
-    """Save any non-HTML asset (e.g. YAML) exactly as delivered."""
 
     def extract_main_content(self, soup):
         return None
@@ -191,37 +119,22 @@ class FileDownloader(BaseScraper):
 
 
 class ScraperRegistry:
-    _scrapers = {
+    _special_scrapers = {
         "BaseScraper": BaseScraper,
-        "HuggingfaceScraper": HuggingfaceScraper,
-        "ReadthedocsScraper": ReadthedocsScraper,
-        "PyTorchScraper": PyTorchScraper,
-        "TileDBScraper": TileDBScraper,
-        "PropCacheScraper": PropCacheScraper,
-        "FuroThemeScraper": FuroThemeScraper,
-        "RstContentScraper": RstContentScraper,
-        "PydataThemeScraper": PydataThemeScraper,
-        "FastcoreScraper": FastcoreScraper,
-        "RtdThemeScraper": RtdThemeScraper,
-        "BodyRoleMainScraper": BodyRoleMainScraper,
-        "ArticleMdContentInnerMdTypesetScraper": ArticleMdContentInnerMdTypesetScraper,
-        "DivClassDocumentScraper": DivClassDocumentScraper,
-        "MainIdMainContentRoleMainScraper": MainIdMainContentRoleMainScraper,
-        "DivIdMainContentRoleMainScraper": DivIdMainContentRoleMainScraper,
-        "MainScraper": MainScraper,
-        "DivClassThemeDocMarkdownMarkdownScraper": DivClassThemeDocMarkdownMarkdownScraper,
-        "DivClassTdContentScraper": DivClassTdContentScraper,
         "PymupdfScraper": PymupdfScraper,
-        "BodyScraper": BodyScraper,
-        "ArticleRoleMainScraper": ArticleRoleMainScraper,
         "DivIdContentSecondScraper": DivIdContentSecondScraper,
-        "ArticleClassMainContent8zFCHScraper": ArticleClassMainContent8zFCHScraper,
+        "PropCacheScraper": PropCacheScraper,
         "FileDownloader": FileDownloader,
     }
 
     @classmethod
     def get_scraper(cls, scraper_name):
-        return cls._scrapers.get(scraper_name, BaseScraper)
+        if scraper_name in cls._special_scrapers:
+            return cls._special_scrapers[scraper_name]
+        if scraper_name in SCRAPER_SELECTORS:
+            key = scraper_name
+            return lambda url, folder: SelectorScraper(url, folder, key)
+        return BaseScraper
 
 
 class ScraperWorker(QObject):
@@ -335,7 +248,6 @@ class ScraperWorker(QObject):
         async with semaphore:
             for attempt in range(1, retries + 1):
                 try:
-                    # Add timeout to prevent hanging
                     timeout = aiohttp.ClientTimeout(total=30)
                     async with session.get(url, headers=headers, timeout=timeout) as response:
                         if response.status == 200:
@@ -511,7 +423,6 @@ class ScraperWorker(QObject):
         if strip_www(parsed.netloc) != strip_www(base_domain):
             return False
 
-        # Allow either “…/scipy-<version>” *or* “…/scipy/”
         if acceptable_domain_extension:
             base_no_version = acceptable_domain_extension.rsplit('-', 1)[0]
             return (

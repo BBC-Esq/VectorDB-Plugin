@@ -10,12 +10,12 @@ from langchain_community.docstore.document import Document
 
 import whisper_s2t
 from whisper_s2t.backends.ctranslate2.hf_utils import download_model
-from extract_metadata import extract_audio_metadata
-from constants import WHISPER_MODELS
+from core.extract_metadata import extract_typed_metadata
+from core.constants import WHISPER_MODELS, PROJECT_ROOT
 
 warnings.filterwarnings("ignore")
 
-current_directory = Path(__file__).parent
+current_directory = PROJECT_ROOT
 CACHE_DIR = current_directory / "Models" / "whisper"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -27,7 +27,7 @@ class WhisperTranscriber:
         self.batch_size = batch_size
         self.cache_dir = str(CACHE_DIR)
 
-        script_dir = Path(__file__).parent
+        script_dir = PROJECT_ROOT
         self.model_dir = script_dir / "Models" / "whisper"
         self.model_dir.mkdir(parents=True, exist_ok=True)
         
@@ -115,7 +115,7 @@ class WhisperTranscriber:
         else:
             print("FFmpeg not detected. Pre-processing with the av library then sending to WhisperS2T for transcription.")
             output_file = f"{Path(audio_file).stem}_temp_converted.wav"
-            output_path = Path(__file__).parent / output_file
+            output_path = PROJECT_ROOT / output_file
             return self.convert_with_av(audio_file, output_path)
 
     def is_correct_format(self, audio_file):
@@ -168,16 +168,12 @@ class WhisperTranscriber:
         return transcription
 
     def create_document_object(self, transcription_text, audio_file_path):
-        metadata = extract_audio_metadata(audio_file_path)
+        metadata = extract_typed_metadata(audio_file_path, "audio")
 
-        # DEBUG 
-        # print("Metadata attributes/fields:")
-        # for key, value in metadata.items():
-            # print(f"{key}: {value}")
 
         doc = Document(page_content=transcription_text, metadata=metadata)
         
-        script_dir = Path(__file__).parent
+        script_dir = PROJECT_ROOT
         docs_dir = script_dir / "Docs_for_DB"
         docs_dir.mkdir(exist_ok=True)
         

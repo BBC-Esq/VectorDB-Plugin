@@ -7,6 +7,8 @@ import torch
 import yaml
 import ctranslate2
 
+from core.constants import PROJECT_ROOT
+
 
 def get_compute_device_info():
     available_devices = ["cpu"]
@@ -104,7 +106,7 @@ def restore_vector_db_backup():
 
 
 def delete_chat_history():
-    chat_history_path = Path(__file__).resolve().parent / 'chat_history.txt'
+    chat_history_path = PROJECT_ROOT / 'chat_history.txt'
     chat_history_path.unlink(missing_ok=True)
 
 
@@ -114,7 +116,6 @@ def main():
     update_config_file(Compute_Device=compute_device_info, Platform_Info=platform_info)
     check_for_necessary_folders()
     delete_chat_history()
-    # restore_vector_db_backup()
 
 if __name__ == "__main__":
     main()

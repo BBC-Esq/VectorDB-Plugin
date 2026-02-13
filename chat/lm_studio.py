@@ -1,37 +1,19 @@
-import gc
 import logging
 
 import requests
-from pathlib import Path
-import torch
-import yaml
 from openai import OpenAI
-from PySide6.QtCore import QThread, Signal, QObject
+from PySide6.QtCore import QThread
 
-from database_interactions import QueryVectorDB
-from utilities import format_citations, normalize_chat_text
-from constants import system_message, rag_string, THINKING_TAGS
-
-ROOT_DIRECTORY = Path(__file__).resolve().parent
-
-contexts_output_file_path = ROOT_DIRECTORY / "contexts.txt"
-metadata_output_file_path = ROOT_DIRECTORY / "metadata.txt"
-
-class LMStudioSignals(QObject):
-    response_signal = Signal(str)
-    error_signal = Signal(str)
-    finished_signal = Signal()
-    citations_signal = Signal(str)
+from db.database_interactions import QueryVectorDB
+from chat.base import ChatSignals, load_chat_config, save_metadata, build_augmented_query, write_chat_history, cleanup_gpu
+from core.utilities import format_citations
+from core.constants import system_message, THINKING_TAGS
 
 class LMStudioChat:
     def __init__(self):
-        self.signals = LMStudioSignals()
-        self.config = self.load_configuration()
+        self.signals = ChatSignals()
+        self.config = load_chat_config()
         self.query_vector_db = None
-
-    def load_configuration(self):
-        with open('config.yaml', 'r') as config_file:
-            return yaml.safe_load(config_file)
 
     def connect_to_local_chatgpt(self, prompt):
         server_config = self.config.get('server', {})
@@ -58,7 +40,6 @@ class LMStudioChat:
 
                 if not show_thinking:
                     skip_chunk = False
-                    # Check each pair of thinking tags
                     for start_tag, end_tag in THINKING_TAGS.values():
                         if start_tag in content:
                             in_thinking_block = True
@@ -81,46 +62,32 @@ class LMStudioChat:
 
     def handle_response_and_cleanup(self, full_response, metadata_list):
         citations = format_citations(metadata_list)
-        
         if self.query_vector_db:
             self.query_vector_db.cleanup()
-
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        gc.collect()
-        
+        cleanup_gpu()
         return citations
-
-    def save_metadata_to_file(self, metadata_list):
-        with metadata_output_file_path.open('w', encoding='utf-8') as output_file:
-            for metadata in metadata_list:
-                output_file.write(f"{metadata}\n")
 
     def ask_local_chatgpt(self, query, selected_database):
         if self.query_vector_db is None or self.query_vector_db.selected_database != selected_database:
             self.query_vector_db = QueryVectorDB.get_instance(selected_database)
 
         contexts, metadata_list = self.query_vector_db.search(query)
-
-        self.save_metadata_to_file(metadata_list)
+        save_metadata(metadata_list)
 
         if not contexts:
             self.signals.error_signal.emit("No relevant contexts found.")
             self.signals.finished_signal.emit()
             return
 
-        augmented_query = f"{rag_string}\n\n---\n\n" + "\n\n---\n\n".join(contexts) + f"\n\n-----\n\n{query}"
-        
+        augmented_query = build_augmented_query(contexts, query)
+
         full_response = ""
         response_generator = self.connect_to_local_chatgpt(augmented_query)
         for response_chunk in response_generator:
             self.signals.response_signal.emit(response_chunk)
             full_response += response_chunk
 
-        with open('chat_history.txt', 'w', encoding='utf-8') as f:
-            normalized_response = normalize_chat_text(full_response)
-            f.write(normalized_response)
-
+        write_chat_history(full_response)
         self.signals.response_signal.emit("\n")
 
         citations = self.handle_response_and_cleanup(full_response, metadata_list)

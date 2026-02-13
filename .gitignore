@@ -1,0 +1,39 @@
+# Virtual environment
+Lib/
+Scripts/
+Include/
+pyvenv.cfg
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Models (large binary files)
+Models/
+
+# User data
+Vector_DB/
+Vector_DB_Backup/
+Docs_for_DB/
+Scraped_Documentation/
+charts/
+
+# Test files
+TEST - FILES/
+
+# Build artifacts
+*.egg-info/
+
+# Config (contains user API keys)
+config.yaml
+
+# Share (installed by tessdata pip packages)
+share/
+
+# Misc
+ffmpeg.exe
+push_to_github.ps1
+metadata.txt
+chat_history.txt
+*.log

@@ -1,29 +1,11 @@
-# chat_openai.py
-import gc
 import logging
-from pathlib import Path
-import os
-import torch
-import yaml
 from openai import OpenAI
-from PySide6.QtCore import QThread, Signal, QObject
+from PySide6.QtCore import QThread, Signal
 
-from database_interactions import QueryVectorDB
-from utilities import format_citations, normalize_chat_text
-from constants import rag_string, system_message
-
-ROOT_DIRECTORY = Path(__file__).resolve().parent
-
-contexts_output_file_path = ROOT_DIRECTORY / "contexts.txt"
-metadata_output_file_path = ROOT_DIRECTORY / "metadata.txt"
-chat_history_output_file_path = ROOT_DIRECTORY / "chat_history.txt"
-
-
-class ChatGPTSignals(QObject):
-    response_signal = Signal(str)
-    error_signal = Signal(str)
-    finished_signal = Signal()
-    citations_signal = Signal(str)
+from db.database_interactions import QueryVectorDB
+from chat.base import load_chat_config, save_metadata, build_augmented_query, write_chat_history, cleanup_gpu
+from core.utilities import format_citations
+from core.constants import system_message, PROJECT_ROOT
 
 
 class ChatGPTChat:
@@ -32,15 +14,10 @@ class ChatGPTChat:
         self.error_callback = lambda x: None
         self.finished_callback = lambda: None
         self.citations_callback = lambda x: None
-        self.config = self.load_configuration()
+        self.config = load_chat_config()
         if override_model:
             self.config.setdefault('openai', {})['model'] = override_model
         self.query_vector_db = None
-
-    def load_configuration(self):
-        config_path = ROOT_DIRECTORY / 'config.yaml'
-        with config_path.open('r', encoding='utf-8') as config_file:
-            return yaml.safe_load(config_file)
 
     def connect_to_chatgpt(self, augmented_query):
         openai_config = self.config.get('openai', {})
@@ -79,8 +56,6 @@ class ChatGPTChat:
             "stream": True
         }
 
-        # only for thinking models
-        # see here before implementing: https://platform.openai.com/docs/guides/reasoning
         if model in ["o4-mini", "o3", "o3-pro"]:
             completion_params["reasoning_effort"] = reasoning_effort
 
@@ -98,31 +73,22 @@ class ChatGPTChat:
                 del self.query_vector_db.embeddings.client
             del self.query_vector_db.embeddings
 
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        gc.collect()
-
+        cleanup_gpu()
         return citations
-
-    def save_metadata_to_file(self, metadata_list):
-        with metadata_output_file_path.open('w', encoding='utf-8') as output_file:
-            for metadata in metadata_list:
-                output_file.write(f"{metadata}\n")
 
     def ask_chatgpt(self, query, selected_database):
         if self.query_vector_db is None or self.query_vector_db.selected_database != selected_database:
             self.query_vector_db = QueryVectorDB.get_instance(selected_database)
 
         contexts, metadata_list = self.query_vector_db.search(query)
+        save_metadata(metadata_list)
 
-        self.save_metadata_to_file(metadata_list)
-        
         if not contexts:
             self.error_callback("No relevant contexts found.")
             self.finished_callback()
             return
 
-        augmented_query = f"{rag_string}\n\n---\n\n" + "\n\n---\n\n".join(contexts) + f"\n\n-----\n\n{query}"
+        augmented_query = build_augmented_query(contexts, query)
 
         full_response = ""
         response_generator = self.connect_to_chatgpt(augmented_query)
@@ -130,10 +96,7 @@ class ChatGPTChat:
             self.response_callback(response_chunk)
             full_response += response_chunk
 
-        with chat_history_output_file_path.open('w', encoding='utf-8') as f:
-            normalized_response = normalize_chat_text(full_response)
-            f.write(normalized_response)
-
+        write_chat_history(full_response)
         self.response_callback("\n")
 
         citations = self.handle_response_and_cleanup(full_response, metadata_list)

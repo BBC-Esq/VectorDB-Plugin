@@ -15,18 +15,6 @@ def _create_single_symlink(args):
 
 def create_symlinks_parallel(source: Union[str, Path, List[str], List[Path]], 
                            target_dir: Union[str, Path] = "Docs_for_DB") -> Tuple[int, list]:
-    """
-    Create symbolic links using multiprocessing if the number of files exceeds 500.
-
-    Args:
-        source: Can be either:
-            - str or Path: Path to the source directory
-            - List[str] or List[Path]: List of file paths
-        target_dir: Path to the directory to store symlinks (default: 'Docs_for_DB')
-
-    Returns:
-        tuple: (number of links created, list of errors)
-    """
     target_dir = Path(target_dir)
     if not target_dir.exists():
         print(f"Target directory does not exist: {target_dir}")
@@ -47,11 +35,8 @@ def create_symlinks_parallel(source: Union[str, Path, List[str], List[Path]],
 
         file_count = len(files)
         if file_count <= 1000:
-            # For 1000 or fewer files, don't use multiprocessing
             results = [_create_single_symlink(file) for file in files]
         else:
-            # For 501-10000 files, use single process
-            # For >10000 files, scale up processes
             if file_count <= 10000:
                 processes = 1
             else:
