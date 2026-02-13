@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
 )
 
-from constants import TOOLTIPS
+from core.constants import TOOLTIPS
 
 
 class ServerSettingsTab(QWidget):

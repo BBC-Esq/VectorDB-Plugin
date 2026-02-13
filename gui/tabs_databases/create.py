@@ -8,11 +8,11 @@ from PySide6.QtCore import QDir, QRegularExpression, QThread, QTimer, Qt, Signal
 from PySide6.QtGui import QAction, QRegularExpressionValidator
 from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QTreeView, QFileSystemModel, QMenu, QGroupBox, QLineEdit, QGridLayout, QSizePolicy, QComboBox
 
-from database_interactions import create_vector_db_in_process
-from choose_documents_and_vector_model import choose_documents_directory
-from utilities import check_preconditions_for_db_creation, open_file, delete_file, backup_database_incremental, my_cprint
-from download_model import model_downloaded_signal
-from constants import TOOLTIPS
+from db.database_interactions import create_vector_db_in_process
+from db.choose_documents import choose_documents_directory
+from core.utilities import check_preconditions_for_db_creation, open_file, delete_file, backup_database, my_cprint
+from gui.download_model import model_downloaded_signal
+from core.constants import TOOLTIPS, PROJECT_ROOT
 
 
 class CreateDatabaseProcess:
@@ -108,7 +108,7 @@ class DatabasesTab(QWidget):
     def populate_model_combobox(self):
         self.model_combobox.clear()
         self.model_combobox.addItem("Select a model", None)
-        script_dir = Path(__file__).resolve().parent
+        script_dir = PROJECT_ROOT
         vector_dir = script_dir / "Models" / "vector"
         if not vector_dir.exists():
             return
@@ -119,7 +119,7 @@ class DatabasesTab(QWidget):
                 self.model_combobox.addItem(display_name, full_path)
 
     def sync_combobox_with_config(self):
-        config_path = Path(__file__).resolve().parent / "config.yaml"
+        config_path = PROJECT_ROOT / "config.yaml"
         if config_path.exists():
             with open(config_path, 'r', encoding='utf-8') as file:
                 config_data = yaml.safe_load(file) or {}
@@ -137,7 +137,7 @@ class DatabasesTab(QWidget):
 
     def on_model_selected(self, index):
         selected_path = self.model_combobox.itemData(index)
-        config_path = Path(__file__).resolve().parent / "config.yaml"
+        config_path = PROJECT_ROOT / "config.yaml"
         config_data = {}
         if config_path.exists():
             with open(config_path, 'r', encoding='utf-8') as file:
@@ -181,7 +181,7 @@ class DatabasesTab(QWidget):
         model = CustomFileSystemModel()
         tree_view.setModel(model)
         tree_view.setSelectionMode(QTreeView.ExtendedSelection)
-        script_dir = Path(__file__).resolve().parent
+        script_dir = PROJECT_ROOT
         directory_path = script_dir / directory_name
         model.setRootPath(str(directory_path))
         tree_view.setRootIndex(model.index(str(directory_path)))
@@ -237,7 +237,7 @@ class DatabasesTab(QWidget):
         self.current_database_name = database_name
         self.current_model_name = model_name
 
-        docs_dir = Path(__file__).resolve().parent / "Docs_for_DB"
+        docs_dir = PROJECT_ROOT / "Docs_for_DB"
         has_pdfs = any(p.suffix.lower() == ".pdf" for p in docs_dir.iterdir() if p.is_file())
         skip_ocr = False
         if has_pdfs:
@@ -252,7 +252,7 @@ class DatabasesTab(QWidget):
 
     def start_database_creation(self, database_name, model_name, skip_ocr):
         try:
-            script_dir = Path(__file__).resolve().parent
+            script_dir = PROJECT_ROOT
             ok, msg = check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=skip_ocr)
             if not ok:
                 self._validation_failed(msg)
@@ -289,7 +289,7 @@ class DatabasesTab(QWidget):
             if exit_code == 0:
                 my_cprint(f"{self.current_model_name} removed from memory.", "red")
                 self.update_config_with_database_name()
-                backup_database_incremental(self.current_database_name)
+                backup_database(self.current_database_name)
                 QMessageBox.information(self, "Success", "Database created successfully!")
 
             else:
@@ -305,7 +305,7 @@ class DatabasesTab(QWidget):
             self.reenable_create_db_button()
 
     def update_config_with_database_name(self):
-        config_path = Path(__file__).resolve().parent / "config.yaml"
+        config_path = PROJECT_ROOT / "config.yaml"
         if config_path.exists():
             with open(config_path, 'r', encoding='utf-8') as file:
                 config = yaml.safe_load(file) or {}

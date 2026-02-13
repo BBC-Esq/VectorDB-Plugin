@@ -1,10 +1,9 @@
-# gui_tabs_settings_vision.py
 import yaml
 from pathlib import Path
 import torch
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QGridLayout, QVBoxLayout, QComboBox, QWidget
-from constants import VISION_MODELS
+from core.constants import VISION_MODELS
 
 CONFIG_FILE = "config.yaml"
 
@@ -35,15 +34,7 @@ def get_cuda_capability():
     return (0, 0)
 
 
-# ---------------------- UI Tab ----------------------
 class VisionSettingsTab(QWidget):
-    """
-    Settings UI for choosing a vision model.
-    - Populates a combobox with VISION_MODELS keys.
-    - Restores last saved selection from config.yaml (vision.chosen_model).
-    - Persists any change immediately to config.yaml so the Tools tab can read it.
-    - Updates read-only info labels for the selected model.
-    """
 
     def __init__(self):
         super().__init__()
@@ -71,7 +62,6 @@ class VisionSettingsTab(QWidget):
         label_avg = QLabel("Avg Length")
         gridLayout.addWidget(label_avg, 0, 5, Qt.AlignCenter)
 
-        # Values row (row 1)
         self.modelComboBox = QComboBox()
         self.populate_model_combobox()
         self.modelComboBox.setMinimumWidth(175)

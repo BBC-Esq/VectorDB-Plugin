@@ -1,4 +1,3 @@
-# gui_tabs_tools_vision.py
 import sys
 import textwrap
 import subprocess
@@ -18,14 +17,13 @@ from PySide6.QtWidgets import (
     QFileDialog, QProgressDialog, QDialog, QCheckBox
 )
 
-import module_process_images
-from module_process_images import choose_image_loader
-from constants import VISION_MODELS
+import modules.process_images as module_process_images
+from modules.process_images import choose_image_loader
+from core.constants import VISION_MODELS
 
 CONFIG_FILE = 'config.yaml'
 
 
-# ---------------------- config helper ----------------------
 def _load_cfg() -> dict:
     p = Path(CONFIG_FILE)
     if not p.exists():
@@ -37,7 +35,6 @@ def _load_cfg() -> dict:
         return {}
 
 
-# ---------------------- selection dialog for multi-model test ----------------------
 class ModelSelectionDialog(QDialog):
     def __init__(self, models, parent=None):
         super().__init__(parent)
@@ -67,7 +64,6 @@ class ModelSelectionDialog(QDialog):
         return [model for model, checkbox in self.checkboxes.items() if checkbox.isChecked()]
 
 
-# ---------------------- single-model (config-driven) processing ----------------------
 class ImageProcessorThread(QThread):
     finished = pyqtSignal(list)
     error = pyqtSignal(str)
@@ -79,12 +75,10 @@ class ImageProcessorThread(QThread):
                             or next(iter(VISION_MODELS.keys())))
             print(f"[Tools] Using chosen_model from config: {chosen_model}")
 
-            # Prefer passing the model selection directly if the loader chooser supports it
             documents = None
             try:
                 documents = choose_image_loader({"vision": {"chosen_model": chosen_model}})
             except TypeError:
-                # Fallback for older signatures: set a module-level override if present
                 try:
                     module_process_images.DEFAULT_VISION_MODEL_OVERRIDE = chosen_model
                     print("[Tools] Set module_process_images.DEFAULT_VISION_MODEL_OVERRIDE")
@@ -98,7 +92,6 @@ class ImageProcessorThread(QThread):
             self.error.emit(error_msg)
 
 
-# ---------------------- multi-model (explicit list) processing ----------------------
 class MultiModelProcessorThread(QThread):
     finished = pyqtSignal(list)
     error = pyqtSignal(str)
@@ -169,7 +162,6 @@ class MultiModelProcessorThread(QThread):
             self.error.emit(str(e))
 
 
-# ---------------------- tools tab UI ----------------------
 class VisionToolSettingsTab(QWidget):
     def __init__(self):
         super().__init__()
@@ -191,7 +183,6 @@ class VisionToolSettingsTab(QWidget):
         self.thread = None
         self.progress = None
 
-    # -------- single-model path (reads Settings selection) --------
     def confirmationBeforeProcessing(self):
         msgBox = QMessageBox()
         msgBox.setIcon(QMessageBox.Information)
@@ -228,7 +219,6 @@ class VisionToolSettingsTab(QWidget):
         logging.error(f"Processing error: {error_msg}")
         QMessageBox.critical(self, "Processing Error", f"An error occurred during image processing:\n\n{error_msg}")
 
-    # -------- multi-model path (explicit dialog selection) --------
     def selectSingleImage(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
@@ -272,7 +262,6 @@ class VisionToolSettingsTab(QWidget):
         if self.thread is not None and hasattr(self.thread, "cancel"):
             self.thread.cancel()
 
-    # ---------------------- common helpers ----------------------
     def onMultiModelProcessingFinished(self, results):
         if self.progress:
             self.progress.close()

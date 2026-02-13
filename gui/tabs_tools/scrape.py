@@ -15,8 +15,8 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 
-from module_scraper import ScraperRegistry, ScraperWorker
-from constants import scrape_documentation
+from modules.scraper import ScraperRegistry, ScraperWorker
+from core.constants import scrape_documentation
 
 
 class ScrapeDocumentationTab(QWidget):
@@ -185,7 +185,7 @@ class ScrapeDocumentationTab(QWidget):
             system = platform.system()
             if system == "Windows":
                 os.startfile(self.current_folder)
-            elif system == "Darwin":          # macOS
+            elif system == "Darwin":
                 subprocess.Popen(["open", self.current_folder])
-            else:                             # Linux / BSD
+            else:
                 subprocess.Popen(["xdg-open", self.current_folder])

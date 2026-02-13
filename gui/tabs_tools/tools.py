@@ -1,12 +1,12 @@
 from PySide6.QtWidgets import QVBoxLayout, QGroupBox, QWidget
 from PySide6.QtCore import QThread, Signal
-from gui_tabs_tools_transcribe import TranscriberToolSettingsTab
-from gui_tabs_tools_vision import VisionToolSettingsTab
-from gui_tabs_tools_scrape import ScrapeDocumentationTab
-from gui_tabs_tools_ocr import OCRToolSettingsTab
-from gui_tabs_tools_misc import MiscTab
-from initialize import restore_vector_db_backup
-from utilities import backup_database
+from gui.tabs_tools.transcribe import TranscriberToolSettingsTab
+from gui.tabs_tools.vision import VisionToolSettingsTab
+from gui.tabs_tools.scrape import ScrapeDocumentationTab
+from gui.tabs_tools.ocr import OCRToolSettingsTab
+from gui.tabs_tools.misc import MiscTab
+from core.initialize import restore_vector_db_backup
+from core.utilities import backup_database
 
 class RestoreBackupThread(QThread):
     finished = Signal(bool)

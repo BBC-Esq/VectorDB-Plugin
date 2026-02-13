@@ -10,7 +10,8 @@ from PySide6.QtWidgets import (
     QGroupBox, QLabel, QComboBox, QMessageBox, QHeaderView
 )
 
-from utilities import open_file
+from core.utilities import open_file
+from core.constants import PROJECT_ROOT
 
 
 class SQLiteTableModel(QAbstractTableModel):
@@ -68,7 +69,7 @@ class RefreshingComboBox(QComboBox):
 class ManageDatabasesTab(QWidget):
     def __init__(self):
         super().__init__()
-        self.config_path = Path(__file__).resolve().parent / "config.yaml"
+        self.config_path = PROJECT_ROOT / "config.yaml"
         self.created_databases = self.load_created_databases()
 
         self.layout = QVBoxLayout(self)
@@ -130,7 +131,7 @@ class ManageDatabasesTab(QWidget):
 
         if selected_database:
             self.documents_group_box.show()
-            db_path = Path(__file__).resolve().parent / "Vector_DB" / selected_database / "metadata.db"
+            db_path = PROJECT_ROOT / "Vector_DB" / selected_database / "metadata.db"
             if db_path.exists():
                 try:
                     conn = sqlite3.connect(str(db_path))
@@ -214,7 +215,7 @@ class ManageDatabasesTab(QWidget):
                     with open(self.config_path, 'w', encoding='utf-8') as file:
                         yaml.safe_dump(config, file)
 
-                    base_dir = Path(__file__).resolve().parent
+                    base_dir = PROJECT_ROOT
                     deletion_failed = False
                     for folder_name in ["Vector_DB", "Vector_DB_Backup"]:
                         dir_path = base_dir / folder_name / selected_database
@@ -264,6 +265,4 @@ class ManageDatabasesTab(QWidget):
         context_menu.exec_(self.table_view.viewport().mapToGlobal(position))
 
     def delete_selected_file(self):
-        # Placeholder function for delete functionality
         print("Delete file functionality will be implemented here.")
-        # TODO: Implement actual file deletion logic

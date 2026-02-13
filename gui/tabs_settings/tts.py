@@ -1,15 +1,13 @@
-# gui_tabs_settings_tts.py
 import yaml
 from pathlib import Path
 from PySide6.QtWidgets import (
     QLabel, QComboBox, QWidget, QGridLayout, QMessageBox, QHBoxLayout
 )
 
-from constants import WHISPER_SPEECH_MODELS
+from core.constants import WHISPER_SPEECH_MODELS
 
 
 class TTSSettingsTab(QWidget):
-    # 1. Describe every backend (easy to extend later)
     BACKENDS = {
         "bark": {
             "label": "Bark (GPU)",
@@ -78,7 +76,6 @@ class TTSSettingsTab(QWidget):
         },
     }
 
-    # 2. Qt-setup
     def __init__(self):
         super().__init__()
         self.widgets_for_backend: dict[str, dict[str, QWidget]] = {}
@@ -119,20 +116,17 @@ class TTSSettingsTab(QWidget):
 
         self.backend_combo.currentIndexChanged.connect(self._update_visible_extras)
 
-    # 3. YAML helpers
     def _config_path(self) -> Path:
         return Path("config.yaml")
 
     def _load_from_yaml(self):
         cfg = self._try_read_yaml()
 
-        # backend
         tts_cfg = cfg.get("tts", {}) if cfg else {}
         backend = tts_cfg.get("model", "whisperspeech")
         idx = self.backend_combo.findData(backend)
         self.backend_combo.setCurrentIndex(idx if idx != -1 else 0)
 
-        # Bark
         bark_cfg = cfg.get("bark", {}) if cfg else {}
         for (lbl, cmb) in self.widgets_for_backend["bark"].values():
             if cmb.objectName() == "size":
@@ -140,7 +134,6 @@ class TTSSettingsTab(QWidget):
             else:
                 cmb.setCurrentText(bark_cfg.get("speaker", "v2/en_speaker_6"))
 
-        # WhisperSpeech
         if tts_cfg.get("model") == "whisperspeech":
             self.widgets_for_backend["whisperspeech"]["s2a"][1].setCurrentText(
                 self._find_key_by_value(
@@ -153,7 +146,6 @@ class TTSSettingsTab(QWidget):
                 )
             )
 
-        # Kyutai
         kyutai_cfg = cfg.get("kyutai", {}) if cfg else {}
         for extra_key, (lbl, cmb) in self.widgets_for_backend["kyutai"].items():
             if extra_key == "quality":
@@ -208,7 +200,6 @@ class TTSSettingsTab(QWidget):
         with self._config_path().open("w") as f:
             yaml.dump(cfg, f, sort_keys=False)
 
-    # 4. Helpers
     def _try_read_yaml(self):
         try:
             with self._config_path().open() as f:

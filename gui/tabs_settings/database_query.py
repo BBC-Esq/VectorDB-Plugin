@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 
-from constants import TOOLTIPS
+from core.constants import TOOLTIPS
 
 
 class DatabaseSettingsTab(QWidget):
@@ -43,7 +43,6 @@ class DatabaseSettingsTab(QWidget):
         self.field_data = {}
         self.label_data = {}
 
-        # Device Selection
         self.query_device_label = QLabel(f"Device: {self.database_query_device}")
         self.query_device_combo = QComboBox()
         self.query_device_combo.addItems(self.compute_device_options)
@@ -55,7 +54,6 @@ class DatabaseSettingsTab(QWidget):
         grid_layout.addWidget(self.query_device_label, 0, 0)
         grid_layout.addWidget(self.query_device_combo, 0, 1)
 
-        # Similarity Settings
         similarity_value = self.database_config.get("similarity", "")
         self.similarity_edit = QLineEdit()
         self.similarity_edit.setPlaceholderText("Similarity (0.0 - 1.0)...")
@@ -70,7 +68,6 @@ class DatabaseSettingsTab(QWidget):
         self.field_data["similarity"] = self.similarity_edit
         self.label_data["similarity"] = self.similarity_label
 
-        # Contexts Settings
         contexts_value = self.database_config.get("contexts", "")
         self.contexts_edit = QLineEdit()
         self.contexts_edit.setPlaceholderText("# Contexts to return...")
@@ -85,7 +82,6 @@ class DatabaseSettingsTab(QWidget):
         self.field_data["contexts"] = self.contexts_edit
         self.label_data["contexts"] = self.contexts_label
 
-        # Search Term Filter
         self.search_term_edit = QLineEdit()
         self.search_term_edit.setPlaceholderText("Term to exclude...")
         self.search_term_edit.setText(self.search_term)
@@ -98,7 +94,6 @@ class DatabaseSettingsTab(QWidget):
         grid_layout.addWidget(self.search_term_edit, 2, 1)
         grid_layout.addWidget(self.filter_button, 2, 2)
 
-        # File Type Filter
         self.file_type_combo = QComboBox()
         file_type_items = ["All Files", "Images Only", "Documents Only", "Audio Only"]
         self.file_type_combo.addItems(file_type_items)
@@ -220,7 +215,6 @@ class DatabaseSettingsTab(QWidget):
                 )
                 return False
 
-            # refresh in-memory + labels
             if device_changed:
                 self.database_query_device = new_query_device
                 self.query_device_label.setText(f"Device: {new_query_device}")

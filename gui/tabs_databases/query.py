@@ -1,4 +1,3 @@
-# gui_tabs_database_query.py
 import logging
 from pathlib import Path
 import multiprocessing
@@ -13,21 +12,20 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QTextEdit, QPushButton, QCh
                                QApplication, QComboBox, QLabel, QTextBrowser, QProgressBar, QSizePolicy)
 
 from abc import ABC, abstractmethod
-from chat_lm_studio import LMStudioChatThread
-from chat_local_model import LocalModelChat
-from chat_openai import ChatGPTThread
-from chat_kobold import KoboldThread
-from constants import CHAT_MODELS
-from module_voice_recorder import VoiceRecorder
-from utilities import check_preconditions_for_submit_question, my_cprint
-from constants import TOOLTIPS
-from database_interactions import process_chunks_only_query
+from chat.lm_studio import LMStudioChatThread
+from chat.local_model import LocalModelChat
+from chat.openai import ChatGPTThread
+from chat.kobold import KoboldThread
+from core.constants import CHAT_MODELS
+from modules.voice_recorder import VoiceRecorder
+from core.utilities import check_preconditions_for_submit_question, my_cprint
+from core.constants import TOOLTIPS, PROJECT_ROOT
+from db.database_interactions import process_chunks_only_query
 
-current_dir = Path(__file__).resolve().parent
+current_dir = PROJECT_ROOT
 input_text_file = str(current_dir / 'chat_history.txt')
 
 class SubmitStrategy(ABC):
-    """Interface every model-backend strategy must implement."""
     def __init__(self, tab):
         self.tab = tab
 
@@ -133,7 +131,7 @@ class ChunksOnlyThread(QThread):
 
 
 def run_tts_in_process(config_path, input_text_file):
-    from module_tts import run_tts
+    from modules.tts import run_tts
     run_tts(config_path, input_text_file)
     my_cprint("TTS models removed from memory.", "red")
 
@@ -172,7 +170,7 @@ class CustomTextBrowser(QTextBrowser):
 class DatabaseQueryTab(QWidget):
     def __init__(self):
         super(DatabaseQueryTab, self).__init__()
-        self.config_path = Path(__file__).resolve().parent / 'config.yaml'
+        self.config_path = PROJECT_ROOT / 'config.yaml'
         self.lm_studio_chat_thread = None
         self.local_model_chat = LocalModelChat()
         self.chatgpt_thread = None
@@ -187,10 +185,8 @@ class DatabaseQueryTab(QWidget):
         self.setup_signals()
 
     def initWidgets(self):
-        # 1) Main vertical layout
         layout = QVBoxLayout(self)
 
-        # 2) Response browser + token count
         self.response_widget = CustomTextBrowser()
         self.response_widget.setOpenExternalLinks(True)
         layout.addWidget(self.response_widget, 5)
@@ -198,7 +194,6 @@ class DatabaseQueryTab(QWidget):
         self.token_count_label = QLabel("")
         layout.addWidget(self.token_count_label)
 
-        # 3) Thinking… label + busy indicator
         self.thinking_indicator = ThinkingIndicator()
         self.thinking_label = QLabel("Thinking…")
         self.thinking_label.setAlignment(Qt.AlignLeft)
@@ -212,7 +207,6 @@ class DatabaseQueryTab(QWidget):
         self.thinking_indicator.hide()
         layout.addLayout(indicator_layout)
 
-        # 4) First row: database and model selection
         hbox1_layout = QHBoxLayout()
 
         self.database_pulldown = RefreshingComboBox(self)
@@ -273,12 +267,10 @@ class DatabaseQueryTab(QWidget):
 
         layout.addLayout(hbox1_layout)
 
-        # 5) Question input
         self.text_input = QTextEdit()
         self.text_input.setToolTip(TOOLTIPS["QUESTION_INPUT"])
         layout.addWidget(self.text_input, 1)
 
-        # 6) Second row: action buttons
         hbox2_layout = QHBoxLayout()
 
         self.show_thinking_checkbox = QCheckBox("Show Thinking")
@@ -311,7 +303,6 @@ class DatabaseQueryTab(QWidget):
 
         layout.addLayout(hbox2_layout)
 
-        # 7) Voice recorder setup
         self.is_recording = False
         self.voice_recorder = VoiceRecorder(self)
 
@@ -348,11 +339,8 @@ class DatabaseQueryTab(QWidget):
             visible_text = self.raw_response
         else:
             txt = self.raw_response
-            # 1) Remove any COMPLETE <think> … </think> blocks
             txt = re.sub(r"<think>.*?</think>", "", txt, flags=re.DOTALL | re.IGNORECASE)
-            # 2) Remove any OPEN <think> that hasn't closed yet (and everything after it)
             txt = re.sub(r"<think>.*$", "", txt, flags=re.DOTALL | re.IGNORECASE)
-            # 3) Collapse multiple blank lines and trim leading space
             txt = re.sub(r"\n\s*\n", "\n", txt).lstrip()
             visible_text = txt
 
@@ -385,7 +373,7 @@ class DatabaseQueryTab(QWidget):
         return []
 
     def on_submit_button_clicked(self):
-        script_dir = Path(__file__).resolve().parent
+        script_dir = PROJECT_ROOT
         model_source = self.model_source_combo.currentText()
         if model_source == "Local Model":
             is_valid, error_message = check_preconditions_for_submit_question(script_dir)
@@ -460,7 +448,7 @@ class DatabaseQueryTab(QWidget):
             QMessageBox.warning(self, "Warning", "No response to copy.")
 
     def on_bark_button_clicked(self):
-        script_dir = Path(__file__).resolve().parent
+        script_dir = PROJECT_ROOT
         config_path = script_dir / 'config.yaml'
 
         with open(config_path, 'r', encoding='utf-8') as config_file:
@@ -473,8 +461,8 @@ class DatabaseQueryTab(QWidget):
             QMessageBox.warning(self, "Error", "The Text to Speech backend you selected requires GPU-acceleration.")
             return
 
-        from utilities import check_backend_dependencies, install_packages
-        from constants import BACKEND_DEPENDENCIES
+        from core.utilities import check_backend_dependencies, install_packages
+        from core.constants import BACKEND_DEPENDENCIES
         
         if not check_backend_dependencies(tts_model, interactive=False):
             required_packages = BACKEND_DEPENDENCIES.get(tts_model, {})
@@ -526,7 +514,6 @@ class DatabaseQueryTab(QWidget):
         )
 
     def update_response_local_model(self, chunk: str):
-        # 1) Track entering/exiting <think> blocks
         chunk_lower = chunk.lower()
         open_pos = chunk_lower.rfind("<think>")
         close_pos = chunk_lower.rfind("</think>")
@@ -534,12 +521,10 @@ class DatabaseQueryTab(QWidget):
         if open_pos != -1 or close_pos != -1:
             self.in_think_block = open_pos > close_pos
 
-        # 2) Show or hide both label and busy bar
         visible = self.in_think_block and not self.show_thinking_checkbox.isChecked()
         self.thinking_indicator.setVisible(visible)
         self.thinking_label.setVisible(visible)
 
-        # 3) Append text and refresh display
         self.raw_response += chunk
         self._render_html()
 

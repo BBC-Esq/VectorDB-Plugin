@@ -2,7 +2,7 @@ import yaml
 from PySide6.QtGui import QIntValidator
 from PySide6.QtWidgets import QWidget, QLabel, QLineEdit, QGridLayout, QComboBox, QCheckBox, QMessageBox
 
-from constants import TOOLTIPS
+from core.constants import TOOLTIPS
 
 
 class ChunkSettingsTab(QWidget):
@@ -16,7 +16,6 @@ class ChunkSettingsTab(QWidget):
 
         grid_layout = QGridLayout()
 
-        # Device selection and current setting
         self.device_label = QLabel("Device:")
         self.device_label.setToolTip(TOOLTIPS["CREATE_DEVICE_DB"])
         grid_layout.addWidget(self.device_label, 0, 0)
@@ -35,7 +34,6 @@ class ChunkSettingsTab(QWidget):
         self.current_device_label.setToolTip(TOOLTIPS["CREATE_DEVICE_DB"])
         grid_layout.addWidget(self.current_device_label, 0, 1)
 
-        # Chunk size and current setting
         self.chunk_size_label = QLabel("Chunk Size (# characters):")
         self.chunk_size_label.setToolTip(TOOLTIPS["CHUNK_SIZE"])
         grid_layout.addWidget(self.chunk_size_label, 0, 3)
@@ -51,7 +49,6 @@ class ChunkSettingsTab(QWidget):
         self.current_size_label.setToolTip(TOOLTIPS["CHUNK_SIZE"])
         grid_layout.addWidget(self.current_size_label, 0, 4)
 
-        # Chunk overlap and current setting
         self.chunk_overlap_label = QLabel("Overlap (# characters):")
         self.chunk_overlap_label.setToolTip(TOOLTIPS["CHUNK_OVERLAP"])
         grid_layout.addWidget(self.chunk_overlap_label, 0, 6)
@@ -67,7 +64,6 @@ class ChunkSettingsTab(QWidget):
         self.current_overlap_label.setToolTip(TOOLTIPS["CHUNK_OVERLAP"])
         grid_layout.addWidget(self.current_overlap_label, 0, 7)
 
-        # "Half-Precision" checkbox
         self.half_precision_label = QLabel("Half-Precision (2x speedup - GPU only):")
         self.half_precision_label.setToolTip(TOOLTIPS["HALF_PRECISION"])
         grid_layout.addWidget(self.half_precision_label, 1, 0, 1, 3)

@@ -8,11 +8,11 @@ from PySide6.QtWidgets import (
     QWidget,
     QMessageBox,
 )
-from gui_tabs_settings_server import ServerSettingsTab
-from gui_tabs_settings_database_create import ChunkSettingsTab
-from gui_tabs_settings_database_query import DatabaseSettingsTab
-from gui_tabs_settings_tts import TTSSettingsTab
-from gui_tabs_settings_vision import VisionSettingsTab
+from gui.tabs_settings.server import ServerSettingsTab
+from gui.tabs_settings.database_create import ChunkSettingsTab
+from gui.tabs_settings.database_query import DatabaseSettingsTab
+from gui.tabs_settings.tts import TTSSettingsTab
+from gui.tabs_settings.vision import VisionSettingsTab
 
 
 def update_all_configs(configs):

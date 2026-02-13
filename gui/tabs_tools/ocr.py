@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QComboBox, QFileDialog, QMessageBox
 )
 from PySide6.QtCore import QThread, Signal
-from module_ocr import process_documents
+from modules.ocr import process_documents
 
 def get_pdf_page_count(pdf_path):
     try:
@@ -41,7 +41,6 @@ class OcrWorkerThread(QThread):
         self.finished_signal.emit(*result, elapsed_time)
 
 class OCRToolSettingsTab(QWidget):
-    # Simplified to only include Tesseract
     ENGINE_MAPPING = {
         "Tesseract": "tesseract"
     }

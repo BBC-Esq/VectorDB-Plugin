@@ -1,9 +1,9 @@
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QWidget, QMessageBox, QSpinBox
 from PySide6.QtCore import QThread, Signal, QTimer
-from initialize import restore_vector_db_backup
-from utilities import backup_database
+from core.initialize import restore_vector_db_backup
+from core.utilities import backup_database
 
-from constants import CustomButtonStyles
+from core.constants import CustomButtonStyles
 
 class WorkerThread(QThread):
    finished = Signal(bool)
@@ -154,7 +154,7 @@ class MiscTab(QWidget):
        import matplotlib
        matplotlib.use('QtAgg')
        import matplotlib.pyplot as plt
-       from chart_all_gpus import create_gpu_comparison_plot
+       from charts.all_gpus import create_gpu_comparison_plot
        
        self.chart_gpus_button.setEnabled(False)
        self.set_button_text(self.chart_gpus_button, "Charting...")
@@ -180,7 +180,7 @@ class MiscTab(QWidget):
        import matplotlib
        matplotlib.use('QtAgg')
        import matplotlib.pyplot as plt
-       from chart_models_chat import create_chat_models_comparison_plot
+       from charts.models_chat import create_chat_models_comparison_plot
        
        self.chart_chat_models_button.setEnabled(False)
        self.set_button_text(self.chart_chat_models_button, "Charting...")
@@ -199,7 +199,7 @@ class MiscTab(QWidget):
        import matplotlib
        matplotlib.use('QtAgg')
        import matplotlib.pyplot as plt
-       from chart_models_vision import create_vision_models_comparison_plot
+       from charts.models_vision import create_vision_models_comparison_plot
        
        self.chart_vision_models_button.setEnabled(False)
        self.set_button_text(self.chart_vision_models_button, "Charting...")
@@ -218,7 +218,7 @@ class MiscTab(QWidget):
        import matplotlib
        matplotlib.use('QtAgg')
        import matplotlib.pyplot as plt
-       from chart_models_vector import create_vector_models_comparison_plot
+       from charts.models_vector import create_vector_models_comparison_plot
        
        self.chart_vector_models_button.setEnabled(False)
        self.set_button_text(self.chart_vector_models_button, "Charting...")
