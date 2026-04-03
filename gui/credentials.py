@@ -151,10 +151,36 @@ class OpenAICredentialManager(CredentialManager):
             self.config['openai'] = {}
         self.config['openai']['api_key'] = value
 
+class MiniMaxCredentialManager(CredentialManager):
+    @property
+    def dialog_title(self) -> str:
+        return "MiniMax API Key"
+
+    @property
+    def dialog_label(self) -> str:
+        return "Enter a new MiniMax API key or clear the current one:"
+
+    @property
+    def clear_button_text(self) -> str:
+        return "Clear Key"
+
+    @property
+    def credential_name(self) -> str:
+        return "MiniMax API key"
+
+    def get_current_credential(self) -> Optional[str]:
+        return self.config.get('minimax', {}).get('api_key')
+
+    def update_credential(self, value: Optional[str]) -> None:
+        if 'minimax' not in self.config:
+            self.config['minimax'] = {}
+        self.config['minimax']['api_key'] = value
+
 def manage_credentials(parent_widget, credential_type: str) -> None:
     managers = {
         'hf': HuggingFaceCredentialManager,
-        'openai': OpenAICredentialManager
+        'openai': OpenAICredentialManager,
+        'minimax': MiniMaxCredentialManager,
     }
     
     if manager_class := managers.get(credential_type):
