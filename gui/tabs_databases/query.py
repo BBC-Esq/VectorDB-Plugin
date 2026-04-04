@@ -15,6 +15,7 @@ from abc import ABC, abstractmethod
 from chat.lm_studio import LMStudioChatThread
 from chat.local_model import LocalModelChat
 from chat.openai import ChatGPTThread
+from chat.minimax import MiniMaxThread
 from chat.kobold import KoboldThread
 from core.constants import CHAT_MODELS
 from modules.voice_recorder import VoiceRecorder
@@ -56,6 +57,16 @@ class ChatGPTStrategy(SubmitStrategy):
     def submit(self, question, db_name):
         model_name = self.tab.model_source_combo.currentText()
         t = self.tab.chatgpt_thread = ChatGPTThread(question, db_name, model_name=model_name)
+        t.response_signal.connect(self.tab.update_response_lm_studio)
+        t.error_signal.connect(self.tab.show_error_message)
+        t.finished_signal.connect(self.tab.on_submission_finished)
+        t.citations_signal.connect(self.tab.display_citations_in_widget)
+        t.start()
+
+class MiniMaxStrategy(SubmitStrategy):
+    def submit(self, question, db_name):
+        model_name = self.tab.model_source_combo.currentText()
+        t = self.tab.minimax_thread = MiniMaxThread(question, db_name, model_name=model_name)
         t.response_signal.connect(self.tab.update_response_lm_studio)
         t.error_signal.connect(self.tab.show_error_message)
         t.finished_signal.connect(self.tab.on_submission_finished)
@@ -175,6 +186,7 @@ class DatabaseQueryTab(QWidget):
         self.local_model_chat = LocalModelChat()
         self.chatgpt_thread = None
         self.kobold_thread = None
+        self.minimax_thread = None
         self.gui_signals = GuiSignals()
         self.current_model_name = None
         self.database_query_thread = None
@@ -220,14 +232,16 @@ class DatabaseQueryTab(QWidget):
             "Local Model",
             "Kobold",
             "LM Studio",
-            "gpt-4.1-nano", 
+            "gpt-4.1-nano",
             "gpt-4o-mini",
             "gpt-4.1-mini",
             "o4-mini",
             "gpt-4.1",
             "o3",
             "gpt-4o",
-            "o3-pro"
+            "o3-pro",
+            "MiniMax-M2.7",
+            "MiniMax-M2.7-highspeed",
         ])
 
         self.model_source_combo.setCurrentText("Local Model")
@@ -319,6 +333,8 @@ class DatabaseQueryTab(QWidget):
             "o4-mini": ChatGPTStrategy(self),
             "o3": ChatGPTStrategy(self),
             "o3-pro": ChatGPTStrategy(self),
+            "MiniMax-M2.7": MiniMaxStrategy(self),
+            "MiniMax-M2.7-highspeed": MiniMaxStrategy(self),
         }
         try:
             return STRATEGIES[source]
@@ -564,6 +580,8 @@ class DatabaseQueryTab(QWidget):
             self.database_query_thread.wait()
         if self.chatgpt_thread and self.chatgpt_thread.isRunning():
             self.chatgpt_thread.wait()
+        if self.minimax_thread and self.minimax_thread.isRunning():
+            self.minimax_thread.wait()
         if self.kobold_thread and self.kobold_thread.isRunning():
             self.kobold_thread.stop()
             self.kobold_thread.wait(timeout=5000)

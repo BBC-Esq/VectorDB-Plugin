@@ -91,6 +91,9 @@ class DocQA_GUI(QWidget):
         self.openai_key_menu = self.file_menu.addAction('OpenAI API Key')
         self.openai_key_menu.triggered.connect(lambda: manage_credentials(self, 'openai'))
 
+        self.minimax_key_menu = self.file_menu.addAction('MiniMax API Key')
+        self.minimax_key_menu.triggered.connect(lambda: manage_credentials(self, 'minimax'))
+
         self.jeeves_action = self.menu_bar.addAction('Jeeves')
         self.jeeves_action.triggered.connect(self.open_chat_window)
 
