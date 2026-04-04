@@ -30,6 +30,9 @@ database:
   search_term: ''
   similarity: 0.8
 hf_access_token:
+minimax:
+  api_key:
+  model: MiniMax-M2.7
 openai:
   api_key:
   model: gpt-4o-mini
