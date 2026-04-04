@@ -2,11 +2,11 @@ Compute_Device:
   available:
   - cpu
   - cuda
-  database_creation: cpu
+  database_creation: cuda
   database_query: cpu
   gpu_brand: NVIDIA
-EMBEDDING_MODEL_DIMENSIONS: null
-EMBEDDING_MODEL_NAME: ''
+EMBEDDING_MODEL_DIMENSIONS: 384
+EMBEDDING_MODEL_NAME: D:\Python_Programs\VectorDB-Plugin\Models\vector\BAAI--bge-small-en-v1.5
 Platform_Info:
   os: windows
 Supported_CTranslate2_Quantizations:
@@ -39,12 +39,12 @@ created_databases:
     chunk_size: 1200
     model: D:\Python_Programs\VectorDB-Plugin\Models\vector\BAAI--bge-small-en-v1.5
 database:
-  chunk_overlap: 250
-  chunk_size: 700
+  chunk_overlap: 450
+  chunk_size: 900
   contexts: '5'
   database_to_search: ''
   document_types: ''
-  half: false
+  half: true
   search_term: ''
   similarity: 0.8
 hf_access_token: null

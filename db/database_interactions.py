@@ -5,6 +5,7 @@ os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 import time
 import json
+import pickle
 from copy import deepcopy
 from pathlib import Path
 from typing import Optional
@@ -18,6 +19,8 @@ import shutil
 import random
 import sys
 import traceback
+
+import numpy as np
 
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
@@ -380,36 +383,73 @@ class CreateVectorDB:
 
             print(f"Total chunks to embed: {len(all_texts)}")
 
+            del texts
+            gc.collect()
+
             with open(self.ROOT_DIRECTORY / "config.yaml", 'r', encoding='utf-8') as config_file:
                 config_data = yaml.safe_load(config_file)
-
-            embedding_start_time = time.time()
 
             for i, t in enumerate(all_texts):
                 if not isinstance(t, str):
                     raise TypeError(f"Non-string at index {i}: {type(t)}")
 
-            vectors = embeddings.embed_documents(all_texts)
+            total_chunks = len(all_texts)
+            embed_batch_size = 20000
+
+            embedding_start_time = time.time()
+
+            test_vec = embeddings.embed_documents([all_texts[0]])
+            embedding_dim = len(test_vec[0])
+            input_vectors = np.empty((total_chunks, embedding_dim), dtype=np.float32)
+            input_vectors[0] = np.array(test_vec[0], dtype=np.float32)
+
+            for batch_start in range(1, total_chunks, embed_batch_size):
+                batch_end = min(batch_start + embed_batch_size, total_chunks)
+                my_cprint(f"Embedding batch {batch_start}-{batch_end} of {total_chunks}...", "cyan")
+                batch_vectors = embeddings.embed_documents(all_texts[batch_start:batch_end])
+                input_vectors[batch_start:batch_end] = np.array(batch_vectors, dtype=np.float32)
+                del batch_vectors
+                gc.collect()
 
             embedding_end_time = time.time()
             embedding_elapsed = embedding_end_time - embedding_start_time
             my_cprint(f"Embedding computation completed in {embedding_elapsed:.2f} seconds.", "cyan")
 
-            text_embed_pairs = [
-                (txt, vec.tolist() if hasattr(vec, 'tolist') else list(vec))
-                for txt, vec in zip(all_texts, vectors)
-            ]
+            import tiledb
+            import tiledb.vector_search as tiledb_vs
 
-            TileDB.from_embeddings(
-                text_embeddings=text_embed_pairs,
-                embedding=embeddings,
-                metadatas=all_metadatas,
-                ids=all_ids,
-                metric="euclidean",
-                index_uri=str(self.PERSIST_DIRECTORY),
+            index_uri = str(self.PERSIST_DIRECTORY)
+            external_ids = np.array(all_ids, dtype=np.uint64)
+
+            TileDB.create(
+                index_uri=index_uri,
                 index_type="FLAT",
-                allow_dangerous_deserialization=True,
+                dimensions=embedding_dim,
+                vector_type=input_vectors.dtype,
+                metadatas=True,
             )
+
+            vector_index_uri = f"{index_uri}/vectors"
+            docs_uri = f"{index_uri}/documents"
+
+            tiledb_vs.ingestion.ingest(
+                index_type="FLAT",
+                index_uri=vector_index_uri,
+                input_vectors=input_vectors,
+                external_ids=external_ids,
+            )
+            del input_vectors
+
+            with tiledb.open(docs_uri, "w") as A:
+                data = {}
+                data["text"] = np.array(all_texts)
+                metadata_attr = np.empty([len(all_metadatas)], dtype=object)
+                for i, metadata in enumerate(all_metadatas):
+                    metadata_attr[i] = np.frombuffer(
+                        pickle.dumps(metadata), dtype=np.uint8
+                    )
+                data["metadata"] = metadata_attr
+                A[external_ids] = data
 
             my_cprint("Processed all chunks", "yellow")
 
