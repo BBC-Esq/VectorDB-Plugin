@@ -482,11 +482,14 @@ def check_cuda_re_triton():
     logging.debug("CUDA file check completed")
 
 
-def get_model_native_precision(embedding_model_name, vector_models):
+def get_model_native_precision(embedding_model_name, vector_models=None):
     logging.debug(f"Looking for precision for model: {embedding_model_name}")
+    if vector_models is None:
+        from core.constants import VECTOR_MODELS
+        vector_models = VECTOR_MODELS
     model_name = os.path.basename(embedding_model_name)
     repo_style_name = model_name.replace('--', '/')
-    
+
     for group_name, group_models in vector_models.items():
         logging.debug(f"Checking group: {group_name}")
         for model in group_models:
@@ -861,8 +864,125 @@ def set_logging_level():
 def prepare_long_path(base_path: str, filename: str) -> str:
     base_path = os.path.normpath(base_path)
     full_path = os.path.join(base_path, filename)
-    
+
     if os.name == 'nt' and len(full_path) > 255:
         full_path = "\\\\?\\" + os.path.abspath(full_path)
-    
+
     return full_path
+
+
+def normalize_text(text, preserve_whitespace=False):
+    import unicodedata
+
+    if text is None:
+        return None
+
+    if isinstance(text, (list, tuple)):
+        text = " ".join(str(item) for item in text if item is not None)
+
+    if not isinstance(text, str):
+        text = str(text)
+
+    text = unicodedata.normalize("NFKC", text)
+
+    INVISIBLE_CHARS = {
+        '\u00ad', '\u200b', '\u200c', '\u200d', '\u200e', '\u200f',
+        '\u2060', '\u2061', '\u2062', '\u2063', '\u2064', '\ufeff',
+    }
+
+    cleaned = []
+    for char in text:
+        code = ord(char)
+        if char == '\n' or char == '\t':
+            if preserve_whitespace:
+                cleaned.append(char)
+            else:
+                cleaned.append(' ')
+        elif char == '\r':
+            cleaned.append(' ')
+        elif code < 32:
+            continue
+        elif code == 127:
+            continue
+        elif code > 65535:
+            continue
+        elif char in INVISIBLE_CHARS:
+            continue
+        elif 128 <= code <= 159:
+            continue
+        elif code == 65533:
+            continue
+        elif 57344 <= code <= 63743:
+            continue
+        else:
+            cleaned.append(char)
+
+    result = "".join(cleaned)
+
+    if preserve_whitespace:
+        result = re.sub(r'[^\S\n\t]+', ' ', result)
+        result = re.sub(r' *\n *', '\n', result)
+        result = re.sub(r'\n{3,}', '\n\n', result)
+    else:
+        result = " ".join(result.split())
+
+    result = result.strip()
+    return result if result else None
+
+
+def get_embedding_batch_size(model_name: str, compute_device: str) -> int:
+    if compute_device.lower() == 'cpu':
+        return 2
+
+    batch_size_mapping = {
+        'inf-retriever-v1-7b': 2,
+        'Qwen3-Embedding-8B': 2,
+        'Qwen3-Embedding-4B': 3,
+        'inf-retriever-v1-1.5b': 3,
+        'Qwen3-Embedding-0.6B': 4,
+        'e5-base': 6,
+        'e5-large': 7,
+        'arctic-embed-l': 7,
+        'bge-large-en-v1.5': 6,
+        'e5-small': 10,
+        'gte-large': 12,
+        'Granite-30m-English': 12,
+        'bge-small': 12,
+        'bge-small-en-v1.5': 12,
+        'bge-base-en-v1.5': 8,
+        'gte-base': 14,
+        'arctic-embed-m': 14,
+    }
+
+    model_name_lower = model_name.lower()
+    for key, value in batch_size_mapping.items():
+        if key.lower() in model_name_lower:
+            return value
+
+    return 8
+
+
+def get_embedding_dtype_and_batch(
+    compute_device: str,
+    use_half: bool,
+    model_native_precision: str,
+    model_name: str,
+    is_query: bool,
+):
+    dtype = get_appropriate_dtype(compute_device, use_half, model_native_precision)
+    batch = 1 if is_query else get_embedding_batch_size(model_name, compute_device)
+    return dtype, batch
+
+
+def configure_logging(level: str = "INFO"):
+    root = logging.getLogger()
+    if root.handlers:
+        root.setLevel(level.upper())
+        return
+    root.setLevel(level.upper())
+    h = logging.StreamHandler()
+    fmt = logging.Formatter(
+        "%(asctime)s %(levelname)s [%(name)s] %(message)s"
+    )
+    h.setFormatter(fmt)
+    root.addHandler(h)

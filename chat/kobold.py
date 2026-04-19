@@ -4,7 +4,7 @@ import requests
 import sseclient
 from PySide6.QtCore import QThread, Signal
 
-from db.database_interactions import QueryVectorDB
+from db.database_interactions import get_query_db
 from chat.base import ChatSignals, load_chat_config, save_metadata, build_augmented_query, write_chat_history, cleanup_gpu
 from core.utilities import format_citations
 from core.constants import PROJECT_ROOT
@@ -59,7 +59,7 @@ class KoboldChat:
 
     def ask_kobold(self, query, selected_database):
         if self.query_vector_db is None or self.query_vector_db.selected_database != selected_database:
-            self.query_vector_db = QueryVectorDB.get_instance(selected_database)
+            self.query_vector_db = get_query_db(selected_database)
 
         contexts, metadata_list = self.query_vector_db.search(query)
         save_metadata(metadata_list)

@@ -1,7 +1,53 @@
 
+import os
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+_cpu = os.cpu_count() or 4
+
+PIPELINE_PRESETS = {
+    "minimal": {
+        "ingest_threads": 1,
+        "ingest_processes": 1,
+        "split_max_parallel_workers": 1,
+        "tokenize_max_parallel_workers": 1,
+        "split_worker_batch_size": 5000,
+    },
+    "low": {
+        "ingest_threads": 4,
+        "ingest_processes": 2,
+        "split_max_parallel_workers": 2,
+        "tokenize_max_parallel_workers": 2,
+        "split_worker_batch_size": 3000,
+    },
+    "normal": {
+        "ingest_threads": min(max(_cpu - 2, 1), 8),
+        "ingest_processes": min(max(_cpu - 2, 1), 4),
+        "split_max_parallel_workers": min(max(_cpu - 2, 1), 4),
+        "tokenize_max_parallel_workers": min(max(_cpu - 2, 1), 4),
+        "split_worker_batch_size": 2000,
+    },
+    "high": {
+        "ingest_threads": min(max(_cpu - 2, 1), 16),
+        "ingest_processes": min(max(_cpu - 2, 1), 8),
+        "split_max_parallel_workers": min(max(_cpu - 2, 1), 8),
+        "tokenize_max_parallel_workers": min(max(_cpu - 2, 1), 8),
+        "split_worker_batch_size": 2000,
+    },
+    "maximum": {
+        "ingest_threads": max(_cpu - 2, 1),
+        "ingest_processes": max(_cpu - 2, 1),
+        "split_max_parallel_workers": 0,
+        "tokenize_max_parallel_workers": 0,
+        "split_worker_batch_size": 1000,
+    },
+}
+
+SUPPORTED_EXTENSIONS = (
+    ".pdf", ".docx", ".txt", ".eml", ".msg", ".csv",
+    ".xls", ".xlsx", ".xlsm", ".rtf", ".md", ".html",
+)
 
 GLM4Z1_CHAT_TEMPLATE = """[gMASK]<sop>
 {%- if tools -%}

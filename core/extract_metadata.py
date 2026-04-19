@@ -2,7 +2,7 @@ import os
 import datetime
 import hashlib
 import re
-from langchain_core.documents import Document
+from db.document_processor import Document
 from typing import List, Tuple
 
 def compute_content_hash(content: str) -> str:

@@ -73,6 +73,32 @@ class ChunkSettingsTab(QWidget):
         self.half_precision_checkbox.setToolTip(TOOLTIPS["HALF_PRECISION"])
         grid_layout.addWidget(self.half_precision_checkbox, 1, 3)
 
+        preset_tooltip = (
+            "Controls CPU parallelism during database creation.\n"
+            "Minimal: sequential processing (1 thread/process)\n"
+            "Low: light parallelism (2-4 workers)\n"
+            "Normal: moderate parallelism (default)\n"
+            "High: aggressive parallelism\n"
+            "Maximum: all available CPU cores"
+        )
+
+        current_preset = self.database_config.get("pipeline_preset", "normal")
+
+        self.preset_label = QLabel("Pipeline Performance:")
+        self.preset_label.setToolTip(preset_tooltip)
+        grid_layout.addWidget(self.preset_label, 1, 4)
+
+        self.current_preset_label = QLabel(f"{current_preset}")
+        self.current_preset_label.setToolTip(preset_tooltip)
+        grid_layout.addWidget(self.current_preset_label, 1, 5)
+
+        self.preset_combo = QComboBox()
+        self.preset_combo.addItems(["minimal", "low", "normal", "high", "maximum"])
+        self.preset_combo.setCurrentText(current_preset)
+        self.preset_combo.setToolTip(preset_tooltip)
+        self.preset_combo.setMinimumWidth(100)
+        grid_layout.addWidget(self.preset_combo, 1, 6)
+
         self.setLayout(grid_layout)
 
     def update_config(self):
@@ -152,6 +178,12 @@ class ChunkSettingsTab(QWidget):
             config_data["database"]["half"] = new_half_precision
             settings_changed = True
 
+        new_preset = self.preset_combo.currentText()
+        if new_preset != self.database_config.get("pipeline_preset", "normal"):
+            config_data["database"]["pipeline_preset"] = new_preset
+            self.current_preset_label.setText(f"{new_preset}")
+            settings_changed = True
+
         if settings_changed:
             try:
                 with open("config.yaml", "w", encoding="utf-8") as f:
@@ -160,6 +192,7 @@ class ChunkSettingsTab(QWidget):
                 self.database_config["chunk_size"] = config_data["database"]["chunk_size"]
                 self.database_config["chunk_overlap"] = config_data["database"]["chunk_overlap"]
                 self.database_config["half"] = config_data["database"]["half"]
+                self.database_config["pipeline_preset"] = config_data["database"].get("pipeline_preset", "normal")
 
                 self.database_creation_device = config_data["Compute_Device"][
                     "database_creation"

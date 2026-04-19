@@ -35,7 +35,7 @@ from core.constants import (
     PROJECT_ROOT,
 )
 from gui.download_model import ModelDownloader, model_downloaded_signal
-from db.database_interactions import QueryVectorDB
+from db.database_interactions import get_query_db
 from modules.kokoro import KokoroTTS
 from core.utilities import normalize_chat_text
 
@@ -214,7 +214,7 @@ class ChatWindow(QMainWindow):
         self.tokenizer = None
         self.worker = None
 
-        self.vector_db = QueryVectorDB.get_instance("user_manual")
+        self.vector_db = get_query_db("user_manual")
         self.model = SentenceTransformer('BAAI/bge-small-en-v1.5', token=False)
         self.question_embeddings = self.model.encode(master_questions)
         self.suggestion_cache = {}

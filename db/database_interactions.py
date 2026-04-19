@@ -1,524 +1,361 @@
+import faulthandler
+faulthandler.enable()
+
 import gc
-import os
-
-os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
-
-import time
 import json
+import logging
+import os
 import pickle
-from copy import deepcopy
+import random
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+import traceback
 from pathlib import Path
 from typing import Optional
-import threading
-import re
-import sqlite3
-import torch
-import yaml
-from collections import defaultdict
-import shutil
-import random
-import sys
-import traceback
 
 import numpy as np
+import torch
 
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.embeddings import HuggingFaceBgeEmbeddings
-from langchain_core.documents import Document
-from langchain_community.vectorstores import TileDB
+from db.document_processor import Document
+from db.embedding_models import load_embedding_model
+from db.sqlite_operations import create_metadata_db
+from db.cuda_manager import get_cuda_manager
+from core.config import get_config
+from core.constants import PROJECT_ROOT, PIPELINE_PRESETS
+from core.utilities import my_cprint, set_cuda_paths, configure_logging
 
-from db.document_processor import load_documents, split_documents
-from modules.process_images import choose_image_loader
-from core.utilities import my_cprint, get_model_native_precision, get_appropriate_dtype, supports_flash_attention, set_cuda_paths
-from core.constants import VECTOR_MODELS, PROJECT_ROOT
+logger = logging.getLogger(__name__)
 
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+os.environ.setdefault("RUST_BACKTRACE", "1")
 
-class BaseEmbeddingModel:
+STAGE_EXTRACT_PATH = PROJECT_ROOT / "db" / "stage_extract.py"
+STAGE_SPLIT_PATH = PROJECT_ROOT / "db" / "stage_split.py"
 
-    def __init__(self, model_name, model_kwargs, encode_kwargs, is_query: bool = False):
-        self.model_name = model_name
-        self.model_kwargs = model_kwargs
-        self.encode_kwargs = encode_kwargs
-        self.is_query = is_query
+EXTRACT_MAX_RETRIES = 3
+SPLIT_MAX_WORKER_RETRIES = 3
+SPLIT_MAX_RETRIES = 5
+TILEDB_WRITE_BATCH_SIZE = 100000
 
-    def prepare_kwargs(self):
-        hf_embed_kw = deepcopy(self.model_kwargs)
-
-        hf_embed_kw.setdefault("device", "cpu")
-        hf_embed_kw.setdefault("trust_remote_code", True)
-
-        tok_kw = hf_embed_kw.setdefault("tokenizer_kwargs", {})
-        tok_kw.update({
-            "trust_remote_code": True,
-            "use_fast": False,
-            "model_max_length": 512,
-        })
-
-        inner = hf_embed_kw.get("model_kwargs", {})
-        inner = {k: v for k, v in inner.items() if v is not None}
-        if inner:
-            hf_embed_kw["model_kwargs"] = inner
-        else:
-            hf_embed_kw.pop("model_kwargs", None)
-
-        return hf_embed_kw
-
-    def prepare_encode_kwargs(self):
-        encode_kwargs = deepcopy(self.encode_kwargs)
-
-        if self.is_query:
-            encode_kwargs.setdefault("batch_size", 1)
-            encode_kwargs.setdefault("normalize_embeddings", True)
-        else:
-            encode_kwargs.setdefault("normalize_embeddings", True)
-
-        encode_kwargs.setdefault("convert_to_tensor", False)
-        encode_kwargs.setdefault("show_progress_bar", not self.is_query)
-
-        encode_kwargs.setdefault("padding", True)
-        encode_kwargs.setdefault("truncation", True)
-
-        for param in ['model_max_length', 'return_token_type_ids', 'show_progress_bar']:
-            encode_kwargs.pop(param, None)
-
-        return encode_kwargs
-
-    def create(self):
-        model_kwargs = self.prepare_kwargs()
-        encode_kwargs = self.prepare_encode_kwargs()
-
-        hf = HuggingFaceEmbeddings(
-            model_name=self.model_name,
-            show_progress=not self.is_query,
-            model_kwargs=model_kwargs,
-            encode_kwargs=encode_kwargs
-        )
-        return hf
+MAX_UINT64_SENTINEL = np.iinfo(np.uint64).max
 
 
-class SnowflakeEmbedding(BaseEmbeddingModel):
-    def prepare_kwargs(self):
-        snow_kwargs = super().prepare_kwargs()
-
-        if "large" in self.model_name.lower():
-            tok_kw = snow_kwargs.setdefault("tokenizer_kwargs", {})
-            tok_kw.update({"model_max_length": 8192})
-            return snow_kwargs
-
-        device = snow_kwargs.get("device", "").lower()
-        is_cuda = device.startswith("cuda")
-        use_xformers = is_cuda and supports_flash_attention()
-
-        tok_kw = snow_kwargs.setdefault("tokenizer_kwargs", {})
-        tok_kw.update({"model_max_length": 8192})
-
-        snow_kwargs["config_kwargs"] = {
-            "use_memory_efficient_attention": use_xformers,
-            "unpad_inputs": use_xformers,
-            "attn_implementation": "eager" if use_xformers else "sdpa",
-        }
-        return snow_kwargs
+def _get_split_params():
+    try:
+        preset_name = get_config().database.pipeline_preset
+    except Exception:
+        preset_name = "normal"
+    preset = PIPELINE_PRESETS.get(preset_name, PIPELINE_PRESETS["normal"])
+    return preset["split_max_parallel_workers"], preset["split_worker_batch_size"]
 
 
-class BgeCodeEmbedding(BaseEmbeddingModel):
-    def prepare_kwargs(self):
-        bge_kwargs = super().prepare_kwargs()
-        tok_kw = bge_kwargs.setdefault("tokenizer_kwargs", {})
-        tok_kw.update({"model_max_length": 4096})
-        return bge_kwargs
+def _run_subprocess_stage(name, cmd, timeout=3600):
+    logger.info(f"Starting subprocess stage: {name}")
+
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        cwd=str(PROJECT_ROOT),
+        env={**os.environ, "PYTHONUNBUFFERED": "1"},
+    )
+
+    output_lines = []
+    for line in process.stdout:
+        line = line.rstrip("\n")
+        if line.strip():
+            logger.info(f"  [{name}] {line}")
+            output_lines.append(line)
+
+    process.wait(timeout=timeout)
+
+    if process.returncode != 0:
+        for line in output_lines[-10:]:
+            logger.error(f"  {line}")
+
+    return process.returncode, output_lines
 
 
-class AlibabaEmbedding(SnowflakeEmbedding):
-    pass
+def _run_extract_with_retry(source_dir, output_pkl):
+    python = sys.executable
+    cmd = [python, str(STAGE_EXTRACT_PATH), str(source_dir), str(output_pkl)]
+
+    for attempt in range(1, EXTRACT_MAX_RETRIES + 1):
+        logger.info(f"Extract attempt {attempt}/{EXTRACT_MAX_RETRIES}")
+        exit_code, _ = _run_subprocess_stage(f"Extract (attempt {attempt})", cmd)
+
+        if exit_code == 0 and output_pkl.exists():
+            logger.info(f"Extract stage completed on attempt {attempt}")
+            return
+
+        logger.error(f"Extract attempt {attempt} failed (exit code {exit_code})")
+
+        if attempt < EXTRACT_MAX_RETRIES:
+            logger.info("Waiting 3 seconds before retry...")
+            time.sleep(3)
+            gc.collect()
+
+    raise RuntimeError(f"Extract stage failed after {EXTRACT_MAX_RETRIES} attempts")
 
 
-class InflyAndAlibabaEmbedding(BaseEmbeddingModel):
-    def prepare_kwargs(self):
-        infly_kwargs = super().prepare_kwargs()
-        tok_kw = infly_kwargs.setdefault("tokenizer_kwargs", {})
-        tok_kw.update({"model_max_length": 8192})
-        return infly_kwargs
+def _run_split_with_retry(extracted_pkl, chunks_pkl, chunk_size, chunk_overlap, checkpoint_dir):
+    python = sys.executable
+    split_parallel, split_batch = _get_split_params()
+
+    for attempt in range(1, SPLIT_MAX_RETRIES + 1):
+        logger.info(f"Split attempt {attempt}/{SPLIT_MAX_RETRIES}")
+
+        split_cmd = [
+            python, str(STAGE_SPLIT_PATH),
+            str(extracted_pkl),
+            str(chunks_pkl),
+            str(chunk_size),
+            str(chunk_overlap),
+            "--worker-batch-size", str(split_batch),
+            "--max-worker-retries", str(SPLIT_MAX_WORKER_RETRIES),
+            "--max-parallel-workers", str(split_parallel),
+            "--checkpoint-dir", str(checkpoint_dir),
+            "--checkpoint-interval", "5",
+        ]
+
+        exit_code, _ = _run_subprocess_stage(f"Split (attempt {attempt})", split_cmd)
+
+        if exit_code == 0 and chunks_pkl.exists():
+            logger.info(f"Split stage completed on attempt {attempt}")
+            return
+
+        logger.error(f"Split attempt {attempt} failed (exit code {exit_code})")
+
+        if attempt < SPLIT_MAX_RETRIES:
+            logger.info("Waiting 3 seconds before retry...")
+            time.sleep(3)
+            gc.collect()
+
+    raise RuntimeError(f"Split stage failed after {SPLIT_MAX_RETRIES} attempts")
 
 
-class QwenEmbedding(BaseEmbeddingModel):
-    def prepare_kwargs(self):
-        q_kwargs = super().prepare_kwargs()
+def _setup_tiledb_dlls():
+    import ctypes
+    import tiledb
 
-        device = (q_kwargs.get("device") or "").lower()
-        is_cuda = device.startswith("cuda")
-        use_flash = is_cuda and supports_flash_attention()
+    venv_root = os.path.dirname(os.path.dirname(sys.executable))
+    site_packages = os.path.join(venv_root, 'Lib', 'site-packages')
 
-        inner = q_kwargs.setdefault("model_kwargs", {})
+    tiledb_libs = os.path.join(site_packages, 'tiledb.libs')
+    vector_search_lib = os.path.join(site_packages, 'tiledb', 'vector_search', 'lib')
 
-        if use_flash:
+    for directory in [tiledb_libs, vector_search_lib]:
+        if os.path.isdir(directory):
             try:
-                dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] >= 8 else torch.float16
+                os.add_dll_directory(directory)
+            except OSError:
+                pass
+
+    if os.path.isdir(tiledb_libs):
+        for filename in sorted(os.listdir(tiledb_libs)):
+            if filename.endswith('.dll'):
+                try:
+                    ctypes.CDLL(os.path.join(tiledb_libs, filename))
+                except Exception:
+                    pass
+
+    if os.path.isdir(vector_search_lib):
+        tiledb_dll = os.path.join(vector_search_lib, 'tiledb.dll')
+        if os.path.exists(tiledb_dll):
+            try:
+                ctypes.CDLL(tiledb_dll)
             except Exception:
-                dtype = torch.float16
-            inner.update({
-                "torch_dtype": dtype,
-                "attn_implementation": "flash_attention_2",
-            })
-        else:
-            inner.update({
-                "attn_implementation": "sdpa",
-            })
-
-        tok_kw = q_kwargs.setdefault("tokenizer_kwargs", {})
-        tok_kw.update({
-            "padding_side": "left",
-            "model_max_length": 8192,
-        })
-        return q_kwargs
-
-
-def _select_embedding_class(model_name):
-    name_lower = model_name.lower()
-    if "qwen3-embedding" in name_lower:
-        return QwenEmbedding
-    elif "snowflake" in name_lower:
-        return SnowflakeEmbedding
-    elif "alibaba" in name_lower:
-        return AlibabaEmbedding
-    elif "bge-code" in name_lower:
-        return BgeCodeEmbedding
-    elif "infly" in name_lower:
-        return InflyAndAlibabaEmbedding
-    return BaseEmbeddingModel
+                pass
 
 
 def create_vector_db_in_process(database_name):
+    faulthandler.enable()
+    configure_logging("INFO")
     set_cuda_paths()
-    create_vector_db = CreateVectorDB(database_name=database_name)
-    result = create_vector_db.run()
-    return result
+    _setup_tiledb_dlls()
+
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    os.environ["RUST_BACKTRACE"] = "1"
+
+    create_vector_db = None
+
+    try:
+        create_vector_db = CreateVectorDB(database_name=database_name)
+        create_vector_db.run()
+    except Exception:
+        traceback.print_exc()
+        raise
+    finally:
+        if create_vector_db:
+            del create_vector_db
+
+        gc.collect()
+
+        if torch.cuda.is_available():
+            try:
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
+            except Exception:
+                pass
+
+        time.sleep(0.1)
+
 
 def process_chunks_only_query(database_name, query, result_queue):
+    configure_logging("INFO")
     try:
-        query_db = QueryVectorDB.get_instance(database_name)
-        contexts, metadata_list = query_db.search(query)
+        query_db = QueryVectorDB(database_name)
+        try:
+            contexts, metadata_list = query_db.search(query)
 
-        formatted_contexts = []
-        for index, (context, metadata) in enumerate(zip(contexts, metadata_list), start=1):
-            file_name = metadata.get('file_name', 'Unknown')
-            cleaned_context = re.sub(r'\n[ \t]+\n', '\n\n', context)
-            cleaned_context = re.sub(r'\n\s*\n\s*\n*', '\n\n', cleaned_context.strip())
-            formatted_context = (
-                f"{'-'*80}\n"
-                f"CONTEXT {index} | {file_name}\n"
-                f"{'-'*80}\n"
-                f"{cleaned_context}\n"
-            )
-            formatted_contexts.append(formatted_context)
+            formatted_contexts = []
+            for index, (context, metadata) in enumerate(zip(contexts, metadata_list), start=1):
+                file_name = metadata.get('file_name', 'Unknown')
+                cleaned_context = re.sub(r'\n[ \t]+\n', '\n\n', context)
+                cleaned_context = re.sub(r'\n\s*\n\s*\n*', '\n\n', cleaned_context.strip())
+                formatted_context = (
+                    f"{'-'*80}\n"
+                    f"CONTEXT {index} | {file_name}\n"
+                    f"{'-'*80}\n"
+                    f"{cleaned_context}\n"
+                )
+                formatted_contexts.append(formatted_context)
 
-        result_queue.put("\n".join(formatted_contexts))
+            result_queue.put("\n".join(formatted_contexts))
+        finally:
+            query_db.close()
     except Exception as e:
         result_queue.put(f"Error querying database: {str(e)}")
 
 
 class CreateVectorDB:
     def __init__(self, database_name):
-        self.ROOT_DIRECTORY = PROJECT_ROOT
-        self.SOURCE_DIRECTORY = self.ROOT_DIRECTORY / "Docs_for_DB"
-        self.PERSIST_DIRECTORY = self.ROOT_DIRECTORY / "Vector_DB" / database_name
-
-    def load_config(self, root_directory):
-        with open(root_directory / "config.yaml", 'r', encoding='utf-8') as stream:
-            return yaml.safe_load(stream)
+        self.config = get_config()
+        self.SOURCE_DIRECTORY = self.config.docs_dir
+        self.PERSIST_DIRECTORY = self.config.vector_db_dir / database_name
 
     @torch.inference_mode()
     def initialize_vector_model(self, embedding_model_name, config_data):
-        compute_device = config_data['Compute_Device']['database_creation']
-        use_half = config_data.get("database", {}).get("half", False)
-        model_native_precision = get_model_native_precision(embedding_model_name, VECTOR_MODELS)
-        torch_dtype = get_appropriate_dtype(compute_device, use_half, model_native_precision)
+        return load_embedding_model(
+            model_path=embedding_model_name,
+            compute_device=config_data.Compute_Device.database_creation,
+            use_half=config_data.database.half,
+            is_query=False,
+            verbose=True,
+        )
 
-        outer_model_kwargs = {
-            "device": compute_device,
-            "trust_remote_code": True,
-            "model_kwargs": {
-                "torch_dtype": torch_dtype if torch_dtype is not None else None,
-                "attn_implementation": "sdpa",
-            },
-        }
+    def _create_tiledb_array(self, texts, vectors_array, metadatas):
+        _setup_tiledb_dlls()
 
-        encode_kwargs = {
-            'batch_size': 8,
-            "normalize_embeddings": True,
-        }
+        import tiledb
+        import tiledb.vector_search as vs
+        from tiledb.vector_search import _tiledbvspy as vspy
 
-        name_lower = embedding_model_name.lower()
-
-        if compute_device.lower() == 'cpu':
-            encode_kwargs['batch_size'] = 2
-        else:
-            batch_size_mapping = {
-                'inf-retriever-v1-7b': 2,
-                'Qwen3-Embedding-8B': 2,
-                'Qwen3-Embedding-4B': 3,
-                'inf-retriever-v1-1.5b': 3,
-                'e5-base': 6,
-                'e5-large': 7,
-                'arctic-embed-l': 7,
-                'e5-small': 10,
-                'gte-large': 12,
-                'Granite-30m-English': 12,
-                'bge-small': 12,
-                'gte-base': 14,
-                'arctic-embed-m': 14,
-            }
-            for key, value in batch_size_mapping.items():
-                if key in name_lower:
-                    encode_kwargs['batch_size'] = value
-                    break
-
-        if "e5" in name_lower:
-            encode_kwargs["prompt"] = "passage: "
-
-        cls = _select_embedding_class(embedding_model_name)
-        print(f"Using {cls.__name__} class.")
-        model = cls(embedding_model_name, outer_model_kwargs, encode_kwargs).create()
-
-        model_name = os.path.basename(embedding_model_name)
-        precision = "float32" if torch_dtype is None else str(torch_dtype).split('.')[-1]
-        my_cprint(f"{model_name} ({precision}) loaded using a batch size of {encode_kwargs['batch_size']}.", "green")
-
-        return model, encode_kwargs
-
-    @torch.inference_mode()
-    def create_database(self, texts, embeddings):
-        my_cprint("\nComputing vectors...", "yellow")
-        start_time = time.time()
-
-        hash_id_mappings = []
+        embedding_dim = vectors_array.shape[1]
+        num_vectors = vectors_array.shape[0]
         MAX_UINT64 = 18446744073709551615
 
-        try:
-            self.PERSIST_DIRECTORY.mkdir(parents=True, exist_ok=False)
-            my_cprint(f"Created directory: {self.PERSIST_DIRECTORY}", "green")
-        except FileExistsError:
-            raise FileExistsError(
-                f"Vector database '{self.PERSIST_DIRECTORY.name}' already exists. "
-                "Choose a different name or delete the existing DB first."
+        logger.info(f"Creating TileDB array: {num_vectors:,} vectors of dimension {embedding_dim}")
+
+        array_uri = str(self.PERSIST_DIRECTORY / "vectors")
+
+        dom = tiledb.Domain(
+            tiledb.Dim(name="id", domain=(0, np.iinfo(np.uint64).max - 20000), tile=10000, dtype=np.uint64)
+        )
+
+        attrs = [
+            tiledb.Attr(name="vector", dtype=np.dtype([("", np.float32)] * embedding_dim)),
+            tiledb.Attr(name="text", dtype=str, var=True),
+            tiledb.Attr(name="metadata", dtype=str, var=True),
+        ]
+
+        schema = tiledb.ArraySchema(
+            domain=dom,
+            attrs=attrs,
+            sparse=True,
+            cell_order='row-major',
+            tile_order='row-major'
+        )
+
+        tiledb.Array.create(array_uri, schema)
+
+        num_batches = (num_vectors + TILEDB_WRITE_BATCH_SIZE - 1) // TILEDB_WRITE_BATCH_SIZE
+        logger.info(f"Writing TileDB array in {num_batches} batch(es)")
+
+        all_ids = np.empty(num_vectors, dtype=np.uint64)
+        hash_id_mappings = []
+
+        for batch_idx in range(num_batches):
+            start = batch_idx * TILEDB_WRITE_BATCH_SIZE
+            end = min(start + TILEDB_WRITE_BATCH_SIZE, num_vectors)
+
+            batch_ids = np.array(
+                [random.randint(0, MAX_UINT64 - 1) for _ in range(end - start)],
+                dtype=np.uint64
+            )
+            all_ids[start:end] = batch_ids
+
+            for i in range(start, end):
+                file_hash = metadatas[i].get('hash', '')
+                hash_id_mappings.append((str(batch_ids[i - start]), file_hash))
+
+            batch_vectors = vectors_array[start:end]
+            batch_texts = np.array(texts[start:end], dtype=object)
+            batch_metadata = np.array(
+                [json.dumps(metadatas[i]) for i in range(start, end)],
+                dtype=object
             )
 
-        try:
-            all_texts = []
-            all_metadatas = []
-            all_ids = []
-            chunk_counters = defaultdict(int)
-            skipped_chunks = 0
+            batch_structured = np.array(
+                [tuple(vec) for vec in batch_vectors],
+                dtype=[("", np.float32)] * embedding_dim
+            )
 
-            for original_idx, doc in enumerate(texts):
-                raw_content = None
-                clean_content = None
+            with tiledb.open(array_uri, mode='w') as A:
+                A[batch_ids] = {
+                    "vector": batch_structured,
+                    "text": batch_texts,
+                    "metadata": batch_metadata,
+                }
 
-                try:
-                    if hasattr(doc, 'page_content'):
-                        raw_content = doc.page_content
-                    else:
-                        raw_content = doc
-
-                    if raw_content is None:
-                        print(f"Skipping chunk {original_idx}: no content")
-                        skipped_chunks += 1
-                        continue
-
-                    if isinstance(raw_content, (list, tuple, dict)):
-                        print(f"Skipping chunk {original_idx}: invalid type {type(raw_content)}")
-                        skipped_chunks += 1
-                        continue
-
-                    if not isinstance(raw_content, str):
-                        try:
-                            raw_content = str(raw_content)
-                        except Exception as e:
-                            print(f"Skipping chunk {original_idx}: cannot coerce {type(raw_content)} to str ({e})")
-                            skipped_chunks += 1
-                            continue
-
-                    clean_content = raw_content.replace('\x00', ' ')
-                    clean_content = ' '.join(clean_content.split())
-
-                    if not clean_content or not clean_content.strip():
-                        skipped_chunks += 1
-                        continue
-
-                    if isinstance(clean_content, (list, tuple, dict)):
-                        print(f"Skipping chunk {original_idx}: invalid type after clean {type(clean_content)}")
-                        skipped_chunks += 1
-                        continue
-
-                    clean_content.encode('utf-8')
-
-                    file_hash = doc.metadata.get('hash') if hasattr(doc, 'metadata') else None
-                    chunk_counters[file_hash] += 1
-                    tiledb_id = str(random.randint(0, MAX_UINT64 - 1))
-
-                    all_texts.append(clean_content)
-                    all_metadatas.append(doc.metadata if hasattr(doc, 'metadata') else {})
-                    all_ids.append(tiledb_id)
-                    hash_id_mappings.append((tiledb_id, file_hash))
-
-                except Exception as e:
-                    preview = None
-                    try:
-                        preview = (clean_content if isinstance(clean_content, str) else raw_content)
-                        if isinstance(preview, str):
-                            preview = preview[:120].replace('\n', ' ')
-                        else:
-                            preview = repr(preview)[:120]
-                    except Exception:
-                        preview = "<unavailable>"
-
-                    print(f"Error processing chunk {original_idx}: {e} | preview: {preview}")
-                    skipped_chunks += 1
-                    continue
-
-            if skipped_chunks > 0:
-                print(f"Skipped {skipped_chunks} problematic chunks")
-
-            if not all_texts:
-                raise ValueError("No valid text content found to embed")
-
-            print(f"Total chunks to embed: {len(all_texts)}")
-
-            del texts
+            del batch_structured, batch_texts, batch_metadata, batch_vectors
             gc.collect()
 
-            with open(self.ROOT_DIRECTORY / "config.yaml", 'r', encoding='utf-8') as config_file:
-                config_data = yaml.safe_load(config_file)
+        tiledb.consolidate(array_uri)
+        tiledb.vacuum(array_uri)
 
-            for i, t in enumerate(all_texts):
-                if not isinstance(t, str):
-                    raise TypeError(f"Non-string at index {i}: {type(t)}")
+        index_uri = str(self.PERSIST_DIRECTORY / "vector_index")
 
-            total_chunks = len(all_texts)
-            embed_batch_size = 20000
+        vs.ingest(
+            index_type="FLAT",
+            index_uri=index_uri,
+            input_vectors=vectors_array,
+            external_ids=all_ids,
+            dimensions=embedding_dim,
+            distance_metric=vspy.DistanceMetric.COSINE
+        )
 
-            embedding_start_time = time.time()
+        metadata_file = self.PERSIST_DIRECTORY / "index_metadata.json"
+        with open(metadata_file, 'w') as f:
+            json.dump({
+                'distance_metric': 'cosine',
+                'dimensions': embedding_dim,
+                'vector_type': 'float32',
+                'index_type': 'FLAT',
+                'num_vectors': num_vectors
+            }, f)
 
-            test_vec = embeddings.embed_documents([all_texts[0]])
-            embedding_dim = len(test_vec[0])
-            input_vectors = np.empty((total_chunks, embedding_dim), dtype=np.float32)
-            input_vectors[0] = np.array(test_vec[0], dtype=np.float32)
+        logger.info(f"FLAT index created at: {index_uri}")
+        return hash_id_mappings
 
-            for batch_start in range(1, total_chunks, embed_batch_size):
-                batch_end = min(batch_start + embed_batch_size, total_chunks)
-                my_cprint(f"Embedding batch {batch_start}-{batch_end} of {total_chunks}...", "cyan")
-                batch_vectors = embeddings.embed_documents(all_texts[batch_start:batch_end])
-                input_vectors[batch_start:batch_end] = np.array(batch_vectors, dtype=np.float32)
-                del batch_vectors
-                gc.collect()
-
-            embedding_end_time = time.time()
-            embedding_elapsed = embedding_end_time - embedding_start_time
-            my_cprint(f"Embedding computation completed in {embedding_elapsed:.2f} seconds.", "cyan")
-
-            import tiledb
-            import tiledb.vector_search as tiledb_vs
-
-            index_uri = str(self.PERSIST_DIRECTORY)
-            external_ids = np.array(all_ids, dtype=np.uint64)
-
-            TileDB.create(
-                index_uri=index_uri,
-                index_type="FLAT",
-                dimensions=embedding_dim,
-                vector_type=input_vectors.dtype,
-                metadatas=True,
-            )
-
-            vector_index_uri = f"{index_uri}/vectors"
-            docs_uri = f"{index_uri}/documents"
-
-            tiledb_vs.ingestion.ingest(
-                index_type="FLAT",
-                index_uri=vector_index_uri,
-                input_vectors=input_vectors,
-                external_ids=external_ids,
-            )
-            del input_vectors
-
-            with tiledb.open(docs_uri, "w") as A:
-                data = {}
-                data["text"] = np.array(all_texts)
-                metadata_attr = np.empty([len(all_metadatas)], dtype=object)
-                for i, metadata in enumerate(all_metadatas):
-                    metadata_attr[i] = np.frombuffer(
-                        pickle.dumps(metadata), dtype=np.uint8
-                    )
-                data["metadata"] = metadata_attr
-                A[external_ids] = data
-
-            my_cprint("Processed all chunks", "yellow")
-
-            end_time = time.time()
-            elapsed_time = end_time - start_time
-            my_cprint(f"Database created. Elapsed time: {elapsed_time:.2f} seconds.", "green")
-
-            return hash_id_mappings
-
-        except Exception as e:
-            traceback.print_exc()
-            
-            if self.PERSIST_DIRECTORY.exists():
-                try:
-                    shutil.rmtree(self.PERSIST_DIRECTORY)
-                except Exception as cleanup_error:
-                    pass
-            raise
-
-    def create_metadata_db(self, documents, hash_id_mappings):
-        if not self.PERSIST_DIRECTORY.exists():
-            self.PERSIST_DIRECTORY.mkdir(parents=True, exist_ok=True)
-
-        sqlite_db_path = self.PERSIST_DIRECTORY / "metadata.db"
-        conn = sqlite3.connect(sqlite_db_path)
-        cursor = conn.cursor()
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS document_metadata (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                file_name TEXT,
-                hash TEXT,
-                file_path TEXT,
-                page_content TEXT
-            )
-        ''')
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS hash_chunk_ids (
-                tiledb_id TEXT PRIMARY KEY,
-                hash TEXT
-            )
-        ''')
-
-        try:
-            doc_rows = [
-                (
-                    getattr(doc, 'metadata', {}).get("file_name", ""),
-                    getattr(doc, 'metadata', {}).get("hash", ""),
-                    getattr(doc, 'metadata', {}).get("file_path", ""),
-                    getattr(doc, 'page_content', "")
-                )
-                for doc in documents
-            ]
-            cursor.executemany('''
-                INSERT OR REPLACE INTO document_metadata (file_name, hash, file_path, page_content)
-                VALUES (?, ?, ?, ?)
-            ''', doc_rows)
-
-            cursor.executemany('''
-                INSERT OR REPLACE INTO hash_chunk_ids (tiledb_id, hash)
-                VALUES (?, ?)
-            ''', hash_id_mappings)
-
-            conn.commit()
-        finally:
-            conn.close()
-
-    def load_audio_documents(self, source_dir: Path = None) -> list:
+    def load_audio_documents(self, source_dir=None):
         if source_dir is None:
             source_dir = self.SOURCE_DIRECTORY
         json_paths = [f for f in source_dir.iterdir() if f.suffix.lower() == '.json']
@@ -527,8 +364,7 @@ class CreateVectorDB:
         for json_path in json_paths:
             try:
                 with open(json_path, 'r', encoding='utf-8') as json_file:
-                    json_str = json_file.read()
-                    data = json.loads(json_str)
+                    data = json.loads(json_file.read())
                     doc = Document(
                         page_content=data.get('page_content', ''),
                         metadata=data.get('metadata', {})
@@ -538,204 +374,385 @@ class CreateVectorDB:
                 my_cprint(f"Error loading {json_path}: {e}", "red")
 
         return docs
-    
+
     def clear_docs_for_db_folder(self):
         for item in self.SOURCE_DIRECTORY.iterdir():
             if item.is_file() or item.is_symlink():
                 try:
                     item.unlink()
                 except Exception as e:
-                    print(f"Failed to delete {item}: {e}")
+                    logger.warning(f"Failed to delete {item}: {e}")
 
     @torch.inference_mode()
     def run(self):
-        config_data = self.load_config(self.ROOT_DIRECTORY)
-        EMBEDDING_MODEL_NAME = config_data.get("EMBEDDING_MODEL_NAME")
+        cuda_mgr = get_cuda_manager()
+        pipeline_t0 = time.time()
 
-        documents = []
+        config_data = get_config()
+        EMBEDDING_MODEL_NAME = config_data.EMBEDDING_MODEL_NAME
+        chunk_size = config_data.database.chunk_size
+        chunk_overlap = config_data.database.chunk_overlap
 
-        text_documents = load_documents(self.SOURCE_DIRECTORY)
-        if isinstance(text_documents, list) and text_documents:
-            documents.extend(text_documents)
+        tmp_dir = tempfile.mkdtemp(prefix="vectordb_create_")
+        tmp_path = Path(tmp_dir)
+        extracted_pkl = tmp_path / "extracted.pkl"
+        chunks_pkl = tmp_path / "chunks.pkl"
+        checkpoint_dir = tmp_path / "checkpoints"
+        checkpoint_dir.mkdir(exist_ok=True)
 
-        text_documents_pdf = [doc for doc in documents if doc.metadata.get("file_type") == ".pdf"]
-        documents = [doc for doc in documents if doc.metadata.get("file_type") != ".pdf"]
+        try:
+            # Stage 1: Extract documents via subprocess
+            my_cprint("Extracting documents (subprocess)...", "yellow")
+            extract_t0 = time.time()
+            _run_extract_with_retry(self.SOURCE_DIRECTORY, extracted_pkl)
+            logger.info(f"Extract stage: {time.time() - extract_t0:.1f}s")
 
-        print("Processing any images...")
-        image_documents = choose_image_loader()
-        if isinstance(image_documents, list) and image_documents:
-            if len(image_documents) > 0:
-                documents.extend(image_documents)
+            with open(extracted_pkl, "rb") as f:
+                doc_data = pickle.load(f)
+            logger.info(f"Extracted {len(doc_data)} documents")
 
-        print("Processing any audio transcripts...")
-        audio_documents = self.load_audio_documents()
-        if isinstance(audio_documents, list) and audio_documents:
-            documents.extend(audio_documents)
+            if not doc_data:
+                my_cprint("No documents found to process.", "red")
+                return
 
-        json_docs_to_save = []
-        json_docs_to_save.extend(documents)
-        json_docs_to_save.extend(text_documents_pdf)
+            json_docs_to_save = []
+            for content, metadata in doc_data:
+                json_docs_to_save.append(Document(page_content=content, metadata=metadata))
 
-        texts = []
+            # Also load audio transcripts and images
+            print("Processing any audio transcripts...")
+            audio_documents = self.load_audio_documents()
+            if audio_documents:
+                for doc in audio_documents:
+                    doc_data.append((doc.page_content, doc.metadata))
+                    json_docs_to_save.append(doc)
 
-        if (isinstance(documents, list) and documents) or (isinstance(text_documents_pdf, list) and text_documents_pdf):
-            texts = split_documents(documents, text_documents_pdf)
-            print(f"Documents split into {len(texts)} chunks.")
+            print("Processing any images...")
+            try:
+                from modules.process_images import choose_image_loader
+                image_documents = choose_image_loader()
+                if isinstance(image_documents, list) and image_documents:
+                    for doc in image_documents:
+                        content = doc.page_content if hasattr(doc, 'page_content') else str(doc)
+                        metadata = doc.metadata if hasattr(doc, 'metadata') else {}
+                        doc_data.append((content, metadata))
+                        json_docs_to_save.append(Document(page_content=content, metadata=metadata))
+            except Exception as e:
+                logger.warning(f"Image processing skipped: {e}")
 
-        del documents, text_documents_pdf
-        gc.collect()
+            # Re-write extracted.pkl with audio+image docs included
+            with open(extracted_pkl, "wb") as f:
+                pickle.dump(doc_data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-        if isinstance(texts, list) and texts:
-            embeddings, encode_kwargs = self.initialize_vector_model(EMBEDDING_MODEL_NAME, config_data)
-
-            hash_id_mappings = self.create_database(texts, embeddings)
-
-            del texts
+            del doc_data
             gc.collect()
 
-            self.create_metadata_db(json_docs_to_save, hash_id_mappings)
-            del json_docs_to_save
+            # Stage 2: Split documents via subprocess
+            my_cprint("Splitting documents into chunks (subprocess)...", "yellow")
+            split_t0 = time.time()
+            _run_split_with_retry(extracted_pkl, chunks_pkl, chunk_size, chunk_overlap, checkpoint_dir)
+            logger.info(f"Split stage: {time.time() - split_t0:.1f}s")
+
+            try:
+                extracted_pkl.unlink()
+            except Exception:
+                pass
+
+            with open(chunks_pkl, "rb") as f:
+                split_output = pickle.load(f)
+
+            if isinstance(split_output, dict):
+                chunk_texts = split_output["texts"]
+                chunks_with_meta = split_output.get("chunks", [])
+                del split_output
+            else:
+                chunk_texts = split_output
+                chunks_with_meta = []
+                del split_output
+
             gc.collect()
+            logger.info(f"Split into {len(chunk_texts):,} chunks")
+
+            if not chunk_texts:
+                my_cprint("No chunks produced after splitting.", "red")
+                return
+
+            # Extract metadata dicts from chunks_with_meta, then free it
+            all_metadatas = []
+            for idx in range(len(chunk_texts)):
+                if idx < len(chunks_with_meta):
+                    _, meta = chunks_with_meta[idx]
+                else:
+                    meta = {}
+                all_metadatas.append(meta)
+
+            del chunks_with_meta
+            gc.collect()
+
+            # Stage 3+4: Tokenize + Embed via subprocess pipeline
+            with cuda_mgr.cuda_operation():
+                embeddings = self.initialize_vector_model(EMBEDDING_MODEL_NAME, config_data)
+
+            my_cprint("\nComputing vectors...", "yellow")
+            embed_t0 = time.time()
+
+            try:
+                self.PERSIST_DIRECTORY.mkdir(parents=True, exist_ok=False)
+                my_cprint(f"Created directory: {self.PERSIST_DIRECTORY}", "green")
+            except FileExistsError:
+                raise FileExistsError(
+                    f"Vector database '{self.PERSIST_DIRECTORY.name}' already exists. "
+                    "Choose a different name or delete the existing DB first."
+                )
+
+            with cuda_mgr.cuda_operation():
+                vectors = embeddings.embed_documents(chunk_texts)
+
+            embed_elapsed = time.time() - embed_t0
+            my_cprint(f"Embedding computation completed in {embed_elapsed:.2f} seconds.", "cyan")
+
+            del embeddings
+            gc.collect()
+            cuda_mgr.force_empty_cache()
+
+            vectors_array = np.ascontiguousarray(vectors, dtype=np.float32)
+            del vectors
+            gc.collect()
+
+            # Stage 5: Write TileDB array + FLAT index (IDs generated per-batch)
+            try:
+                hash_id_mappings = self._create_tiledb_array(chunk_texts, vectors_array, all_metadatas)
+            except Exception as e:
+                logger.error(f"Error creating TileDB database: {e}")
+                traceback.print_exc()
+                if self.PERSIST_DIRECTORY.exists():
+                    try:
+                        shutil.rmtree(self.PERSIST_DIRECTORY)
+                    except Exception:
+                        pass
+                raise
+
+            my_cprint("Processed all chunks", "yellow")
+
+            pipeline_elapsed = time.time() - pipeline_t0
+            my_cprint(f"Database created. Total time: {pipeline_elapsed:.2f} seconds.", "green")
+
+            # Stage 6: Write SQLite metadata DB
+            del chunk_texts, vectors_array, all_metadatas
+            gc.collect()
+
+            create_metadata_db(self.PERSIST_DIRECTORY, json_docs_to_save, hash_id_mappings)
+            del json_docs_to_save, hash_id_mappings
+            gc.collect()
+
             self.clear_docs_for_db_folder()
+
+        except Exception:
+            traceback.print_exc()
+            raise
+        finally:
+            try:
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+            except Exception:
+                pass
+
+
+_thread_local = threading.local()
+
+
+def get_query_db(database_name: str) -> "QueryVectorDB":
+    """Return a thread-local QueryVectorDB instance, creating it if needed.
+
+    Each thread gets its own cache of database name → QueryVectorDB, so
+    concurrent queries against different databases don't thrash singleton state.
+    """
+    if not hasattr(_thread_local, "query_db_cache"):
+        _thread_local.query_db_cache = {}
+
+    if database_name in _thread_local.query_db_cache:
+        return _thread_local.query_db_cache[database_name]
+
+    instance = QueryVectorDB(database_name)
+    _thread_local.query_db_cache[database_name] = instance
+    return instance
+
+
+def clear_query_cache(database_name: Optional[str] = None) -> None:
+    """Clear the thread-local QueryVectorDB cache for the current thread."""
+    if not hasattr(_thread_local, "query_db_cache"):
+        return
+
+    if database_name:
+        if database_name in _thread_local.query_db_cache:
+            _thread_local.query_db_cache[database_name].close()
+            del _thread_local.query_db_cache[database_name]
+    else:
+        for db_instance in _thread_local.query_db_cache.values():
+            db_instance.close()
+        _thread_local.query_db_cache.clear()
 
 
 class QueryVectorDB:
-    _instance = None
-    _instance_lock = threading.Lock()
-    _initialized = False
+    def __init__(self, selected_database: str):
+        self.config = self.load_configuration()
 
-    def __new__(cls, *args, **kwargs):
-        raise RuntimeError("Use QueryVectorDB.get_instance() instead of direct instantiation")
+        if not selected_database:
+            raise ValueError("No vector database selected.")
+        if selected_database not in self.config.created_databases:
+            raise ValueError(f'Database "{selected_database}" not found in config.')
 
-    def _init_once(self, selected_database):
-        if not self._initialized:
-            self.config = self.load_configuration()
+        db_path = self.config.vector_db_dir / selected_database
+        if not db_path.exists():
+            raise FileNotFoundError(f'Database folder "{selected_database}" is missing on disk.')
 
-            if not selected_database:
-                raise ValueError("No vector database selected.")
-            if selected_database not in self.config["created_databases"]:
-                raise ValueError(f'Database "{selected_database}" not found in config.')
-            db_path = PROJECT_ROOT / "Vector_DB" / selected_database
-            if not db_path.exists():
-                raise FileNotFoundError(f'Database folder "{selected_database}" is missing on disk.')
+        self.selected_database = selected_database
+        self.db_path = db_path
+        self.index_uri = str(db_path / "vector_index")
+        self.array_uri = str(db_path / "vectors")
 
-            self.selected_database = selected_database
-            self.embeddings = None
-            self.db = None
-            self.model_name = None
-            self._debug_id = id(self)
-            self._initialized = True
+        self.embeddings = None
+        self.index = None
+        self.model_name = None
+        self._debug_id = id(self)
 
-    @classmethod
-    def get_instance(cls, selected_database):
-        with cls._instance_lock:
-            if cls._instance is not None:
-                if cls._instance.selected_database != selected_database:
-                    print(f"Database changed from {cls._instance.selected_database} to {selected_database}")
-                    cls._instance.cleanup()
-                    cls._instance = None
+        self.distance_metric = "cosine"
+        self.index_type = "FLAT"
 
-            if cls._instance is None:
-                cls._instance = object.__new__(cls)
-                cls._instance._init_once(selected_database)
-
-            return cls._instance
+        try:
+            metadata_file = db_path / "index_metadata.json"
+            if metadata_file.exists():
+                with open(metadata_file, 'r') as f:
+                    metadata = json.load(f)
+                    self.distance_metric = metadata.get('distance_metric', 'cosine')
+                    self.index_type = metadata.get('index_type', 'FLAT')
+        except Exception as e:
+            logger.warning(f"Could not load index metadata, using defaults: {e}")
 
     def load_configuration(self):
-        config_path = PROJECT_ROOT / 'config.yaml'
         try:
-            with open(config_path, 'r', encoding='utf-8') as file:
-                return yaml.safe_load(file)
+            return get_config()
         except Exception as e:
+            logger.error(f"Error loading configuration: {e}")
             raise
 
     @torch.inference_mode()
     def initialize_vector_model(self):
-        model_path = self.config['created_databases'][self.selected_database]['model']
+        model_path = self.config.created_databases[self.selected_database].model
         self.model_name = os.path.basename(model_path)
-        compute_device = self.config['Compute_Device']['database_query']
 
-        use_half = self.config.get("database", {}).get("half", False)
-        model_native_precision = get_model_native_precision(self.model_name, VECTOR_MODELS)
-        torch_dtype = get_appropriate_dtype(compute_device, use_half, model_native_precision)
-
-        outer_model_kwargs = {
-            "device": compute_device,
-            "trust_remote_code": True,
-            "model_kwargs": {
-                "torch_dtype": torch_dtype if torch_dtype is not None else None,
-                "attn_implementation": "sdpa",
-            },
-        }
-
-        encode_kwargs = {
-            "batch_size": 1,
-            "normalize_embeddings": True,
-        }
-
-        mp_lower = model_path.lower()
-
-        instruct_prompt = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
-        if "qwen3-embedding" in mp_lower or "alibaba" in mp_lower or "infly" in mp_lower:
-            encode_kwargs["prompt"] = instruct_prompt
-        elif "snowflake" in mp_lower or "intfloat" in mp_lower:
-            encode_kwargs["prompt"] = "query: "
-        elif "bge-code" in mp_lower:
-            encode_kwargs["prompt"] = "<instruct>Given a question in text, retrieve relevant code that is relevant.\n<query>"
-        elif "bge" in mp_lower:
-            encode_kwargs["prompt"] = "Represent this sentence for searching relevant passages: "
-
-        if "intfloat" in mp_lower:
-            cls = BaseEmbeddingModel
-        elif "bge" in mp_lower and "bge-code" not in mp_lower:
-            cls = BaseEmbeddingModel
-        else:
-            cls = _select_embedding_class(model_path)
-
-        return cls(model_path, outer_model_kwargs, encode_kwargs, is_query=True).create()
-
-    def initialize_database(self):
-        persist_directory = PROJECT_ROOT / "Vector_DB" / self.selected_database
-
-        return TileDB.load(index_uri=str(persist_directory), embedding=self.embeddings, allow_dangerous_deserialization=True)
+        return load_embedding_model(
+            model_path=model_path,
+            compute_device=self.config.Compute_Device.database_query,
+            use_half=self.config.database.half,
+            is_query=True,
+        )
 
     @torch.inference_mode()
     def search(self, query, k: Optional[int] = None, score_threshold: Optional[float] = None):
+        _setup_tiledb_dlls()
+        import tiledb
+        import tiledb.vector_search as vs
+
+        cuda_mgr = get_cuda_manager()
+
         if not self.embeddings:
             self.embeddings = self.initialize_vector_model()
 
-        if not self.db:
-            self.db = self.initialize_database()
+        if not self.index:
+            self.index = vs.FlatIndex(uri=self.index_uri)
 
         self.config = self.load_configuration()
-        document_types = self.config['database'].get('document_types', '')
-        search_filter = {'document_type': document_types} if document_types else {}
-        
-        k = k if k is not None else int(self.config['database']['contexts'])
-        score_threshold = score_threshold if score_threshold is not None else float(self.config['database']['similarity'])
+        k = k if k is not None else self.config.database.contexts
+        score_threshold = score_threshold if score_threshold is not None else self.config.database.similarity
 
-        relevant_contexts = self.db.similarity_search_with_score(
-            query,
-            k=k,
-            filter=search_filter,
-            score_threshold=score_threshold
-        )
+        with cuda_mgr.cuda_operation():
+            query_vector = self.embeddings.embed_query(query)
 
-        search_term = self.config['database'].get('search_term', '').lower()
+        query_vector_np = np.array([query_vector], dtype=np.float32)
+
+        result_distances, result_ids = self.index.query(query_vector_np, k=k)
+
+        if len(result_distances) == 0 or len(result_distances[0]) == 0:
+            return [], []
+
+        distances = result_distances[0]
+        ids = result_ids[0]
+
+        if len(ids) > 0 and ids[0] == MAX_UINT64_SENTINEL:
+            return [], []
+
+        valid_mask = ids != MAX_UINT64_SENTINEL
+        distances = distances[valid_mask]
+        ids = ids[valid_mask]
+
+        if len(ids) == 0:
+            return [], []
+
+        if self.distance_metric == "cosine":
+            similarities = np.clip(1.0 - distances, 0.0, 1.0)
+        else:
+            similarities = np.clip(1.0 - distances, 0.0, 1.0)
+
+        results = []
+
+        valid_indices = similarities >= score_threshold
+        if not np.any(valid_indices):
+            return [], []
+
+        filtered_distances = distances[valid_indices]
+        filtered_ids = ids[valid_indices]
+        filtered_similarities = similarities[valid_indices]
+
+        with tiledb.open(self.array_uri, mode='r') as A:
+            data = A.multi_index[filtered_ids.astype(np.uint64)]
+
+            texts_raw = data['text']
+            metadatas_raw = data['metadata']
+
+            for i, (distance, vec_id, similarity) in enumerate(zip(filtered_distances, filtered_ids, filtered_similarities)):
+                try:
+                    text_raw = texts_raw[i]
+                    if isinstance(text_raw, np.ndarray):
+                        text = text_raw.item() if text_raw.size == 1 else str(text_raw[0])
+                    else:
+                        text = str(text_raw)
+
+                    metadata_raw = metadatas_raw[i]
+                    if isinstance(metadata_raw, np.ndarray):
+                        metadata_str = metadata_raw.item() if metadata_raw.size == 1 else str(metadata_raw[0])
+                    else:
+                        metadata_str = str(metadata_raw)
+
+                    metadata = json.loads(metadata_str)
+                    metadata['similarity_score'] = float(similarity)
+                    metadata['distance'] = float(distance)
+                    results.append((text, metadata))
+
+                except json.JSONDecodeError as je:
+                    logger.warning(f"Failed to parse JSON for vector ID {vec_id}: {je}")
+                    continue
+                except Exception as e:
+                    logger.warning(f"Failed to retrieve data for vector ID {vec_id}: {e}")
+                    continue
+
+        search_term = self.config.database.search_term.lower()
         if search_term:
-            filtered_contexts = [
-                (doc, score) for doc, score in relevant_contexts
-                if search_term not in str(doc.page_content).lower()
+            filtered_results = [
+                (text, metadata) for text, metadata in results
+                if search_term in text.lower()
             ]
         else:
-            filtered_contexts = relevant_contexts
+            filtered_results = results
 
-        contexts = [document.page_content for document, _ in filtered_contexts]
-        metadata_list = [document.metadata for document, _ in filtered_contexts]
-        scores = [score for _, score in filtered_contexts]
+        document_types = self.config.database.document_types
+        if document_types:
+            filtered_results = [
+                (text, metadata) for text, metadata in filtered_results
+                if metadata.get('document_type') == document_types
+            ]
 
-        for metadata, score in zip(metadata_list, scores):
-            metadata['similarity_score'] = score
+        contexts = [text for text, _ in filtered_results]
+        metadata_list = [metadata for _, metadata in filtered_results]
 
         return contexts, metadata_list
 
@@ -744,11 +761,12 @@ class QueryVectorDB:
             del self.embeddings
             self.embeddings = None
 
-        if self.db:
-            del self.db
-            self.db = None
+        if self.index:
+            del self.index
+            self.index = None
 
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-
+        get_cuda_manager().safe_empty_cache()
         gc.collect()
+
+    def close(self):
+        self.cleanup()

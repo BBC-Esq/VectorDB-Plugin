@@ -10,7 +10,7 @@ from multiprocessing.connection import PipeConnection
 from PySide6.QtCore import QObject, Signal
 
 import chat.base as module_chat
-from db.database_interactions import QueryVectorDB
+from db.database_interactions import get_query_db
 from core.utilities import format_citations, my_cprint, normalize_chat_text
 from core.constants import rag_string, PROJECT_ROOT
 from pathlib import Path
@@ -170,7 +170,7 @@ class LocalModelChat:
                     if message.type == MessageType.QUESTION:
                         user_question, _, selected_database = message.payload
                         if query_vector_db is None or current_database != selected_database:
-                            query_vector_db = QueryVectorDB.get_instance(selected_database)
+                            query_vector_db = get_query_db(selected_database)
                             current_database = selected_database
                         contexts, metadata_list = query_vector_db.search(user_question)
                         if not contexts:

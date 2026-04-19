@@ -40,3 +40,6 @@ chat_history.txt
 
 .claude/
 .lock
+
+# Tests (local only)
+tests/

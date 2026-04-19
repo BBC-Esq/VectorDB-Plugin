@@ -1,8 +1,10 @@
+import os
+import sys
 import time
 import gc
 import json
+import subprocess
 from pathlib import Path
-import multiprocessing
 import yaml
 from PySide6.QtCore import QDir, QRegularExpression, QThread, QTimer, Qt, Signal
 from PySide6.QtGui import QAction, QRegularExpressionValidator
@@ -15,27 +17,77 @@ from gui.download_model import model_downloaded_signal
 from core.constants import TOOLTIPS, PROJECT_ROOT
 
 
-class CreateDatabaseProcess:
+class VectorDBWorker(QThread):
+    """Runs DB creation in a completely separate Python interpreter via
+    subprocess.Popen, with stdout drained inside the thread's run() and progress
+    emitted via Qt signals.
+
+    subprocess.Popen (as opposed to multiprocessing.Process) is critical on
+    Windows with PySide6: multiprocessing's 'spawn' inherits DLL state from the
+    GUI process (TileDB, CUDA, torch) which causes access violations
+    (0xC0000005) in the child. See dev/production_integration_log.md (Phase 6).
+    """
+
+    progress = Signal(str)
+    finished = Signal(bool, int, str)
+
     def __init__(self, database_name, parent=None):
+        super().__init__(parent)
         self.database_name = database_name
-        self.process = None
+        self._process = None
+        self._cancelled = False
 
-    def start(self):
-        self.process = multiprocessing.Process(target=create_vector_db_in_process, args=(self.database_name,))
-        self.process.start()
+    def run(self):
+        try:
+            cmd = [
+                sys.executable, "-c",
+                "from db.database_interactions import create_vector_db_in_process; "
+                f"create_vector_db_in_process({self.database_name!r})"
+            ]
 
-    def wait(self, timeout=None):
-        if self.process:
-            self.process.join(timeout)
+            env = {**os.environ, "PYTHONUNBUFFERED": "1"}
 
-    def is_alive(self):
-        if self.process:
-            return self.process.is_alive()
-        return False
+            self.progress.emit("Initializing database creation...")
 
-    def terminate(self):
-        if self.process and self.process.is_alive():
-            self.process.terminate()
+            self._process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                cwd=str(PROJECT_ROOT),
+                env=env,
+            )
+
+            for line in self._process.stdout:
+                line = line.rstrip("\n")
+                if line.strip():
+                    print(f"  [DB Creation] {line}", flush=True)
+                    self.progress.emit(line)
+
+            self._process.wait()
+            exit_code = self._process.returncode
+
+            if self._cancelled:
+                self.finished.emit(False, exit_code, "Cancelled by user.")
+            elif exit_code == 0:
+                self.finished.emit(True, exit_code, "Database created successfully!")
+            else:
+                self.finished.emit(
+                    False, exit_code,
+                    f"Database build failed (exit code {exit_code}). "
+                    "Check the log window for details."
+                )
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.finished.emit(False, -1, f"Database creation failed: {e}")
+
+    def cancel(self):
+        self._cancelled = True
+        if self._process and self._process.poll() is None:
+            self._process.terminate()
 
 
 class CustomFileSystemModel(QFileSystemModel):
@@ -83,9 +135,7 @@ class DatabasesTab(QWidget):
         self.layout.addLayout(hbox2)
         self.sync_combobox_with_config()
         
-        self.db_process = None
-        self.process_timer = QTimer()
-        self.process_timer.timeout.connect(self.check_process_status)
+        self.db_worker = None
         self.current_model_name = None
         self.current_database_name = None
 
@@ -258,50 +308,30 @@ class DatabasesTab(QWidget):
                 self._validation_failed(msg)
                 return
 
-            self.db_process = CreateDatabaseProcess(database_name)
-            self.db_process.start()
+            self.db_worker = VectorDBWorker(database_name, parent=self)
+            self.db_worker.finished.connect(self.on_worker_finished)
+            self.db_worker.start()
 
-            self.process_timer.start(500)
-            
             my_cprint(f"Started database creation for: {database_name}", "green")
 
         except Exception as e:
             self._validation_failed(f"Failed to start database creation: {str(e)}")
 
-    def check_process_status(self):
-        if not self.db_process:
-            self.process_timer.stop()
-            return
-
-        if self.db_process.is_alive():
-            return
-
-        self.process_timer.stop()
-
+    def on_worker_finished(self, success: bool, exit_code: int, message: str):
         try:
-            self.db_process.wait(timeout=5.0)
-            
-            exit_code = self.db_process.process.exitcode
-
-            if hasattr(self.db_process.process, 'close'):
-                self.db_process.process.close()
-
-            if exit_code == 0:
+            if success:
                 my_cprint(f"{self.current_model_name} removed from memory.", "red")
                 self.update_config_with_database_name()
                 backup_database(self.current_database_name)
-                QMessageBox.information(self, "Success", "Database created successfully!")
-
+                QMessageBox.information(self, "Success", message)
             else:
-                err_msg = (f"Database build failed (exit code {exit_code}). "
-                          "Check the log window for details.")
-                QMessageBox.critical(self, "Error", err_msg)
-
+                QMessageBox.critical(self, "Error", message)
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error checking process status: {str(e)}")
-
+            QMessageBox.critical(self, "Error", f"Error handling completion: {e}")
         finally:
-            self.db_process = None
+            if self.db_worker is not None:
+                self.db_worker.deleteLater()
+                self.db_worker = None
             self.reenable_create_db_button()
 
     def update_config_with_database_name(self):
@@ -334,11 +364,9 @@ class DatabasesTab(QWidget):
         gc.collect()
 
     def closeEvent(self, event):
-        if self.db_process and self.db_process.is_alive():
-            self.db_process.terminate()
-            self.db_process.wait()
-        if hasattr(self, 'process_timer'):
-            self.process_timer.stop()
+        if self.db_worker is not None and self.db_worker.isRunning():
+            self.db_worker.cancel()
+            self.db_worker.wait(5000)
         event.accept()
 
     def toggle_group_box(self, group_box, checked):

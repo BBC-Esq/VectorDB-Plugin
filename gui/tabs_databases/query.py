@@ -1,4 +1,6 @@
 import logging
+import queue
+import threading
 from pathlib import Path
 import multiprocessing
 import re
@@ -22,6 +24,9 @@ from modules.voice_recorder import VoiceRecorder
 from core.utilities import check_preconditions_for_submit_question, my_cprint
 from core.constants import TOOLTIPS, PROJECT_ROOT
 from db.database_interactions import process_chunks_only_query
+from db.process_manager import get_process_manager
+
+logger = logging.getLogger(__name__)
 
 current_dir = PROJECT_ROOT
 input_text_file = str(current_dir / 'chat_history.txt')
@@ -106,39 +111,84 @@ class ChunksOnlyThread(QThread):
         self.query = query
         self.database_name = database_name
         self.process = None
+        self.process_lock = threading.Lock()
 
     def run(self):
-        try:
-            result_queue = multiprocessing.Queue()
+        ctx = multiprocessing.get_context('spawn')
+        result_queue = ctx.Queue()
 
-            self.process = multiprocessing.Process(
-                target=process_chunks_only_query,
-                args=(self.database_name, self.query, result_queue)
-            )
-            self.process.start()
+        try:
+            with self.process_lock:
+                self.process = ctx.Process(
+                    target=process_chunks_only_query,
+                    args=(self.database_name, self.query, result_queue)
+                )
+                get_process_manager().register(self.process)
+                self.process.start()
 
             try:
-                result = result_queue.get(timeout=30)
+                result = result_queue.get(timeout=120)
                 self.chunks_ready.emit(result)
-            except multiprocessing.queues.Empty:
-                self.chunks_ready.emit("Error: Timed out waiting for database response")
-            
-            if self.process and self.process.is_alive():
-                self.process.join(timeout=2)
-                if self.process.is_alive():
-                    self.process.terminate()
-                self.process = None
+            except queue.Empty:
+                logger.error("Query timed out after 120 seconds")
+                self.chunks_ready.emit(
+                    "Error: Query timed out after 120 seconds. "
+                    "Please try a simpler query or check your database."
+                )
+            except Exception as e:
+                logger.error(f"Error getting result from queue: {e}")
+                self.chunks_ready.emit(f"Error: Failed to retrieve database response - {e}")
+
+            with self.process_lock:
+                if self.process and self.process.is_alive():
+                    self.process.join(timeout=2)
+                    if self.process.is_alive():
+                        self.process.terminate()
+                        self.process.join(timeout=1)
+                        if self.process.is_alive():
+                            try:
+                                self.process.kill()
+                                self.process.join(timeout=1)
+                            except Exception as e:
+                                logger.error(f"Failed to kill process: {e}")
+
+                if self.process:
+                    get_process_manager().unregister(self.process)
+                    self.process = None
 
         except Exception as e:
-            logging.exception(f"Error in chunks only thread: {e}")
-            self.chunks_ready.emit(f"Error querying database: {str(e)}")
-        finally:
-            pass
+            logger.exception(f"Error in chunks only thread: {e}")
+            self.chunks_ready.emit(f"Error querying database: {e}")
+            with self.process_lock:
+                if self.process:
+                    try:
+                        if self.process.is_alive():
+                            self.process.terminate()
+                            self.process.join(timeout=1)
+                            if self.process.is_alive():
+                                self.process.kill()
+                                self.process.join(timeout=1)
+                        get_process_manager().unregister(self.process)
+                    except Exception as cleanup_error:
+                        logger.error(f"Error during cleanup: {cleanup_error}")
+                    finally:
+                        self.process = None
 
     def stop(self):
-        if self.process and self.process.is_alive():
-            self.process.terminate()
-            self.process.join()
+        with self.process_lock:
+            if self.process:
+                try:
+                    if self.process.is_alive():
+                        self.process.terminate()
+                        self.process.join(timeout=2)
+                        if self.process.is_alive():
+                            self.process.kill()
+                            self.process.join(timeout=1)
+                    get_process_manager().unregister(self.process)
+                except Exception as e:
+                    logger.warning(f"Error stopping process: {e}")
+                finally:
+                    self.process = None
 
 
 def run_tts_in_process(config_path, input_text_file):

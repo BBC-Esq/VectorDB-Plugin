@@ -161,6 +161,12 @@ class DocQA_GUI(QWidget):
                 self.jeeves_process.join()
             self.jeeves_process.close()
 
+        try:
+            from db.process_manager import get_process_manager
+            get_process_manager().cleanup_all(timeout=5.0)
+        except Exception:
+            pass
+
         docs_dir = PROJECT_ROOT / 'Docs_for_DB'
         for item in docs_dir.glob('*'):
             if item.is_file():
