@@ -462,7 +462,7 @@ CHAT_MODELS = {
         'max_new_tokens': 2048,
     },
     'Qwen 3 - 1.7b (Thinking)': {
-        'model': 'Qwen 3 - 1.7b',
+        'model': 'Qwen 3 - 1.7b (Thinking)',
         'repo_id': 'Qwen/Qwen3-1.7B',
         'cache_dir': 'Qwen--Qwen3-1.7B',
         'cps': 200.81,
