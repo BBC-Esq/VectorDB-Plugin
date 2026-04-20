@@ -9,9 +9,7 @@ import sounddevice as sd
 import torch
 import yaml
 from tqdm import tqdm
-import ChatTTS
 from transformers import AutoProcessor, BarkModel
-from whisperspeech.pipeline import Pipeline
 import soundfile as sf
 from gtts import gTTS
 from gtts.tokenizer import pre_processors, tokenizer_cases
@@ -289,6 +287,11 @@ class WhisperSpeechAudio(BaseAudio):
     def initialize_model(self):
         s2a, t2s = self.get_whisper_speech_models()
 
+        # Lazy import: whisperspeech may not be installed in all venvs
+        # (it's an optional TTS backend). Importing at module top would
+        # block every other TTS backend from loading.
+        from whisperspeech.pipeline import Pipeline
+
         try:
             self.pipe = Pipeline(
                 s2a_ref=s2a,
@@ -324,9 +327,19 @@ class WhisperSpeechAudio(BaseAudio):
 class ChatTTSAudio(BaseAudio):
     def __init__(self):
         super().__init__()
-        
+
+        # Lazy import: ChatTTS pins to old torch.serialization.FILE_LIKE
+        # (renamed to FileLike in torch 2.9), so its module-level class
+        # definition crashes at import time on newer torch. Importing it
+        # only when the user actually selects this backend means a broken
+        # ChatTTS no longer takes down Google TTS / Bark / WhisperSpeech /
+        # Chatterbox along with it.
+        import ChatTTS as _ChatTTS
+        global ChatTTS
+        ChatTTS = _ChatTTS
+
         print("Initializing ChatTTSAudio...")
-        
+
         self.initialize_device()
         self.chat = ChatTTS.Chat()
 
