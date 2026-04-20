@@ -21,6 +21,18 @@ from typing import Optional
 import numpy as np
 import torch
 
+# orjson is a Rust-based JSON encoder that's ~10x faster than stdlib json
+# and avoids the heap fragmentation that triggers OverflowError + access
+# violation when serializing millions of metadata dicts in tight loops.
+try:
+    import orjson
+
+    def _json_dumps(obj) -> str:
+        return orjson.dumps(obj).decode("utf-8")
+except ImportError:
+    def _json_dumps(obj) -> str:
+        return json.dumps(obj)
+
 from db.document_processor import Document
 from db.embedding_models import load_embedding_model
 from db.sqlite_operations import create_metadata_db
@@ -291,14 +303,25 @@ class CreateVectorDB:
 
         all_ids = np.empty(num_vectors, dtype=np.uint64)
         hash_id_mappings = []
+        rng = np.random.default_rng()
 
         for batch_idx in range(num_batches):
             start = batch_idx * TILEDB_WRITE_BATCH_SIZE
             end = min(start + TILEDB_WRITE_BATCH_SIZE, num_vectors)
 
-            batch_ids = np.array(
-                [random.randint(0, MAX_UINT64 - 1) for _ in range(end - start)],
-                dtype=np.uint64
+            # Use numpy's vectorized generator instead of a Python list
+            # comprehension over random.randint. The list-comprehension
+            # approach allocated end-start Python int objects per batch
+            # (~7+ GB total at the Caselaw scale), which triggered an
+            # OverflowError + access violation inside random.randint on
+            # Python 3.12. numpy's integers() runs entirely in C and
+            # returns a uint64 array directly.
+            batch_ids = rng.integers(
+                low=0,
+                high=np.iinfo(np.uint64).max,
+                size=end - start,
+                dtype=np.uint64,
+                endpoint=False,
             )
             all_ids[start:end] = batch_ids
 
@@ -308,8 +331,12 @@ class CreateVectorDB:
 
             batch_vectors = vectors_array[start:end]
             batch_texts = np.array(texts[start:end], dtype=object)
+            # _json_dumps uses orjson when available (Rust-based, ~10x faster
+            # than stdlib json). The stdlib json.dumps loop here triggered an
+            # OverflowError + access violation at the Caselaw scale due to
+            # heap fragmentation from millions of small string allocations.
             batch_metadata = np.array(
-                [json.dumps(metadatas[i]) for i in range(start, end)],
+                [_json_dumps(metadatas[i]) for i in range(start, end)],
                 dtype=object
             )
 
