@@ -55,7 +55,6 @@ class WhisperTranscriber:
                 "word_aligner_model": 'tiny',
             },
             'model_identifier': self.model_identifier,
-            'backend': 'CTranslate2',
         }
 
         if 'large-v3' in self.model_identifier:

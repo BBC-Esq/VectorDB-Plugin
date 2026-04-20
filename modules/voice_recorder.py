@@ -32,7 +32,6 @@ class TranscriptionThread(QThread):
         model_kwargs = {
             'compute_type': COMPUTE_TYPE,
             'model_identifier': MODEL_IDENTIFIER,
-            'backend': 'CTranslate2',
             "device": DEVICE,
             "cpu_threads": CPU_THREADS,
         }
