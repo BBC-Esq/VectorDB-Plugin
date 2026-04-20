@@ -65,7 +65,10 @@ class KoboldChat:
         save_metadata(metadata_list)
 
         if not contexts:
-            self.signals.error_signal.emit("No relevant contexts found.")
+            self.signals.error_signal.emit(
+                "No chunks passed the similarity threshold. "
+                "Try lowering the 'Similarity' setting in the Database Query settings tab."
+            )
             self.signals.finished_signal.emit()
             return
 

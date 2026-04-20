@@ -34,7 +34,7 @@ class DatabaseConfig(BaseModel):
     chunk_size: int = Field(default=700, gt=0, le=100000)
     chunk_overlap: int = Field(default=250, ge=0, le=100000)
     contexts: int = Field(default=5, gt=0, le=1000)
-    similarity: float = Field(default=0.8, ge=0.0, le=1.0)
+    similarity: float = Field(default=0.7, ge=0.0, le=1.0)
     half: bool = False
     database_to_search: str = ""
     document_types: str = ""

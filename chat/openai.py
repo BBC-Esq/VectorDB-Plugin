@@ -84,7 +84,10 @@ class ChatGPTChat:
         save_metadata(metadata_list)
 
         if not contexts:
-            self.error_callback("No relevant contexts found.")
+            self.error_callback(
+                "No chunks passed the similarity threshold. "
+                "Try lowering the 'Similarity' setting in the Database Query settings tab."
+            )
             self.finished_callback()
             return
 

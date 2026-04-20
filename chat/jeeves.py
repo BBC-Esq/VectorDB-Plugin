@@ -384,7 +384,11 @@ class ChatWindow(QMainWindow):
             k_value = self.context_spin.value()
             contexts, metadata = self.vector_db.search(user_message, k=5, score_threshold=0.9)
             if not contexts:
-                QMessageBox.warning(self, "No Contexts Found", "No relevant contexts were found for your query.")
+                QMessageBox.warning(
+                    self, "No Contexts Found",
+                    "No chunks passed the similarity threshold. "
+                    "Try lowering the 'Similarity' setting in the Database Query settings tab."
+                )
                 return
         except Exception as e:
             QMessageBox.warning(self, "Database Query Error", f"An error occurred while querying the database: {e}")

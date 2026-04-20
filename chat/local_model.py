@@ -174,7 +174,11 @@ class LocalModelChat:
                             current_database = selected_database
                         contexts, metadata_list = query_vector_db.search(user_question)
                         if not contexts:
-                            conn.send(PipeMessage(MessageType.ERROR, "No relevant contexts found."))
+                            conn.send(PipeMessage(
+                                MessageType.ERROR,
+                                "No chunks passed the similarity threshold. "
+                                "Try lowering the 'Similarity' setting in the Database Query settings tab."
+                            ))
                             conn.send(PipeMessage(MessageType.FINISHED))
                             continue
                         max_context_tokens = model_instance.max_length - 100

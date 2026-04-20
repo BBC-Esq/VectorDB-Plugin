@@ -1,16 +1,65 @@
 import faulthandler
 faulthandler.enable()
 
+# Module-level TileDB DLL preload. Mirrors the approach in VectorDB-Light's
+# vector_db_query.py (lines 1-31). Critical for subprocesses spawned via
+# multiprocessing.Process (e.g. the chunks-only query path): when the
+# fresh interpreter imports this module, the DLLs load immediately —
+# before any other code can accidentally trigger a tiledb.vector_search
+# import without DLL registration, which on Windows causes the
+# _tiledbvspy native module to fail with
+#   ImportError: DLL load failed while importing _tiledbvspy
+# or an even worse silent hang. The standalone _setup_tiledb_dlls()
+# function below is kept for the creation subprocess path, where DLL
+# setup has to happen after configure_logging() / set_cuda_paths().
+import os
+import sys
+import ctypes
+
+try:
+    import tiledb as _tiledb_bootstrap  # noqa: F401
+
+    _venv_root = os.path.dirname(os.path.dirname(sys.executable))
+    _site_packages = os.path.join(_venv_root, "Lib", "site-packages")
+    _tiledb_libs = os.path.join(_site_packages, "tiledb.libs")
+    _vector_search_lib = os.path.join(_site_packages, "tiledb", "vector_search", "lib")
+
+    for _directory in (_tiledb_libs, _vector_search_lib):
+        if os.path.isdir(_directory):
+            try:
+                os.add_dll_directory(_directory)
+            except OSError:
+                pass
+
+    if os.path.isdir(_tiledb_libs):
+        for _filename in sorted(os.listdir(_tiledb_libs)):
+            if _filename.endswith(".dll"):
+                try:
+                    ctypes.CDLL(os.path.join(_tiledb_libs, _filename))
+                except Exception:
+                    pass
+
+    if os.path.isdir(_vector_search_lib):
+        _tiledb_dll = os.path.join(_vector_search_lib, "tiledb.dll")
+        if os.path.exists(_tiledb_dll):
+            try:
+                ctypes.CDLL(_tiledb_dll)
+            except Exception:
+                pass
+except ImportError:
+    # tiledb not installed — will fail later at actual use. Don't block
+    # the import itself in case this module is loaded for non-TileDB work
+    # (e.g. tests that only exercise pure helpers).
+    pass
+
 import gc
 import json
 import logging
-import os
 import pickle
 import random
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import threading
 import time
@@ -226,6 +275,14 @@ def process_chunks_only_query(database_name, query, result_queue):
         query_db = QueryVectorDB(database_name)
         try:
             contexts, metadata_list = query_db.search(query)
+
+            if not contexts:
+                result_queue.put(
+                    "No chunks passed the similarity threshold.\n\n"
+                    "Try lowering the 'Similarity' setting in the Database Query "
+                    "settings tab (e.g. from 0.7 to 0.4) and run the query again."
+                )
+                return
 
             formatted_contexts = []
             for index, (context, metadata) in enumerate(zip(contexts, metadata_list), start=1):
@@ -683,9 +740,11 @@ class QueryVectorDB:
         cuda_mgr = get_cuda_manager()
 
         if not self.embeddings:
+            logger.info(f"Initializing embedding model for database {self.selected_database}")
             self.embeddings = self.initialize_vector_model()
 
         if not self.index:
+            logger.info(f"Loading TileDB FLAT index for {self.selected_database}")
             self.index = vs.FlatIndex(uri=self.index_uri)
 
         self.config = self.load_configuration()
@@ -697,15 +756,19 @@ class QueryVectorDB:
 
         query_vector_np = np.array([query_vector], dtype=np.float32)
 
+        logger.info(f"Querying TileDB index: {self.index_uri}")
+
         result_distances, result_ids = self.index.query(query_vector_np, k=k)
 
         if len(result_distances) == 0 or len(result_distances[0]) == 0:
+            logger.warning("No results returned from vector search")
             return [], []
 
         distances = result_distances[0]
         ids = result_ids[0]
 
         if len(ids) > 0 and ids[0] == MAX_UINT64_SENTINEL:
+            logger.warning("TileDB returned sentinel value - no matches found in index")
             return [], []
 
         valid_mask = ids != MAX_UINT64_SENTINEL
@@ -713,17 +776,28 @@ class QueryVectorDB:
         ids = ids[valid_mask]
 
         if len(ids) == 0:
+            logger.warning("All results were sentinel values - no valid matches")
             return [], []
+
+        logger.info(f"Raw distances - min: {distances.min():.4f}, max: {distances.max():.4f}, mean: {distances.mean():.4f}")
 
         if self.distance_metric == "cosine":
             similarities = np.clip(1.0 - distances, 0.0, 1.0)
         else:
+            logger.warning(f"Unknown distance metric '{self.distance_metric}', assuming cosine")
             similarities = np.clip(1.0 - distances, 0.0, 1.0)
+
+        logger.info(f"Similarities - min: {similarities.min():.4f}, max: {similarities.max():.4f}")
+        logger.info(f"Score threshold: {score_threshold}, Results before filtering: {len(similarities)}")
 
         results = []
 
         valid_indices = similarities >= score_threshold
+        num_passing = np.sum(valid_indices)
+        logger.info(f"Results passing threshold: {num_passing}")
+
         if not np.any(valid_indices):
+            logger.warning(f"No results passed the similarity threshold of {score_threshold}")
             return [], []
 
         filtered_distances = distances[valid_indices]
@@ -781,6 +855,7 @@ class QueryVectorDB:
         contexts = [text for text, _ in filtered_results]
         metadata_list = [metadata for _, metadata in filtered_results]
 
+        logger.info(f"Final results returned: {len(contexts)}")
         return contexts, metadata_list
 
     def cleanup(self):
