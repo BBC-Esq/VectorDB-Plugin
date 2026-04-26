@@ -174,6 +174,10 @@ class TesseractOCR(OCRProcessor):
         dpi_y = (pix.height * 72) / pdf_height_pts
         dpi = (dpi_x + dpi_y) / 2.0
         hocr_transform = HocrTransform(hocr_filename=hocr_output, dpi=dpi)
+        # HocrTransform.to_pdf reads self.width/self.height. __init__ tries to set
+        # them from the hOCR <div class="ocr_page"> coords, but tesserocr's hOCR
+        # may omit that div (or its bbox), leaving the attrs undefined and causing
+        # AttributeError. Force them to the true PDF page dimensions in pts.
         hocr_transform.width = pdf_width_pts
         hocr_transform.height = pdf_height_pts
         hocr_transform.to_pdf(out_filename=text_pdf, invisible_text=True)
@@ -211,7 +215,7 @@ class TesseractOCR(OCRProcessor):
                                 page.set_cropbox(cropbox)
                         except ValueError:
                             pass
-            ocr_doc.save(temp_path, garbage=4, deflate=True, clean=True, linear=True)
+            ocr_doc.save(temp_path, garbage=4, deflate=True, clean=True)
         os.replace(temp_path, ocr_pdf_path)
 
     def cleanup_temp_pdfs(self):
