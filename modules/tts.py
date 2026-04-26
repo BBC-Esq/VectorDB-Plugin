@@ -528,7 +528,7 @@ class GoogleTTSAudio:
 
 class KyutaiAudio(BaseAudio):
     REQUIRED_PACKAGES = {
-        "moshi": "0.2.8",
+        "moshi": "0.2.13",
         "sphn": "0.2.0"
     }
     
@@ -547,18 +547,13 @@ class KyutaiAudio(BaseAudio):
         self.initialize_device()
         self.initialize_model()
 
-    def create_checkpoint_info_from_cache(self, downloaded_paths):
+    def create_checkpoint_info_from_cache(self, downloaded_paths, raw_config, weight_files):
         from moshi.models.loaders import CheckpointInfo
-        import json
         from pathlib import Path
 
-        config_path = Path(downloaded_paths["config.json"])
-        with open(config_path, 'r') as f:
-            raw_config = json.load(f)
-
-        moshi_weights = Path(downloaded_paths["dsm_tts_1e68beda@240.safetensors"])
-        mimi_weights = Path(downloaded_paths["tokenizer-e351c8d8-checkpoint125.safetensors"])
-        tokenizer_path = Path(downloaded_paths["tokenizer_spm_8k_en_fr_audio.model"])
+        moshi_weights = Path(downloaded_paths[weight_files["moshi_name"]])
+        mimi_weights = Path(downloaded_paths[weight_files["mimi_name"]])
+        tokenizer_path = Path(downloaded_paths[weight_files["tokenizer_name"]])
 
         lm_config = dict(raw_config)
         tts_config = lm_config.pop("tts_config", {})
@@ -588,20 +583,31 @@ class KyutaiAudio(BaseAudio):
 
     def initialize_model(self):
         try:
+            torch._dynamo.config.disable = True
+
+            import json
             from moshi.models.tts import TTSModel
-            from moshi.models.loaders import CheckpointInfo
             from huggingface_hub import hf_hub_download
 
             my_cprint("Loading Kyutai TTS model...", "yellow")
 
             hf_repo = self.config.get('hf_repo', 'kyutai/tts-1.6b-en_fr')
+            n_q = self.config.get('n_q', 32)
+            temp = self.config.get('temp', 0.6)
 
-            required_files = [
-                "config.json",
-                "dsm_tts_1e68beda@240.safetensors", 
-                "tokenizer-e351c8d8-checkpoint125.safetensors",
-                "tokenizer_spm_8k_en_fr_audio.model"
-            ]
+            config_path = hf_hub_download(
+                repo_id=hf_repo, filename="config.json",
+                cache_dir=CACHE_DIR, token=False,
+            )
+            with open(config_path, 'r') as f:
+                raw_config = json.load(f)
+
+            weight_files = {
+                "moshi_name": raw_config["moshi_name"],
+                "mimi_name": raw_config["mimi_name"],
+                "tokenizer_name": raw_config["tokenizer_name"],
+            }
+            required_files = ["config.json", *weight_files.values()]
 
             need_download = False
             for filename in required_files:
@@ -612,10 +618,10 @@ class KyutaiAudio(BaseAudio):
                     break
 
             if need_download:
-                my_cprint("Downloading Kyutai model files...", "yellow")
-            
-            downloaded_paths = {}
-            for filename in required_files:
+                my_cprint(f"Downloading Kyutai model files for {hf_repo}...", "yellow")
+
+            downloaded_paths = {"config.json": config_path}
+            for filename in weight_files.values():
                 try:
                     file_path = hf_hub_download(
                         repo_id=hf_repo,
@@ -628,22 +634,18 @@ class KyutaiAudio(BaseAudio):
                     my_cprint(f"Error downloading {filename}: {e}", "red")
                     raise
 
-            checkpoint_info = self.create_checkpoint_info_from_cache(downloaded_paths)
-            
-            self.tts_model = TTSModel.from_checkpoint_info(checkpoint_info, device=torch.device(self.device))
+            checkpoint_info = self.create_checkpoint_info_from_cache(
+                downloaded_paths, raw_config, weight_files
+            )
 
-            quality_mapping = {
-                "base": 4,
-                "medium": 16,
-                "high": 32
-            }
+            self.tts_model = TTSModel.from_checkpoint_info(
+                checkpoint_info,
+                n_q=n_q,
+                temp=temp,
+                device=torch.device(self.device),
+            )
 
-            quality = self.config.get('quality', 'high')
-            self.tts_model.n_q = quality_mapping.get(quality, 32)
-            self.tts_model.temp = self.config.get('temp', 0.6)
-            self.tts_model.mimi.set_num_codebooks(self.tts_model.n_q)
-
-            my_cprint(f"Kyutai model loaded successfully! (Quality: {quality}, n_q: {self.tts_model.n_q})", "green")
+            my_cprint(f"Kyutai model loaded successfully! ({hf_repo}, n_q: {n_q})", "green")
 
             self.setup_voice_conditioning()
 
@@ -652,16 +654,26 @@ class KyutaiAudio(BaseAudio):
             raise
 
     def setup_voice_conditioning(self):
+        if not self.tts_model.multi_speaker:
+            my_cprint(
+                "This Kyutai model is single-speaker and does not accept voice "
+                "conditioning; voice may drift between sentences.", "yellow"
+            )
+            self.condition_attributes = self.tts_model.make_condition_attributes([], cfg_coef=None)
+            return
+
         try:
             voice_name = self.config.get('voice', 'expresso/ex03-ex01_happy_001_channel1_334s.wav')
             cfg_coef = self.config.get('cfg_coef', 2.0)
-            
+            if not self.tts_model.valid_cfg_conditionings:
+                cfg_coef = None
+
             voice_path = self.tts_model.get_voice_path(voice_name)
             self.condition_attributes = self.tts_model.make_condition_attributes([voice_path], cfg_coef=cfg_coef)
-            
+
             voice_display = self.config.get('voice_display_name', 'Happy Male')
             my_cprint(f"Voice conditioning loaded: {voice_display}", "green")
-            
+
         except Exception as voice_error:
             my_cprint(f"Voice loading failed: {voice_error}", "yellow")
             my_cprint("Using model without voice conditioning", "yellow")

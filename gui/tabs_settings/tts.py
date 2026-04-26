@@ -68,10 +68,10 @@ class TTSSettingsTab(QWidget):
         "kyutai": {
             "label": "Kyutai (GPU)",
             "extras": {
-                "quality": {
-                    "label": "Quality",
-                    "options": ["base", "medium", "high"],
-                    "default": "high",
+                "model": {
+                    "label": "Model",
+                    "options": ["1.6B (EN+FR, ~4.2GB VRAM)", "0.75B (EN, ~2GB VRAM)"],
+                    "default": "1.6B (EN+FR, ~4.2GB VRAM)",
                 },
                 "voice": {
                     "label": "Voice",
@@ -126,6 +126,9 @@ class TTSSettingsTab(QWidget):
             self.widgets_for_backend[key] = wdict
 
         self.backend_combo.currentIndexChanged.connect(self._update_visible_extras)
+        self.widgets_for_backend["kyutai"]["model"][1].currentTextChanged.connect(
+            self._update_kyutai_voice_visibility
+        )
 
     def _config_path(self) -> Path:
         return Path("config.yaml")
@@ -163,8 +166,8 @@ class TTSSettingsTab(QWidget):
 
         kyutai_cfg = cfg.get("kyutai", {}) if cfg else {}
         for extra_key, (lbl, cmb) in self.widgets_for_backend["kyutai"].items():
-            if extra_key == "quality":
-                cmb.setCurrentText(kyutai_cfg.get("quality", "high"))
+            if extra_key == "model":
+                cmb.setCurrentText(kyutai_cfg.get("model_display_name", "1.6B (EN+FR, ~4.2GB VRAM)"))
             elif extra_key == "voice":
                 cmb.setCurrentText(kyutai_cfg.get("voice_display_name", "Happy Male"))
 
@@ -194,7 +197,16 @@ class TTSSettingsTab(QWidget):
 
         elif backend_key == "kyutai":
             kyutai = cfg.setdefault("kyutai", {})
-            kyutai["quality"] = self.widgets_for_backend["kyutai"]["quality"][1].currentText()
+
+            model_mapping = {
+                "1.6B (EN+FR, ~4.2GB VRAM)": ("kyutai/tts-1.6b-en_fr", 32),
+                "0.75B (EN, ~2GB VRAM)": ("kyutai/tts-0.75b-en-public", 16),
+            }
+            selected_model_display = self.widgets_for_backend["kyutai"]["model"][1].currentText()
+            hf_repo, n_q = model_mapping[selected_model_display]
+            kyutai["model_display_name"] = selected_model_display
+            kyutai["hf_repo"] = hf_repo
+            kyutai["n_q"] = n_q
 
             voice_mapping = {
                 "Default Male": "expresso/ex04-ex03_default_002_channel2_239s.wav",
@@ -211,7 +223,6 @@ class TTSSettingsTab(QWidget):
             kyutai["voice"] = voice_mapping[selected_voice_display]
             kyutai["voice_display_name"] = selected_voice_display
 
-            kyutai["hf_repo"] = "kyutai/tts-1.6b-en_fr"
             kyutai["temp"] = 0.6
             kyutai["cfg_coef"] = 2.0
 
@@ -241,7 +252,17 @@ class TTSSettingsTab(QWidget):
             lbl.show()
             cmb.show()
 
+        if chosen == "kyutai":
+            self._update_kyutai_voice_visibility()
+
         self._save_to_yaml()
+
+    def _update_kyutai_voice_visibility(self):
+        model_text = self.widgets_for_backend["kyutai"]["model"][1].currentText()
+        voice_lbl, voice_cmb = self.widgets_for_backend["kyutai"]["voice"]
+        supports_voices = model_text.startswith("1.6B")
+        voice_lbl.setVisible(supports_voices)
+        voice_cmb.setVisible(supports_voices)
 
     @staticmethod
     def _find_key_by_value(d: dict, value: str | None):

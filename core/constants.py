@@ -398,7 +398,7 @@ full_install_libs = [
 
 BACKEND_DEPENDENCIES = {
     "kyutai": {
-        "moshi": "0.2.8",
+        "moshi": "0.2.13",
         "sphn": "0.2.0"
     },
     "bark": {
