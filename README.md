@@ -20,21 +20,7 @@
 | 🛠️ [Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) | Required for compiling dependencies               |
 
 <details>
-<summary>What happens if the compiler is missing?</summary>
-
-<img src="https://github.com/BBC-Esq/VectorDB-Plugin-for-LM-Studio/blob/main/src/Assets/sample_error.png?raw=true">
-
-</details>
-
-<details>
-<summary>Correct SDK options to select during installation</summary>
-
-<img src="https://github.com/BBC-Esq/VectorDB-Plugin-for-LM-Studio/blob/main/src/Assets/build_tools.png?raw=true">
-
-</details>
-
-<details>
-<summary>Or you can run these commands in Powershell on Windows:</summary>
+<summary>Or you can try running these commands in Powershell on Windows:</summary>
 
 ### Install:
 
