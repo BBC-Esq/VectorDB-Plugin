@@ -188,7 +188,7 @@ libs = [
     "chardet==5.2.0",
     "charset-normalizer==3.4.4",
     "git+https://github.com/BBC-Esq/chatterbox-light",
-    "chattts==0.2.4",
+    "chattts==0.2.5",
     "click==8.3.0",
     "cloudpickle==3.1.2",
     "colorama==0.4.6",

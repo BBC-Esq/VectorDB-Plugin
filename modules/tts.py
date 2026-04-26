@@ -328,15 +328,8 @@ class ChatTTSAudio(BaseAudio):
     def __init__(self):
         super().__init__()
 
-        # Lazy import: ChatTTS pins to old torch.serialization.FILE_LIKE
-        # (renamed to FileLike in torch 2.9), so its module-level class
-        # definition crashes at import time on newer torch. Importing it
-        # only when the user actually selects this backend means a broken
-        # ChatTTS no longer takes down Google TTS / Bark / WhisperSpeech /
-        # Chatterbox along with it.
-        import ChatTTS as _ChatTTS
         global ChatTTS
-        ChatTTS = _ChatTTS
+        import ChatTTS
 
         print("Initializing ChatTTSAudio...")
 
@@ -351,7 +344,6 @@ class ChatTTSAudio(BaseAudio):
             device=self.device,
             compile=False,
             use_flash_attn=False,
-            local_dir=str(chattts_dir)
         )
 
         torch.manual_seed(11)
