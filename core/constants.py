@@ -367,7 +367,7 @@ libs = [
     "timm==1.0.20",
     "tokenizers==0.22.1",
     "tqdm==4.67.1",
-    "transformers==4.57.1",
+    "transformers==4.57.4",
     "typing-inspection==0.4.2",
     "typing_extensions==4.15.0",
     "unstructured-client==0.42.3",
