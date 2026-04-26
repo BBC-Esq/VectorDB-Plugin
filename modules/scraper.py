@@ -9,13 +9,15 @@ from urllib.parse import urljoin, urlparse, urlsplit, urlunsplit
 from PySide6.QtCore import Signal, QObject
 from charset_normalizer import detect
 
+from core.constants import PROJECT_ROOT
+
 
 class BaseScraper:
     def __init__(self, url, folder):
         self.url = url
         self.folder = folder
         self.save_dir = os.path.join(
-            os.path.dirname(__file__),
+            str(PROJECT_ROOT),
             "Scraped_Documentation",
             folder,
         )

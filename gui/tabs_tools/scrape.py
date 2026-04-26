@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from modules.scraper import ScraperRegistry, ScraperWorker
-from core.constants import scrape_documentation
+from core.constants import scrape_documentation, PROJECT_ROOT
 
 
 class ScrapeDocumentationTab(QWidget):
@@ -65,7 +65,7 @@ class ScrapeDocumentationTab(QWidget):
         model = QStandardItemModel()
 
         scraped_dir = os.path.join(
-            os.path.dirname(__file__),
+            str(PROJECT_ROOT),
             "Scraped_Documentation",
         )
 
@@ -93,7 +93,7 @@ class ScrapeDocumentationTab(QWidget):
         scraper_class = ScraperRegistry.get_scraper(scraper_name)
 
         self.current_folder = os.path.join(
-            os.path.dirname(__file__),
+            str(PROJECT_ROOT),
             "Scraped_Documentation",
             folder,
         )
