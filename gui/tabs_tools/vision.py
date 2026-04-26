@@ -14,7 +14,8 @@ import torch
 from PySide6.QtCore import QThread, Signal as pyqtSignal, Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QMessageBox,
-    QFileDialog, QProgressDialog, QDialog, QCheckBox
+    QFileDialog, QProgressDialog, QDialog, QCheckBox,
+    QListWidget, QListWidgetItem, QLabel
 )
 
 import modules.process_images as module_process_images
@@ -33,6 +34,79 @@ def _load_cfg() -> dict:
             return yaml.safe_load(f) or {}
     except Exception:
         return {}
+
+
+class ModelComparisonProgressDialog(QDialog):
+    PENDING = "⏸"     # ⏸
+    RUNNING = "⏳"     # ⏳
+    SUCCESS = "✅"     # ✅
+    FAILED = "❌"      # ❌
+
+    def __init__(self, model_names, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Vision Model Comparison")
+        self.setModal(True)
+        self.setMinimumWidth(420)
+        self._was_cancelled = False
+        self._finished = False
+
+        layout = QVBoxLayout(self)
+
+        self.header_label = QLabel(
+            f"Processing image with {len(model_names)} selected model(s)..."
+        )
+        layout.addWidget(self.header_label)
+
+        self.list_widget = QListWidget()
+        self.list_widget.setSelectionMode(QListWidget.NoSelection)
+        self.list_widget.setFocusPolicy(Qt.NoFocus)
+        for name in model_names:
+            item = QListWidgetItem(f"{self.PENDING}  {name}")
+            self.list_widget.addItem(item)
+        layout.addWidget(self.list_widget)
+
+        button_row = QHBoxLayout()
+        button_row.addStretch(1)
+        self.action_button = QPushButton("Cancel")
+        self.action_button.clicked.connect(self._on_action_clicked)
+        button_row.addWidget(self.action_button)
+        layout.addLayout(button_row)
+
+        self._model_names = list(model_names)
+
+    def _set_row(self, index, icon, suffix=""):
+        if 0 <= index < len(self._model_names):
+            text = f"{icon}  {self._model_names[index]}"
+            if suffix:
+                text += f"   {suffix}"
+            self.list_widget.item(index).setText(text)
+
+    def on_model_started(self, index, name):
+        self._set_row(index, self.RUNNING, "processing…")
+
+    def on_model_completed(self, index, name, elapsed):
+        self._set_row(index, self.SUCCESS, f"({elapsed:.1f} s)")
+
+    def on_model_failed(self, index, name):
+        self._set_row(index, self.FAILED)
+
+    def mark_finished(self):
+        self._finished = True
+        self.action_button.setText("Close")
+        self.header_label.setText("Done. See the comparison output file for details.")
+
+    def was_cancelled(self):
+        return self._was_cancelled
+
+    def _on_action_clicked(self):
+        if not self._finished:
+            self._was_cancelled = True
+        self.close()
+
+    def closeEvent(self, event):
+        if not self._finished:
+            self._was_cancelled = True
+        super().closeEvent(event)
 
 
 class ModelSelectionDialog(QDialog):
@@ -96,6 +170,9 @@ class MultiModelProcessorThread(QThread):
     finished = pyqtSignal(list)
     error = pyqtSignal(str)
     progress = pyqtSignal(int)
+    model_started = pyqtSignal(int, str)
+    model_completed = pyqtSignal(int, str, float)
+    model_failed = pyqtSignal(int, str)
 
     def __init__(self, image_path, selected_models):
         super().__init__()
@@ -116,6 +193,8 @@ class MultiModelProcessorThread(QThread):
                         torch.cuda.empty_cache()
                         gc.collect()
                         break
+
+                    self.model_started.emit(i, model_name)
 
                     try:
                         print(f"\nProcessing with {model_name}...")
@@ -145,6 +224,7 @@ class MultiModelProcessorThread(QThread):
 
                         print(f"Completed {model_name}")
                         self.progress.emit(i + 1)
+                        self.model_completed.emit(i, model_name, process_time)
 
                     except Exception as e:
                         error_msg = f"Error processing with {model_name}: {str(e)}\n{traceback.format_exc()}"
@@ -152,6 +232,7 @@ class MultiModelProcessorThread(QThread):
                         print(error_msg)
                         torch.cuda.empty_cache()
                         gc.collect()
+                        self.model_failed.emit(i, model_name)
 
             torch.cuda.empty_cache()
             gc.collect()
@@ -247,16 +328,18 @@ class VisionToolSettingsTab(QWidget):
                 returnValue = msgBox.exec()
 
                 if returnValue == QMessageBox.Ok:
-                    self.progress = QProgressDialog("Processing image with multiple models...", "Cancel", 0, len(selected_models), self)
-                    self.progress.setWindowModality(Qt.WindowModal)
-                    self.progress.setWindowTitle("Processing")
-                    self.progress.canceled.connect(self.cancelProcessing)
+                    self.progress = ModelComparisonProgressDialog(selected_models, self)
+                    self.progress.rejected.connect(self.cancelProcessing)
 
                     self.thread = MultiModelProcessorThread(file_path, selected_models)
                     self.thread.finished.connect(self.onMultiModelProcessingFinished)
                     self.thread.error.connect(self.onMultiModelProcessingError)
-                    self.thread.progress.connect(self.progress.setValue)
+                    self.thread.model_started.connect(self.progress.on_model_started)
+                    self.thread.model_completed.connect(self.progress.on_model_completed)
+                    self.thread.model_failed.connect(self.progress.on_model_failed)
                     self.thread.start()
+
+                    self.progress.show()
 
     def cancelProcessing(self):
         if self.thread is not None and hasattr(self.thread, "cancel"):
@@ -264,7 +347,7 @@ class VisionToolSettingsTab(QWidget):
 
     def onMultiModelProcessingFinished(self, results):
         if self.progress:
-            self.progress.close()
+            self.progress.mark_finished()
         try:
             output_file = self.save_comparison_results(self.thread.image_path, results)
             self.open_file(output_file)
@@ -274,6 +357,7 @@ class VisionToolSettingsTab(QWidget):
 
     def onMultiModelProcessingError(self, error_msg):
         if self.progress:
+            self.progress.mark_finished()
             self.progress.close()
         QMessageBox.critical(self, "Error", f"An error occurred during processing:\n\n{error_msg}")
         self.thread = None
