@@ -120,7 +120,7 @@ def _load_html(file_path: Path) -> Optional[str]:
     for enc in encodings:
         try:
             with open(file_path, "r", encoding=enc) as f:
-                soup = BeautifulSoup(f, "html.parser")
+                soup = BeautifulSoup(f, "lxml")
             text = soup.get_text(separator=" ")
             return text if text and text.strip() else None
         except UnicodeDecodeError:
@@ -150,7 +150,7 @@ def _load_eml(file_path: Path) -> Optional[str]:
             elif content_type == "text/html":
                 payload = part.get_content()
                 if isinstance(payload, str):
-                    soup = BeautifulSoup(payload, "html.parser")
+                    soup = BeautifulSoup(payload, "lxml")
                     text = soup.get_text(separator=" ")
                     if text.strip():
                         parts.append(text)
