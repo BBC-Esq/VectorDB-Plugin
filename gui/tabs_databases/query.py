@@ -308,7 +308,13 @@ class DatabaseQueryTab(QWidget):
                 self.model_combo_box.setItemData(idx, f"Uses ~{gb} GB memory", Qt.ToolTipRole)
             self.model_combo_box.setEnabled(True)
         else:
-            for key in ["Qwen 3 - 0.6b", "Qwen 3 - 1.7b", "Granite - 2b", "Exaone - 2.4b"]:
+            for key in [
+                "LiquidAI - .35b",
+                "Qwen 3 - 0.6b (Thinking)",
+                "LiquidAI - 1.2b",
+                "Qwen 3 - 1.7b (Thinking)",
+                "Granite - 2b",
+            ]:
                 self.model_combo_box.addItem(CHAT_MODELS[key]["model"])
             self.model_combo_box.setToolTip("Choose a local model. It will be downloaded.")
         if self.model_combo_box.count() > 0:
