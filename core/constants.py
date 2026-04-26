@@ -380,7 +380,7 @@ libs = [
     "wcwidth==0.2.14",
     "webdataset==1.0.2",
     "webencodings==0.5.1",
-    "whisper-s2t-reborn @ git+https://github.com/BBC-Esq/WhisperS2T-reborn.git",
+    "whisper-s2t-reborn>=1.6.0,<2",
     "wrapt==1.17.3",
     "xlrd==2.0.2",
     "xxhash==3.6.0",
