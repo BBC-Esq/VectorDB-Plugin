@@ -22,7 +22,6 @@ from transformers import (
     GenerationConfig,
     AutoConfig,
     AutoModelForVision2Seq,
-    Glm4vForConditionalGeneration,
     AutoModelForImageTextToText
 )
 from langchain_community.docstore.document import Document
@@ -555,7 +554,7 @@ class loader_glmv4_thinking(BaseLoader):
 
         self.pixel_cap = self.PIXELS_HIGH
 
-        model = Glm4vForConditionalGeneration.from_pretrained(
+        model = AutoModelForImageTextToText.from_pretrained(
             model_id,
             torch_dtype=torch.bfloat16,
             device_map="auto",
