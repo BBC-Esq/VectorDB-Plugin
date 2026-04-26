@@ -483,16 +483,16 @@ class loader_qwenvl(BaseLoader):
             token=False
         )
 
-        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        model = AutoModelForImageTextToText.from_pretrained(
             model_id,
             quantization_config=quantization_config,
             torch_dtype=dtype,
             low_cpu_mem_usage=True,
             trust_remote_code=True,
             cache_dir=cache_dir,
-            token=False
+            token=False,
+            device_map="auto",
         )
-        model = model.to(self.device)
         model.eval()
 
         _, precision_str = self.detect_dtype()
