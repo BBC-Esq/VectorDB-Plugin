@@ -275,28 +275,41 @@ class WhisperSpeechAudio(BaseAudio):
         self.pipe = None
         self.initialize_model()
 
+    # Models known to be incompatible with CUDA graph capture; CUDA graphs
+    # are auto-disabled when either the s2a or t2s side picks one of these.
+    CUDA_GRAPH_INCOMPATIBLE_MODELS = {
+        's2a-v1.95-small-fast-en.model',
+        't2s-v1.1-small-en+pl.model',
+    }
+
     def get_whisper_speech_models(self):
         s2a_model = self.config.get('s2a', 's2a-q4-hq-fast-en+pl.model')
-        s2a = f"collabora/whisperspeech:{s2a_model}"
-        
-        t2s_model = self.config.get('t2s', 't2s-base-en+pl.model')
-        t2s = f"collabora/whisperspeech:{t2s_model}"
+        s2a = f"WhisperSpeech/WhisperSpeech:{s2a_model}"
 
-        return s2a, t2s
+        t2s_model = self.config.get('t2s', 't2s-base-en+pl.model')
+        t2s = f"WhisperSpeech/WhisperSpeech:{t2s_model}"
+
+        return s2a, t2s, s2a_model, t2s_model
 
     def initialize_model(self):
-        s2a, t2s = self.get_whisper_speech_models()
+        s2a, t2s, s2a_model, t2s_model = self.get_whisper_speech_models()
 
-        # Lazy import: whisperspeech may not be installed in all venvs
-        # (it's an optional TTS backend). Importing at module top would
-        # block every other TTS backend from loading.
-        from whisperspeech.pipeline import Pipeline
+        from whisperspeech2.pipeline import Pipeline
+
+        use_cuda_graph = (
+            torch.cuda.is_available()
+            and torch.cuda.get_device_capability() >= (7, 0)
+            and s2a_model not in self.CUDA_GRAPH_INCOMPATIBLE_MODELS
+            and t2s_model not in self.CUDA_GRAPH_INCOMPATIBLE_MODELS
+        )
 
         try:
             self.pipe = Pipeline(
                 s2a_ref=s2a,
                 t2s_ref=t2s,
-                cache_dir=CACHE_DIR
+                optimize=True,
+                torch_compile=False,
+                use_cuda_graph=use_cuda_graph,
             )
             my_cprint(f"{s2a.split(':')[-1]} loaded\n{t2s.split(':')[-1]} loaded.", "green")
         except Exception as e:
@@ -305,10 +318,11 @@ class WhisperSpeechAudio(BaseAudio):
 
     @torch.inference_mode()
     def process_text_to_audio(self, sentences):
+        speaker = self.config.get("speaker") or "default"
         for sentence in tqdm(sentences, desc="Processing Sentences"):
             if sentence and not self.stop_event.is_set():
                 try:
-                    audio_tensor = self.pipe.generate(sentence)
+                    audio_tensor = self.pipe.generate(sentence, speaker=speaker)
                     audio_np = (audio_tensor.cpu().numpy() * 32767).astype(np.int16)
                     if len(audio_np.shape) == 1:
                         audio_np = np.expand_dims(audio_np, axis=1)

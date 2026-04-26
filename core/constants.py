@@ -381,6 +381,7 @@ libs = [
     "webdataset==1.0.2",
     "webencodings==0.5.1",
     "whisper-s2t-reborn>=1.6.0,<2",
+    "whisperspeech2>=1.0.0,<2",
     "wrapt==1.17.3",
     "xlrd==2.0.2",
     "xxhash==3.6.0",
@@ -1207,14 +1208,19 @@ Cutting Knowledge Date: December 2023
 
 WHISPER_SPEECH_MODELS = {
     "s2a": {
-        "s2a-q4-tiny": ("s2a-q4-tiny-en+pl.model", 74),
-        "s2a-q4-base": ("s2a-q4-base-en+pl.model", 203),
-        "s2a-q4-hq-fast": ("s2a-q4-hq-fast-en+pl.model", 380),
+        "s2a-q4-tiny": ("s2a-q4-tiny-en+pl.model", 77),
+        "s2a-q4-base": ("s2a-q4-base-en+pl.model", 193),
+        "s2a-q4-hq-fast": ("s2a-q4-hq-fast-en+pl.model", 363),
+        "s2a-q4-small": ("s2a-q4-small-en+pl.model", 833),
+        "s2a-v1.1-small": ("s2a-v1.1-small-en+pl.model", 417),
     },
     "t2s": {
-        "t2s-tiny": ("t2s-tiny-en+pl.model", 74),
-        "t2s-base": ("t2s-base-en+pl.model", 193),
-        "t2s-hq-fast": ("t2s-hq-fast-en+pl.model", 743),
+        "t2s-tiny": ("t2s-tiny-en+pl.model", 71),
+        "t2s-base": ("t2s-base-en+pl.model", 184),
+        "t2s-small": ("t2s-small-en+pl.model", 817),
+        "t2s-fast-small": ("t2s-fast-small-en+pl.model", 709),
+        "t2s-fast-medium": ("t2s-fast-medium-en+pl+yt.model", 1254),
+        "t2s-hq-fast": ("t2s-hq-fast-en+pl.model", 709),
     }
 }
 

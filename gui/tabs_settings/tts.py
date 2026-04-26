@@ -1,10 +1,14 @@
 import yaml
 from pathlib import Path
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QLabel, QComboBox, QWidget, QGridLayout, QMessageBox, QHBoxLayout
 )
 
 from core.constants import WHISPER_SPEECH_MODELS
+
+WHISPER_SPEECH_SPEAKERS = ["default", "classic", "voice_b"]
+WHISPER_SPEECH_VOICE_CLONING_LABEL = "Voice Cloning (Coming Soon)"
 
 
 class TTSSettingsTab(QWidget):
@@ -41,6 +45,11 @@ class TTSSettingsTab(QWidget):
                     "label": "T2S Model",
                     "options": list(WHISPER_SPEECH_MODELS["t2s"].keys()),
                     "default": list(WHISPER_SPEECH_MODELS["t2s"].keys())[0],
+                },
+                "speaker": {
+                    "label": "Speaker",
+                    "options": WHISPER_SPEECH_SPEAKERS + [WHISPER_SPEECH_VOICE_CLONING_LABEL],
+                    "default": WHISPER_SPEECH_SPEAKERS[0],
                 },
             },
         },
@@ -110,6 +119,8 @@ class TTSSettingsTab(QWidget):
                 cmb = QComboBox()
                 cmb.setObjectName(extra_key)
                 cmb.addItems(meta["options"])
+                if key == "whisperspeech" and extra_key == "speaker":
+                    self._disable_voice_cloning_item(cmb)
                 cmb.currentTextChanged.connect(self._save_to_yaml)
                 wdict[extra_key] = (lbl, cmb)
             self.widgets_for_backend[key] = wdict
@@ -145,6 +156,10 @@ class TTSSettingsTab(QWidget):
                     WHISPER_SPEECH_MODELS["t2s"], tts_cfg.get("t2s")
                 )
             )
+            speaker = tts_cfg.get("speaker", WHISPER_SPEECH_SPEAKERS[0])
+            if speaker not in WHISPER_SPEECH_SPEAKERS:
+                speaker = WHISPER_SPEECH_SPEAKERS[0]
+            self.widgets_for_backend["whisperspeech"]["speaker"][1].setCurrentText(speaker)
 
         kyutai_cfg = cfg.get("kyutai", {}) if cfg else {}
         for extra_key, (lbl, cmb) in self.widgets_for_backend["kyutai"].items():
@@ -173,6 +188,9 @@ class TTSSettingsTab(QWidget):
             tts_cfg["t2s"] = WHISPER_SPEECH_MODELS["t2s"][
                 self.widgets_for_backend["whisperspeech"]["t2s"][1].currentText()
             ][0]
+            speaker_choice = self.widgets_for_backend["whisperspeech"]["speaker"][1].currentText()
+            if speaker_choice in WHISPER_SPEECH_SPEAKERS:
+                tts_cfg["speaker"] = speaker_choice
 
         elif backend_key == "kyutai":
             kyutai = cfg.setdefault("kyutai", {})
@@ -231,3 +249,14 @@ class TTSSettingsTab(QWidget):
             if v[0] == value:
                 return k
         return next(iter(d))
+
+    @staticmethod
+    def _disable_voice_cloning_item(cmb: QComboBox):
+        idx = cmb.findText(WHISPER_SPEECH_VOICE_CLONING_LABEL)
+        if idx == -1:
+            return
+        model = cmb.model()
+        item = model.item(idx)
+        if item is not None:
+            item.setFlags(item.flags() & ~Qt.ItemIsEnabled & ~Qt.ItemIsSelectable)
+            item.setToolTip("Coming soon")
