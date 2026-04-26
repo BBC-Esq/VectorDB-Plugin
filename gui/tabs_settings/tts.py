@@ -2,13 +2,24 @@ import yaml
 from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QLabel, QComboBox, QWidget, QGridLayout, QMessageBox, QHBoxLayout
+    QLabel, QComboBox, QWidget, QGridLayout, QMessageBox, QHBoxLayout, QCheckBox
 )
 
 from core.constants import WHISPER_SPEECH_MODELS
 
 WHISPER_SPEECH_SPEAKERS = ["default", "classic", "voice_b"]
 WHISPER_SPEECH_VOICE_CLONING_LABEL = "Voice Cloning (Coming Soon)"
+
+KYUTAI_POCKET_VOICES = [
+    "alba", "anna", "azelma", "bill_boerst", "caro_davy", "charles", "cosette",
+    "eponine", "eve", "fantine", "george", "jane", "javert", "jean", "marius",
+    "mary", "michael", "paul", "peter_yearsley", "stuart_bell", "vera",
+]
+KYUTAI_POCKET_QUANTIZE_TOOLTIP = (
+    "Apply int8 quantization. The developers claim no loss of quality "
+    "(WER unchanged) with ~48% less RAM and ~27% faster inference. "
+    "Feel free to test and decide for yourself."
+)
 
 
 class TTSSettingsTab(QWidget):
@@ -64,6 +75,16 @@ class TTSSettingsTab(QWidget):
         "googletts": {
             "label": "Google TTS (CPU)",
             "extras": {},
+        },
+        "kyutaipocket": {
+            "label": "Kyutai Pocket (CPU)",
+            "extras": {
+                "voice": {
+                    "label": "Voice",
+                    "options": KYUTAI_POCKET_VOICES,
+                    "default": "alba",
+                },
+            },
         },
         "kyutai": {
             "label": "Kyutai (GPU)",
@@ -130,6 +151,11 @@ class TTSSettingsTab(QWidget):
             self._update_kyutai_voice_visibility
         )
 
+        self._pocket_quantize_checkbox = QCheckBox("Quantize (int8)")
+        self._pocket_quantize_checkbox.setChecked(True)
+        self._pocket_quantize_checkbox.setToolTip(KYUTAI_POCKET_QUANTIZE_TOOLTIP)
+        self._pocket_quantize_checkbox.toggled.connect(self._save_to_yaml)
+
     def _config_path(self) -> Path:
         return Path("config.yaml")
 
@@ -164,6 +190,17 @@ class TTSSettingsTab(QWidget):
                 speaker = WHISPER_SPEECH_SPEAKERS[0]
             self.widgets_for_backend["whisperspeech"]["speaker"][1].setCurrentText(speaker)
 
+        pocket_cfg = cfg.get("kyutaipocket", {}) if cfg else {}
+        for extra_key, (lbl, cmb) in self.widgets_for_backend["kyutaipocket"].items():
+            if extra_key == "voice":
+                voice = pocket_cfg.get("voice", "alba")
+                if voice not in KYUTAI_POCKET_VOICES:
+                    voice = "alba"
+                cmb.setCurrentText(voice)
+        self._pocket_quantize_checkbox.setChecked(
+            bool(pocket_cfg.get("quantize", True))
+        )
+
         kyutai_cfg = cfg.get("kyutai", {}) if cfg else {}
         for extra_key, (lbl, cmb) in self.widgets_for_backend["kyutai"].items():
             if extra_key == "model":
@@ -194,6 +231,13 @@ class TTSSettingsTab(QWidget):
             speaker_choice = self.widgets_for_backend["whisperspeech"]["speaker"][1].currentText()
             if speaker_choice in WHISPER_SPEECH_SPEAKERS:
                 tts_cfg["speaker"] = speaker_choice
+
+        elif backend_key == "kyutaipocket":
+            pocket = cfg.setdefault("kyutaipocket", {})
+            pocket["language"] = "english"
+            pocket["voice"] = self.widgets_for_backend["kyutaipocket"]["voice"][1].currentText()
+            pocket["quantize"] = bool(self._pocket_quantize_checkbox.isChecked())
+            pocket["temp"] = 0.7
 
         elif backend_key == "kyutai":
             kyutai = cfg.setdefault("kyutai", {})
@@ -254,6 +298,9 @@ class TTSSettingsTab(QWidget):
 
         if chosen == "kyutai":
             self._update_kyutai_voice_visibility()
+        elif chosen == "kyutaipocket":
+            self._extras_layout.addWidget(self._pocket_quantize_checkbox)
+            self._pocket_quantize_checkbox.show()
 
         self._save_to_yaml()
 

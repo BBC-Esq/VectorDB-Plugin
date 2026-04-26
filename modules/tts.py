@@ -726,6 +726,89 @@ class KyutaiAudio(BaseAudio):
         self.audio_queue.put(None)
 
 
+class KyutaiPocketAudio(BaseAudio):
+    REQUIRED_PACKAGES = {
+        "pocket_tts": "2.0.0"
+    }
+
+    def __init__(self):
+        super().__init__()
+
+        from core.utilities import check_and_install_dependencies
+
+        if not check_and_install_dependencies(
+            self.REQUIRED_PACKAGES,
+            backend_name="Kyutai Pocket"
+        ):
+            raise RuntimeError("Kyutai Pocket dependencies not available")
+
+        self.load_config('config.yaml', 'kyutaipocket')
+        self.device = 'cpu'
+        self.initialize_model()
+
+    def initialize_model(self):
+        try:
+            from pocket_tts import TTSModel
+
+            language = self.config.get('language', 'english')
+            voice = self.config.get('voice', 'alba')
+            quantize = self.config.get('quantize', True)
+            temp = self.config.get('temp', 0.7)
+
+            my_cprint(f"Loading Kyutai Pocket TTS model (language={language}, quantize={quantize})...", "yellow")
+
+            self.tts_model = TTSModel.load_model(
+                language=language,
+                temp=temp,
+                quantize=quantize,
+            )
+            self.sample_rate = self.tts_model.sample_rate
+
+            my_cprint(f"Loading voice: {voice}", "yellow")
+            self.voice_state = self.tts_model.get_state_for_audio_prompt(voice)
+
+            my_cprint(f"Kyutai Pocket model loaded successfully! (voice: {voice})", "green")
+
+        except Exception as e:
+            my_cprint(f"Error initializing Kyutai Pocket model: {str(e)}", "red")
+            raise
+
+    # Note: do NOT wrap these in @torch.inference_mode(). Pocket-TTS mutates the
+    # pre-computed voice_state in place on every generate_audio call, and tensors
+    # created outside inference_mode cannot be inplace-modified inside it.
+    # The library handles its own @torch.no_grad internally.
+    def generate_speech_for_sentence(self, sentence):
+        try:
+            audio = self.tts_model.generate_audio(self.voice_state, sentence)
+            if isinstance(audio, torch.Tensor):
+                audio_np = audio.cpu().numpy()
+            else:
+                audio_np = np.array(audio)
+            if audio_np.ndim > 1:
+                audio_np = audio_np.squeeze()
+            return audio_np
+        except Exception as e:
+            print(f"Pocket-TTS generation failed: {e}")
+            return None
+
+    def process_text_to_audio(self, sentences):
+        for sentence in tqdm(sentences, desc="Processing Sentences"):
+            if not sentence.strip() or self.stop_event.is_set():
+                continue
+
+            try:
+                audio = self.generate_speech_for_sentence(sentence.strip())
+                if audio is not None and len(audio) > 0:
+                    self.audio_queue.put((audio, self.sample_rate))
+                else:
+                    print("Failed to generate audio for sentence")
+            except Exception as e:
+                print(f"Error processing sentence: {str(e)}")
+                continue
+
+        self.audio_queue.put(None)
+
+
 def run_tts(config_path, input_text_file):
     with open(config_path, 'r', encoding='utf-8') as file:
         config = yaml.safe_load(file)
@@ -745,6 +828,8 @@ def run_tts(config_path, input_text_file):
         audio_class = ChatterboxAudio()
     elif tts_model == 'kyutai':
         audio_class = KyutaiAudio()
+    elif tts_model == 'kyutaipocket':
+        audio_class = KyutaiPocketAudio()
     else:
         raise ValueError(f"Invalid TTS model specified in config.yaml: {tts_model}")
 

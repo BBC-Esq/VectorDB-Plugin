@@ -401,6 +401,9 @@ BACKEND_DEPENDENCIES = {
         "moshi": "0.2.13",
         "sphn": "0.2.0"
     },
+    "kyutaipocket": {
+        "pocket_tts": "2.0.0"
+    },
     "bark": {
     },
     "whisperspeech": {
