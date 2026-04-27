@@ -170,7 +170,7 @@ class ModelDownloader(QObject):
             if repo_type == "private":
                 msg = f"Repository {repo_id} is private and requires a token."
                 if not self.hf_token:
-                    msg += "\n\nNo Hugging Face token found. Add one in config.yaml."
+                    msg += "\n\nNo Hugging Face token found. Set one via the File menu."
                 print(msg)
                 model_downloaded_signal.failed.emit(msg)
                 return
@@ -186,8 +186,8 @@ class ModelDownloader(QObject):
         if repo_type == "gated" and not self.hf_token:
             msg = (
                 f"Repository {repo_id} is gated and requires access and a token.\n\n"
-                f"Visit https://huggingface.co/{repo_id} to request access, then add your "
-                f"Hugging Face token to config.yaml under hf_access_token."
+                f"Visit https://huggingface.co/{repo_id} to request access, then set your "
+                f"Hugging Face token via the File menu."
             )
             print(msg)
             model_downloaded_signal.failed.emit(msg)
