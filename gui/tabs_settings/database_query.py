@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QGridLayout,
+    QHBoxLayout,
     QSizePolicy,
     QComboBox,
     QPushButton,
@@ -38,12 +39,11 @@ class DatabaseSettingsTab(QWidget):
             self.search_term = ""
             self.document_type = ""
 
-        grid_layout = QGridLayout()
-
         self.field_data = {}
         self.label_data = {}
 
-        self.query_device_label = QLabel(f"Device: {self.database_query_device}")
+        self.query_device_label = QLabel("Device:")
+        self.query_device_label.setToolTip(TOOLTIPS["CREATE_DEVICE_QUERY"])
         self.query_device_combo = QComboBox()
         self.query_device_combo.addItems(self.compute_device_options)
         self.query_device_combo.setToolTip(TOOLTIPS["CREATE_DEVICE_QUERY"])
@@ -51,8 +51,6 @@ class DatabaseSettingsTab(QWidget):
             self.query_device_combo.setCurrentIndex(
                 self.compute_device_options.index(self.database_query_device)
             )
-        grid_layout.addWidget(self.query_device_label, 0, 0)
-        grid_layout.addWidget(self.query_device_combo, 0, 1)
 
         similarity_value = self.database_config.get("similarity", "")
         self.similarity_edit = QLineEdit()
@@ -61,10 +59,7 @@ class DatabaseSettingsTab(QWidget):
         self.similarity_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.similarity_edit.setToolTip(TOOLTIPS["SIMILARITY"])
         self.similarity_label = QLabel(f"Similarity: {similarity_value}")
-        self.similarity_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.similarity_label.setToolTip(TOOLTIPS["SIMILARITY"])
-        grid_layout.addWidget(self.similarity_label, 1, 0)
-        grid_layout.addWidget(self.similarity_edit, 1, 1)
         self.field_data["similarity"] = self.similarity_edit
         self.label_data["similarity"] = self.similarity_label
 
@@ -75,10 +70,7 @@ class DatabaseSettingsTab(QWidget):
         self.contexts_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.contexts_edit.setToolTip(TOOLTIPS["CONTEXTS"])
         self.contexts_label = QLabel(f"Contexts: {contexts_value}")
-        self.contexts_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.contexts_label.setToolTip(TOOLTIPS["CONTEXTS"])
-        grid_layout.addWidget(self.contexts_label, 1, 3)
-        grid_layout.addWidget(self.contexts_edit, 1, 4)
         self.field_data["contexts"] = self.contexts_edit
         self.label_data["contexts"] = self.contexts_label
 
@@ -90,9 +82,6 @@ class DatabaseSettingsTab(QWidget):
         self.search_term_label.setToolTip(TOOLTIPS["SEARCH_TERM_FILTER"])
         self.filter_button = QPushButton("Clear Filter")
         self.filter_button.clicked.connect(self.reset_search_term)
-        grid_layout.addWidget(self.search_term_label, 2, 0)
-        grid_layout.addWidget(self.search_term_edit, 2, 1)
-        grid_layout.addWidget(self.filter_button, 2, 2)
 
         self.file_type_combo = QComboBox()
         file_type_items = ["All Files", "Images Only", "Documents Only", "Audio Only"]
@@ -111,8 +100,37 @@ class DatabaseSettingsTab(QWidget):
 
         self.file_type_label = QLabel("File Type:")
         self.file_type_label.setToolTip(TOOLTIPS["FILE_TYPE_FILTER"])
-        grid_layout.addWidget(self.file_type_label, 2, 3)
-        grid_layout.addWidget(self.file_type_combo, 2, 4)
+
+        device_cell = QHBoxLayout()
+        device_cell.addWidget(self.query_device_label)
+        device_cell.addWidget(self.query_device_combo, 1)
+
+        similarity_cell = QHBoxLayout()
+        similarity_cell.addWidget(self.similarity_label)
+        similarity_cell.addWidget(self.similarity_edit, 1)
+
+        contexts_cell = QHBoxLayout()
+        contexts_cell.addWidget(self.contexts_label)
+        contexts_cell.addWidget(self.contexts_edit, 1)
+
+        search_cell = QHBoxLayout()
+        search_cell.addWidget(self.search_term_label)
+        search_cell.addWidget(self.search_term_edit, 1)
+        search_cell.addWidget(self.filter_button)
+
+        file_type_cell = QHBoxLayout()
+        file_type_cell.addWidget(self.file_type_label)
+        file_type_cell.addWidget(self.file_type_combo, 1)
+
+        grid_layout = QGridLayout()
+        for col in range(6):
+            grid_layout.setColumnStretch(col, 1)
+
+        grid_layout.addLayout(device_cell,     0, 0, 1, 2)
+        grid_layout.addLayout(similarity_cell, 0, 2, 1, 2)
+        grid_layout.addLayout(contexts_cell,   0, 4, 1, 2)
+        grid_layout.addLayout(search_cell,     1, 0, 1, 4)
+        grid_layout.addLayout(file_type_cell,  1, 4, 1, 2)
 
         self.setLayout(grid_layout)
 
@@ -217,7 +235,6 @@ class DatabaseSettingsTab(QWidget):
 
             if device_changed:
                 self.database_query_device = new_query_device
-                self.query_device_label.setText(f"Device: {new_query_device}")
 
             if new_similarity_text:
                 self.database_config["similarity"] = new_similarity
@@ -234,7 +251,6 @@ class DatabaseSettingsTab(QWidget):
 
             self.document_type = document_type_value
             self.database_config["document_types"] = document_type_value
-            self.file_type_label.setText("File Type: " + file_type_selection)
 
             self.similarity_edit.clear()
             self.contexts_edit.clear()
