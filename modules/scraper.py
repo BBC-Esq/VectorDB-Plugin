@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import asyncio
 import aiofiles
 from bs4 import BeautifulSoup
@@ -231,9 +232,11 @@ class ScraperRegistry:
 
 class ScraperWorker(QObject):
     status_updated = Signal(str, str)
-    scraping_finished = Signal(str, bool)
+    scraping_finished = Signal(str, bool, bool)
 
-    def __init__(self, url, folder, scraper_class=BaseScraper, name=""):
+    RATE_LIMIT_THRESHOLD = 5
+
+    def __init__(self, url, folder, scraper_class=BaseScraper, name="", resume=False):
         super().__init__()
         self.url = url
         self.folder = folder
@@ -245,6 +248,9 @@ class ScraperWorker(QObject):
         self._loop = None
         self._task = None
         self._cancelled = False
+        self._rate_limited = False
+        self._consecutive_429s = 0
+        self.resume = resume
 
     def run(self):
         self._loop = asyncio.new_event_loop()
@@ -256,9 +262,28 @@ class ScraperWorker(QObject):
             except asyncio.CancelledError:
                 pass
         finally:
+            if not self._cancelled and not self._rate_limited:
+                self._finalize_clean_run()
             self.cleanup()
             self._loop.close()
-            self.scraping_finished.emit(self.name, self._cancelled)
+            self.scraping_finished.emit(self.name, self._cancelled, self._rate_limited)
+
+    def _finalize_clean_run(self):
+        try:
+            for fname in os.listdir(self.save_dir):
+                if fname.endswith(".links.json"):
+                    try:
+                        os.remove(os.path.join(self.save_dir, fname))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        log_file = os.path.join(self.save_dir, "failed_urls.log")
+        try:
+            if os.path.exists(log_file) and os.path.getsize(log_file) == 0:
+                os.remove(log_file)
+        except Exception:
+            pass
 
     def cancel(self):
         self._cancelled = True
@@ -281,8 +306,12 @@ class ScraperWorker(QObject):
         log_file = os.path.join(self.save_dir, "failed_urls.log")
 
         semaphore = asyncio.BoundedSemaphore(max_concurrent_requests)
-        to_visit = [self.url]
         visited = set()
+
+        if self.resume:
+            to_visit = self._build_resume_queue(log_file)
+        else:
+            to_visit = [self.url]
 
         async def process_batch(batch_urls, session):
             tasks = [
@@ -304,7 +333,7 @@ class ScraperWorker(QObject):
 
         async with AsyncSession(impersonate="chrome") as session:
             while to_visit:
-                if self._cancelled:
+                if self._cancelled or self._rate_limited:
                     break
                 current_batch = to_visit[:batch_size]
                 to_visit = to_visit[batch_size:]
@@ -313,12 +342,45 @@ class ScraperWorker(QObject):
                     new_to_visit = new_links - visited
                     to_visit.extend(new_to_visit)
 
+                if self._rate_limited:
+                    break
+
                 await asyncio.sleep(0.2)
 
                 if len(visited) >= page_limit:
                     break
 
         return visited
+
+    def _build_resume_queue(self, log_file):
+        candidates = set()
+        try:
+            for fname in os.listdir(self.save_dir):
+                if fname.endswith(".links.json"):
+                    try:
+                        with open(os.path.join(self.save_dir, fname), "r", encoding="utf-8") as f:
+                            for link in json.load(f):
+                                if isinstance(link, str):
+                                    candidates.add(link)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        if os.path.exists(log_file):
+            try:
+                with open(log_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line:
+                            candidates.add(line)
+            except Exception:
+                pass
+            try:
+                os.remove(log_file)
+            except Exception:
+                pass
+        candidates.add(self.url)
+        return list(candidates)
 
     async def fetch(
         self,
@@ -337,6 +399,8 @@ class ScraperWorker(QObject):
 
         async with semaphore:
             for attempt in range(1, retries + 1):
+                if self._rate_limited or self._cancelled:
+                    return set()
                 try:
                     response = await session.get(url, timeout=30, allow_redirects=True)
                 except (asyncio.TimeoutError, RequestsError, Exception):
@@ -347,11 +411,22 @@ class ScraperWorker(QObject):
                     await asyncio.sleep(2)
                     continue
 
+                if response.status_code == 429:
+                    self._consecutive_429s += 1
+                    if self._consecutive_429s >= self.RATE_LIMIT_THRESHOLD:
+                        self._rate_limited = True
+                    await self.log_failed_url(url, log_file)
+                    self.stats["scraped"] = self.count_saved_files()
+                    self.status_updated.emit(self.name, str(self.stats["scraped"]))
+                    return set()
+
                 if response.status_code != 200:
                     await self.log_failed_url(url, log_file)
                     self.stats["scraped"] = self.count_saved_files()
                     self.status_updated.emit(self.name, str(self.stats["scraped"]))
                     return set()
+
+                self._consecutive_429s = 0
 
                 content_type = response.headers.get("content-type", "").lower()
                 if "text/html" not in content_type:
@@ -360,15 +435,16 @@ class ScraperWorker(QObject):
                     return set()
 
                 html = response.text
-                await self.save_html(html, url, save_dir)
-                self.stats["scraped"] = self.count_saved_files()
-                self.status_updated.emit(self.name, str(self.stats["scraped"]))
-                return self.extract_links(
+                links = self.extract_links(
                     html, url, base_domain, acceptable_domain_extension
                 )
+                await self.save_html(html, url, save_dir, links=links)
+                self.stats["scraped"] = self.count_saved_files()
+                self.status_updated.emit(self.name, str(self.stats["scraped"]))
+                return links
         return set()
 
-    async def save_html(self, content, url, save_dir):
+    async def save_html(self, content, url, save_dir, links=None):
         filename = os.path.join(save_dir, self.sanitize_filename(url) + ".html")
         soup = BeautifulSoup(content, "lxml")
         processed_soup = self.scraper.process_html(soup)
@@ -394,6 +470,19 @@ class ScraperWorker(QObject):
                 await f.write(str(processed_soup))
         except FileExistsError:
             pass
+
+        if links:
+            sidecar = filename[:-5] + ".links.json"
+            tmp = sidecar + ".tmp"
+            try:
+                async with aiofiles.open(tmp, "w", encoding="utf-8") as f:
+                    await f.write(json.dumps(sorted(links)))
+                os.replace(tmp, sidecar)
+            except Exception:
+                try:
+                    os.remove(tmp)
+                except Exception:
+                    pass
 
     def sanitize_filename(self, url: str) -> str:
         original_url = url

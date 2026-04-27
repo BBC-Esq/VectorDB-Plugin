@@ -3,7 +3,7 @@ import platform
 import shutil
 import subprocess
 
-from PySide6.QtCore import Qt, QThread
+from PySide6.QtCore import Qt, QThread, QSettings
 from PySide6.QtGui import QColor, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
     QWidget,
@@ -22,6 +22,37 @@ from core.constants import scrape_documentation, PROJECT_ROOT
 
 
 MAX_CONCURRENT_SCRAPES = 6
+
+QSETTINGS_ORG = "VectorDB-Plugin"
+QSETTINGS_APP = "ScrapeDocumentation"
+RATE_LIMITED_KEY = "rate_limited_scrapes"
+
+
+def _load_rate_limited_set() -> set[str]:
+    s = QSettings(QSETTINGS_ORG, QSETTINGS_APP)
+    val = s.value(RATE_LIMITED_KEY, [])
+    if isinstance(val, str):
+        val = [val] if val else []
+    if val is None:
+        val = []
+    return {str(v) for v in val}
+
+
+def _save_rate_limited_set(names: set[str]) -> None:
+    s = QSettings(QSETTINGS_ORG, QSETTINGS_APP)
+    s.setValue(RATE_LIMITED_KEY, sorted(names))
+
+
+def _mark_rate_limited_persistent(name: str) -> None:
+    names = _load_rate_limited_set()
+    names.add(name)
+    _save_rate_limited_set(names)
+
+
+def _clear_rate_limited_persistent(name: str) -> None:
+    names = _load_rate_limited_set()
+    names.discard(name)
+    _save_rate_limited_set(names)
 
 
 class ScrapeRowWidget(QWidget):
@@ -69,6 +100,13 @@ class ScrapeRowWidget(QWidget):
         self._set_label("Cancelled.", count=count, color="#9E9E9E")
         self.cancel_btn.setEnabled(False)
 
+    def mark_rate_limited(self, count: int):
+        self._set_label(
+            "Rate-limited - partial state saved. Click 'Scrape' again and choose Resume.",
+            count=count, color="#FFC107",
+        )
+        self.cancel_btn.setEnabled(False)
+
     def _cancel_clicked(self):
         self.cancel_btn.setEnabled(False)
         self._set_label("Cancelling...", count=self._current_count(), color="#9E9E9E")
@@ -93,7 +131,9 @@ class ScrapeDocumentationTab(QWidget):
             "Tab for scraping documentation from the selected source."
         )
         self.active_workers: dict[str, dict] = {}
+        self.restored_rate_limited_rows: dict[str, QListWidgetItem] = {}
         self.init_ui()
+        self._restore_rate_limited_rows()
 
     def init_ui(self) -> None:
         main_layout = QVBoxLayout(self)
@@ -130,6 +170,38 @@ class ScrapeDocumentationTab(QWidget):
             f'<span style="color:#2196F3;"><b>Active scrapes:</b></span> '
             f'{n} / {MAX_CONCURRENT_SCRAPES}'
         )
+
+    def _restore_rate_limited_rows(self) -> None:
+        persisted = _load_rate_limited_set()
+        if not persisted:
+            return
+        scraped_dir = os.path.join(str(PROJECT_ROOT), "Scraped_Documentation")
+        for doc_name in sorted(persisted):
+            doc_info = scrape_documentation.get(doc_name)
+            if not doc_info or "folder" not in doc_info:
+                _clear_rate_limited_persistent(doc_name)
+                continue
+            folder_path = os.path.join(scraped_dir, doc_info["folder"])
+            if not os.path.exists(folder_path):
+                _clear_rate_limited_persistent(doc_name)
+                continue
+            count = 0
+            try:
+                count = len([f for f in os.listdir(folder_path) if f.endswith(".html")])
+            except Exception:
+                pass
+            row = ScrapeRowWidget(
+                doc_name=doc_name,
+                folder_path=folder_path,
+                on_cancel=lambda _n: None,
+                on_open=self.open_folder,
+            )
+            row.mark_rate_limited(count)
+            item = QListWidgetItem(self.scrape_list)
+            item.setSizeHint(row.sizeHint())
+            self.scrape_list.addItem(item)
+            self.scrape_list.setItemWidget(item, row)
+            self.restored_rate_limited_rows[doc_name] = item
 
     def populate_combo_box(self) -> None:
         doc_options = sorted(scrape_documentation.keys(), key=str.lower)
@@ -186,31 +258,47 @@ class ScrapeDocumentationTab(QWidget):
             folder,
         )
 
+        resume = False
         if os.path.exists(folder_path):
             msg_box = QMessageBox(
                 QMessageBox.Warning,
-                "Existing Folder Warning",
-                f"Folder already exists for {selected_doc}",
-                QMessageBox.Ok | QMessageBox.Cancel,
+                "Existing Folder",
+                f"A scrape folder already exists for {selected_doc}.",
+                QMessageBox.NoButton,
                 self,
             )
             msg_box.setInformativeText(
-                "Proceeding will delete its contents and start over."
+                "Resume: pick up where the last run left off (already-saved pages are skipped; "
+                "queued and failed URLs are retried).\n\n"
+                "Start Fresh: delete the existing folder contents and re-scrape from scratch.\n\n"
+                "Cancel: do nothing."
             )
-            msg_box.setDefaultButton(QMessageBox.Cancel)
-
-            if msg_box.exec() == QMessageBox.Cancel:
+            resume_btn = msg_box.addButton("Resume", QMessageBox.AcceptRole)
+            fresh_btn = msg_box.addButton("Start Fresh", QMessageBox.DestructiveRole)
+            cancel_btn = msg_box.addButton("Cancel", QMessageBox.RejectRole)
+            msg_box.setDefaultButton(resume_btn)
+            msg_box.exec()
+            clicked = msg_box.clickedButton()
+            if clicked is None or clicked == cancel_btn:
                 return
+            resume = (clicked == resume_btn)
+            if not resume:
+                _clear_rate_limited_persistent(selected_doc)
+                for filename in os.listdir(folder_path):
+                    file_path = os.path.join(folder_path, filename)
+                    try:
+                        if os.path.isfile(file_path) or os.path.islink(file_path):
+                            os.unlink(file_path)
+                        elif os.path.isdir(file_path):
+                            shutil.rmtree(file_path)
+                    except Exception:
+                        pass
 
-            for filename in os.listdir(folder_path):
-                file_path = os.path.join(folder_path, filename)
-                try:
-                    if os.path.isfile(file_path) or os.path.islink(file_path):
-                        os.unlink(file_path)
-                    elif os.path.isdir(file_path):
-                        shutil.rmtree(file_path)
-                except Exception:
-                    pass
+        if selected_doc in self.restored_rate_limited_rows:
+            old_item = self.restored_rate_limited_rows.pop(selected_doc)
+            old_row = self.scrape_list.row(old_item)
+            if old_row >= 0:
+                self.scrape_list.takeItem(old_row)
 
         row = ScrapeRowWidget(
             doc_name=selected_doc,
@@ -223,7 +311,7 @@ class ScrapeDocumentationTab(QWidget):
         self.scrape_list.addItem(item)
         self.scrape_list.setItemWidget(item, row)
 
-        worker = ScraperWorker(url, folder, scraper_class, name=selected_doc)
+        worker = ScraperWorker(url, folder, scraper_class, name=selected_doc, resume=resume)
         thread = QThread()
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
@@ -258,7 +346,7 @@ class ScrapeDocumentationTab(QWidget):
             count = 0
         entry["row"].update_count(count)
 
-    def _on_worker_finished(self, doc_name: str, was_cancelled: bool) -> None:
+    def _on_worker_finished(self, doc_name: str, was_cancelled: bool, was_rate_limited: bool) -> None:
         """Phase 1: worker emitted scraping_finished. Update the row UI but do NOT
         drop Python references — thread.quit() still has to wind down."""
         entry = self.active_workers.get(doc_name)
@@ -274,8 +362,12 @@ class ScrapeDocumentationTab(QWidget):
             pass
         if was_cancelled:
             row.mark_cancelled(count)
+        elif was_rate_limited:
+            row.mark_rate_limited(count)
+            _mark_rate_limited_persistent(doc_name)
         else:
             row.mark_completed(count)
+            _clear_rate_limited_persistent(doc_name)
 
         self.populate_combo_box()
         idx = self.doc_combo.findText(doc_name)
