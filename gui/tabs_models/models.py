@@ -4,7 +4,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
-   QWidget, QLabel, QGridLayout, QVBoxLayout, QGroupBox, QPushButton, QRadioButton, QButtonGroup
+   QWidget, QLabel, QGridLayout, QVBoxLayout, QGroupBox, QPushButton, QRadioButton, QButtonGroup, QMessageBox
 )
 
 from core.constants import VECTOR_MODELS, TOOLTIPS
@@ -128,7 +128,6 @@ class VectorModelsTab(QWidget):
                downloaded_label = QLabel('Yes' if is_downloaded else 'No')
                downloaded_label.setToolTip(TOOLTIPS.get("VECTOR_MODEL_DOWNLOADED", ""))
                add_centered_widget(grid, downloaded_label, row, 7)
-               radiobutton.setEnabled(not is_downloaded)
 
                self.downloaded_labels[f"{vendor}/{model['name']}"] = (downloaded_label, model_info, radiobutton)
 
@@ -146,12 +145,25 @@ class VectorModelsTab(QWidget):
 
     def initiate_model_download(self):
        selected_id = self.model_radiobuttons.checkedId()
-       if selected_id != -1:
-           _, model_info, _ = list(self.downloaded_labels.values())[selected_id - 1]
-           model_downloader = ModelDownloader(model_info, model_info['type'])
+       if selected_id == -1:
+           return
 
-           download_thread = threading.Thread(target=lambda: model_downloader.download())
-           download_thread.start()
+       downloaded_label, model_info, _ = list(self.downloaded_labels.values())[selected_id - 1]
+
+       if downloaded_label.text() == 'Yes':
+           reply = QMessageBox.question(
+               self,
+               "Model Already Downloaded",
+               f"'{model_info['name']}' is already downloaded.\n\nRe-download it?",
+               QMessageBox.Yes | QMessageBox.No,
+               QMessageBox.No
+           )
+           if reply != QMessageBox.Yes:
+               return
+
+       model_downloader = ModelDownloader(model_info, model_info['type'])
+       download_thread = threading.Thread(target=lambda: model_downloader.download())
+       download_thread.start()
 
     def update_model_downloaded_status(self, model_name, model_type):
        models_dir = Path('Models')
@@ -167,9 +179,8 @@ class VectorModelsTab(QWidget):
                if cache_dir == model_name or generated_dir == model_name:
                    key = f"{vendor}/{model['name']}"
                    if key in self.downloaded_labels:
-                       downloaded_label, _, radiobutton = self.downloaded_labels[key]
+                       downloaded_label, _, _ = self.downloaded_labels[key]
                        downloaded_label.setText('Yes')
-                       radiobutton.setEnabled(False)
                    self.refresh_gui()
                    return
        
