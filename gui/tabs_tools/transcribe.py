@@ -4,7 +4,7 @@ import yaml
 import torch
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QFileDialog, QLabel, QComboBox, QSlider
+    QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QPushButton, QFileDialog, QLabel, QComboBox, QSlider, QSizePolicy
 )
 from modules.transcribe import WhisperTranscriber
 from core.utilities import my_cprint, has_bfloat16_support
@@ -24,55 +24,59 @@ class TranscriberToolSettingsTab(QWidget):
 
     def create_layout(self):
         main_layout = QVBoxLayout()
-        
-        model_selection_hbox = QHBoxLayout()
+
+        grid = QGridLayout()
+        grid.setColumnStretch(0, 2)
+        grid.setColumnStretch(1, 2)
+        grid.setColumnStretch(2, 1)
+
+        model_row = QHBoxLayout()
         model_label = QLabel("Model")
         model_label.setToolTip(TOOLTIPS["WHISPER_MODEL_SELECT"])
-        model_selection_hbox.addWidget(model_label)
-        
+        model_row.addWidget(model_label)
+
         self.model_combo = QComboBox()
         self.populate_model_combo()
         self.model_combo.setToolTip(TOOLTIPS["WHISPER_MODEL_SELECT"])
-        model_selection_hbox.addWidget(self.model_combo)
-        
+        model_row.addWidget(self.model_combo, 1)
+
+        grid.addLayout(model_row, 0, 0)
+
+        self.select_file_button = QPushButton("Select File")
+        self.select_file_button.clicked.connect(self.select_audio_file)
+        self.select_file_button.setToolTip(TOOLTIPS["AUDIO_FILE_SELECT"])
+        grid.addWidget(self.select_file_button, 0, 1)
+
+        self.transcribe_button = QPushButton("Transcribe")
+        self.transcribe_button.clicked.connect(self.start_transcription)
+        self.transcribe_button.setToolTip(TOOLTIPS["TRANSCRIBE_BUTTON"])
+        self.transcribe_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        grid.addWidget(self.transcribe_button, 0, 2, 2, 1)
+
+        batch_row = QHBoxLayout()
         batch_label = QLabel("Batch:")
         batch_label.setToolTip(TOOLTIPS["WHISPER_BATCH_SIZE"])
-        model_selection_hbox.addWidget(batch_label)
-        
-        self.slider_label = QLabel("8")
-        self.slider_label.setToolTip(TOOLTIPS["WHISPER_BATCH_SIZE"])
-        
+        batch_row.addWidget(batch_label)
+
         self.number_slider = QSlider(Qt.Horizontal)
         self.number_slider.setMinimum(1)
         self.number_slider.setMaximum(150)
         self.number_slider.setValue(8)
         self.number_slider.valueChanged.connect(self.update_slider_label)
         self.number_slider.setToolTip(TOOLTIPS["WHISPER_BATCH_SIZE"])
-        
-        model_selection_hbox.addWidget(self.number_slider)
-        model_selection_hbox.addWidget(self.slider_label)
-        
-        model_selection_hbox.setStretchFactor(self.model_combo, 2)
-        model_selection_hbox.setStretchFactor(self.number_slider, 2)
-        
-        main_layout.addLayout(model_selection_hbox)
-        
-        hbox = QHBoxLayout()
-        self.select_file_button = QPushButton("Select Audio File")
-        self.select_file_button.clicked.connect(self.select_audio_file)
-        self.select_file_button.setToolTip(TOOLTIPS["AUDIO_FILE_SELECT"])
-        hbox.addWidget(self.select_file_button)
-        
-        self.transcribe_button = QPushButton("Transcribe")
-        self.transcribe_button.clicked.connect(self.start_transcription)
-        self.transcribe_button.setToolTip(TOOLTIPS["TRANSCRIBE_BUTTON"])
-        hbox.addWidget(self.transcribe_button)
-        
-        main_layout.addLayout(hbox)
-        
+        batch_row.addWidget(self.number_slider, 1)
+
+        self.slider_label = QLabel("8")
+        self.slider_label.setToolTip(TOOLTIPS["WHISPER_BATCH_SIZE"])
+        batch_row.addWidget(self.slider_label)
+
+        grid.addLayout(batch_row, 1, 0, 1, 2)
+
+        main_layout.addLayout(grid)
+
         self.file_path_label = QLabel("No file currently selected")
         main_layout.addWidget(self.file_path_label)
-        
+
         self.setLayout(main_layout)
 
     def populate_model_combo(self):

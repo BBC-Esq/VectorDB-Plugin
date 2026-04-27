@@ -42,47 +42,41 @@ class VisionSettingsTab(QWidget):
         self.setLayout(mainVLayout)
 
         gridLayout = QGridLayout()
+        for col, stretch in enumerate((3, 1, 1, 4, 2, 1)):
+            gridLayout.setColumnStretch(col, stretch)
         mainVLayout.addLayout(gridLayout)
 
-        label_model = QLabel("Model")
-        gridLayout.addWidget(label_model, 0, 0, Qt.AlignCenter)
-
-        label_size = QLabel("Size")
-        gridLayout.addWidget(label_size, 0, 1, Qt.AlignCenter)
-
-        label_vram = QLabel("VRAM")
-        gridLayout.addWidget(label_vram, 0, 2, Qt.AlignCenter)
-
-        label_vision = QLabel("Vision Component")
-        gridLayout.addWidget(label_vision, 0, 3, Qt.AlignCenter)
-
-        label_chat = QLabel("Chat Component")
-        gridLayout.addWidget(label_chat, 0, 4, Qt.AlignCenter)
-
-        label_avg = QLabel("Avg Length")
-        gridLayout.addWidget(label_avg, 0, 5, Qt.AlignCenter)
+        for col, text in enumerate(("Model", "Size", "VRAM", "Vision Component", "Chat Component", "Avg Length")):
+            header = QLabel(text)
+            header.setAlignment(Qt.AlignCenter)
+            gridLayout.addWidget(header, 0, col)
 
         self.modelComboBox = QComboBox()
         self.populate_model_combobox()
         self.modelComboBox.setMinimumWidth(175)
-        gridLayout.addWidget(self.modelComboBox, 1, 0, Qt.AlignCenter)
+        gridLayout.addWidget(self.modelComboBox, 1, 0)
 
         self.sizeLabel = QLabel("—")
-        gridLayout.addWidget(self.sizeLabel, 1, 1, Qt.AlignCenter)
+        self.sizeLabel.setAlignment(Qt.AlignCenter)
+        gridLayout.addWidget(self.sizeLabel, 1, 1)
 
         self.vramLabel = QLabel("—")
-        gridLayout.addWidget(self.vramLabel, 1, 2, Qt.AlignCenter)
+        self.vramLabel.setAlignment(Qt.AlignCenter)
+        gridLayout.addWidget(self.vramLabel, 1, 2)
 
         self.visionComponentLabel = QLabel("—")
+        self.visionComponentLabel.setAlignment(Qt.AlignCenter)
         self.visionComponentLabel.setWordWrap(True)
-        gridLayout.addWidget(self.visionComponentLabel, 1, 3, Qt.AlignCenter)
+        gridLayout.addWidget(self.visionComponentLabel, 1, 3)
 
         self.chatComponentLabel = QLabel("—")
+        self.chatComponentLabel.setAlignment(Qt.AlignCenter)
         self.chatComponentLabel.setWordWrap(True)
-        gridLayout.addWidget(self.chatComponentLabel, 1, 4, Qt.AlignCenter)
+        gridLayout.addWidget(self.chatComponentLabel, 1, 4)
 
         self.avgLenLabel = QLabel("—")
-        gridLayout.addWidget(self.avgLenLabel, 1, 5, Qt.AlignCenter)
+        self.avgLenLabel.setAlignment(Qt.AlignCenter)
+        gridLayout.addWidget(self.avgLenLabel, 1, 5)
 
         cfg = _read_cfg()
         saved = (cfg.get("vision") or {}).get("chosen_model")
