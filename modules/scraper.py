@@ -35,6 +35,8 @@ _CRUFT_CLASSES = (
     "footer-version",       # PyMuPDF "This documentation covers all versions..."
     "try_examples_button_container",  # SciPy "Try it in your browser! / Open in Tab"
     "try_examples_outer_iframe",      # SciPy interactive-examples sandbox iframe
+    "sidemenu",             # lxml.de project nav inside div.document
+    "banner",               # lxml.de donation banner ("Like the tool? Help making it better!")
 )
 _CRUFT_IDS = (
     "indices-and-tables",   # Sphinx auto-generated bottom-of-index "Index/ModIndex/Search" stub

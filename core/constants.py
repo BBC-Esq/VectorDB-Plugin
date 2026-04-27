@@ -1637,6 +1637,11 @@ scrape_documentation = {
         "folder": "ctranslate2",
         "scraper_class": "DivClassDocumentScraper"
     },
+    "curl_cffi": {
+        "URL": "https://curl-cffi.readthedocs.io/en/stable/",
+        "folder": "curl_cffi",
+        "scraper_class": "DivClassDocumentScraper"
+    },
     "cycler": {
         "URL": "https://matplotlib.org/cycler/",
         "folder": "cycler",
@@ -1691,6 +1696,11 @@ scrape_documentation = {
         "URL": "https://einx.readthedocs.io/en/stable/",
         "folder": "einx",
         "scraper_class": "PydataThemeScraper"
+    },
+    "emoji": {
+        "URL": "https://carpedm20.github.io/emoji/docs/",
+        "folder": "emoji",
+        "scraper_class": "DivClassDocumentScraper"
     },
     "fastcore": {
         "URL": "https://fastcore.fast.ai/",
@@ -1777,6 +1787,11 @@ scrape_documentation = {
         "folder": "llvmlite",
         "scraper_class": "RtdThemeScraper"
     },
+    "lxml": {
+        "URL": "https://lxml.de/",
+        "folder": "lxml",
+        "scraper_class": "DivClassDocumentScraper"
+    },
     "Markdown": {
         "URL": "https://python-markdown.github.io/",
         "folder": "Markdown",
@@ -1856,6 +1871,11 @@ scrape_documentation = {
         "URL": "https://ocrmypdf.readthedocs.io/en/stable/",
         "folder": "ocrmypdf",
         "scraper_class": "RtdThemeScraper"
+    },
+    "onnx": {
+        "URL": "https://onnx.ai/onnx/",
+        "folder": "onnx",
+        "scraper_class": "FuroThemeScraper"
     },
     "openpyxl": {
         "URL": "https://openpyxl.readthedocs.io/en/stable/",
@@ -1951,6 +1971,11 @@ scrape_documentation = {
         "URL": "https://pymupdf.readthedocs.io/en/latest/",
         "folder": "pymupdf",
         "scraper_class": "PymupdfScraper"
+    },
+    "pyparsing": {
+        "URL": "https://pyparsing-docs.readthedocs.io/en/latest/",
+        "folder": "pyparsing",
+        "scraper_class": "DivClassDocumentScraper"
     },
     "PyOpenGL": {
         "URL": "https://mcfletch.github.io/pyopengl/documentation/manual/",
@@ -2166,6 +2191,11 @@ scrape_documentation = {
         "URL": "https://urllib3.readthedocs.io/en/stable/",
         "folder": "urllib3",
         "scraper_class": "FuroThemeScraper"
+    },
+    "uv": {
+        "URL": "https://docs.astral.sh/uv/",
+        "folder": "uv",
+        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "Watchdog": {
         "URL": "https://python-watchdog.readthedocs.io/en/stable/",
