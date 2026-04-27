@@ -279,13 +279,26 @@ class DatabasesTab(QWidget):
             QMessageBox.warning(self, "No Model Selected", "Please select a model before creating a database.")
             return
 
+        database_name = self.database_name_input.text().strip()
+        if not database_name:
+            QMessageBox.warning(self, "Database Name Required", "Please enter a database name before creating a database.")
+            return
+
+        docs_dir = PROJECT_ROOT / "Docs_for_DB"
+        if not docs_dir.exists() or not any(p for p in docs_dir.iterdir() if p.is_file()):
+            QMessageBox.warning(
+                self,
+                "No Files To Add",
+                "The Docs_for_DB folder is empty. Add at least one file before creating a database."
+            )
+            return
+
         self.create_db_button.setDisabled(True)
         self.create_db_button.setText(self.CREATE_DB_BUTTON_BUSY_LABEL)
         self.choose_docs_button.setDisabled(True)
         self.model_combobox.setDisabled(True)
         self.database_name_input.setDisabled(True)
 
-        database_name = self.database_name_input.text().strip()
         model_name = self.model_combobox.currentText()
 
         self.current_database_name = database_name
