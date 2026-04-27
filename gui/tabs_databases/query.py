@@ -582,7 +582,7 @@ class DatabaseQueryTab(QWidget):
             self.record_button.setText("Voice Recorder")
         else:
             self.voice_recorder.start_recording()
-            self.record_button.setText("Recording...")
+            self.record_button.setText("Stop Recording")
         self.is_recording = not self.is_recording
 
     def update_response_lm_studio(self, response_chunk):
