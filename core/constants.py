@@ -1599,11 +1599,13 @@ scrape_documentation = {
     },
     "cffi": {
         "URL": "https://cffi.readthedocs.io/en/stable/",
-        "folder": "cffi"
+        "folder": "cffi",
+        "scraper_class": "DivClassDocumentScraper"
     },
     "chardet": {
         "URL": "https://chardet.readthedocs.io/en/stable/",
-        "folder": "chardet"
+        "folder": "chardet",
+        "scraper_class": "FuroThemeScraper"
     },
     "charset-normalizer": {
         "URL": "https://charset-normalizer.readthedocs.io/en/stable/",
@@ -1612,11 +1614,13 @@ scrape_documentation = {
     },
     "click": {
         "URL": "https://click.palletsprojects.com/en/stable/",
-        "folder": "click"
+        "folder": "click",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "coloredlogs": {
         "URL": "https://coloredlogs.readthedocs.io/en/latest/",
-        "folder": "coloredlogs"
+        "folder": "coloredlogs",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "contourpy": {
         "URL": "https://contourpy.readthedocs.io/en/stable/",
@@ -1626,16 +1630,17 @@ scrape_documentation = {
     "cryptography": {
         "URL": "https://cryptography.io/en/stable/",
         "folder": "cryptography",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "DivClassDocumentScraper"
     },
     "CTranslate2": {
         "URL": "https://opennmt.net/CTranslate2/",
         "folder": "ctranslate2",
-        "scraper_class": "RstContentScraper"
+        "scraper_class": "DivClassDocumentScraper"
     },
     "cycler": {
         "URL": "https://matplotlib.org/cycler/",
-        "folder": "cycler"
+        "folder": "cycler",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "dataclasses-json": {
         "URL": "https://lidatong.github.io/dataclasses-json/",
@@ -1649,11 +1654,13 @@ scrape_documentation = {
     },
     "deepdiff 8.6.1": {
         "URL": "https://zepworks.com/deepdiff/8.6.1/",
-        "folder": "deepdiff_861"
+        "folder": "deepdiff_861",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "Deprecated": {
         "URL": "https://deprecated.readthedocs.io/en/latest/",
-        "folder": "deprecated"
+        "folder": "deprecated",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "deprecation": {
         "URL": "https://deprecation.readthedocs.io/en/latest/",
@@ -1672,7 +1679,8 @@ scrape_documentation = {
     },
     "distro": {
         "URL": "https://distro.readthedocs.io/en/stable/",
-        "folder": "distro"
+        "folder": "distro",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "einops": {
         "URL": "https://einops.rocks/",
@@ -1697,7 +1705,7 @@ scrape_documentation = {
     "fonttools": {
         "URL": "https://fonttools.readthedocs.io/en/stable/",
         "folder": "fonttools",
-        "scraper_class": "RstContentScraper"
+        "scraper_class": "DivClassDocumentScraper"
     },
     "fsspec": {
         "URL": "https://filesystem-spec.readthedocs.io/en/stable/",
@@ -1764,11 +1772,6 @@ scrape_documentation = {
         "folder": "kiwisolver",
         "scraper_class": "ReadthedocsScraper"
     },
-    "Langchain": {
-        "URL": "https://python.langchain.com/api_reference/",
-        "folder": "langchain",
-        "scraper_class": "PydataThemeScraper"
-    },
     "llvmlite": {
         "URL": "https://llvmlite.readthedocs.io/en/stable/",
         "folder": "llvmlite",
@@ -1782,7 +1785,7 @@ scrape_documentation = {
     "markdown-it-py": {
         "URL": "https://markdown-it-py.readthedocs.io/en/stable/",
         "folder": "markdown_it_py",
-        "scraper_class": "MainIdMainContentRoleMainScraper"
+        "scraper_class": "PydataThemeScraper"
     },
     "markupsafe": {
         "URL": "https://markupsafe.palletsprojects.com/en/stable/",
@@ -1887,7 +1890,7 @@ scrape_documentation = {
     "pi-heif": {
         "URL": "https://pillow-heif.readthedocs.io/en/latest/",
         "folder": "piheif",
-        "scraper_class": "RstContentScraper"
+        "scraper_class": "DivClassDocumentScraper"
     },
     "pikepdf": {
         "URL": "https://pikepdf.readthedocs.io/en/stable/",
@@ -1952,6 +1955,7 @@ scrape_documentation = {
     "PyOpenGL": {
         "URL": "https://mcfletch.github.io/pyopengl/documentation/manual/",
         "folder": "pyopengl",
+        "scraper_class": "MainScraper"
     },
     "PyPDF": {
         "URL": "https://pypdf.readthedocs.io/en/stable/",
@@ -1966,7 +1970,7 @@ scrape_documentation = {
     "python-dateutil": {
         "URL": "https://dateutil.readthedocs.io/en/stable/",
         "folder": "python_dateutil",
-        "scraper_class": "RstContentScraper"
+        "scraper_class": "DivClassDocumentScraper"
     },
     "python-dotenv": {
         "URL": "https://saurabh-kumar.com/python-dotenv/",
@@ -2016,7 +2020,7 @@ scrape_documentation = {
     "Rich": {
         "URL": "https://rich.readthedocs.io/en/stable/",
         "folder": "rich",
-        "scraper_class": "RstContentScraper"
+        "scraper_class": "DivClassDocumentScraper"
     },
     "rpds-py": {
         "URL": "https://rpds.readthedocs.io/en/stable/",
@@ -2035,7 +2039,8 @@ scrape_documentation = {
     },
     "scikit-learn": {
         "URL": "https://scikit-learn.org/stable/",
-        "folder": "scikit_learn"
+        "folder": "scikit_learn",
+        "scraper_class": "PydataThemeScraper"
     },
     "SciPy 1.16.2": {
         "URL": "https://docs.scipy.org/doc/scipy-1.16.2/",
@@ -2050,17 +2055,17 @@ scrape_documentation = {
     "Six": {
         "URL": "https://six.readthedocs.io/",
         "folder": "six",
-        "scraper_class": "RstContentScraper"
+        "scraper_class": "DivClassDocumentScraper"
     },
     "sniffio": {
         "URL": "https://sniffio.readthedocs.io/en/stable/",
         "folder": "sniffio",
-        "scraper_class": "RstContentScraper"
+        "scraper_class": "DivClassDocumentScraper"
     },
     "SoundFile 0.13.1": {
         "URL": "https://python-soundfile.readthedocs.io/en/0.13.1/",
         "folder": "soundfile_0131",
-        "scraper_class": "RstContentScraper"
+        "scraper_class": "DivClassDocumentScraper"
     },
     "sounddevice 0.5.3": {
         "URL": "https://python-sounddevice.readthedocs.io/en/0.5.3/",
@@ -2075,11 +2080,12 @@ scrape_documentation = {
     "SpeechBrain (latest)": {
         "URL": "https://speechbrain.readthedocs.io/en/latest/",
         "folder": "speechbrain_latest",
-        "scraper_class": "RstContentScraper"
+        "scraper_class": "DivClassDocumentScraper"
     },
     "SQLAlchemy 20": {
         "URL": "https://docs.sqlalchemy.org/en/20/",
-        "folder": "sqlalchemy_20"
+        "folder": "sqlalchemy_20",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "sympy": {
         "URL": "https://docs.sympy.org/latest/",
@@ -2089,12 +2095,12 @@ scrape_documentation = {
     "tenacity": {
         "URL": "https://tenacity.readthedocs.io/en/stable/",
         "folder": "tenacity",
-        "scraper_class": "RstContentScraper"
+        "scraper_class": "DivClassDocumentScraper"
     },
     "Tile DB": {
         "URL": "https://tiledb-inc-tiledb.readthedocs-hosted.com/projects/tiledb-py/en/stable/",
         "folder": "tiledb",
-        "scraper_class": "RstContentScraper"
+        "scraper_class": "DivClassDocumentScraper"
     },
     "tiledb-vector-search": {
         "URL": "https://tiledb-inc.github.io/TileDB-Vector-Search/documentation/",
@@ -2104,6 +2110,7 @@ scrape_documentation = {
     "tiledb-cloud": {
         "URL": "https://tiledb-inc.github.io/TileDB-Cloud-Py/",
         "folder": "tiledb_cloud",
+        "scraper_class": "FastcoreScraper"
     },
     "Timm 1.0.20": {
         "URL": "https://huggingface.co/docs/timm/v1.0.20/en/",
@@ -2172,6 +2179,7 @@ scrape_documentation = {
     "webencodings": {
         "URL": "https://pythonhosted.org/webencodings/",
         "folder": "webencodings",
+        "scraper_class": "BodyRoleMainScraper"
     },
     "Wrapt": {
         "URL": "https://wrapt.readthedocs.io/en/master/",
@@ -2181,7 +2189,7 @@ scrape_documentation = {
     "xlrd": {
         "URL": "https://xlrd.readthedocs.io/en/stable/",
         "folder": "xlrd",
-        "scraper_class": "RstContentScraper"
+        "scraper_class": "DivClassDocumentScraper"
     },
     "yarl": {
         "URL": "https://yarl.aio-libs.org/en/stable/",
