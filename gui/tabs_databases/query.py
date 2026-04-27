@@ -19,7 +19,7 @@ from chat.local_model import LocalModelChat
 from chat.openai import ChatGPTThread
 from chat.minimax import MiniMaxThread
 from chat.kobold import KoboldThread
-from core.constants import CHAT_MODELS, OPENAI_MODELS
+from core.constants import CHAT_MODELS, OPENAI_MODELS, CustomButtonStyles
 from modules.voice_recorder import VoiceRecorder
 from core.utilities import check_preconditions_for_submit_question, my_cprint
 from core.constants import TOOLTIPS, PROJECT_ROOT
@@ -376,6 +376,8 @@ class DatabaseQueryTab(QWidget):
 
         self.submit_button = QPushButton("Submit Question")
         self.submit_button.clicked.connect(self.on_submit_button_clicked)
+        self.submit_button.setStyleSheet(CustomButtonStyles.GREEN_BUTTON_STYLE)
+        self.submit_button.setDefault(True)
         actions_row.addWidget(self.submit_button)
 
         layout.addLayout(actions_row)
