@@ -72,19 +72,24 @@ class MiscTab(QWidget):
        self.chart_vision_models_button.setStyleSheet(CustomButtonStyles.TEAL_BUTTON_STYLE)
        self.chart_vector_models_button.setStyleSheet(CustomButtonStyles.PURPLE_BUTTON_STYLE)
 
-       center_button_layout = QHBoxLayout()
-       center_button_layout.addStretch(1)
-       center_button_layout.addWidget(self.backup_all_button)
-       center_button_layout.addWidget(self.restore_backup_button)
-       center_button_layout.addWidget(self.chart_gpus_button)
-       center_button_layout.addWidget(self.min_vram_spin)
-       center_button_layout.addWidget(self.max_vram_spin)
-       center_button_layout.addWidget(self.chart_chat_models_button)
-       center_button_layout.addWidget(self.chart_vision_models_button)
-       center_button_layout.addWidget(self.chart_vector_models_button)
-       center_button_layout.addStretch(1)
-       
-       self.layout.addLayout(center_button_layout)
+       backup_row = QHBoxLayout()
+       backup_row.addStretch(1)
+       backup_row.addWidget(self.backup_all_button)
+       backup_row.addWidget(self.restore_backup_button)
+       backup_row.addStretch(1)
+
+       charts_row = QHBoxLayout()
+       charts_row.addStretch(1)
+       charts_row.addWidget(self.chart_gpus_button)
+       charts_row.addWidget(self.min_vram_spin)
+       charts_row.addWidget(self.max_vram_spin)
+       charts_row.addWidget(self.chart_chat_models_button)
+       charts_row.addWidget(self.chart_vision_models_button)
+       charts_row.addWidget(self.chart_vector_models_button)
+       charts_row.addStretch(1)
+
+       self.layout.addLayout(backup_row)
+       self.layout.addLayout(charts_row)
        
        self.backup_thread = None
        self.restore_thread = None

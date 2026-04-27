@@ -35,10 +35,10 @@ class GuiSettingsTab(QWidget):
         self.groups = {}
         classes = {
             "TRANSCRIBE FILE": (TranscriberToolSettingsTab, 3),
-            "SCRAPE DOCUMENTATION": (ScrapeDocumentationTab, 3),
+            "SCRAPE DOCUMENTATION": (ScrapeDocumentationTab, 5),
             "TEST VISION MODELS": (VisionToolSettingsTab, 2),
-            "OPTICAL CHARACTER RECOGNITION": (OCRToolSettingsTab, 3),
-            "MISC": (MiscTab, 2),
+            "OPTICAL CHARACTER RECOGNITION": (OCRToolSettingsTab, 2),
+            "MISC": (MiscTab, 3),
         }
         for title, (TabClass, stretch) in classes.items():
             settings = TabClass()
