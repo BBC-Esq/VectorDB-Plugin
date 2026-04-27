@@ -7,7 +7,6 @@ import fnmatch
 import humanfriendly
 import atexit
 import yaml
-import functools
 
 class ModelDownloadedSignal(QObject):
     downloaded = Signal(str, str)
@@ -23,7 +22,6 @@ MODEL_DIRECTORIES = {
     "ocr": "ocr"
 }
 
-@functools.lru_cache(maxsize=1)
 def get_hf_token():
     config_path = Path("config.yaml")
     if config_path.exists():
