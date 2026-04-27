@@ -246,7 +246,6 @@ class DatabasesTab(QWidget):
         tree_view.customContextMenuRequested.connect(self.on_context_menu)
         if directory_name == "Docs_for_DB":
             self.docs_model = model
-            self.docs_view = tree_view
             self.docs_refresh = QTimer(self)
             self.docs_refresh.setInterval(500)
             self.docs_refresh.timeout.connect(self._refresh_docs_model)
