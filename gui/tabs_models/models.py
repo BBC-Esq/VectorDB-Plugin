@@ -1,7 +1,7 @@
 import threading
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
    QWidget, QLabel, QGridLayout, QVBoxLayout, QGroupBox, QPushButton, QRadioButton, QButtonGroup, QMessageBox
@@ -11,6 +11,11 @@ from core.constants import VECTOR_MODELS, TOOLTIPS
 from gui.download_model import ModelDownloader, model_downloaded_signal
 
 class VectorModelsTab(QWidget):
+    DOWNLOAD_BUTTON_LABEL = "Download Selected Model"
+    DOWNLOAD_BUTTON_BUSY_LABEL = "Downloading..."
+
+    download_failed = Signal()
+
     def __init__(self, parent=None):
        super().__init__(parent)
        self.main_layout = QVBoxLayout()
@@ -136,12 +141,13 @@ class VectorModelsTab(QWidget):
        for vendor, group_box in self.group_boxes.items():
            self.main_layout.addWidget(group_box)
 
-       self.download_button = QPushButton('Download Selected Model')
+       self.download_button = QPushButton(self.DOWNLOAD_BUTTON_LABEL)
        self.download_button.setToolTip(TOOLTIPS.get("DOWNLOAD_MODEL", ""))
        self.download_button.clicked.connect(self.initiate_model_download)
        self.main_layout.addWidget(self.download_button)
 
        model_downloaded_signal.downloaded.connect(self.update_model_downloaded_status)
+       self.download_failed.connect(self._reset_download_button)
 
     def initiate_model_download(self):
        selected_id = self.model_radiobuttons.checkedId()
@@ -161,11 +167,27 @@ class VectorModelsTab(QWidget):
            if reply != QMessageBox.Yes:
                return
 
+       self.download_button.setEnabled(False)
+       self.download_button.setText(self.DOWNLOAD_BUTTON_BUSY_LABEL)
+
        model_downloader = ModelDownloader(model_info, model_info['type'])
-       download_thread = threading.Thread(target=lambda: model_downloader.download())
-       download_thread.start()
+
+       def _run_download():
+           try:
+               model_downloader.download()
+           except Exception as e:
+               print(f"Error during model download: {e}")
+               self.download_failed.emit()
+
+       threading.Thread(target=_run_download, daemon=True).start()
+
+    def _reset_download_button(self):
+       self.download_button.setEnabled(True)
+       self.download_button.setText(self.DOWNLOAD_BUTTON_LABEL)
 
     def update_model_downloaded_status(self, model_name, model_type):
+       self._reset_download_button()
+
        models_dir = Path('Models')
        vector_models_dir = models_dir / "vector"
 
@@ -175,7 +197,7 @@ class VectorModelsTab(QWidget):
            for model in models:
                cache_dir = model.get('cache_dir', '')
                generated_dir = model['repo_id'].replace('/', '--')
-               
+
                if cache_dir == model_name or generated_dir == model_name:
                    key = f"{vendor}/{model['name']}"
                    if key in self.downloaded_labels:
@@ -183,7 +205,7 @@ class VectorModelsTab(QWidget):
                        downloaded_label.setText('Yes')
                    self.refresh_gui()
                    return
-       
+
        print(f"Model {model_name} not found in VECTOR_MODELS")
 
     def refresh_gui(self):
