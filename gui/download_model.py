@@ -11,6 +11,7 @@ import functools
 
 class ModelDownloadedSignal(QObject):
     downloaded = Signal(str, str)
+    failed = Signal(str)
 
 model_downloaded_signal = ModelDownloadedSignal()
 
@@ -167,17 +168,29 @@ class ModelDownloader(QObject):
         repo_type = self.check_repo_type(repo_id)
         if repo_type not in ["public", "gated"]:
             if repo_type == "private":
-                print(f"Repository {repo_id} is private and requires a token.")
+                msg = f"Repository {repo_id} is private and requires a token."
                 if not self.hf_token:
-                    print("No Hugging Face token found. Add one in config.yaml.")
+                    msg += "\n\nNo Hugging Face token found. Add one in config.yaml."
+                print(msg)
+                model_downloaded_signal.failed.emit(msg)
                 return
             if repo_type == "not_found":
-                print(f"Repository {repo_id} not found.")
+                msg = f"Repository {repo_id} not found."
+                print(msg)
+                model_downloaded_signal.failed.emit(msg)
                 return
-            print(f"Error checking repository {repo_id}.")
+            msg = f"Error checking repository {repo_id}."
+            print(msg)
+            model_downloaded_signal.failed.emit(msg)
             return
         if repo_type == "gated" and not self.hf_token:
-            print(f"Repository {repo_id} is gated and requires access and a token.")
+            msg = (
+                f"Repository {repo_id} is gated and requires access and a token.\n\n"
+                f"Visit https://huggingface.co/{repo_id} to request access, then add your "
+                f"Hugging Face token to config.yaml under hf_access_token."
+            )
+            print(msg)
+            model_downloaded_signal.failed.emit(msg)
             return
         local_dir = self.get_model_directory()
         local_dir.mkdir(parents=True, exist_ok=True)
@@ -210,10 +223,12 @@ class ModelDownloader(QObject):
             atexit.unregister(self.cleanup_incomplete_download)
             model_downloaded_signal.downloaded.emit(self.get_model_directory_name(), self.model_type)
         except Exception as e:
-            print(f"An error occurred during download: {str(e)}")
+            msg = f"An error occurred during download: {str(e)}"
+            print(msg)
             if local_dir.exists():
                 import shutil
                 shutil.rmtree(local_dir)
+            model_downloaded_signal.failed.emit(msg)
 
 def download_embedding_model(repo_id, local_dir=None):
     info = {"repo_id": repo_id}

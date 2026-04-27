@@ -1,7 +1,7 @@
 import threading
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
    QWidget, QLabel, QGridLayout, QVBoxLayout, QGroupBox, QPushButton, QRadioButton, QButtonGroup, QMessageBox
@@ -13,8 +13,6 @@ from gui.download_model import ModelDownloader, model_downloaded_signal
 class VectorModelsTab(QWidget):
     DOWNLOAD_BUTTON_LABEL = "Download Selected Model"
     DOWNLOAD_BUTTON_BUSY_LABEL = "Downloading..."
-
-    download_failed = Signal()
 
     def __init__(self, parent=None):
        super().__init__(parent)
@@ -149,7 +147,7 @@ class VectorModelsTab(QWidget):
        self.main_layout.addWidget(self.download_button)
 
        model_downloaded_signal.downloaded.connect(self.update_model_downloaded_status)
-       self.download_failed.connect(self._reset_download_button)
+       model_downloaded_signal.failed.connect(self._on_download_failed)
 
     def initiate_model_download(self):
        selected_button = self.model_radiobuttons.checkedButton()
@@ -175,19 +173,15 @@ class VectorModelsTab(QWidget):
        self.download_button.setText(self.DOWNLOAD_BUTTON_BUSY_LABEL)
 
        model_downloader = ModelDownloader(model_info, model_info['type'])
-
-       def _run_download():
-           try:
-               model_downloader.download()
-           except Exception as e:
-               print(f"Error during model download: {e}")
-               self.download_failed.emit()
-
-       threading.Thread(target=_run_download, daemon=True).start()
+       threading.Thread(target=model_downloader.download, daemon=True).start()
 
     def _reset_download_button(self):
        self.download_button.setEnabled(True)
        self.download_button.setText(self.DOWNLOAD_BUTTON_LABEL)
+
+    def _on_download_failed(self, message):
+       self._reset_download_button()
+       QMessageBox.critical(self, "Download Failed", message)
 
     def update_model_downloaded_status(self, model_name, model_type):
        self._reset_download_button()
