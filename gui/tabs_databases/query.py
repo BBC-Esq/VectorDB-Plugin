@@ -339,39 +339,46 @@ class DatabaseQueryTab(QWidget):
 
         self.text_input = QTextEdit()
         self.text_input.setToolTip(TOOLTIPS["QUESTION_INPUT"])
+        self.text_input.setMaximumHeight(80)
         layout.addWidget(self.text_input, 1)
 
-        hbox2_layout = QHBoxLayout()
+        toggles_row = QHBoxLayout()
 
         self.show_thinking_checkbox = QCheckBox("Show Thinking")
         self.show_thinking_checkbox.setChecked(False)
         self.show_thinking_checkbox.stateChanged.connect(self.toggle_thinking_visibility)
-        hbox2_layout.addWidget(self.show_thinking_checkbox)
+        toggles_row.addWidget(self.show_thinking_checkbox)
+
+        self.chunks_only_checkbox = QCheckBox("Chunks Only")
+        self.chunks_only_checkbox.setToolTip(TOOLTIPS["CHUNKS_ONLY"])
+        toggles_row.addWidget(self.chunks_only_checkbox)
+
+        toggles_row.addStretch(1)
+
+        layout.addLayout(toggles_row)
+
+        actions_row = QHBoxLayout()
 
         self.copy_response_button = QPushButton("Copy Response")
         self.copy_response_button.setToolTip(TOOLTIPS["COPY_RESPONSE"])
         self.copy_response_button.clicked.connect(self.on_copy_response_clicked)
-        hbox2_layout.addWidget(self.copy_response_button)
+        actions_row.addWidget(self.copy_response_button)
 
         self.bark_button = QPushButton("Speak Response")
         self.bark_button.setToolTip(TOOLTIPS["SPEAK_RESPONSE"])
         self.bark_button.clicked.connect(self.on_bark_button_clicked)
-        hbox2_layout.addWidget(self.bark_button)
-
-        self.chunks_only_checkbox = QCheckBox("Chunks Only")
-        self.chunks_only_checkbox.setToolTip(TOOLTIPS["CHUNKS_ONLY"])
-        hbox2_layout.addWidget(self.chunks_only_checkbox)
+        actions_row.addWidget(self.bark_button)
 
         self.record_button = QPushButton("Voice Recorder")
         self.record_button.setToolTip(TOOLTIPS["VOICE_RECORDER"])
         self.record_button.clicked.connect(self.toggle_recording)
-        hbox2_layout.addWidget(self.record_button)
+        actions_row.addWidget(self.record_button)
 
         self.submit_button = QPushButton("Submit Question")
         self.submit_button.clicked.connect(self.on_submit_button_clicked)
-        hbox2_layout.addWidget(self.submit_button)
+        actions_row.addWidget(self.submit_button)
 
-        layout.addLayout(hbox2_layout)
+        layout.addLayout(actions_row)
 
         self.is_recording = False
         self.voice_recorder = VoiceRecorder(self)
