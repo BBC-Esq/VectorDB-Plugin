@@ -2158,13 +2158,14 @@ scrape_documentation = {
         "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "tzdata": {
-        "URL": "https://tzdata.readthedocs.io/en/stable/",
+        "URL": "https://tzdata.python.org/",
         "folder": "tzdata",
-        "scraper_class": "BodyRoleMainScraper"
+        "scraper_class": "FuroThemeScraper"
     },
     "urllib3": {
         "URL": "https://urllib3.readthedocs.io/en/stable/",
-        "folder": "urllib3"
+        "folder": "urllib3",
+        "scraper_class": "FuroThemeScraper"
     },
     "Watchdog": {
         "URL": "https://python-watchdog.readthedocs.io/en/stable/",
