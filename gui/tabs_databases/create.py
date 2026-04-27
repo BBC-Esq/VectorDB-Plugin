@@ -97,6 +97,9 @@ class CustomFileSystemModel(QFileSystemModel):
 
 
 class DatabasesTab(QWidget):
+    CREATE_DB_BUTTON_LABEL = "Create Vector Database"
+    CREATE_DB_BUTTON_BUSY_LABEL = "Creating..."
+
     def __init__(self):
         super().__init__()
         model_downloaded_signal.downloaded.connect(self.update_model_combobox)
@@ -112,7 +115,7 @@ class DatabasesTab(QWidget):
         self.populate_model_combobox()
         self.model_combobox.currentIndexChanged.connect(self.on_model_selected)
         self.model_combobox.activated.connect(self.refresh_model_combobox)
-        self.create_db_button = QPushButton("Create Vector Database")
+        self.create_db_button = QPushButton(self.CREATE_DB_BUTTON_LABEL)
         self.create_db_button.setToolTip(TOOLTIPS["CREATE_VECTOR_DB"])
         self.create_db_button.clicked.connect(self.on_create_db_clicked)
         self.create_db_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -277,6 +280,7 @@ class DatabasesTab(QWidget):
             return
 
         self.create_db_button.setDisabled(True)
+        self.create_db_button.setText(self.CREATE_DB_BUTTON_BUSY_LABEL)
         self.choose_docs_button.setDisabled(True)
         self.model_combobox.setDisabled(True)
         self.database_name_input.setDisabled(True)
@@ -354,6 +358,7 @@ class DatabasesTab(QWidget):
 
     def reenable_create_db_button(self):
         self.create_db_button.setDisabled(False)
+        self.create_db_button.setText(self.CREATE_DB_BUTTON_LABEL)
         self.choose_docs_button.setDisabled(False)
         self.model_combobox.setDisabled(False)
         self.database_name_input.setDisabled(False)
