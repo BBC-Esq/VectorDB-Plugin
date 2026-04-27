@@ -1,13 +1,13 @@
 import os
 import asyncio
-import aiohttp
 import aiofiles
 from bs4 import BeautifulSoup
 from copy import deepcopy
 import hashlib
 from urllib.parse import urljoin, urlparse, urlsplit, urlunsplit
 from PySide6.QtCore import Signal, QObject
-from charset_normalizer import detect
+from curl_cffi.requests import AsyncSession
+from curl_cffi.requests.errors import RequestsError
 
 from core.constants import PROJECT_ROOT
 
@@ -37,7 +37,7 @@ class BaseScraper:
 SCRAPER_SELECTORS = {
     "HuggingfaceScraper": ("div", {"class_": "prose-doc prose relative mx-auto max-w-4xl break-words"}),
     "ReadthedocsScraper": ("div", {"class_": "rst-content"}),
-    "PyTorchScraper": ("article", {"id": "pytorch-article", "class_": "pytorch-article", "attrs": {"itemprop": "articleBody"}}),
+    "PyTorchScraper": ("article", {"id": "pytorch-article"}),
     "TileDBScraper": ("main", {"id": "content"}),
     "RstContentScraper": ("div", {"class_": "rst-content"}),
     "FuroThemeScraper": ("article", {"id": "furo-main-content"}),
@@ -140,26 +140,40 @@ class ScraperRegistry:
 
 
 class ScraperWorker(QObject):
-    status_updated = Signal(str)
-    scraping_finished = Signal()
+    status_updated = Signal(str, str)
+    scraping_finished = Signal(str, bool)
 
-    def __init__(self, url, folder, scraper_class=BaseScraper):
+    def __init__(self, url, folder, scraper_class=BaseScraper, name=""):
         super().__init__()
         self.url = url
         self.folder = folder
+        self.name = name
         self.scraper = scraper_class(url, folder)
         self.save_dir = self.scraper.save_dir
         os.makedirs(self.save_dir, exist_ok=True)
         self.stats = {"scraped": 0}
+        self._loop = None
+        self._task = None
+        self._cancelled = False
 
     def run(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
         try:
-            loop.run_until_complete(self.crawl_domain())
+            self._task = self._loop.create_task(self.crawl_domain())
+            try:
+                self._loop.run_until_complete(self._task)
+            except asyncio.CancelledError:
+                pass
         finally:
             self.cleanup()
-            loop.close()
+            self._loop.close()
+            self.scraping_finished.emit(self.name, self._cancelled)
+
+    def cancel(self):
+        self._cancelled = True
+        if self._loop and self._task and not self._task.done():
+            self._loop.call_soon_threadsafe(self._task.cancel)
 
     def count_saved_files(self):
         return len([f for f in os.listdir(self.save_dir) if f.endswith(".html")])
@@ -198,8 +212,10 @@ class ScraperWorker(QObject):
             visited.update(batch_urls)
             return [r for r in results if isinstance(r, set)]
 
-        async with aiohttp.ClientSession() as session:
+        async with AsyncSession(impersonate="chrome") as session:
             while to_visit:
+                if self._cancelled:
+                    break
                 current_batch = to_visit[:batch_size]
                 to_visit = to_visit[batch_size:]
 
@@ -212,7 +228,6 @@ class ScraperWorker(QObject):
                 if len(visited) >= page_limit:
                     break
 
-        self.scraping_finished.emit()
         return visited
 
     async def fetch(
@@ -230,95 +245,37 @@ class ScraperWorker(QObject):
         if os.path.exists(filename):
             return set()
 
-        fallback_encodings = [
-            "latin-1",
-            "iso-8859-1",
-            "cp1252",
-            "windows-1252",
-            "ascii",
-        ]
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (X11; Linux x86_64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/125.0.0.0 Safari/537.36"
-            ),
-            "Accept-Charset": "utf-8, iso-8859-1;q=0.8, *;q=0.7",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        }
-
         async with semaphore:
             for attempt in range(1, retries + 1):
                 try:
-                    timeout = aiohttp.ClientTimeout(total=30)
-                    async with session.get(url, headers=headers, timeout=timeout) as response:
-                        if response.status == 200:
-                            content_type = response.headers.get("content-type", "").lower()
-                            if "text/html" in content_type:
-                                try:
-                                    html = await response.text(encoding="utf-8")
-                                except UnicodeDecodeError:
-                                    raw = await response.read()
-
-                                    encodings_to_try = []
-                                    try:
-                                        detected = detect(raw).get("encoding")
-                                        if detected:
-                                            encodings_to_try.append(detected)
-                                    except Exception:
-                                        pass
-
-                                    encodings_to_try.extend(
-                                        [e for e in fallback_encodings if e not in encodings_to_try]
-                                    )
-
-                                    for enc in encodings_to_try:
-                                        try:
-                                            html = raw.decode(enc)
-                                            break
-                                        except UnicodeDecodeError:
-                                            continue
-                                    else:
-                                        html = raw.decode("utf-8", errors="ignore")
-
-                                await self.save_html(html, url, save_dir)
-                                self.stats["scraped"] = self.count_saved_files()
-                                self.status_updated.emit(
-                                    str(self.stats["scraped"])
-                                )
-                                return self.extract_links(
-                                    html,
-                                    url,
-                                    base_domain,
-                                    acceptable_domain_extension,
-                                )
-
-                            self.stats["scraped"] = self.count_saved_files()
-                            self.status_updated.emit(str(self.stats["scraped"]))
-                            return set()
-                        else:
-                            await self.log_failed_url(url, log_file)
-                            self.stats["scraped"] = self.count_saved_files()
-                            self.status_updated.emit(str(self.stats["scraped"]))
-                            return set()
-                except asyncio.TimeoutError:
+                    response = await session.get(url, timeout=30, allow_redirects=True)
+                except (asyncio.TimeoutError, RequestsError, Exception):
                     if attempt == retries:
                         await self.log_failed_url(url, log_file)
                         self.stats["scraped"] = self.count_saved_files()
-                        self.status_updated.emit(str(self.stats["scraped"]))
+                        self.status_updated.emit(self.name, str(self.stats["scraped"]))
                     await asyncio.sleep(2)
-                except UnicodeDecodeError:
-                    if attempt == retries:
-                        await self.log_failed_url(url, log_file)
-                        self.stats["scraped"] = self.count_saved_files()
-                        self.status_updated.emit(str(self.stats["scraped"]))
-                    await asyncio.sleep(2)
-                except Exception:
-                    if attempt == retries:
-                        await self.log_failed_url(url, log_file)
-                        self.stats["scraped"] = self.count_saved_files()
-                        self.status_updated.emit(str(self.stats["scraped"]))
-                    await asyncio.sleep(2)
+                    continue
+
+                if response.status_code != 200:
+                    await self.log_failed_url(url, log_file)
+                    self.stats["scraped"] = self.count_saved_files()
+                    self.status_updated.emit(self.name, str(self.stats["scraped"]))
+                    return set()
+
+                content_type = response.headers.get("content-type", "").lower()
+                if "text/html" not in content_type:
+                    self.stats["scraped"] = self.count_saved_files()
+                    self.status_updated.emit(self.name, str(self.stats["scraped"]))
+                    return set()
+
+                html = response.text
+                await self.save_html(html, url, save_dir)
+                self.stats["scraped"] = self.count_saved_files()
+                self.status_updated.emit(self.name, str(self.stats["scraped"]))
+                return self.extract_links(
+                    html, url, base_domain, acceptable_domain_extension
+                )
         return set()
 
     async def save_html(self, content, url, save_dir):

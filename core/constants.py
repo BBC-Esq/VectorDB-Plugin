@@ -196,6 +196,7 @@ libs = [
     "contourpy==1.3.3",
     "cryptography==46.0.3",
     "ctranslate2==4.6.2",
+    "curl_cffi==0.15.0",
     "cycler==0.12.1",
     "dataclasses-json==0.6.7",
     "datasets==4.3.0",
@@ -1577,11 +1578,6 @@ scrape_documentation = {
         "folder": "anyio",
         "scraper_class": "ReadthedocsScraper"
     },
-    "Argcomplete": {
-        "URL": "https://kislyuk.github.io/argcomplete/",
-        "folder": "argcomplete",
-        "scraper_class": "FuroThemeScraper",
-    },
     "array_api_compat": {
         "URL": "https://data-apis.org/array-api-compat/",
         "folder": "array_api_compat",
@@ -1596,15 +1592,10 @@ scrape_documentation = {
         "URL": "https://www.crummy.com/software/BeautifulSoup/bs4/doc/",
         "folder": "beautiful_soup_4"
     },
-    "bitsandbytes 0.47.0": {
-        "URL": "https://huggingface.co/docs/bitsandbytes/v0.47.0/en/",
-        "folder": "bitsandbytes_0470",
+    "bitsandbytes 0.48.2": {
+        "URL": "https://huggingface.co/docs/bitsandbytes/v0.48.2/en/",
+        "folder": "bitsandbytes_0482",
         "scraper_class": "HuggingfaceScraper"
-    },
-    "Black": {
-        "URL": "https://black.readthedocs.io/en/stable/",
-        "folder": "Black",
-        "scraper_class": "FuroThemeScraper"
     },
     "cffi": {
         "URL": "https://cffi.readthedocs.io/en/stable/",
@@ -1622,10 +1613,6 @@ scrape_documentation = {
     "click": {
         "URL": "https://click.palletsprojects.com/en/stable/",
         "folder": "click"
-    },
-    "CLIO": {
-        "URL": "https://help.clio.com/",
-        "folder": "CLIO"
     },
     "coloredlogs": {
         "URL": "https://coloredlogs.readthedocs.io/en/latest/",
@@ -1646,11 +1633,6 @@ scrape_documentation = {
         "folder": "ctranslate2",
         "scraper_class": "RstContentScraper"
     },
-    "cuDF": {
-        "URL": "https://docs.rapids.ai/api/cudf/stable/",
-        "folder": "cuDF",
-        "scraper_class": "PydataThemeScraper"
-    },
     "cycler": {
         "URL": "https://matplotlib.org/cycler/",
         "folder": "cycler"
@@ -1660,14 +1642,14 @@ scrape_documentation = {
         "folder": "dataclasses_json",
         "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
-    "datasets 3.6.0": {
-        "URL": "https://huggingface.co/docs/datasets/v3.6.0/en/",
-        "folder": "datasets_0360",
+    "datasets 4.3.0": {
+        "URL": "https://huggingface.co/docs/datasets/v4.3.0/en/",
+        "folder": "datasets_0430",
         "scraper_class": "HuggingfaceScraper"
     },
-    "deepdiff 8.4.2": {
-        "URL": "https://zepworks.com/deepdiff/8.4.2/",
-        "folder": "deepdiff_842"
+    "deepdiff 8.6.1": {
+        "URL": "https://zepworks.com/deepdiff/8.6.1/",
+        "folder": "deepdiff_861"
     },
     "Deprecated": {
         "URL": "https://deprecated.readthedocs.io/en/latest/",
@@ -1678,9 +1660,9 @@ scrape_documentation = {
         "folder": "deprecation",
         "scraper_class": "BodyRoleMainScraper"
     },
-    "Diffusers": {
-        "URL": "https://huggingface.co/docs/diffusers/index",
-        "folder": "diffusers",
+    "Diffusers 0.35.0": {
+        "URL": "https://huggingface.co/docs/diffusers/v0.35.0/en/",
+        "folder": "diffusers_0350",
         "scraper_class": "HuggingfaceScraper"
     },
     "dill": {
@@ -1752,9 +1734,9 @@ scrape_documentation = {
         "folder": "httpx",
         "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
-    "Huggingface Hub 0.32.4": {
-        "URL": "https://huggingface.co/docs/huggingface_hub/v0.32.4/en/",
-        "folder": "huggingface_hub_0324",
+    "Huggingface Hub 0.36.0": {
+        "URL": "https://huggingface.co/docs/huggingface_hub/v0.36.0/en/",
+        "folder": "huggingface_hub_0360",
         "scraper_class": "HuggingfaceScraper"
     },
     "humanfriendly": {
@@ -1767,30 +1749,15 @@ scrape_documentation = {
         "folder": "importlib_metadata",
         "scraper_class": "FuroThemeScraper"
     },
-    "isort": {
-        "URL": "https://pycqa.github.io/isort/",
-        "folder": "isort",
-        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
-    },
     "Jinja": {
         "URL": "https://jinja.palletsprojects.com/en/stable/",
         "folder": "jinja",
         "scraper_class": "BodyRoleMainScraper"
     },
-    "jiwer": {
-        "URL": "https://jitsi.github.io/jiwer/",
-        "folder": "jiwer",
-        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
-    },
     "joblib": {
         "URL": "https://joblib.readthedocs.io/en/stable/",
         "folder": "kiwisolver",
         "scraper_class": "ReadthedocsScraper"
-    },
-    "kdenlive": {
-        "URL": "https://docs.kdenlive.org/en/",
-        "folder": "kdenlive",
-        "scraper_class": "RtdThemeScraper"
     },
     "kiwisolver": {
         "URL": "https://kiwisolver.readthedocs.io/en/stable/",
@@ -1802,29 +1769,9 @@ scrape_documentation = {
         "folder": "langchain",
         "scraper_class": "PydataThemeScraper"
     },
-    "Librosa": {
-        "URL": "https://librosa.org/doc/latest/",
-        "folder": "librosa",
-        "scraper_class": "RtdThemeScraper"
-    },
-    "llama-cpp-python": {
-        "URL": "https://llama-cpp-python.readthedocs.io/en/stable/",
-        "folder": "llama_cpp_python",
-        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
-    },
     "llvmlite": {
         "URL": "https://llvmlite.readthedocs.io/en/stable/",
         "folder": "llvmlite",
-        "scraper_class": "RtdThemeScraper"
-    },
-    "Loguru": {
-        "URL": "https://loguru.readthedocs.io/en/stable/",
-        "folder": "loguru",
-        "scraper_class": "RtdThemeScraper"
-    },
-    "lxml-html-clean": {
-        "URL": "https://lxml-html-clean.readthedocs.io/en/stable/",
-        "folder": "lxml_html_clean",
         "scraper_class": "RtdThemeScraper"
     },
     "Markdown": {
@@ -1897,16 +1844,6 @@ scrape_documentation = {
         "folder": "numba",
         "scraper_class": "RtdThemeScraper"
     },
-    "Numexpr": {
-        "URL": "https://numexpr.readthedocs.io/en/latest/",
-        "folder": "numexpr",
-        "scraper_class": "RtdThemeScraper"
-    },
-    "NumPy 1.26": {
-        "URL": "https://numpy.org/doc/1.26/",
-        "folder": "numpy_126",
-        "scraper_class": "PydataThemeScraper"
-    },
     "NumPy (latest stable)": {
         "URL": "https://numpy.org/doc/stable/",
         "folder": "numpy",
@@ -1922,9 +1859,14 @@ scrape_documentation = {
         "folder": "openpyxl",
         "scraper_class": "BodyRoleMainScraper"
     },
-    "Optimum 1.25.2": {
-        "URL": "https://huggingface.co/docs/optimum/v1.25.2/en/",
-        "folder": "optimum_1252",
+    "Optimum (main)": {
+        "URL": "https://huggingface.co/docs/optimum/main/en/",
+        "folder": "optimum_main",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Optimum ONNX (main)": {
+        "URL": "https://huggingface.co/docs/optimum-onnx/main/en/",
+        "folder": "optimum_onnx_main",
         "scraper_class": "HuggingfaceScraper"
     },
     "packaging": {
@@ -1936,11 +1878,6 @@ scrape_documentation = {
         "URL": "https://pandas.pydata.org/docs/",
         "folder": "pandas",
         "scraper_class": "PydataThemeScraper"
-    },
-    "Pandoc": {
-        "URL": "https://pandoc.org",
-        "folder": "pandoc",
-        "scraper_class": "MainScraper"
     },
     "pdfminer.six": {
         "URL": "https://pdfminersix.readthedocs.io/en/master/",
@@ -1993,24 +1930,19 @@ scrape_documentation = {
         "scraper_class": "BodyRoleMainScraper"
     },
     "Pydantic": {
-        "URL": "https://docs.pydantic.dev/latest/",
+        "URL": "https://pydantic.dev/docs/validation/latest/",
         "folder": "pydantic",
-        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
+        "scraper_class": "MainScraper"
     },
     "pydantic-settings": {
-        "URL": "https://docs.pydantic.dev/latest/concepts/pydantic_settings/",
+        "URL": "https://pydantic.dev/docs/validation/latest/concepts/pydantic_settings/",
         "folder": "pydantic_settings",
-        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
+        "scraper_class": "MainScraper"
     },
     "Pygments": {
         "URL": "https://pygments.org/docs/",
         "folder": "pygments",
         "scraper_class": "BodyRoleMainScraper"
-    },
-    "PyInstaller": {
-        "URL": "https://pyinstaller.org/en/stable/",
-        "folder": "pyinstaller",
-        "scraper_class": "RtdThemeScraper"
     },
     "PyMuPDF": {
         "URL": "https://pymupdf.readthedocs.io/en/latest/",
@@ -2049,11 +1981,6 @@ scrape_documentation = {
     "PyYAML": {
         "URL": "https://pyyaml.org/wiki/PyYAMLDocumentation",
         "folder": "pyyaml",
-        "scraper_class": "BodyScraper"
-    },
-    "Pywin32": {
-        "URL": "https://mhammond.github.io/pywin32/",
-        "folder": "pywin32",
         "scraper_class": "BodyScraper"
     },
     "Pyside 6": {
@@ -2101,18 +2028,18 @@ scrape_documentation = {
         "folder": "ruamel_yaml",
         "scraper_class": "DivIdContentSecondScraper"
     },
-    "Safetensors 0.3.2": {
-        "URL": "https://huggingface.co/docs/safetensors/v0.3.2/en/",
-        "folder": "safetensors_032",
+    "Safetensors (main)": {
+        "URL": "https://huggingface.co/docs/safetensors/main/en/",
+        "folder": "safetensors_main",
         "scraper_class": "HuggingfaceScraper"
     },
     "scikit-learn": {
         "URL": "https://scikit-learn.org/stable/",
         "folder": "scikit_learn"
     },
-    "SciPy 1.15.3": {
-        "URL": "https://docs.scipy.org/doc/scipy-1.15.3/",
-        "folder": "scipy_1153",
+    "SciPy 1.16.2": {
+        "URL": "https://docs.scipy.org/doc/scipy-1.16.2/",
+        "folder": "scipy_1162",
         "scraper_class": "PydataThemeScraper",
     },
     "Sentence-Transformers": {
@@ -2135,9 +2062,9 @@ scrape_documentation = {
         "folder": "soundfile_0131",
         "scraper_class": "RstContentScraper"
     },
-    "sounddevice 0.5.2": {
-        "URL": "https://python-sounddevice.readthedocs.io/en/0.5.2/",
-        "folder": "sounddevice_052",
+    "sounddevice 0.5.3": {
+        "URL": "https://python-sounddevice.readthedocs.io/en/0.5.3/",
+        "folder": "sounddevice_053",
         "scraper_class": "BodyRoleMainScraper"
     },
     "Soupsieve": {
@@ -2145,19 +2072,9 @@ scrape_documentation = {
         "folder": "soupsieve",
         "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
-    "Soxr": {
-        "URL": "https://python-soxr.readthedocs.io/en/stable/",
-        "folder": "soxr",
-        "scraper_class": "PydataThemeScraper"
-    },
-    "SpaCy": {
-        "URL": "https://spacy.io/api",
-        "folder": "spacy",
-        "scraper_class": "ArticleClassMainContent8zFCHScraper"
-    },
-    "SpeechBrain 0.5.15": {
-        "URL": "https://speechbrain.readthedocs.io/en/v0.5.15/",
-        "folder": "speechbrain_0515",
+    "SpeechBrain (latest)": {
+        "URL": "https://speechbrain.readthedocs.io/en/latest/",
+        "folder": "speechbrain_latest",
         "scraper_class": "RstContentScraper"
     },
     "SQLAlchemy 20": {
@@ -2169,18 +2086,13 @@ scrape_documentation = {
         "folder": "sympy",
         "scraper_class": "PymupdfScraper"
     },
-    "tblib": {
-        "URL": "https://python-tblib.readthedocs.io/en/stable/",
-        "folder": "tblib",
-        "scraper_class": "FuroThemeScraper"
-    },
     "tenacity": {
         "URL": "https://tenacity.readthedocs.io/en/stable/",
         "folder": "tenacity",
         "scraper_class": "RstContentScraper"
     },
     "Tile DB": {
-        "URL": "https://tiledb-inc-tiledb.readthedocs-hosted.com/projects/tiledb-py/en/stable/index.html",
+        "URL": "https://tiledb-inc-tiledb.readthedocs-hosted.com/projects/tiledb-py/en/stable/",
         "folder": "tiledb",
         "scraper_class": "RstContentScraper"
     },
@@ -2193,69 +2105,29 @@ scrape_documentation = {
         "URL": "https://tiledb-inc.github.io/TileDB-Cloud-Py/",
         "folder": "tiledb_cloud",
     },
-    "Timm 1.0.15": {
-        "URL": "https://huggingface.co/docs/timm/v1.0.15/en/",
-        "folder": "timm_1015",
+    "Timm 1.0.20": {
+        "URL": "https://huggingface.co/docs/timm/v1.0.20/en/",
+        "folder": "timm_1020",
         "scraper_class": "HuggingfaceScraper"
     },
-    "tokenizers": {
-        "URL": "https://huggingface.co/docs/tokenizers/v0.20.3/en",
-        "folder": "tokenizers_0203",
+    "tokenizers 0.22.1": {
+        "URL": "https://huggingface.co/docs/tokenizers/v0.22.1/en",
+        "folder": "tokenizers_0221",
         "scraper_class": "HuggingfaceScraper"
     },
-    "torchao .9": {
-        "URL": "https://pytorch.org/ao/stable/",
-        "folder": "torchao_09",
+    "torch 2.9": {
+        "URL": "https://docs.pytorch.org/docs/2.9/",
+        "folder": "torch_29",
         "scraper_class": "PyTorchScraper"
     },
-    "torch 2.4": {
-        "URL": "https://pytorch.org/docs/2.4/",
-        "folder": "torch_24",
+    "Torchaudio 2.9": {
+        "URL": "https://docs.pytorch.org/audio/2.9.0/",
+        "folder": "torchaudio_29",
         "scraper_class": "PyTorchScraper"
     },
-    "torch 2.6": {
-        "URL": "https://pytorch.org/docs/2.6/",
-        "folder": "torch_26",
-        "scraper_class": "PyTorchScraper"
-    },
-    "torch 2.7": {
-        "URL": "https://pytorch.org/docs/2.7/",
-        "folder": "torch_27",
-        "scraper_class": "PyTorchScraper"
-    },
-    "Torchaudio 2.4": {
-        "URL": "https://pytorch.org/audio/2.4.0/",
-        "folder": "torchaudio_24",
-        "scraper_class": "PyTorchScraper"
-    },
-    "Torchaudio 2.6": {
-        "URL": "https://pytorch.org/audio/2.6.0/",
-        "folder": "torchaudio_26",
-        "scraper_class": "PyTorchScraper"
-    },
-    "Torchaudio 2.7": {
-        "URL": "https://pytorch.org/audio/2.7.0/",
-        "folder": "torchaudio_27",
-        "scraper_class": "PyTorchScraper"
-    },
-    "Torchmetrics": {
-        "URL": "https://lightning.ai/docs/torchmetrics/stable/",
-        "folder": "torchmetrics",
-        "scraper_class": "RstContentScraper"
-    },
-    "Torchvision 0.20": {
-        "URL": "https://pytorch.org/vision/0.20/",
-        "folder": "torchvision_020",
-        "scraper_class": "PyTorchScraper"
-    },
-    "Torchvision 0.21": {
-        "URL": "https://pytorch.org/vision/0.21/",
-        "folder": "torchvision_021",
-        "scraper_class": "PyTorchScraper"
-    },
-    "Torchvision 0.22": {
-        "URL": "https://pytorch.org/vision/0.22/",
-        "folder": "torchvision_022",
+    "Torchvision 0.24": {
+        "URL": "https://docs.pytorch.org/vision/0.24/",
+        "folder": "torchvision_024",
         "scraper_class": "PyTorchScraper"
     },
     "tqdm": {
@@ -2263,14 +2135,9 @@ scrape_documentation = {
         "folder": "tqdm",
         "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
-    "Transformers 4.52.3": {
-        "URL": "https://huggingface.co/docs/transformers/v4.52.3/en",
-        "folder": "transformers_4523",
-        "scraper_class": "HuggingfaceScraper"
-    },
-    "Transformers.js 3.x": {
-        "URL": "https://huggingface.co/docs/transformers.js/v3.0.0/en/",
-        "folder": "transformers_js_300",
+    "Transformers 4.57.5": {
+        "URL": "https://huggingface.co/docs/transformers/v4.57.5/en",
+        "folder": "transformers_4575",
         "scraper_class": "HuggingfaceScraper"
     },
     "typing_extensions": {
@@ -2291,11 +2158,6 @@ scrape_documentation = {
     "urllib3": {
         "URL": "https://urllib3.readthedocs.io/en/stable/",
         "folder": "urllib3"
-    },
-    "uv": {
-        "URL": "https://docs.astral.sh/uv/",
-        "folder": "uv",
-        "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "Watchdog": {
         "URL": "https://python-watchdog.readthedocs.io/en/stable/",
@@ -2320,11 +2182,6 @@ scrape_documentation = {
         "URL": "https://xlrd.readthedocs.io/en/stable/",
         "folder": "xlrd",
         "scraper_class": "RstContentScraper"
-    },
-    "xFormers": {
-        "URL": "https://facebookresearch.github.io/xformers/",
-        "folder": "xformers",
-        "scraper_class": "PytorchScraper"
     },
     "yarl": {
         "URL": "https://yarl.aio-libs.org/en/stable/",
