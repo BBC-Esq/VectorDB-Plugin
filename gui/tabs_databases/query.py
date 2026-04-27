@@ -202,8 +202,15 @@ class RefreshingComboBox(QComboBox):
         super(RefreshingComboBox, self).__init__(parent)
 
     def showPopup(self):
-        self.clear()
-        self.addItems(self.parent().load_created_databases())
+        new_items = self.parent().load_created_databases()
+        current_items = [self.itemText(i) for i in range(self.count())]
+        if new_items != current_items:
+            current_text = self.currentText()
+            self.clear()
+            self.addItems(new_items)
+            idx = self.findText(current_text)
+            if idx >= 0:
+                self.setCurrentIndex(idx)
         super(RefreshingComboBox, self).showPopup()
 
 
