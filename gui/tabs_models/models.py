@@ -93,6 +93,8 @@ class VectorModelsTab(QWidget):
 
                radiobutton = QRadioButton()
                radiobutton.setToolTip(TOOLTIPS.get("VECTOR_MODEL_SELECT", ""))
+               radiobutton.setProperty("model_info", model_info)
+               radiobutton.setProperty("downloaded_key", f"{vendor}/{model['name']}")
                self.model_radiobuttons.addButton(radiobutton, row_counter)
                add_centered_widget(grid, radiobutton, row, 0)
 
@@ -150,11 +152,13 @@ class VectorModelsTab(QWidget):
        self.download_failed.connect(self._reset_download_button)
 
     def initiate_model_download(self):
-       selected_id = self.model_radiobuttons.checkedId()
-       if selected_id == -1:
+       selected_button = self.model_radiobuttons.checkedButton()
+       if selected_button is None:
            return
 
-       downloaded_label, model_info, _ = list(self.downloaded_labels.values())[selected_id - 1]
+       model_info = selected_button.property("model_info")
+       downloaded_key = selected_button.property("downloaded_key")
+       downloaded_label = self.downloaded_labels[downloaded_key][0]
 
        if downloaded_label.text() == 'Yes':
            reply = QMessageBox.question(
