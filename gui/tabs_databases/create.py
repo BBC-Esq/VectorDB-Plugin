@@ -3,6 +3,7 @@ import sys
 import time
 import gc
 import json
+import shutil
 import subprocess
 from pathlib import Path
 import yaml
@@ -119,9 +120,16 @@ class DatabasesTab(QWidget):
         self.create_db_button.setToolTip(TOOLTIPS["CREATE_VECTOR_DB"])
         self.create_db_button.clicked.connect(self.on_create_db_clicked)
         self.create_db_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.cancel_db_button = QPushButton("Cancel")
+        self.cancel_db_button.setToolTip("Cancel an in-progress database creation and remove any partial files.")
+        self.cancel_db_button.clicked.connect(self.on_cancel_db_clicked)
+        self.cancel_db_button.setEnabled(False)
+        create_cancel_box = QHBoxLayout()
+        create_cancel_box.addWidget(self.create_db_button)
+        create_cancel_box.addWidget(self.cancel_db_button)
         grid_layout_top_buttons.addWidget(self.choose_docs_button, 0, 0)
         grid_layout_top_buttons.addWidget(self.model_combobox, 0, 1)
-        grid_layout_top_buttons.addWidget(self.create_db_button, 0, 2)
+        grid_layout_top_buttons.addLayout(create_cancel_box, 0, 2)
         number_of_columns = 3
         for column_index in range(number_of_columns):
             grid_layout_top_buttons.setColumnStretch(column_index, 1)
@@ -297,6 +305,7 @@ class DatabasesTab(QWidget):
         self.choose_docs_button.setDisabled(True)
         self.model_combobox.setDisabled(True)
         self.database_name_input.setDisabled(True)
+        self.cancel_db_button.setEnabled(True)
 
         model_name = self.model_combobox.currentText()
 
@@ -333,9 +342,27 @@ class DatabasesTab(QWidget):
         except Exception as e:
             self._validation_failed(f"Failed to start database creation: {str(e)}")
 
+    def on_cancel_db_clicked(self):
+        if self.db_worker is None or not self.db_worker.isRunning():
+            return
+        self.cancel_db_button.setEnabled(False)
+        self.cancel_db_button.setText("Cancelling...")
+        self.db_worker.cancel()
+
     def on_worker_finished(self, success: bool, exit_code: int, message: str):
+        was_cancelled = (not success) and message == "Cancelled by user."
         try:
-            if success:
+            if was_cancelled:
+                if self.current_database_name:
+                    partial_dir = PROJECT_ROOT / "Vector_DB" / self.current_database_name
+                    if partial_dir.exists():
+                        shutil.rmtree(partial_dir, ignore_errors=True)
+                QMessageBox.information(
+                    self,
+                    "Cancelled",
+                    "Database creation was cancelled and any partial files were removed."
+                )
+            elif success:
                 my_cprint(f"{self.current_model_name} removed from memory.", "red")
                 self.update_config_with_database_name()
                 backup_database(self.current_database_name)
@@ -374,6 +401,8 @@ class DatabasesTab(QWidget):
         self.choose_docs_button.setDisabled(False)
         self.model_combobox.setDisabled(False)
         self.database_name_input.setDisabled(False)
+        self.cancel_db_button.setEnabled(False)
+        self.cancel_db_button.setText("Cancel")
         
         self.current_database_name = None
         self.current_model_name = None
