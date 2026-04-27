@@ -430,11 +430,15 @@ class DatabaseQueryTab(QWidget):
         self.token_count_label.setText(token_count_string)
 
     def on_model_source_changed(self, text):
-        if text == "Local Model":
+        is_local = text == "Local Model"
+        self.model_combo_box.setVisible(is_local)
+        self.eject_button.setVisible(is_local)
+        if is_local:
             self.model_combo_box.setEnabled(torch.cuda.is_available())
+            self.eject_button.setEnabled(self.local_model_chat.is_model_loaded())
         else:
             self.model_combo_box.setEnabled(False)
-        self.eject_button.setEnabled(self.local_model_chat.is_model_loaded())
+            self.eject_button.setEnabled(False)
 
     def load_created_databases(self):
         if self.config_path.exists():
