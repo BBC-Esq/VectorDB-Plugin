@@ -451,6 +451,12 @@ class ScraperWorker(QObject):
         links = set()
         for a_tag in soup.find_all("a", href=True):
             href = a_tag["href"].replace("&amp;num;", "#")
+            if href.startswith("www."):
+                href = "https://" + href
+            elif href.startswith("https/"):
+                href = "https://" + href[len("https/"):]
+            elif href.startswith("http/"):
+                href = "http://" + href[len("http/"):]
             url = (
                 urljoin(f"https://{base_domain}", href)
                 if href.startswith("/")
