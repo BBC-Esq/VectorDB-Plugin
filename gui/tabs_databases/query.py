@@ -19,7 +19,7 @@ from chat.local_model import LocalModelChat
 from chat.openai import ChatGPTThread
 from chat.minimax import MiniMaxThread
 from chat.kobold import KoboldThread
-from core.constants import CHAT_MODELS
+from core.constants import CHAT_MODELS, OPENAI_MODELS
 from modules.voice_recorder import VoiceRecorder
 from core.utilities import check_preconditions_for_submit_question, my_cprint
 from core.constants import TOOLTIPS, PROJECT_ROOT
@@ -282,14 +282,7 @@ class DatabaseQueryTab(QWidget):
             "Local Model",
             "Kobold",
             "LM Studio",
-            "gpt-4.1-nano",
-            "gpt-4o-mini",
-            "gpt-4.1-mini",
-            "o4-mini",
-            "gpt-4.1",
-            "o3",
-            "gpt-4o",
-            "o3-pro",
+            *OPENAI_MODELS,
             "MiniMax-M2.7",
             "MiniMax-M2.7-highspeed",
         ])
@@ -381,17 +374,11 @@ class DatabaseQueryTab(QWidget):
             "Local Model": LocalModelStrategy(self),
             "LM Studio": LMStudioStrategy(self),
             "Kobold": KoboldStrategy(self),
-            "gpt-4.1-nano": ChatGPTStrategy(self),
-            "gpt-4.1-mini": ChatGPTStrategy(self),
-            "gpt-4.1": ChatGPTStrategy(self),
-            "gpt-4o": ChatGPTStrategy(self),
-            "gpt-4o-mini": ChatGPTStrategy(self),
-            "o4-mini": ChatGPTStrategy(self),
-            "o3": ChatGPTStrategy(self),
-            "o3-pro": ChatGPTStrategy(self),
             "MiniMax-M2.7": MiniMaxStrategy(self),
             "MiniMax-M2.7-highspeed": MiniMaxStrategy(self),
         }
+        for openai_model in OPENAI_MODELS:
+            STRATEGIES[openai_model] = ChatGPTStrategy(self)
         try:
             return STRATEGIES[source]
         except KeyError:
