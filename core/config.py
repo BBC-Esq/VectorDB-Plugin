@@ -85,7 +85,7 @@ class DatabaseInfo(BaseModel):
 
 
 class AppearanceConfig(BaseModel):
-    theme: str = "custom_stylesheet_default.css"
+    theme: str = "default"
 
 
 class PlatformInfo(BaseModel):

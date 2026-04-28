@@ -11,6 +11,7 @@ from pathlib import Path
 import psutil
 import subprocess
 import re
+from string import Template
 
 import torch
 import yaml
@@ -19,7 +20,7 @@ from PySide6.QtCore import QRunnable, QObject, Signal, QThreadPool
 from PySide6.QtWidgets import QApplication, QMessageBox
 from termcolor import cprint
 
-from core.constants import PROJECT_ROOT
+from core.constants import PROJECT_ROOT, THEMES
 
 def set_cuda_paths():
     import sys
@@ -625,16 +626,15 @@ def format_citations(metadata_list):
     return f"<ol>{list_items}</ol>"
 
 def list_theme_files():
-    script_dir = PROJECT_ROOT
-    theme_dir = script_dir / 'CSS'
-    return [f.name for f in theme_dir.iterdir() if f.suffix == '.css']
+    return sorted(THEMES.keys())
 
-def load_stylesheet(filename):
-    script_dir = PROJECT_ROOT
-    stylesheet_path = script_dir / 'CSS' / filename
-    with stylesheet_path.open('r') as file:
-        stylesheet = file.read()
-    return stylesheet
+def load_stylesheet(name):
+    if name not in THEMES:
+        name = 'default'
+    template_path = PROJECT_ROOT / 'CSS' / 'template.css'
+    with template_path.open('r') as f:
+        template = Template(f.read())
+    return template.substitute(THEMES[name])
 
 def ensure_theme_config():
     try:
@@ -647,15 +647,16 @@ def ensure_theme_config():
         if 'appearance' not in config:
             config['appearance'] = {}
 
-        if 'theme' not in config['appearance'] or not config['appearance']['theme']:
-            config['appearance']['theme'] = 'custom_stylesheet_default.css'
+        theme = config['appearance'].get('theme')
+        if not theme or theme not in THEMES:
+            config['appearance']['theme'] = 'default'
 
         with open('config.yaml', 'w') as f:
             yaml.safe_dump(config, f)
 
         return config['appearance']['theme']
     except Exception:
-        return 'custom_stylesheet_default.css'
+        return 'default'
 
 def update_theme_in_config(new_theme):
     try:

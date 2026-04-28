@@ -1,0 +1,242 @@
+DocQA_GUI {
+  background-color: $bg_window;
+}
+QWidget {
+  border: none;
+}
+QPushButton {
+  background-color: $bg_control;
+  color: $text_primary;
+  font: 10pt "Segoe UI Historic";
+  border-radius: 5px;
+  padding: 5px;
+  min-width: 60px;
+  border: 1px solid transparent;
+}
+QPushButton:hover {
+  background-color: $bg_control_hover;
+  border: 1px solid $border_focus;
+  color: $text_primary;
+}
+QLabel {
+  color: $text_primary;
+}
+QComboBox {
+  background-color: $bg_control;
+  color: $text_primary;
+  border: 1px solid $bg_window;
+  border-radius: 5px;
+  padding: 3px;
+}
+QComboBox:hover,
+QComboBox:focus {
+  background-color: $bg_control_hover;
+  color: $text_primary;
+  border: 1px solid $bg_window;
+}
+QComboBox QAbstractItemView {
+  background-color: $bg_surface;
+  color: $text_primary;
+  border: 1px solid $bg_window;
+  border-radius: 5px;
+}
+QComboBox QAbstractItemView::item:hover {
+  background-color: $bg_list_hover;
+  color: $text_primary;
+}
+QLineEdit {
+  background-color: $bg_window;
+  color: $text_input;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 3px;
+}
+QLineEdit:hover,
+QLineEdit:focus {
+  border: 1px solid $border_focus;
+}
+QLineEdit::placeholder {
+  color: $text_placeholder;
+}
+QRadioButton {
+  color: $text_primary;
+}
+QGroupBox {
+  border: 1px solid $bg_surface;
+  border-radius: 5px;
+  color: $text_primary;
+  font-size: 12pt;
+  padding: 10px;
+}
+DownloadModelDialog {
+  background-color: $bg_window;
+}
+QFrame {
+  background-color: $bg_window;
+}
+QTextEdit[readOnly="true"] {
+  background-color: $bg_surface;
+  color: $text_primary;
+  border: 1px solid $bg_control;
+  border-radius: 5px;
+  selection-background-color: $selection_bg;
+  selection-color: $selection_fg;
+  font: 14pt "Segoe UI Historic";
+}
+QTextEdit[readOnly="false"] {
+  background-color: $bg_surface;
+  color: $text_primary;
+  border: 1px solid $bg_control;
+  border-radius: 5px;
+  selection-background-color: $selection_bg;
+  selection-color: $selection_fg;
+  font: 14pt "Segoe UI Historic";
+}
+QTabWidget {
+  background-color: $bg_window;
+  border: none;
+}
+QTabWidget, QTabWidget::pane {
+  margin: 0px;
+  padding: 0px;
+  border: none;
+}
+QTabBar::tab {
+  background-color: $bg_tab;
+  color: $text_primary;
+  border-bottom-left-radius: 3px;
+  border-bottom-right-radius: 3px;
+  margin: 3px;
+  padding: 5px 5px;
+}
+QTabBar::tab:selected {
+  background-color: $bg_tab_selected;
+  border-bottom: 3px solid $border_focus;
+}
+QTabBar::tab:hover {
+  background-color: $bg_tab_hover;
+}
+QSplitter::handle {
+  background-color: $bg_splitter;
+  height: 5px;
+}
+QTreeView {
+  color: $text_primary;
+}
+QHeaderView::section {
+  background-color: $bg_control;
+  color: $text_primary;
+  border-radius: 5px;
+}
+QMenuBar {
+  color: $text_primary;
+}
+QMenuBar::item {
+  background: transparent;
+}
+QMenuBar::item:selected {
+  background: $bg_menu_selected;
+}
+QCheckBox {
+  color: $text_primary;
+}
+QCheckBox::indicator:unchecked:hover,
+QCheckBox::indicator:checked:hover {
+  border: 1px solid $border_focus;
+  border-radius: 5px;
+}
+QMessageBox {
+  background-color: $bg_window;
+}
+QMessageBox QLabel {
+  color: $text_primary;
+}
+QMessageBox QPushButton {
+  background-color: $bg_dialog_button;
+  color: $text_primary;
+  border-radius: 5px;
+  padding: 5px;
+  border: none;
+}
+QMessageBox QPushButton:hover,
+QMessageBox QPushButton:pressed {
+  background-color: $bg_control;
+}
+QAbstractItemView {
+  background-color: $bg_surface;
+  color: $text_primary;
+  border: 1px solid $bg_control;
+  border-radius: 5px;
+}
+QAbstractItemView::item:hover {
+  background-color: $bg_list_hover;
+  color: $text_primary;
+}
+QInputDialog {
+    background-color: $bg_window;
+}
+
+QInputDialog QLabel {
+    color: $text_primary;
+}
+
+QInputDialog QComboBox {
+    background-color: $bg_control;
+    color: $text_primary;
+    border: 1px solid $bg_window;
+    border-radius: 5px;
+    padding: 3px;
+}
+
+QInputDialog QComboBox:hover {
+    background-color: $bg_control_hover;
+    border: 1px solid $border_focus;
+}
+
+QInputDialog QPushButton {
+    background-color: $bg_dialog_button;
+    color: $text_primary;
+    border-radius: 5px;
+    padding: 5px;
+    min-width: 60px;
+    border: none;
+}
+
+QInputDialog QPushButton:hover {
+    background-color: $bg_control_hover;
+    border: 1px solid $border_focus;
+}
+QDialog {
+    background-color: $bg_window;
+}
+
+QDialog QLabel {
+    color: $text_primary;
+}
+
+QDialog QLineEdit {
+    background-color: $bg_surface;
+    color: $text_primary;
+    border: 1px solid $bg_control;
+    border-radius: 5px;
+    padding: 3px;
+}
+
+QDialog QLineEdit:hover,
+QDialog QLineEdit:focus {
+    border: 1px solid $border_focus;
+}
+
+QDialog QDialogButtonBox QPushButton {
+    background-color: $bg_dialog_button;
+    color: $text_primary;
+    border-radius: 5px;
+    padding: 5px;
+    min-width: 60px;
+    border: none;
+}
+
+QDialog QDialogButtonBox QPushButton:hover {
+    background-color: $bg_control_hover;
+    border: 1px solid $border_focus;
+}
