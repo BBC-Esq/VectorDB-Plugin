@@ -90,7 +90,8 @@ class VoiceRecorder:
             my_cprint("No audio data recorded.", 'yellow')
             return
 
-        temp_file = Path(tempfile.mktemp(suffix=".wav"))
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+            temp_file = Path(f.name)
         audio_data = np.concatenate(self.frames, axis=0)
         sf.write(str(temp_file), audio_data, self.rate)
         self.frames.clear()
