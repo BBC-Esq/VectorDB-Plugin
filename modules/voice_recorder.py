@@ -26,31 +26,36 @@ class TranscriptionThread(QThread):
         self.audio_file = audio_file
         self.voice_recorder = voice_recorder
 
-    def run(self):            
-        
+    def run(self):
+        transcription_text = ""
+        try:
+            model_kwargs = {
+                'compute_type': COMPUTE_TYPE,
+                'model_identifier': MODEL_IDENTIFIER,
+                "device": DEVICE,
+                "cpu_threads": CPU_THREADS,
+            }
+            self.model = whisper_s2t.load_model(**model_kwargs)
+            my_cprint("Whisper model loaded.", 'green')
 
-        model_kwargs = {
-            'compute_type': COMPUTE_TYPE,
-            'model_identifier': MODEL_IDENTIFIER,
-            "device": DEVICE,
-            "cpu_threads": CPU_THREADS,
-        }
-        self.model = whisper_s2t.load_model(**model_kwargs)
-        my_cprint("Whisper model loaded.", 'green')
-        
-        out = self.model.transcribe_with_vad([self.audio_file],
-                                             lang_codes=['en'],
-                                             tasks=['transcribe'],
-                                             initial_prompts=[None],
-                                             batch_size=4)
-        
-        transcription_text = " ".join(item['text'] for item in out[0]).strip()
-        
-        self.transcription_complete.emit(transcription_text)
-        
-        Path(self.audio_file).unlink()
+            out = self.model.transcribe_with_vad([self.audio_file],
+                                                 lang_codes=['en'],
+                                                 tasks=['transcribe'],
+                                                 initial_prompts=[None],
+                                                 batch_size=4)
 
-        del self.model
+            transcription_text = " ".join(item['text'] for item in out[0]).strip()
+        except Exception as e:
+            my_cprint(f"Transcription error: {e}", 'red')
+            transcription_text = f"[Transcription failed: {e}]"
+        finally:
+            self.transcription_complete.emit(transcription_text)
+            try:
+                Path(self.audio_file).unlink(missing_ok=True)
+            except Exception:
+                pass
+            if hasattr(self, 'model'):
+                del self.model
 
 class RecordingThread(QThread):
     def __init__(self, voice_recorder):
