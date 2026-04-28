@@ -72,13 +72,12 @@ def extract_document_metadata(file_path, content_hash=None):
 
 
 def _load_pdf(file_path: Path) -> Optional[str]:
-    doc = fitz.open(str(file_path))
     full_content = []
-    for page in doc:
-        text = page.get_text()
-        if text.strip():
-            full_content.append(f"[[page{page.number + 1}]]{text}")
-    doc.close()
+    with fitz.open(str(file_path)) as doc:
+        for page in doc:
+            text = page.get_text()
+            if text.strip():
+                full_content.append(f"[[page{page.number + 1}]]{text}")
     return "".join(full_content) if full_content else None
 
 
