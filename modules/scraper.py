@@ -251,6 +251,7 @@ class ScraperWorker(QObject):
         self._rate_limited = False
         self._consecutive_429s = 0
         self.resume = resume
+        self._log_lock = None
 
     def run(self):
         self._loop = asyncio.new_event_loop()
@@ -526,8 +527,11 @@ class ScraperWorker(QObject):
         return filename.rstrip(". ")
 
     async def log_failed_url(self, url, log_file):
-        async with aiofiles.open(log_file, "a") as f:
-            await f.write(url + "\n")
+        if self._log_lock is None:
+            self._log_lock = asyncio.Lock()
+        async with self._log_lock:
+            async with aiofiles.open(log_file, "a") as f:
+                await f.write(url + "\n")
 
     def extract_links(
         self,
