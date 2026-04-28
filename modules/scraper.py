@@ -416,7 +416,7 @@ class ScraperWorker(QObject):
                     return set()
                 try:
                     response = await session.get(url, timeout=30, allow_redirects=True)
-                except (asyncio.TimeoutError, RequestsError, Exception):
+                except (asyncio.TimeoutError, RequestsError, OSError):
                     if attempt == retries:
                         await self.log_failed_url(url, log_file)
                         self.stats["scraped"] = self.count_saved_files()
