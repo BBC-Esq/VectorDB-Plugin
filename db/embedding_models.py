@@ -413,7 +413,13 @@ class DirectEmbeddingModel:
             for batch_info in batches:
                 batch_count += 1
                 features_raw = batch_info["features"]
-                seq_indices = batch_info.get("seq_indices")
+                if "seq_indices" not in batch_info:
+                    raise ValueError(
+                        f"Batch {batch_count} missing required 'seq_indices' field. "
+                        f"The tokenize stage must emit seq_indices for every batch so "
+                        f"the embed stage can restore original chunk order."
+                    )
+                seq_indices = batch_info["seq_indices"]
 
                 features = {}
                 for key, padded in features_raw.items():
@@ -430,8 +436,7 @@ class DirectEmbeddingModel:
                     embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
                     embeddings = embeddings.float().cpu().numpy()
                     all_embeddings.append(embeddings)
-                    if seq_indices is not None:
-                        all_seq_indices.append(seq_indices)
+                    all_seq_indices.append(seq_indices)
                     del out_features
 
                 del features
@@ -450,15 +455,11 @@ class DirectEmbeddingModel:
                 return np.array([], dtype=np.float32)
 
             sorted_embeddings = np.concatenate(all_embeddings, axis=0)
-
-            if all_seq_indices:
-                indices = np.concatenate(all_seq_indices, axis=0)
-                result = np.empty_like(sorted_embeddings)
-                result[indices] = sorted_embeddings
-                logger.info(f"Unsorting embeddings: restored original order via seq_indices")
-                return result
-
-            return sorted_embeddings
+            indices = np.concatenate(all_seq_indices, axis=0)
+            result = np.empty_like(sorted_embeddings)
+            result[indices] = sorted_embeddings
+            logger.info(f"Unsorting embeddings: restored original order via seq_indices")
+            return result
 
         finally:
             import shutil
