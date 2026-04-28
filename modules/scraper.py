@@ -249,7 +249,7 @@ class ScraperWorker(QObject):
         self._task = None
         self._cancelled = False
         self._rate_limited = False
-        self._consecutive_429s = 0
+        self._429s_since_last_success = 0
         self.resume = resume
         self._log_lock = None
 
@@ -413,8 +413,8 @@ class ScraperWorker(QObject):
                     continue
 
                 if response.status_code == 429:
-                    self._consecutive_429s += 1
-                    if self._consecutive_429s >= self.RATE_LIMIT_THRESHOLD:
+                    self._429s_since_last_success += 1
+                    if self._429s_since_last_success >= self.RATE_LIMIT_THRESHOLD:
                         self._rate_limited = True
                     await self.log_failed_url(url, log_file)
                     self.stats["scraped"] = self.count_saved_files()
@@ -427,7 +427,7 @@ class ScraperWorker(QObject):
                     self.status_updated.emit(self.name, str(self.stats["scraped"]))
                     return set()
 
-                self._consecutive_429s = 0
+                self._429s_since_last_success = 0
 
                 content_type = response.headers.get("content-type", "").lower()
                 if "text/html" not in content_type:
