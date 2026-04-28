@@ -548,7 +548,7 @@ class ScraperWorker(QObject):
         if self._log_lock is None:
             self._log_lock = asyncio.Lock()
         async with self._log_lock:
-            async with aiofiles.open(log_file, "a") as f:
+            async with aiofiles.open(log_file, "a", encoding="utf-8") as f:
                 await f.write(url + "\n")
 
     def extract_links(
