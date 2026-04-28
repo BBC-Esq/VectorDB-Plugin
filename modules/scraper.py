@@ -315,8 +315,8 @@ class ScraperWorker(QObject):
             to_visit = [self.url]
 
         async def process_batch(batch_urls, session):
-            tasks = [
-                self.fetch(
+            pending = [
+                (u, self.fetch(
                     session,
                     u,
                     acceptable_domain,
@@ -324,13 +324,25 @@ class ScraperWorker(QObject):
                     self.save_dir,
                     log_file,
                     acceptable_domain_extension,
-                )
+                ))
                 for u in batch_urls
                 if u not in visited
             ]
+            urls_for_tasks = [u for u, _ in pending]
+            tasks = [t for _, t in pending]
             results = await asyncio.gather(*tasks, return_exceptions=True)
             visited.update(batch_urls)
-            return [r for r in results if isinstance(r, set)]
+            out = []
+            for url, r in zip(urls_for_tasks, results):
+                if isinstance(r, set):
+                    out.append(r)
+                elif isinstance(r, Exception):
+                    print(f"Scrape task for {url} raised {type(r).__name__}: {r}")
+                    try:
+                        await self.log_failed_url(url, log_file)
+                    except Exception:
+                        pass
+            return out
 
         async with AsyncSession(impersonate="chrome") as session:
             while to_visit:
