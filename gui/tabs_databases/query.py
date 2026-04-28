@@ -21,7 +21,7 @@ from chat.minimax import MiniMaxThread
 from chat.kobold import KoboldThread
 from core.constants import CHAT_MODELS, OPENAI_MODELS, CustomButtonStyles
 from modules.voice_recorder import VoiceRecorder
-from core.utilities import check_preconditions_for_submit_question, my_cprint
+from core.utilities import check_preconditions_for_submit_question, my_cprint, normalize_chat_text
 from core.constants import TOOLTIPS, PROJECT_ROOT
 from db.database_interactions import process_chunks_only_query
 from db.process_manager import get_process_manager
@@ -628,7 +628,7 @@ class DatabaseQueryTab(QWidget):
 
         try:
             with open(input_text_file, "w", encoding="utf-8") as f:
-                f.write(answer_only)
+                f.write(normalize_chat_text(answer_only))
         except OSError as e:
             logging.exception(f"Could not write chat_history.txt: {e}")
 

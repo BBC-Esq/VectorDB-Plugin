@@ -11,7 +11,7 @@ from PySide6.QtCore import QObject, Signal
 
 import chat.base as module_chat
 from db.database_interactions import get_query_db
-from core.utilities import format_citations, my_cprint, normalize_chat_text
+from core.utilities import format_citations, my_cprint
 from core.constants import rag_string, PROJECT_ROOT
 from pathlib import Path
 
@@ -231,11 +231,6 @@ class LocalModelChat:
 
                         conn.send(PipeMessage(MessageType.TOKEN_COUNTS, token_count_string))
 
-                        script_dir = PROJECT_ROOT
-                        with open(script_dir / 'chat_history.txt', 'w', encoding='utf-8') as f:
-
-                            normalized_response = full_response
-                            f.write(normalized_response)
                         citations = format_citations(metadata_list)
                         conn.send(PipeMessage(MessageType.CITATIONS, citations))
                         conn.send(PipeMessage(MessageType.FINISHED))

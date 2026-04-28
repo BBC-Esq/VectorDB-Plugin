@@ -5,7 +5,7 @@ import sseclient
 from PySide6.QtCore import QThread, Signal
 
 from db.database_interactions import get_query_db
-from chat.base import ChatSignals, load_chat_config, save_metadata, build_augmented_query, write_chat_history, cleanup_gpu
+from chat.base import ChatSignals, load_chat_config, save_metadata, build_augmented_query, cleanup_gpu
 from core.utilities import format_citations
 from core.constants import PROJECT_ROOT
 
@@ -83,7 +83,6 @@ class KoboldChat:
                 self.signals.response_signal.emit(response_chunk)
                 full_response += response_chunk
 
-            write_chat_history(full_response)
             self.signals.response_signal.emit("\n")
 
             citations = self.handle_response_and_cleanup(full_response, metadata_list)

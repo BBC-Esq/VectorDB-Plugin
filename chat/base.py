@@ -23,7 +23,7 @@ from huggingface_hub import HfApi
 from PySide6.QtCore import Signal, QObject
 
 from core.constants import CHAT_MODELS, system_message, rag_string, GLM4Z1_CHAT_TEMPLATE, PROJECT_ROOT
-from core.utilities import my_cprint, has_bfloat16_support, format_citations, normalize_chat_text
+from core.utilities import my_cprint, has_bfloat16_support, format_citations
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
 
@@ -46,10 +46,6 @@ def save_metadata(metadata_list):
 
 def build_augmented_query(contexts, query):
     return f"{rag_string}\n\n---\n\n" + "\n\n---\n\n".join(contexts) + f"\n\n-----\n\n{query}"
-
-def write_chat_history(text):
-    with open(PROJECT_ROOT / 'chat_history.txt', 'w', encoding='utf-8') as f:
-        f.write(normalize_chat_text(text))
 
 def cleanup_gpu():
     if torch.cuda.is_available():
