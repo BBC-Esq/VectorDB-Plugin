@@ -173,19 +173,16 @@ if __name__ == "__main__":
 
 def save_checkpoint(checkpoint_path, data):
     tmp_path = checkpoint_path.with_suffix(".tmp")
-    try:
-        with open(tmp_path, "wb") as f:
-            pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
-        if checkpoint_path.exists():
-            checkpoint_path.unlink()
-        tmp_path.rename(checkpoint_path)
-    except Exception:
+    with open(tmp_path, "wb") as f:
+        pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+    for attempt in range(5):
         try:
-            tmp_path.unlink()
-        except Exception:
-            pass
-        with open(checkpoint_path, "wb") as f:
-            pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+            os.replace(tmp_path, checkpoint_path)
+            return
+        except PermissionError:
+            if attempt == 4:
+                raise
+            time.sleep(0.2)
 
 
 def run_worker(python_exe: str, worker_script_path: str,
