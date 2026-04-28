@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
-from gpu_info import GPUS
+from charts.gpu_info import GPUS
 
 def create_gpu_comparison_plot(min_vram_threshold=6, max_vram_threshold=8):
     filtered = {name: info for name, info in GPUS.items() if min_vram_threshold <= info["memory_size_gb"] <= max_vram_threshold}
