@@ -1,6 +1,7 @@
 import argparse
 import concurrent.futures
 import gc
+import hashlib
 import logging
 import os
 import pickle
@@ -171,10 +172,11 @@ if __name__ == "__main__":
 '''
 
 
-def save_checkpoint(checkpoint_path, data):
+def save_checkpoint(checkpoint_path, data, fingerprint):
+    payload = {**data, "fingerprint": fingerprint}
     tmp_path = checkpoint_path.with_suffix(".tmp")
     with open(tmp_path, "wb") as f:
-        pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+        pickle.dump(payload, f, protocol=pickle.HIGHEST_PROTOCOL)
     for attempt in range(5):
         try:
             os.replace(tmp_path, checkpoint_path)
@@ -183,6 +185,32 @@ def save_checkpoint(checkpoint_path, data):
             if attempt == 4:
                 raise
             time.sleep(0.2)
+
+
+def _compute_input_hash(input_path):
+    h = hashlib.sha256()
+    with open(input_path, "rb") as f:
+        for buf in iter(lambda: f.read(1 << 20), b""):
+            h.update(buf)
+    return h.hexdigest()
+
+
+def load_checkpoint(checkpoint_path, expected_fingerprint):
+    if not checkpoint_path.exists():
+        return None
+    try:
+        with open(checkpoint_path, "rb") as f:
+            data = pickle.load(f)
+    except Exception as e:
+        logger.warning(f"Failed to load checkpoint at {checkpoint_path}: {e}; starting fresh")
+        return None
+    if data.get("fingerprint") != expected_fingerprint:
+        logger.warning(
+            f"Checkpoint at {checkpoint_path} has a fingerprint mismatch "
+            f"(input or build args changed since the checkpoint was written); starting fresh"
+        )
+        return None
+    return data
 
 
 def run_worker(python_exe: str, worker_script_path: str,
@@ -421,15 +449,47 @@ def main():
     total_workers = len(worker_jobs)
     logger.info(f"Processing {total} texts in {total_workers} worker subprocess(es)")
 
-    all_batches = []
-    all_errors = []
-    total_real_tokens = 0
-    total_pad_tokens = 0
-    workers_completed = 0
+    fingerprint = None
+    ckpt = None
+    if checkpoint_path is not None:
+        fingerprint = {
+            "stage": "tokenize",
+            "input_hash": _compute_input_hash(args.input_pickle),
+            "model_path": args.model_path,
+            "batch_size": args.batch_size,
+            "max_seq_length": args.max_seq_length,
+            "encode_batch_size": args.encode_batch_size,
+            "length_sort": args.length_sort,
+            "use_fast": args.use_fast,
+            "start_text_index": start_text_index,
+            "worker_batch_size": worker_batch_size,
+            "total_workers": total_workers,
+        }
+        ckpt = load_checkpoint(checkpoint_path, fingerprint)
+
+    if ckpt is not None:
+        all_batches = ckpt["batches"]
+        all_errors = ckpt["errors"]
+        ps = ckpt.get("padding_stats", {})
+        total_real_tokens = ps.get("total_real_tokens", 0)
+        total_pad_tokens = ps.get("total_pad_tokens", 0)
+        workers_completed = ckpt["workers_completed"]
+        logger.info(
+            f"Resuming from checkpoint: {workers_completed}/{total_workers} workers already complete, "
+            f"{len(all_batches)} batches accumulated"
+        )
+    else:
+        all_batches = []
+        all_errors = []
+        total_real_tokens = 0
+        total_pad_tokens = 0
+        workers_completed = 0
     workers_since_checkpoint = 0
 
     if effective_parallel <= 1:
         for wid, gstart, chunk in worker_jobs:
+            if wid <= workers_completed:
+                continue
             logger.info(f"Worker {wid}/{total_workers}: {len(chunk)} texts")
             result = run_worker_with_retries(
                 wid, total_workers, python_exe, str(worker_script_path),
@@ -454,7 +514,8 @@ def main():
                     "batches": all_batches, "errors": all_errors,
                     "next_text_index": start_text_index + current_offset,
                     "padding_stats": {"total_real_tokens": total_real_tokens, "total_pad_tokens": total_pad_tokens},
-                })
+                    "workers_completed": workers_completed,
+                }, fingerprint)
                 workers_since_checkpoint = 0
 
             gc.collect()
@@ -462,6 +523,9 @@ def main():
         for wave_start in range(0, total_workers, effective_parallel):
             wave_end = min(wave_start + effective_parallel, total_workers)
             wave_jobs = worker_jobs[wave_start:wave_end]
+            wave_jobs = [(wid, gstart, chunk) for wid, gstart, chunk in wave_jobs if wid > workers_completed]
+            if not wave_jobs:
+                continue
 
             logger.info(f"Launching parallel wave: workers {wave_jobs[0][0]}-{wave_jobs[-1][0]}")
 
@@ -510,7 +574,8 @@ def main():
                     "batches": all_batches, "errors": all_errors,
                     "next_text_index": start_text_index + current_offset,
                     "padding_stats": {"total_real_tokens": total_real_tokens, "total_pad_tokens": total_pad_tokens},
-                })
+                    "workers_completed": workers_completed,
+                }, fingerprint)
                 workers_since_checkpoint = 0
 
             gc.collect()
