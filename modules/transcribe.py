@@ -129,15 +129,15 @@ class WhisperTranscriber:
 
     def convert_with_av(self, audio_file, output_path):
         try:
-            with av.open(audio_file) as input_container:
+            with av.open(audio_file) as input_container, \
+                 av.open(str(output_path), mode='w') as output_container:
                 input_stream = input_container.streams.audio[0]
-                
-                output_container = av.open(str(output_path), mode='w')
+
                 output_stream = output_container.add_stream('pcm_s16le', rate=16000)
                 output_stream.channels = 1
-                
+
                 resampler = av.AudioResampler(format='s16', layout='mono', rate=16000)
-                
+
                 for frame in input_container.decode(audio=0):
                     frame.pts = None
                     resampled_frames = resampler.resample(frame)
@@ -145,12 +145,10 @@ class WhisperTranscriber:
                         for resampled_frame in resampled_frames:
                             for packet in output_stream.encode(resampled_frame):
                                 output_container.mux(packet)
-                
+
                 for packet in output_stream.encode(None):
                     output_container.mux(packet)
-                
-                output_container.close()
-            
+
             print("Conversion using av complete.")
             return str(output_path)
         except Exception as e:
