@@ -822,8 +822,6 @@ def run_tts(config_path, input_text_file):
         audio_class = ChatTTSAudio()
     elif tts_model == 'googletts':
         audio_class = GoogleTTSAudio()
-    elif tts_model == 'kokoro':
-        audio_class = KokoroAudio()
     elif tts_model == 'chatterbox':
         audio_class = ChatterboxAudio()
     elif tts_model == 'kyutai':
