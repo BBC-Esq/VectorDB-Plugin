@@ -21,7 +21,7 @@ from chat.minimax import MiniMaxThread
 from chat.kobold import KoboldThread
 from core.constants import CHAT_MODELS, OPENAI_MODELS, CustomButtonStyles
 from modules.voice_recorder import VoiceRecorder
-from core.utilities import check_preconditions_for_submit_question, my_cprint, normalize_chat_text
+from core.utilities import my_cprint, normalize_chat_text
 from core.constants import TOOLTIPS, PROJECT_ROOT
 from db.database_interactions import process_chunks_only_query
 from db.process_manager import get_process_manager
@@ -453,12 +453,10 @@ class DatabaseQueryTab(QWidget):
 
     def on_submit_button_clicked(self):
         script_dir = PROJECT_ROOT
-        model_source = self.model_source_combo.currentText()
-        if model_source == "Local Model":
-            is_valid, error_message = check_preconditions_for_submit_question(script_dir)
-            if not is_valid:
-                QMessageBox.warning(self, "Error", error_message)
-                return
+        selected_database = self.database_pulldown.currentText()
+        if not selected_database or not (script_dir / "Vector_DB" / selected_database).exists():
+            QMessageBox.warning(self, "No Database Selected", "Select a vector database to query first.")
+            return
 
         self.response_widget.clear()
         self.token_count_label.clear()
@@ -470,7 +468,6 @@ class DatabaseQueryTab(QWidget):
         self.citations_block = ""
         self.submit_button.setDisabled(True)
         user_question = self.text_input.toPlainText()
-        selected_database = self.database_pulldown.currentText()
 
         if self.chunks_only_checkbox.isChecked():
             strategy = ChunksOnlyStrategy(self)

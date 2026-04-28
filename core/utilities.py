@@ -786,18 +786,6 @@ def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=Fals
     return True, ""
 
 
-def check_preconditions_for_submit_question(script_dir):
-    config_path = script_dir / 'config.yaml'
-
-    with open(config_path, 'r', encoding='utf-8') as file:
-        config = yaml.safe_load(file)
-
-    database_to_search = config.get('database', {}).get('database_to_search')
-
-    vector_db_subdir = script_dir / "Vector_DB" / str(database_to_search) if database_to_search else None
-
-    return True, ""
-
 def my_cprint(*args, **kwargs):
     filename = os.path.basename(sys._getframe(1).f_code.co_filename)
     modified_message = f"{args[0]}"
