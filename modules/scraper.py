@@ -436,10 +436,16 @@ class ScraperWorker(QObject):
                     return set()
 
                 html = response.text
-                links = self.extract_links(
-                    html, url, base_domain, acceptable_domain_extension
-                )
-                await self.save_html(html, url, save_dir, links=links)
+                try:
+                    links = self.extract_links(
+                        html, url, base_domain, acceptable_domain_extension
+                    )
+                    await self.save_html(html, url, save_dir, links=links)
+                except Exception:
+                    await self.log_failed_url(url, log_file)
+                    self.stats["scraped"] = self.count_saved_files()
+                    self.status_updated.emit(self.name, str(self.stats["scraped"]))
+                    return set()
                 self.stats["scraped"] = self.count_saved_files()
                 self.status_updated.emit(self.name, str(self.stats["scraped"]))
                 return links
