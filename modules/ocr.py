@@ -140,7 +140,8 @@ class TesseractOCR(OCRProcessor):
         results.sort(key=lambda x: x[1])
         output_pdf = fitz.open()
         for temp_pdf_path, _ in results:
-            output_pdf.insert_pdf(fitz.open(temp_pdf_path))
+            with fitz.open(temp_pdf_path) as src:
+                output_pdf.insert_pdf(src)
             Path(temp_pdf_path).unlink(missing_ok=True)
         output_pdf.save(output_path)
         output_pdf.close()
