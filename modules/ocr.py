@@ -138,13 +138,12 @@ class TesseractOCR(OCRProcessor):
                 if self.progress_queue:
                     self.progress_queue.put(('update', 1))
         results.sort(key=lambda x: x[1])
-        output_pdf = fitz.open()
-        for temp_pdf_path, _ in results:
-            with fitz.open(temp_pdf_path) as src:
-                output_pdf.insert_pdf(src)
-            Path(temp_pdf_path).unlink(missing_ok=True)
-        output_pdf.save(output_path)
-        output_pdf.close()
+        with fitz.open() as output_pdf:
+            for temp_pdf_path, _ in results:
+                with fitz.open(temp_pdf_path) as src:
+                    output_pdf.insert_pdf(src)
+                Path(temp_pdf_path).unlink(missing_ok=True)
+            output_pdf.save(output_path)
         self.optimize_final_pdf(pdf_path, output_path)
         self.cleanup_temp_pdfs()
         if self.progress_queue:
@@ -153,48 +152,45 @@ class TesseractOCR(OCRProcessor):
     def process_page(self, page_num: int, pdf_path: str) -> Tuple[int, str]:
         fd, temp_pdf_path = tempfile.mkstemp(suffix=".pdf", dir=self.temp_dir)
         os.close(fd)
-        pdf_document = fitz.open(pdf_path)
-        page = pdf_document[page_num]
-        out_pdf = fitz.open()
-        api = getattr(thread_local, 'api', None)
-        if api is None:
-            api = tesserocr.PyTessBaseAPI(lang="eng", path=str(self.tessdata_path))
-            thread_local.api = api
-        page.remove_rotation()
-        pix = page.get_pixmap(matrix=fitz.Matrix(self.zoom, self.zoom))
-        pil_image = Image.open(BytesIO(pix.tobytes("png")))
-        api.SetImage(pil_image)
-        hocr_text = api.GetHOCRText(0)
-        hocr_output = f"{self.temp_dir}/page_{page_num}.hocr"
-        Path(hocr_output).write_text(hocr_text, encoding="utf-8")
-        fd, text_pdf = tempfile.mkstemp(suffix=".pdf", dir=self.temp_dir)
-        os.close(fd)
-        pdf_width_pts = page.rect.width
-        pdf_height_pts = page.rect.height
-        dpi_x = (pix.width * 72) / pdf_width_pts
-        dpi_y = (pix.height * 72) / pdf_height_pts
-        dpi = (dpi_x + dpi_y) / 2.0
-        hocr_transform = HocrTransform(hocr_filename=hocr_output, dpi=dpi)
-        # HocrTransform.to_pdf reads self.width/self.height. __init__ tries to set
-        # them from the hOCR <div class="ocr_page"> coords, but tesserocr's hOCR
-        # may omit that div (or its bbox), leaving the attrs undefined and causing
-        # AttributeError. Force them to the true PDF page dimensions in pts.
-        hocr_transform.width = pdf_width_pts
-        hocr_transform.height = pdf_height_pts
-        hocr_transform.to_pdf(out_filename=text_pdf, invisible_text=True)
-        out_pdf.insert_pdf(page.parent, from_page=page_num, to_page=page_num)
-        with fitz.open(text_pdf) as text_page:
-            out_pdf[0].show_pdf_page(out_pdf[0].rect, text_page, 0, overlay=True)
-        Path(hocr_output).unlink(missing_ok=True)
-        for _ in range(10):
-            try:
-                Path(text_pdf).unlink()
-                break
-            except PermissionError:
-                time.sleep(0.1)
-        out_pdf.save(temp_pdf_path)
-        out_pdf.close()
-        pdf_document.close()
+        with fitz.open(pdf_path) as pdf_document, fitz.open() as out_pdf:
+            page = pdf_document[page_num]
+            api = getattr(thread_local, 'api', None)
+            if api is None:
+                api = tesserocr.PyTessBaseAPI(lang="eng", path=str(self.tessdata_path))
+                thread_local.api = api
+            page.remove_rotation()
+            pix = page.get_pixmap(matrix=fitz.Matrix(self.zoom, self.zoom))
+            pil_image = Image.open(BytesIO(pix.tobytes("png")))
+            api.SetImage(pil_image)
+            hocr_text = api.GetHOCRText(0)
+            hocr_output = f"{self.temp_dir}/page_{page_num}.hocr"
+            Path(hocr_output).write_text(hocr_text, encoding="utf-8")
+            fd, text_pdf = tempfile.mkstemp(suffix=".pdf", dir=self.temp_dir)
+            os.close(fd)
+            pdf_width_pts = page.rect.width
+            pdf_height_pts = page.rect.height
+            dpi_x = (pix.width * 72) / pdf_width_pts
+            dpi_y = (pix.height * 72) / pdf_height_pts
+            dpi = (dpi_x + dpi_y) / 2.0
+            hocr_transform = HocrTransform(hocr_filename=hocr_output, dpi=dpi)
+            # HocrTransform.to_pdf reads self.width/self.height. __init__ tries to set
+            # them from the hOCR <div class="ocr_page"> coords, but tesserocr's hOCR
+            # may omit that div (or its bbox), leaving the attrs undefined and causing
+            # AttributeError. Force them to the true PDF page dimensions in pts.
+            hocr_transform.width = pdf_width_pts
+            hocr_transform.height = pdf_height_pts
+            hocr_transform.to_pdf(out_filename=text_pdf, invisible_text=True)
+            out_pdf.insert_pdf(page.parent, from_page=page_num, to_page=page_num)
+            with fitz.open(text_pdf) as text_page:
+                out_pdf[0].show_pdf_page(out_pdf[0].rect, text_page, 0, overlay=True)
+            Path(hocr_output).unlink(missing_ok=True)
+            for _ in range(10):
+                try:
+                    Path(text_pdf).unlink()
+                    break
+                except PermissionError:
+                    time.sleep(0.1)
+            out_pdf.save(temp_pdf_path)
         return page_num, temp_pdf_path
 
     def optimize_final_pdf(self, original_pdf_path: Path, ocr_pdf_path: Path) -> None:
