@@ -203,25 +203,25 @@ def run_worker(python_exe: str, worker_script_path: str,
     ]
 
     t0 = time.time()
-    process = subprocess.Popen(
+    with subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
         bufsize=1,
         env={**os.environ, "PYTHONUNBUFFERED": "1"},
-    )
+    ) as process:
+        output_lines = []
+        for line in process.stdout:
+            line = line.rstrip("\n")
+            if line.strip():
+                logger.warning(f"  [worker] {line}")
+                output_lines.append(line)
 
-    output_lines = []
-    for line in process.stdout:
-        line = line.rstrip("\n")
-        if line.strip():
-            logger.warning(f"  [worker] {line}")
-            output_lines.append(line)
-
-    process.wait(timeout=timeout)
-    elapsed = time.time() - t0
-    return process.returncode, elapsed
+        process.wait(timeout=timeout)
+        elapsed = time.time() - t0
+        returncode = process.returncode
+    return returncode, elapsed
 
 
 def get_physical_core_count() -> int:
