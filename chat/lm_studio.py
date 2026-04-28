@@ -1,4 +1,5 @@
 import logging
+import re
 
 import requests
 from openai import OpenAI
@@ -8,6 +9,52 @@ from db.database_interactions import get_query_db
 from chat.base import ChatSignals, load_chat_config, save_metadata, build_augmented_query, cleanup_gpu
 from core.utilities import format_citations
 from core.constants import system_message, THINKING_TAGS
+
+_ALL_THINKING_TAGS = [t for pair in THINKING_TAGS.values() for t in pair]
+_START_THINKING_TAGS = frozenset(s for s, _ in THINKING_TAGS.values())
+_THINKING_TAG_RE = re.compile("|".join(re.escape(t) for t in _ALL_THINKING_TAGS))
+
+
+def _strip_thinking(buffer, in_thinking):
+    """Process buffer, toggling in_thinking at each tag match.
+
+    Returns (text_to_yield, new_buffer, new_in_thinking). Holds back any tail
+    that could be the start of a partial tag so a tag split across chunks
+    (e.g. '<thi' then 'nk>') is still detected on the next call.
+    """
+    out = []
+    pos = 0
+    cur_in = in_thinking
+    while True:
+        m = _THINKING_TAG_RE.search(buffer, pos)
+        if m is None:
+            break
+        if not cur_in:
+            out.append(buffer[pos:m.start()])
+        cur_in = m.group(0) in _START_THINKING_TAGS
+        pos = m.end()
+
+    tail = buffer[pos:]
+    hold = 0
+    for t in _ALL_THINKING_TAGS:
+        max_i = min(len(t) - 1, len(tail))
+        for i in range(max_i, 0, -1):
+            if tail.endswith(t[:i]):
+                if i > hold:
+                    hold = i
+                break
+
+    if hold:
+        flushable = tail[:-hold]
+        new_buffer = tail[-hold:]
+    else:
+        flushable = tail
+        new_buffer = ""
+
+    if not cur_in:
+        out.append(flushable)
+
+    return "".join(out), new_buffer, cur_in
 
 class LMStudioChat:
     def __init__(self):
@@ -34,31 +81,36 @@ class LMStudioChat:
 
         in_thinking_block = False
         first_content = True
+        buffer = ""
         for chunk in stream:
-            if chunk.choices[0].delta.content is not None:
-                content = chunk.choices[0].delta.content
+            if chunk.choices[0].delta.content is None:
+                continue
+            content = chunk.choices[0].delta.content
 
-                if not show_thinking:
-                    skip_chunk = False
-                    for start_tag, end_tag in THINKING_TAGS.values():
-                        if start_tag in content:
-                            in_thinking_block = True
-                            skip_chunk = True
-                            break
-                        if end_tag in content:
-                            in_thinking_block = False
-                            skip_chunk = True
-                            break
-                    if skip_chunk:
-                        continue
-                    if in_thinking_block:
-                        continue
-
+            if show_thinking:
                 if first_content:
                     content = content.lstrip()
+                    if not content:
+                        continue
                     first_content = False
-
                 yield content
+                continue
+
+            buffer += content
+            text, buffer, in_thinking_block = _strip_thinking(buffer, in_thinking_block)
+            if not text:
+                continue
+            if first_content:
+                text = text.lstrip()
+                if not text:
+                    continue
+                first_content = False
+            yield text
+
+        if not show_thinking and buffer and not in_thinking_block:
+            tail = buffer.lstrip() if first_content else buffer
+            if tail:
+                yield tail
 
     def handle_response_and_cleanup(self, full_response, metadata_list):
         citations = format_citations(metadata_list)
