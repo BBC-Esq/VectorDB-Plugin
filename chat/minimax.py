@@ -129,3 +129,5 @@ class MiniMaxThread(QThread):
         except Exception as e:
             logging.error(f"Error in MiniMaxThread: {str(e)}")
             self.on_error(str(e))
+        finally:
+            self.on_finished()

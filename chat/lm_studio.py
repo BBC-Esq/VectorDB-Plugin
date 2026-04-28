@@ -161,6 +161,8 @@ class LMStudioChatThread(QThread):
         except Exception as e:
             logging.error(f"Error in LMStudioChatThread: {str(e)}")
             self.lm_studio_chat.signals.error_signal.emit(str(e))
+        finally:
+            self.lm_studio_chat.signals.finished_signal.emit()
 
 def is_lm_studio_available():
     try:
