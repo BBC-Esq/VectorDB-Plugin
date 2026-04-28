@@ -478,10 +478,10 @@ class ScraperWorker(QObject):
             try:
                 async with aiofiles.open(tmp, "w", encoding="utf-8") as f:
                     await f.write(json.dumps(sorted(links)))
-                os.replace(tmp, sidecar)
+                await asyncio.to_thread(os.replace, tmp, sidecar)
             except Exception:
                 try:
-                    os.remove(tmp)
+                    await asyncio.to_thread(os.remove, tmp)
                 except Exception:
                     pass
 
