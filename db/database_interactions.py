@@ -807,18 +807,26 @@ class QueryVectorDB:
         with tiledb.open(self.array_uri, mode='r') as A:
             data = A.multi_index[filtered_ids.astype(np.uint64)]
 
+            returned_ids = data['id']
             texts_raw = data['text']
             metadatas_raw = data['metadata']
 
-            for i, (distance, vec_id, similarity) in enumerate(zip(filtered_distances, filtered_ids, filtered_similarities)):
+            id_to_idx = {int(rid): idx for idx, rid in enumerate(returned_ids)}
+
+            for distance, vec_id, similarity in zip(filtered_distances, filtered_ids, filtered_similarities):
                 try:
-                    text_raw = texts_raw[i]
+                    idx = id_to_idx.get(int(vec_id))
+                    if idx is None:
+                        logger.warning(f"Vector ID {vec_id} not found in TileDB result; skipping")
+                        continue
+
+                    text_raw = texts_raw[idx]
                     if isinstance(text_raw, np.ndarray):
                         text = text_raw.item() if text_raw.size == 1 else str(text_raw[0])
                     else:
                         text = str(text_raw)
 
-                    metadata_raw = metadatas_raw[i]
+                    metadata_raw = metadatas_raw[idx]
                     if isinstance(metadata_raw, np.ndarray):
                         metadata_str = metadata_raw.item() if metadata_raw.size == 1 else str(metadata_raw[0])
                     else:
