@@ -9,7 +9,7 @@ from pathlib import Path
 import yaml
 from PySide6.QtCore import QDir, QRegularExpression, QThread, QTimer, Qt, Signal
 from PySide6.QtGui import QAction, QRegularExpressionValidator
-from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QTreeView, QFileSystemModel, QMenu, QGroupBox, QLineEdit, QGridLayout, QSizePolicy, QComboBox
+from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QTreeView, QFileSystemModel, QMenu, QGroupBox, QLabel, QLineEdit, QGridLayout, QSizePolicy, QComboBox
 
 from db.database_interactions import create_vector_db_in_process
 from db.choose_documents import choose_documents_directory
@@ -107,6 +107,13 @@ class DatabasesTab(QWidget):
         self.layout = QVBoxLayout(self)
         self.documents_group_box = self.create_group_box("Files To Add to Database", "Docs_for_DB")
         self.groups = {self.documents_group_box: 1}
+
+        self.info_label = QLabel()
+        self.info_label.setTextFormat(Qt.RichText)
+        self.info_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.info_label.setStyleSheet("padding: 4px 6px;")
+        self.layout.addWidget(self.info_label)
+
         grid_layout_top_buttons = QGridLayout()
         self.choose_docs_button = QPushButton("Choose Files")
         self.choose_docs_button.setToolTip(TOOLTIPS["CHOOSE_FILES"])
@@ -149,6 +156,12 @@ class DatabasesTab(QWidget):
         self.db_worker = None
         self.current_model_name = None
         self.current_database_name = None
+
+        self._refresh_info_label()
+        self.info_refresh_timer = QTimer(self)
+        self.info_refresh_timer.setInterval(1000)
+        self.info_refresh_timer.timeout.connect(self._refresh_info_label)
+        self.info_refresh_timer.start()
 
     def _validation_failed(self, message: str):
         QMessageBox.warning(self, "Validation Failed", message)
@@ -236,6 +249,72 @@ class DatabasesTab(QWidget):
             self.docs_model.refresh()
         elif hasattr(self.docs_model, 'reindex'):
             self.docs_model.reindex()
+
+    def _refresh_info_label(self):
+        script_dir = PROJECT_ROOT
+        docs_dir = script_dir / "Docs_for_DB"
+
+        try:
+            file_count = sum(1 for p in docs_dir.iterdir() if p.is_file()) if docs_dir.exists() else 0
+        except OSError:
+            file_count = 0
+
+        config_path = script_dir / "config.yaml"
+        config = {}
+        if config_path.exists():
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    config = yaml.safe_load(f) or {}
+            except Exception:
+                config = {}
+
+        db_cfg = (config.get("database") or {})
+        chunk_size = db_cfg.get("chunk_size", "—")
+        chunk_overlap = db_cfg.get("chunk_overlap", "—")
+        use_half = bool(db_cfg.get("half", False))
+
+        precision_str = self._compute_precision_str(config, use_half)
+
+        text = (
+            f"<b>Files queued:</b> {file_count}"
+            f"&nbsp;&nbsp;|&nbsp;&nbsp;<b>Chunk size:</b> {chunk_size}"
+            f"&nbsp;&nbsp;|&nbsp;&nbsp;<b>Overlap:</b> {chunk_overlap}"
+            f"&nbsp;&nbsp;|&nbsp;&nbsp;<b>Embedding precision:</b> {precision_str}"
+        )
+        self.info_label.setText(text)
+
+    def _compute_precision_str(self, config, use_half):
+        from core.constants import VECTOR_MODELS
+
+        model_path = config.get("EMBEDDING_MODEL_NAME")
+        if not model_path:
+            return "—"
+
+        cache_dir_name = Path(model_path).name
+        native_precision = None
+        for vendor_models in VECTOR_MODELS.values():
+            for model_info in vendor_models:
+                if model_info.get("cache_dir") == cache_dir_name:
+                    native_precision = model_info.get("precision", "float32")
+                    break
+            if native_precision:
+                break
+
+        if not native_precision:
+            return "unknown"
+
+        try:
+            import torch
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        except Exception:
+            device = "cpu"
+
+        try:
+            from core.utilities import get_appropriate_dtype
+            dtype = get_appropriate_dtype(device, use_half, native_precision)
+            return str(dtype).split(".")[-1]
+        except Exception:
+            return native_precision
 
     def setup_directory_view(self, directory_name):
         tree_view = QTreeView()
