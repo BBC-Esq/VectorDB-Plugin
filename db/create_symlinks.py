@@ -1,17 +1,37 @@
+import hashlib
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
 from typing import Union, List, Tuple
 
+
+def _points_to(link_path: Path, source_path) -> bool:
+    try:
+        return link_path.is_symlink() and link_path.resolve() == Path(source_path).resolve()
+    except Exception:
+        return False
+
+
 def _create_single_symlink(args):
     source_path, target_dir = args
     try:
-        link_path = Path(target_dir) / Path(source_path).name
+        source = Path(source_path)
+        target = Path(target_dir)
+        link_path = target / source.name
         if not link_path.exists():
             link_path.symlink_to(source_path)
             return True, None
+        if _points_to(link_path, source_path):
+            return False, None
+        suffix_hash = hashlib.md5(str(source).encode("utf-8")).hexdigest()[:8]
+        disambiguated = target / f"{source.stem}_{suffix_hash}{source.suffix}"
+        if not disambiguated.exists():
+            disambiguated.symlink_to(source_path)
+            return True, None
+        if _points_to(disambiguated, source_path):
+            return False, None
+        return False, f"Symlink collision could not be resolved for {source.name}"
     except Exception as e:
         return False, f"Error creating symlink for {Path(source_path).name}: {str(e)}"
-    return False, None
 
 def create_symlinks_parallel(source: Union[str, Path, List[str], List[Path]], 
                            target_dir: Union[str, Path] = "Docs_for_DB") -> Tuple[int, list]:
