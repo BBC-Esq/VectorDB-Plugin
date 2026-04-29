@@ -60,7 +60,7 @@ python gui.py
 
 |                |                                                                                                                                                                                                          |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 📂 **Ingest**  | 📄 `.pdf`, `.docx`, `.txt`, `.html`, `.csv`, `.xls`, `.xlsx`, `.rtf`, `.odt`  <br> 🖼️ `.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif`, `.tif`, `.tiff`  <br> 🎵 `.mp3`, `.wav`, `.m4a`, `.ogg`, `.wma`, `.flac` |
+| 📂 **Ingest**  | 📄 `.pdf`, `.docx`, `.txt`, `.html`, `.htm`, `.md`, `.csv`, `.xls`, `.xlsx`, `.xlsm`, `.rtf`, `.eml`, `.msg`  <br> 🖼️ `.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif`, `.tif`, `.tiff`  <br> 🎵 `.mp3`, `.wav`, `.m4a`, `.ogg`, `.wma`, `.flac` |
 | ⚙️ **Process** | 📝 Extract text from documents  <br> 🖼️ Generate descriptions from images  <br> 🎧 Transcribe speech from audio                                                                                         |
 | 🧠 **Store**   | All processed content is embedded and saved into the vector database for searching.                                                                                                              |
 

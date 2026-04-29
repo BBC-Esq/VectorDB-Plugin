@@ -242,6 +242,7 @@ LOADER_MAP = {
     ".txt": _load_txt,
     ".csv": _load_csv,
     ".html": _load_html,
+    ".htm": _load_html,
     ".eml": _load_eml,
     ".msg": _load_msg,
     ".xls": _load_xls,

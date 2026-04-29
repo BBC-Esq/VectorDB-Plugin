@@ -516,7 +516,7 @@ THEMES = {
 
 SUPPORTED_EXTENSIONS = (
     ".pdf", ".docx", ".txt", ".eml", ".msg", ".csv",
-    ".xls", ".xlsx", ".xlsm", ".rtf", ".md", ".html",
+    ".xls", ".xlsx", ".xlsm", ".rtf", ".md", ".html", ".htm",
 )
 
 GLM4Z1_CHAT_TEMPLATE = """[gMASK]<sop>

@@ -22,16 +22,13 @@ from core.constants import PROJECT_ROOT
 ALLOWED_EXTENSIONS = {
     ".pdf",
     ".docx",
-    ".epub",
     ".txt",
-    ".enex",
     ".eml",
     ".msg",
     ".csv",
     ".xls",
     ".xlsx",
     ".rtf",
-    ".odt",
     ".png",
     ".jpg",
     ".jpeg",
@@ -42,7 +39,6 @@ ALLOWED_EXTENSIONS = {
     ".html",
     ".htm",
     ".md",
-    ".doc",
 }
 
 DOCS_FOLDER = "Docs_for_DB"
