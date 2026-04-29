@@ -202,7 +202,45 @@ def choose_documents_directory():
             None, "Choose Directory for Database", str(current_dir)
         )
         if selected_dir:
-            start_worker(Path(selected_dir))
+            selected_path = Path(selected_dir)
+
+            top_level_files = [
+                str(p) for p in selected_path.iterdir()
+                if p.is_file() and p.suffix.lower() in ALLOWED_EXTENSIONS
+            ]
+            subdirectory_files = [
+                str(p) for p in selected_path.rglob("*")
+                if p.is_file()
+                and p.parent != selected_path
+                and p.suffix.lower() in ALLOWED_EXTENSIONS
+            ]
+
+            include_subdirs = False
+            if subdirectory_files:
+                reply = QMessageBox.question(
+                    None,
+                    "Include Subdirectories?",
+                    (
+                        f"This folder contains {len(top_level_files)} compatible file(s) "
+                        f"at the top level and {len(subdirectory_files)} more in "
+                        f"subdirectories.\n\nInclude the subdirectory files as well?"
+                    ),
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No,
+                )
+                include_subdirs = (reply == QMessageBox.Yes)
+
+            files_to_symlink = (
+                top_level_files + subdirectory_files if include_subdirs else top_level_files
+            )
+
+            if files_to_symlink:
+                start_worker(files_to_symlink)
+            else:
+                QMessageBox.information(
+                    None, "No Compatible Files",
+                    "No compatible files were found in the selected directory."
+                )
     else:
         file_dialog.setFileMode(QFileDialog.ExistingFiles)
         file_paths = file_dialog.getOpenFileNames(
