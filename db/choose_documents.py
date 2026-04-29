@@ -28,6 +28,7 @@ ALLOWED_EXTENSIONS = {
     ".csv",
     ".xls",
     ".xlsx",
+    ".xlsm",
     ".rtf",
     ".png",
     ".jpg",
