@@ -75,7 +75,7 @@ class DatabaseSettingsTab(QWidget):
         self.label_data["contexts"] = self.contexts_label
 
         self.search_term_edit = QLineEdit()
-        self.search_term_edit.setPlaceholderText("Term to exclude...")
+        self.search_term_edit.setPlaceholderText("Term to require...")
         self.search_term_edit.setText(self.search_term)
         self.search_term_edit.setToolTip(TOOLTIPS["SEARCH_TERM_FILTER"])
         self.search_term_label = QLabel(f"Search Term Filter: {self.search_term}")

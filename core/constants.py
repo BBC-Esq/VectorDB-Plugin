@@ -1945,7 +1945,7 @@ TOOLTIPS = {
     "QUESTION_INPUT": "Type your question here or use the voice recorder.",
     "RESTORE_CONFIG": "Restores original config.yaml. May require manual database cleanup.",
     "RESTORE_DATABASE": "Restores backed-up databases. Use with caution.",
-    "SEARCH_TERM_FILTER": "Removes chunks without exact term. Case-insensitive.",
+    "SEARCH_TERM_FILTER": "Removes chunks that do not contain this term as a case-insensitive substring.",
     "SELECT_VECTOR_MODEL": "Choose the vector model for text embedding.",
     "SIMILARITY": "Relevance threshold for chunks. 0-1, higher returns more. Don't use 1.",
     "SPEAK_RESPONSE": "Speak the response from the large language model using text-to-speech.",
