@@ -495,15 +495,10 @@ class CreateVectorDB:
                 doc_data = pickle.load(f)
             logger.info(f"Extracted {len(doc_data)} documents")
 
-            if not doc_data:
-                my_cprint("No documents found to process.", "red")
-                return
-
             json_docs_to_save = []
             for content, metadata in doc_data:
                 json_docs_to_save.append(Document(page_content=content, metadata=metadata))
 
-            # Also load audio transcripts and images
             print("Processing any audio transcripts...")
             audio_documents = self.load_audio_documents()
             if audio_documents:
@@ -523,6 +518,10 @@ class CreateVectorDB:
                         json_docs_to_save.append(Document(page_content=content, metadata=metadata))
             except Exception as e:
                 logger.warning(f"Image processing skipped: {e}")
+
+            if not doc_data:
+                my_cprint("No documents, audio transcripts, or images found to process.", "red")
+                raise RuntimeError("No content found to ingest into the database.")
 
             # Re-write extracted.pkl with audio+image docs included
             with open(extracted_pkl, "wb") as f:
