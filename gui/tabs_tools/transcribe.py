@@ -124,11 +124,13 @@ class TranscriberToolSettingsTab(QWidget):
             self.set_buttons_enabled(False)
             try:
                 transcriber = WhisperTranscriber(
-                    model_key=selected_model_key, 
+                    model_key=selected_model_key,
                     batch_size=selected_batch_size
                 )
                 transcriber.start_transcription_process(self.selected_audio_file)
                 my_cprint("Transcription created and ready to be input into vector database.", 'green')
+            except Exception as e:
+                my_cprint(f"Transcription failed: {e}", 'red')
             finally:
                 self.set_buttons_enabled(True)
         

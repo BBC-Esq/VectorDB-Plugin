@@ -65,6 +65,8 @@ class WhisperTranscriber:
         process = Process(target=self.transcribe_and_create_document)
         process.start()
         process.join()
+        if process.exitcode is not None and process.exitcode != 0:
+            raise RuntimeError(f"Transcription worker exited with code {process.exitcode}")
 
     @torch.inference_mode()
     def transcribe_and_create_document(self):
