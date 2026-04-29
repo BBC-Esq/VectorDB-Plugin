@@ -533,7 +533,7 @@ class DatabaseQueryTab(QWidget):
 
         tts_model = tts_config.get('model', '').lower()
 
-        if tts_model not in ['googletts', 'chattts', 'kyutaipocket'] and not torch.cuda.is_available():
+        if tts_model not in ['googletts', 'chattts', 'kyutaipocket', 'chatterbox'] and not torch.cuda.is_available():
             QMessageBox.warning(self, "Error", "The Text to Speech backend you selected requires GPU-acceleration.")
             return
 
