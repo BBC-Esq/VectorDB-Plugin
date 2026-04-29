@@ -853,6 +853,7 @@ libs = [
     "webencodings==0.5.1",
     "whisper-s2t-reborn>=1.6.0,<2",
     "whisperspeech2>=1.0.0,<2",
+    "win-unicode-console==0.5",
     "wrapt==1.17.3",
     "xlrd==2.0.2",
     "xxhash==3.6.0",
