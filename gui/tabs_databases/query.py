@@ -19,7 +19,7 @@ from chat.local_model import LocalModelChat
 from chat.openai import ChatGPTThread
 from chat.minimax import MiniMaxThread
 from chat.kobold import KoboldThread
-from core.constants import CHAT_MODELS, OPENAI_MODELS, CustomButtonStyles
+from core.constants import CHAT_MODELS, CustomButtonStyles
 from modules.voice_recorder import VoiceRecorder
 from core.utilities import my_cprint, normalize_chat_text
 from core.constants import TOOLTIPS, PROJECT_ROOT
@@ -60,8 +60,7 @@ class LMStudioStrategy(SubmitStrategy):
 
 class ChatGPTStrategy(SubmitStrategy):
     def submit(self, question, db_name):
-        model_name = self.tab.model_source_combo.currentText()
-        t = self.tab.chatgpt_thread = ChatGPTThread(question, db_name, model_name=model_name)
+        t = self.tab.chatgpt_thread = ChatGPTThread(question, db_name)
         t.response_signal.connect(self.tab.update_response_lm_studio)
         t.error_signal.connect(self.tab.show_error_message)
         t.finished_signal.connect(self.tab.on_submission_finished)
@@ -289,10 +288,18 @@ class DatabaseQueryTab(QWidget):
             "Local Model",
             "Kobold",
             "LM Studio",
-            *OPENAI_MODELS,
+            "ChatGPT",
             "MiniMax-M2.7",
             "MiniMax-M2.7-highspeed",
         ])
+
+        chatgpt_idx = self.model_source_combo.findText("ChatGPT")
+        if chatgpt_idx >= 0:
+            self.model_source_combo.setItemData(
+                chatgpt_idx,
+                "Configure model, API key, verbosity, and reasoning effort via File → Chat Backend Settings…",
+                Qt.ToolTipRole,
+            )
 
         self.model_source_combo.setCurrentText("Local Model")
         self.model_source_combo.currentTextChanged.connect(self.on_model_source_changed)
@@ -390,11 +397,10 @@ class DatabaseQueryTab(QWidget):
             "Local Model": LocalModelStrategy(self),
             "LM Studio": LMStudioStrategy(self),
             "Kobold": KoboldStrategy(self),
+            "ChatGPT": ChatGPTStrategy(self),
             "MiniMax-M2.7": MiniMaxStrategy(self),
             "MiniMax-M2.7-highspeed": MiniMaxStrategy(self),
         }
-        for openai_model in OPENAI_MODELS:
-            STRATEGIES[openai_model] = ChatGPTStrategy(self)
         try:
             return STRATEGIES[source]
         except KeyError:

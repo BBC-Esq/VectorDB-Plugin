@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QWidget,
     QMessageBox,
 )
-from gui.tabs_settings.server import ServerSettingsTab
 from gui.tabs_settings.database_create import ChunkSettingsTab
 from gui.tabs_settings.database_query import DatabaseSettingsTab
 from gui.tabs_settings.tts import TTSSettingsTab
@@ -42,7 +41,6 @@ class GuiSettingsTab(QWidget):
         super(GuiSettingsTab, self).__init__()
         self.layout = QVBoxLayout()
         classes = {
-            "LM Studio Server": (ServerSettingsTab, 2),
             "Database Query": (DatabaseSettingsTab, 4),
             "Database Creation": (ChunkSettingsTab, 3),
         }

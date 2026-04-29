@@ -35,8 +35,9 @@ minimax:
   model: MiniMax-M2.7
 openai:
   api_key:
-  model: gpt-4o-mini
+  model: gpt-5.4-mini
   reasoning_effort: medium
+  verbosity: low
 server:
   api_key: ''
   connection_str: http://localhost:1234/v1

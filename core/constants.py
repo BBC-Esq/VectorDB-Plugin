@@ -4,17 +4,6 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-OPENAI_MODELS = [
-    "gpt-4.1-nano",
-    "gpt-4o-mini",
-    "gpt-4.1-mini",
-    "o4-mini",
-    "gpt-4.1",
-    "o3",
-    "gpt-4o",
-    "o3-pro",
-]
-
 _cpu = os.cpu_count() or 4
 
 PIPELINE_PRESETS = {

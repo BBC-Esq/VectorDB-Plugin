@@ -5,65 +5,69 @@ from PySide6.QtCore import QThread, Signal
 from db.database_interactions import get_query_db
 from chat.base import load_chat_config, save_metadata, build_augmented_query, cleanup_gpu
 from core.utilities import format_citations
-from core.constants import system_message, PROJECT_ROOT
+from core.constants import system_message
+from core.chatgpt_settings import (
+    DEFAULT_OPENAI_MODEL,
+    DEFAULT_VERBOSITY,
+    DEFAULT_REASONING_EFFORT,
+    supports_verbosity,
+    supports_reasoning_effort,
+)
 
 
 class ChatGPTChat:
-    def __init__(self, override_model: str = None):
+    def __init__(self):
         self.response_callback = lambda x: None
         self.error_callback = lambda x: None
         self.finished_callback = lambda: None
         self.citations_callback = lambda x: None
         self.config = load_chat_config()
-        if override_model:
-            self.config.setdefault('openai', {})['model'] = override_model
         self.query_vector_db = None
 
     def connect_to_chatgpt(self, augmented_query):
-        openai_config = self.config.get('openai', {})
-        model = openai_config.get('model', 'gpt-4.1-nano')
-        """
-        +--------------+--------+--------+-------------+------------+
-        |     Model    | Input  | Output | Max Context | Max Output |
-        +--------------+--------+--------+-------------+------------+
-        | gpt-4.1-nano | $0.10  | $0.40  | 1,047,576   | 32,768     |
-        | gpt-4o-mini  | $0.15  | $0.60  | 128,000     | 16,384     |
-        | gpt-4.1-mini | $0.40  | $1.60  | 1,047,576   | 32,768     |
-        | 04-mini      | $1.10  | $4.40  | 200,000     | 100,000    |
-        | gpt-4.1      | $2.00  | $8.00  | 1,047,576   | 32,768     |
-        | o3           | $2.00  | $8.00  | 200,000     | 100,000    |
-        | gpt-4o       | $2.50  | $10.00 | 128,000     | 16,384     |
-        | o3-pro       | $20.00 | $80.00 | 200,000     | 100,000    |
-        +--------------+--------+--------+-------------+------------+
-        """
-        reasoning_effort = openai_config.get('reasoning_effort', 'medium')
+        openai_config = self.config.get('openai', {}) or {}
+        model = openai_config.get('model') or DEFAULT_OPENAI_MODEL
         api_key = openai_config.get('api_key')
+        verbosity = openai_config.get('verbosity') or DEFAULT_VERBOSITY
+        reasoning_effort = openai_config.get('reasoning_effort') or DEFAULT_REASONING_EFFORT
 
         if not api_key:
-            raise ValueError("OpenAI API key not found in config.yaml.\n\n  Please set it within the 'File' menu.")
+            raise ValueError(
+                "OpenAI API key not found in config.yaml.\n\n"
+                "Please set it via File menu → Chat Backend Settings…"
+            )
 
         client = OpenAI(api_key=api_key)
 
         messages = [
             {"role": "system", "content": system_message},
-            {"role": "user", "content": augmented_query}
+            {"role": "user", "content": augmented_query},
         ]
 
-        completion_params = {
+        request_args = {
             "model": model,
-            "messages": messages,
-            "temperature": 0.1,
-            "stream": True
+            "input": messages,
+            "stream": True,
         }
 
-        if model in ["o4-mini", "o3", "o3-pro"]:
-            completion_params["reasoning_effort"] = reasoning_effort
+        if supports_verbosity(model):
+            request_args["text"] = {"verbosity": verbosity}
 
-        stream = client.chat.completions.create(**completion_params)
+        if supports_reasoning_effort(model) and reasoning_effort and reasoning_effort != "none":
+            request_args["reasoning"] = {"effort": reasoning_effort}
 
-        for chunk in stream:
-            if chunk.choices[0].delta.content is not None:
-                yield chunk.choices[0].delta.content
+        stream = client.responses.create(**request_args)
+
+        for event in stream:
+            event_type = getattr(event, "type", "")
+            if event_type == "response.output_text.delta":
+                delta = getattr(event, "delta", "") or ""
+                if delta:
+                    yield delta
+            elif event_type == "response.error":
+                msg = str(getattr(event, "error", "unknown error"))
+                logging.error(f"OpenAI Responses API error: {msg}")
+                raise RuntimeError(msg)
 
     def handle_response_and_cleanup(self, full_response, metadata_list):
         citations = format_citations(metadata_list)
@@ -112,11 +116,11 @@ class ChatGPTThread(QThread):
     finished_signal = Signal()
     citations_signal = Signal(str)
 
-    def __init__(self, query, selected_database, model_name: str = None):
+    def __init__(self, query, selected_database):
         super().__init__()
         self.query = query
         self.selected_database = selected_database
-        self.chatgpt_chat = ChatGPTChat(override_model=model_name)
+        self.chatgpt_chat = ChatGPTChat()
 
         self.chatgpt_chat.response_callback = self.on_response
         self.chatgpt_chat.error_callback = self.on_error

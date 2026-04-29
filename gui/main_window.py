@@ -88,18 +88,24 @@ class DocQA_GUI(QWidget):
         self.hf_token_menu = self.file_menu.addAction('Hugging Face Access Token')
         self.hf_token_menu.triggered.connect(lambda: manage_credentials(self, 'hf'))
 
-        self.openai_key_menu = self.file_menu.addAction('OpenAI API Key')
-        self.openai_key_menu.triggered.connect(lambda: manage_credentials(self, 'openai'))
-
         self.minimax_key_menu = self.file_menu.addAction('MiniMax API Key')
         self.minimax_key_menu.triggered.connect(lambda: manage_credentials(self, 'minimax'))
+
+        self.file_menu.addSeparator()
+
+        self.chat_backends_menu = self.file_menu.addAction('Chat Backend Settings…')
+        self.chat_backends_menu.triggered.connect(self.open_chat_backends_dialog)
 
         self.jeeves_action = self.menu_bar.addAction('Jeeves')
         self.jeeves_action.triggered.connect(self.open_chat_window)
 
+    def open_chat_backends_dialog(self):
+        from gui.dialogs.ai_backends_dialog import AIBackendsDialog
+        AIBackendsDialog(self).exec()
+
     def open_chat_window(self):
         import multiprocessing
-        
+
         self.jeeves_action.setEnabled(False)
         QTimer.singleShot(5000, lambda: self.jeeves_action.setEnabled(True))
 

@@ -126,31 +126,6 @@ class HuggingFaceCredentialManager(CredentialManager):
     def update_credential(self, value: Optional[str]) -> None:
         self.config['hf_access_token'] = value
 
-class OpenAICredentialManager(CredentialManager):
-    @property
-    def dialog_title(self) -> str:
-        return "OpenAI API Key"
-
-    @property
-    def dialog_label(self) -> str:
-        return "Enter a new OpenAI API key or clear the current one:"
-
-    @property
-    def clear_button_text(self) -> str:
-        return "Clear Key"
-
-    @property
-    def credential_name(self) -> str:
-        return "OpenAI API key"
-
-    def get_current_credential(self) -> Optional[str]:
-        return self.config.get('openai', {}).get('api_key')
-
-    def update_credential(self, value: Optional[str]) -> None:
-        if 'openai' not in self.config:
-            self.config['openai'] = {}
-        self.config['openai']['api_key'] = value
-
 class MiniMaxCredentialManager(CredentialManager):
     @property
     def dialog_title(self) -> str:
@@ -179,7 +154,6 @@ class MiniMaxCredentialManager(CredentialManager):
 def manage_credentials(parent_widget, credential_type: str) -> None:
     managers = {
         'hf': HuggingFaceCredentialManager,
-        'openai': OpenAICredentialManager,
         'minimax': MiniMaxCredentialManager,
     }
     
