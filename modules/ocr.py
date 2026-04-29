@@ -268,8 +268,14 @@ def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesser
         if pbar:
             pbar.close()
         if process.is_alive():
+            process.join(timeout=5.0)
+        if process.is_alive():
             process.terminate()
             process.join(timeout=3.0)
-            if process.is_alive():
-                process.kill()
+        if process.is_alive():
+            process.kill()
+            process.join(timeout=1.0)
         time.sleep(0.5)
+
+    if process.exitcode is not None and process.exitcode != 0:
+        raise RuntimeError(f"OCR worker exited with code {process.exitcode}")
