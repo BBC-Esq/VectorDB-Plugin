@@ -6,7 +6,6 @@ import json
 
 import torch
 import av
-from langchain_community.docstore.document import Document
 
 import whisper_s2t
 from whisper_s2t.backends.ctranslate2.hf_utils import download_model
@@ -169,19 +168,16 @@ class WhisperTranscriber:
     def create_document_object(self, transcription_text, audio_file_path):
         metadata = extract_typed_metadata(audio_file_path, "audio")
 
-
-        doc = Document(page_content=transcription_text, metadata=metadata)
-        
         script_dir = PROJECT_ROOT
         docs_dir = script_dir / "Docs_for_DB"
         docs_dir.mkdir(exist_ok=True)
-        
+
         audio_file_name = Path(audio_file_path).stem
         json_file_path = docs_dir / f"{audio_file_name}.json"
-        
+
         doc_dict = {
             "page_content": transcription_text,
             "metadata": metadata
         }
-        
+
         json_file_path.write_text(json.dumps(doc_dict, indent=4), encoding='utf-8')
