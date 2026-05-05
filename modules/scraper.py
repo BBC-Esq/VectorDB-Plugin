@@ -40,7 +40,7 @@ _CRUFT_CLASSES = (
     "try_examples_outer_iframe",      # SciPy interactive-examples sandbox iframe
     "sidemenu",             # lxml.de project nav inside div.document
     "banner",               # lxml.de donation banner ("Like the tool? Help making it better!")
-    "sr-only",              # Tailwind/Bootstrap screen-reader-only content (e.g., modelcontextprotocol.io's "Documentation Index" llms.txt callout)
+    "sr-only",
 )
 _CRUFT_IDS = (
     "indices-and-tables",   # Sphinx auto-generated bottom-of-index "Index/ModIndex/Search" stub
@@ -176,25 +176,6 @@ class PymupdfScraper(BaseScraper):
         return None
 
 
-# -----------------------------------------------------------------------------
-# Mintlify .md companion → HTML rendering
-#
-# Mintlify ships a `.md` companion for every doc page (linked from the site's
-# llms.txt index). The .md is the canonical source — it has every language
-# tab AND every OS variant, the rendered HTML hides Windows/etc. behind
-# JavaScript-only Radix UI tabs that curl_cffi can't trigger. So
-# MintlifyScraper fetches the .md and converts it to HTML.
-#
-# python-markdown can't parse Mintlify's MDX as-is — Tab/CodeGroup wrappers
-# and fence-info-strings like ```bash macOS/Linux theme={null} need
-# preprocessing before standard markdown rendering kicks in.
-# -----------------------------------------------------------------------------
-
-# Maps each Mintlify MDX component name to how we transform it before
-# python-markdown sees it.
-#   UNWRAP:  drop the tags, keep dedented interior
-#   HEADING: replace with "## {title}" if title attribute present, else unwrap
-#   QUOTE:   wrap interior lines as "> ..." blockquote
 _MINTLIFY_MDX_COMPONENTS = {
     "Tabs": "UNWRAP",
     "Tab": "HEADING",
@@ -243,8 +224,6 @@ def _mintlify_heading(md, name):
             inner = textwrap.dedent(m.group(2)).strip("\n")
             tm = _MINTLIFY_TITLE_ATTR_RE.search(attrs)
             if tm:
-                # Escape '#' so python-markdown doesn't read it as the ATX
-                # closing-marker syntax (e.g. '## C#' -> <h2>C</h2>).
                 title = tm.group(1).replace("#", r"\#")
                 return f"\n\n## {title}\n\n{inner}\n\n"
             return f"\n\n{inner}\n\n"
@@ -268,9 +247,6 @@ def _mintlify_quote(md, name):
 
 
 def _mintlify_normalize_fences(md_text):
-    """Strip Mintlify-specific fence-info-string metadata so python-markdown
-    can recognize the fences. Preserve any descriptive label (filename, OS
-    name) as a bolded line above the fence."""
     out = []
     for line in md_text.split("\n"):
         m = _MINTLIFY_FENCE_OPEN_RE.match(line)
@@ -287,7 +263,6 @@ def _mintlify_normalize_fences(md_text):
 
 
 def render_mintlify_markdown(md_text):
-    """Convert a Mintlify .md (markdown + MDX) to HTML."""
     md_text = _MINTLIFY_DOC_INDEX_RE.sub("", md_text, count=1)
     for name, action in _MINTLIFY_MDX_COMPONENTS.items():
         if action == "UNWRAP":
@@ -305,21 +280,6 @@ def render_mintlify_markdown(md_text):
 
 
 class MintlifyScraper(BaseScraper):
-    """For Mintlify-rendered docs (e.g., modelcontextprotocol.io).
-
-    Mintlify uses Radix UI tabs to switch between language and OS variants —
-    only the active tab is server-rendered, the rest are JS-hydrated. So
-    fetching the rendered HTML loses every Windows-side code variant and any
-    inactive language tab. Fortunately Mintlify also publishes a `.md`
-    companion for every page (canonical source, linked from llms.txt),
-    which contains all variants verbatim. We fetch the .md instead and
-    render it to HTML on the fly.
-
-    BFS discovery is bootstrapped from /llms.txt (which enumerates every
-    page) because the rendered .md has only sparse inline cross-references
-    — the site nav we'd normally crawl isn't part of the markdown.
-    """
-
     async def collect_seed_urls(self, session):
         parsed_seed = urlparse(self.url)
         seed_prefix = parsed_seed.path.rstrip("/")
@@ -351,8 +311,6 @@ class MintlifyScraper(BaseScraper):
         return u + ".md"
 
     def transform_response(self, text, url):
-        # Heuristic: HTML responses start with <!doctype or <html. Anything
-        # else we assume is the .md companion.
         head = text.lstrip()[:200].lower()
         if head.startswith("<!doctype") or head.startswith("<html"):
             return text
@@ -360,8 +318,6 @@ class MintlifyScraper(BaseScraper):
         return f"<html><body>{rendered}</body></html>"
 
     def extract_main_content(self, soup):
-        # transform_response already returned a clean HTML doc; the body IS
-        # the article content.
         return soup.body if soup.body else soup
 
 
@@ -539,9 +495,6 @@ class ScraperWorker(QObject):
             return out
 
         async with AsyncSession(impersonate="chrome") as session:
-            # Optional bootstrap: scrapers that have an authoritative URL
-            # index (e.g. Mintlify's llms.txt) prepopulate the queue from it
-            # since BFS over the rendered markdown alone can miss most pages.
             if not self.resume and hasattr(self.scraper, "collect_seed_urls"):
                 try:
                     extra = await self.scraper.collect_seed_urls(session)
@@ -619,9 +572,6 @@ class ScraperWorker(QObject):
         if os.path.exists(filename):
             return set()
 
-        # Optional: scraper can fetch a different URL (e.g. a .md companion)
-        # while the saved filename and BFS bookkeeping continue to track the
-        # original page URL.
         fetch_url = (
             self.scraper.fetch_url_for(url)
             if hasattr(self.scraper, "fetch_url_for")
@@ -661,10 +611,6 @@ class ScraperWorker(QObject):
                 self._429s_since_last_success = 0
 
                 content_type = response.headers.get("content-type", "").lower()
-                # Skip the content-type filter when the scraper opts to
-                # transform the response — the .md companion is served as
-                # text/markdown or text/plain, which the transformer turns
-                # into proper HTML.
                 if not has_response_transform and "text/html" not in content_type:
                     self.stats["scraped"] = self.count_saved_files()
                     self.status_updated.emit(self.name, str(self.stats["scraped"]))
