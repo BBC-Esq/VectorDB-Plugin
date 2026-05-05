@@ -24,7 +24,7 @@ from transformers import (
     AutoModelForVision2Seq,
     AutoModelForImageTextToText
 )
-from langchain_community.docstore.document import Document
+from db.document_processor import Document
 from core.extract_metadata import extract_typed_metadata
 from core.utilities import my_cprint, has_bfloat16_support, set_cuda_paths
 from core.constants import VISION_MODELS, PROJECT_ROOT
