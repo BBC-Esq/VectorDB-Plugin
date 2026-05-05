@@ -2281,6 +2281,11 @@ scrape_documentation = {
         "folder": "matplotlib",
         "scraper_class": "PydataThemeScraper"
     },
+    "Model Context Protocol": {
+        "URL": "https://modelcontextprotocol.io/docs/",
+        "folder": "model_context_protocol",
+        "scraper_class": "MintlifyScraper"
+    },
     "more-itertools": {
         "URL": "https://more-itertools.readthedocs.io/en/stable/",
         "folder": "more_itertools",
