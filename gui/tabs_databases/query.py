@@ -652,5 +652,5 @@ class DatabaseQueryTab(QWidget):
             self.minimax_thread.wait()
         if self.kobold_thread and self.kobold_thread.isRunning():
             self.kobold_thread.stop()
-            self.kobold_thread.wait(timeout=5000)
+            self.kobold_thread.wait(5000)
         print("Cleanup completed")
