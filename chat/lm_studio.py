@@ -83,6 +83,8 @@ class LMStudioChat:
         first_content = True
         buffer = ""
         for chunk in stream:
+            if not chunk.choices:
+                continue
             if chunk.choices[0].delta.content is None:
                 continue
             content = chunk.choices[0].delta.content
