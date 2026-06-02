@@ -1431,20 +1431,6 @@ VISION_MODELS = {
         'chat_component': 'Qwen2.5-7-Instruct',
         'license': 'Custom Non-Commercial',
     },
-    'InternVL3 - 14b': {
-        'precision': 'bfloat16',
-        'quant': '4-bit',
-        'size': '1b',
-        'repo_id': 'OpenGVLab/InternVL3-14B',
-        'cache_dir': 'OpenGVLab--InternVL3-14B',
-        'requires_cuda': True,
-        'vram': '12.6 GB',
-        'avg_length': 757,
-        'loader': 'loader_internvl',
-        'vision_component': 'InternViT-300M-448px-V2_5',
-        'chat_component': 'Qwen2.5-14B',
-        'license': 'apache-2.0',
-    },
 }
 
 OCR_MODELS = {
