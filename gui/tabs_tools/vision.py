@@ -208,7 +208,7 @@ class MultiModelProcessorThread(QThread):
                         start_time = time.time()
                         description = loader.process_single_image(raw_image)
                         process_time = time.time() - start_time
-                        description = textwrap.fill(description, width=10)
+                        description = textwrap.fill(description, width=100)
                         results.append((model_name, description, process_time))
 
                         if hasattr(loader, 'model') and loader.model is not None:
