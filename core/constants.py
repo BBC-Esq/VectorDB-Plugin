@@ -1431,20 +1431,6 @@ VISION_MODELS = {
         'chat_component': 'Qwen2.5-7-Instruct',
         'license': 'Custom Non-Commercial',
     },
-    'GLM-4.1V-9B-Thinking': {
-        'precision': 'bfloat16',
-        'quant': '4-bit',
-        'size': '9b',
-        'repo_id': 'zai-org/GLM-4.1V-9B-Thinking',
-        'cache_dir': 'zai-org--GLM-4.1V-9B-Thinking',
-        'requires_cuda': True,
-        'vram': '10 GB',
-        'avg_length': 653,
-        'loader': 'loader_glmv4_thinking',
-        'vision_component': 'AIMv2-Huge-336',
-        'chat_component': 'GLM-4-9B-0414',
-        'license': 'mit',
-    },
     'InternVL3 - 14b': {
         'precision': 'bfloat16',
         'quant': '4-bit',
@@ -3515,7 +3501,6 @@ master_questions = [
     "What are the Florence-2 Vision Models?",
     "What are the Granite Vision Models?",
     "What are the Qwen2.5VL Vision Models?",
-    "What is the GLM-4V-9B Vision Model?",
     "What is the Molmo-D-0924 Vision Model?",
 ]
 

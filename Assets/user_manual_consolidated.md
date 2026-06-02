@@ -673,15 +673,6 @@ MathVision 25.07% It also resists hallucination better than GPT-4o-mini (HallBen
 with the Qwen2.5 LLM, sharing its tokenizer and text processing, while extending it with specialized vision-language handling and
 support for flexible image resolutions.
 
-### What is the GLM-4V-9B Vision Model?
-GLM-4V-9B, developed by Zhipu AI and Tsinghua University, is a 9B-parameter bilingual (Chinese/English) multimodal model released
-in mid-2024 as part of the GLM (OpenGLM) series. It integrates vision into the pretrained GLM-4 LLM, supporting high-resolution
-inputs up to 1120×1120 and enabling general vision-language tasks like image QA, captioning, and reasoning. The model uses standard
-attention and likely linear patch embeddings, with training on large multilingual image-text datasets. GLM-4V-9B incorporates Mixed
-Preference Optimization (MPO) to enhance chain-of-thought alignment, similar to InternVL. It supports FP16 precision and an 8K context
-window, though quantization is not emphasized. Benchmarks show strong performance: it scored 81.1 on English MMBench and 786 on
-OCRBench, outperforming many open models and reportedly rivaling or exceeding GPT-4-turbo and Gemini 1.0 Pro on several vision tasks.
-
 ### What is the Molmo-D-0924 Vision Model?
 Molmo-D-0924 is a 7–8B parameter open-source vision-language model released by the Allen Institute (AI2) in September 2024, as part
 of the larger Molmo project. It combines Qwen2-7B as the language backbone with OpenAI’s CLIP-ViT as the vision encoder and is trained
