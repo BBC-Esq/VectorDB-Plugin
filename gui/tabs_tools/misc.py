@@ -26,30 +26,18 @@ class MiscTab(QWidget):
    def __init__(self):
        super().__init__()
        self.layout = QVBoxLayout(self)
-       
+
        self.backup_all_button = QPushButton("Backup Databases")
        self.backup_all_button.clicked.connect(self.backup_all_databases)
        self.backup_all_button.setToolTip("Create a backup of all databases in the Vector_DB folder")
-       
+
        self.restore_backup_button = QPushButton("Restore Databases")
        self.restore_backup_button.clicked.connect(self.restore_backup)
        self.restore_backup_button.setToolTip("Restore databases from the most recent backup")
-       
+
        self.chart_gpus_button = QPushButton("GPUs")
        self.chart_gpus_button.clicked.connect(self.chart_gpus)
        self.chart_gpus_button.setToolTip("Compare GPUs by V-RAM")
-       
-       self.chart_chat_models_button = QPushButton("Chat Models")
-       self.chart_chat_models_button.clicked.connect(self.chart_chat_models)
-       self.chart_chat_models_button.setToolTip("Compare various chat models.")
-
-       self.chart_vision_models_button = QPushButton("Vision Models")
-       self.chart_vision_models_button.clicked.connect(self.chart_vision_models)
-       self.chart_vision_models_button.setToolTip("Compare various vision models.")
-
-       self.chart_vector_models_button = QPushButton("Vector Models")
-       self.chart_vector_models_button.clicked.connect(self.chart_vector_models)
-       self.chart_vector_models_button.setToolTip("Compare various vector/embedding models.")
 
        self.min_vram_spin = QSpinBox()
        self.min_vram_spin.setRange(1, 128)
@@ -64,13 +52,10 @@ class MiscTab(QWidget):
        self.max_vram_spin.setPrefix("Max ")
        self.max_vram_spin.setSuffix(" GB")
        self.max_vram_spin.setToolTip("Maximum GPU V-RAM (in GB)")
-       
+
        self.backup_all_button.setStyleSheet(CustomButtonStyles.RED_BUTTON_STYLE)
        self.restore_backup_button.setStyleSheet(CustomButtonStyles.RED_BUTTON_STYLE)
        self.chart_gpus_button.setStyleSheet(CustomButtonStyles.GREEN_BUTTON_STYLE)
-       self.chart_chat_models_button.setStyleSheet(CustomButtonStyles.BLUE_BUTTON_STYLE)
-       self.chart_vision_models_button.setStyleSheet(CustomButtonStyles.TEAL_BUTTON_STYLE)
-       self.chart_vector_models_button.setStyleSheet(CustomButtonStyles.PURPLE_BUTTON_STYLE)
 
        backup_row = QHBoxLayout()
        backup_row.addStretch(1)
@@ -83,14 +68,11 @@ class MiscTab(QWidget):
        charts_row.addWidget(self.chart_gpus_button)
        charts_row.addWidget(self.min_vram_spin)
        charts_row.addWidget(self.max_vram_spin)
-       charts_row.addWidget(self.chart_chat_models_button)
-       charts_row.addWidget(self.chart_vision_models_button)
-       charts_row.addWidget(self.chart_vector_models_button)
        charts_row.addStretch(1)
 
        self.layout.addLayout(backup_row)
        self.layout.addLayout(charts_row)
-       
+
        self.backup_thread = None
        self.restore_thread = None
 
@@ -100,7 +82,7 @@ class MiscTab(QWidget):
 
    def set_button_text(self, button: QPushButton, text: str):
        button.setText(text)
-   
+
    def backup_all_databases(self):
        confirm = QMessageBox.question(
            self,
@@ -109,11 +91,11 @@ class MiscTab(QWidget):
            QMessageBox.Yes | QMessageBox.No,
            QMessageBox.No
        )
-       
+
        if confirm == QMessageBox.Yes:
            self.set_button_text(self.backup_all_button, "Backing up...")
            self.set_buttons_enabled(False, [self.backup_all_button, self.restore_backup_button])
-           
+
            self.backup_thread = WorkerThread(backup_database)
            self.backup_thread.finished.connect(self.on_backup_finished)
            self.backup_thread.start()
@@ -136,7 +118,7 @@ class MiscTab(QWidget):
            QMessageBox.Yes | QMessageBox.No,
            QMessageBox.No
        )
-       
+
        if confirm == QMessageBox.Yes:
            self.set_button_text(self.restore_backup_button, "Restoring...")
            self.set_buttons_enabled(False, [self.restore_backup_button, self.backup_all_button])
@@ -160,7 +142,7 @@ class MiscTab(QWidget):
        matplotlib.use('QtAgg')
        import matplotlib.pyplot as plt
        from charts.all_gpus import create_gpu_comparison_plot
-       
+
        self.chart_gpus_button.setEnabled(False)
        self.set_button_text(self.chart_gpus_button, "Charting...")
 
@@ -180,60 +162,3 @@ class MiscTab(QWidget):
    def reset_chart_button(self):
        self.set_button_text(self.chart_gpus_button, "GPUs")
        self.chart_gpus_button.setEnabled(True)
-
-   def chart_chat_models(self):
-       import matplotlib
-       matplotlib.use('QtAgg')
-       import matplotlib.pyplot as plt
-       from charts.models_chat import create_chat_models_comparison_plot
-       
-       self.chart_chat_models_button.setEnabled(False)
-       self.set_button_text(self.chart_chat_models_button, "Charting...")
-       
-       fig = create_chat_models_comparison_plot()
-       plt.figure(fig.number)
-       plt.show(block=False)
-
-       QTimer.singleShot(500, self.reset_chart_chat_models_button)
-
-   def reset_chart_chat_models_button(self):
-       self.set_button_text(self.chart_chat_models_button, "Chat Models")
-       self.chart_chat_models_button.setEnabled(True)
-
-   def chart_vision_models(self):
-       import matplotlib
-       matplotlib.use('QtAgg')
-       import matplotlib.pyplot as plt
-       from charts.models_vision import create_vision_models_comparison_plot
-       
-       self.chart_vision_models_button.setEnabled(False)
-       self.set_button_text(self.chart_vision_models_button, "Charting...")
-       
-       fig = create_vision_models_comparison_plot()
-       plt.figure(fig.number)
-       plt.show(block=False)
-
-       QTimer.singleShot(500, self.reset_chart_vision_models_button)
-
-   def reset_chart_vision_models_button(self):
-       self.set_button_text(self.chart_vision_models_button, "Vision Models")
-       self.chart_vision_models_button.setEnabled(True)
-
-   def chart_vector_models(self):
-       import matplotlib
-       matplotlib.use('QtAgg')
-       import matplotlib.pyplot as plt
-       from charts.models_vector import create_vector_models_comparison_plot
-       
-       self.chart_vector_models_button.setEnabled(False)
-       self.set_button_text(self.chart_vector_models_button, "Charting...")
-       
-       fig = create_vector_models_comparison_plot()
-       plt.figure(fig.number)
-       plt.show(block=False)
-
-       QTimer.singleShot(500, self.reset_chart_vector_models_button)
-
-   def reset_chart_vector_models_button(self):
-       self.set_button_text(self.chart_vector_models_button, "Vector Models")
-       self.chart_vector_models_button.setEnabled(True)
