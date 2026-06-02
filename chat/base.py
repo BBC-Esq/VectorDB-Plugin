@@ -29,6 +29,27 @@ logging.getLogger("transformers").setLevel(logging.ERROR)
 
 metadata_output_file_path = PROJECT_ROOT / "metadata.txt"
 
+
+def _run_generation_thread(model, all_settings):
+    streamer = all_settings.get("streamer")
+    box = {}
+
+    def _target():
+        try:
+            model.generate(**all_settings)
+        except Exception as e:
+            box["error"] = e
+            if streamer is not None:
+                try:
+                    streamer.end()
+                except Exception:
+                    pass
+
+    thread = threading.Thread(target=_target, daemon=True)
+    thread.start()
+    return thread, box
+
+
 class ChatSignals(QObject):
     response_signal = Signal(str)
     error_signal = Signal(str)
@@ -248,13 +269,14 @@ class BaseModel(ABC):
 
         all_settings = {**inputs, **self.generation_settings, 'streamer': streamer, 'eos_token_id': eos_token_id}
 
-        generation_thread = threading.Thread(target=self.model.generate, kwargs=all_settings)
-        generation_thread.start()
+        generation_thread, gen_box = _run_generation_thread(self.model, all_settings)
 
         for partial_response in streamer:
             yield partial_response
 
         generation_thread.join()
+        if "error" in gen_box:
+            raise gen_box["error"]
 
     def cleanup(self):
         if hasattr(self, 'model'):
@@ -339,13 +361,14 @@ class LiquidAI(BaseModel):
             "pad_token_id": self.tokenizer.pad_token_id,
         }
 
-        gen_thread = threading.Thread(target=self.model.generate, kwargs=all_settings, daemon=True)
-        gen_thread.start()
+        gen_thread, gen_box = _run_generation_thread(self.model, all_settings)
 
         for chunk in streamer:
             yield chunk
 
         gen_thread.join()
+        if "error" in gen_box:
+            raise gen_box["error"]
 
 
 class Granite(BaseModel):
@@ -577,17 +600,13 @@ class Phi4(BaseModel):
             skip_special_tokens=False
         )
 
-        gen_thread = threading.Thread(
-            target=self.model.generate,
-            kwargs={**inputs,
-                    **self.generation_settings,
-                    "streamer": streamer,
-                    "eos_token_id": eos_id,
-                    "pad_token_id": eos_id,
-                    "stopping_criteria": stop_criteria},
-            daemon=True
-        )
-        gen_thread.start()
+        gen_settings = {**inputs,
+                        **self.generation_settings,
+                        "streamer": streamer,
+                        "eos_token_id": eos_id,
+                        "pad_token_id": eos_id,
+                        "stopping_criteria": stop_criteria}
+        gen_thread, gen_box = _run_generation_thread(self.model, gen_settings)
 
         buffer, sent = "", 0
         ASSIST, USER, END = "<|assistant|>", "<|user|>", "<|end|>"
@@ -611,6 +630,8 @@ class Phi4(BaseModel):
                 sent = len(clean)
 
         gen_thread.join()
+        if "error" in gen_box:
+            raise gen_box["error"]
 
 def generate_response(model_instance, augmented_query):
     prompt = model_instance.create_prompt(augmented_query)
