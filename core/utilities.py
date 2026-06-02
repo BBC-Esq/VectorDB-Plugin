@@ -638,7 +638,7 @@ def load_stylesheet(name):
 
 def ensure_theme_config():
     try:
-        with open('config.yaml', 'r') as f:
+        with open(PROJECT_ROOT / 'config.yaml', 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
 
         if config is None:
@@ -651,8 +651,10 @@ def ensure_theme_config():
         if not theme or theme not in THEMES:
             config['appearance']['theme'] = 'default'
 
-        with open('config.yaml', 'w') as f:
-            yaml.safe_dump(config, f)
+        tmp = PROJECT_ROOT / 'config.yaml.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            yaml.safe_dump(config, f, allow_unicode=True)
+        os.replace(tmp, PROJECT_ROOT / 'config.yaml')
 
         return config['appearance']['theme']
     except Exception:
@@ -660,7 +662,7 @@ def ensure_theme_config():
 
 def update_theme_in_config(new_theme):
     try:
-        with open('config.yaml', 'r') as f:
+        with open(PROJECT_ROOT / 'config.yaml', 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
 
         if config is None:
@@ -671,8 +673,10 @@ def update_theme_in_config(new_theme):
 
         config['appearance']['theme'] = new_theme
 
-        with open('config.yaml', 'w') as f:
-            yaml.safe_dump(config, f)
+        tmp = PROJECT_ROOT / 'config.yaml.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            yaml.safe_dump(config, f, allow_unicode=True)
+        os.replace(tmp, PROJECT_ROOT / 'config.yaml')
     except Exception:
         pass
 
