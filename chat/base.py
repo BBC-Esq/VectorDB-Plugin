@@ -22,7 +22,7 @@ from huggingface_hub import HfApi
 
 from PySide6.QtCore import Signal, QObject
 
-from core.constants import CHAT_MODELS, system_message, rag_string, GLM4Z1_CHAT_TEMPLATE, PROJECT_ROOT
+from core.constants import CHAT_MODELS, system_message, rag_string, PROJECT_ROOT
 from core.utilities import my_cprint, has_bfloat16_support, format_citations
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
@@ -488,59 +488,6 @@ class DeepseekR1(BaseModel):
     @torch.inference_mode()
     def generate_response(self, inputs, remove_token_type_ids: bool = False):
         yield from super().generate_response(inputs, remove_token_type_ids)
-
-
-class GLM4Z1(BaseModel):
-    def __init__(self, generation_settings: dict, model_name: str):
-        model_info = CHAT_MODELS[model_name]
-
-        settings = deepcopy(bnb_bfloat16_settings)
-        settings["tokenizer_settings"]["trust_remote_code"] = True
-        settings["model_settings"]["trust_remote_code"] = True
-        settings["model_settings"]["attn_implementation"] = "sdpa"
-
-        custom_generation_settings = {
-            "max_length": generation_settings["max_length"],
-            "max_new_tokens": generation_settings["max_new_tokens"],
-            "do_sample": True,
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 40,
-            "num_beams": 1,
-            "use_cache": True
-        }
-
-        tokenizer_kwargs = {
-            "trust_remote_code": True,
-            "chat_template": GLM4Z1_CHAT_TEMPLATE
-        }
-
-        super().__init__(
-            model_info,
-            settings,
-            custom_generation_settings,
-            attn_implementation=None,
-            tokenizer_kwargs=tokenizer_kwargs
-        )
-
-        self.generation_settings["pad_token_id"] = self.tokenizer.eos_token_id
-
-    def create_prompt(self, augmented_query: str) -> str:
-        return f"""[gMASK]<sop><|system|>
-{system_message}<|user|>
-{augmented_query}<|assistant|>
-<think>"""
-
-    @torch.inference_mode()
-    def generate_response(self, inputs, remove_token_type_ids: bool = False):
-        if remove_token_type_ids:
-            inputs.pop("token_type_ids", None)
-
-        settings = {**inputs, **self.generation_settings}
-        generated = self.model.generate(**settings)
-        text = self.tokenizer.decode(generated[0], skip_special_tokens=True)
-        idx = text.rfind("</think>") + len("</think>")
-        yield text[idx:].strip()
 
 
 class SeedCoder(BaseModel):

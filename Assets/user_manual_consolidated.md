@@ -415,8 +415,7 @@ is recommended to conserve VRAM for the LLM, as querying is less resource-intens
 You can always check the VRAM and speed for local models within the Tools Tab by clicking the "Chat Models" button, which will display
 a nice chart.  However, in general smaller models like Qwen 3 - 0.6b deliver exceptional speed at over 200 characters per second while
 requiring minimal VRAM (1.3GB), mid-range models in the 2-9 billion parameter range offer a sweet spot for most users, with speeds
-ranging from 150-400 characters per second and VRAM usage between 2.5-9.5GB. Notable standouts include the GLM4-Z1 - 9b, which achieves
-an impressive 395 CPS while using under 10GB VRAM, and the Exaone models, which consistently deliver faster performance than
+ranging from 150-400 characters per second and VRAM usage between 2.5-9.5GB. Notable standouts include the Exaone models, which consistently deliver faster performance than
 similarly-sized alternatives. For users with high-end GPUs, the larger 24-32 billion parameter models provide enhanced reasoning
 capabilities at the cost of reduced speed (95-140 CPS) and substantial VRAM requirements (15-20GB).
 
@@ -495,12 +494,6 @@ The Granite 3.3 chat models are the latest in the Granite series developed by IB
 They are "thinking" or "reasoning" models and have improved upon prior iterations in this regard.  The Granite models were trained
 on synthetically generated datasets for long-context tasks and are good for retrieval augmented generation purposes.  Version 3.3
 of the models exceed the performance of Granite 3.1 and 3.2 by a significant margin.
-
-### What are the GLM-Z1 Chat Models?
-The Z1 family of chat models are created by THUDM and demonstract strong performance across a wide range of tasks, including retrieval
-augmented generation.  The benchmarks show that they are particularly strong in general-purpose question answering across a wide range
-of domains - e.g. science, math, and other areas.  They come in a 9 billion parameter and 32 billion parameter variants and are a
-staple of this program due to their high quality on question answering tasks.
 
 ### What is the Mistral Small Chat Model?
 The Mistral Small chat model is the third iteration of Mistral models and has 24 billion parameters.  It is released under the

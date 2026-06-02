@@ -508,53 +508,6 @@ SUPPORTED_EXTENSIONS = (
     ".xls", ".xlsx", ".xlsm", ".rtf", ".md", ".html", ".htm",
 )
 
-GLM4Z1_CHAT_TEMPLATE = """[gMASK]<sop>
-{%- if tools -%}
-<|system|>
-你是一个名为 ChatGLM 的人工智能助手。你是基于智谱 AI 公司训练的语言模型 GLM-4 模型开发的，你的任务是针对用户的问题和要求提供适当的答复和支持。
-
-# 可用工具
-{%- for tool in tools %}
-    {%- set function = tool.function if tool.get("function") else tool %}
-
-## {{ function.name }}
-
-{{ function | tojson(indent=4, ensure_ascii=False) }}
-在调用上述函数时，请使用 Json 格式表示调用的参数。
-{%- endfor %}
-{%- endif -%}
-
-{%- for msg in messages %}
-    {%- if msg.role == 'system' %}
-<|system|>
-{{ msg.content }}
-    {%- endif %}
-{%- endfor %}
-
-{%- for message in messages if message.role != 'system' %}
-    {%- set role = message['role'] %}
-    {%- set content = message['content'] %}
-    {%- set visible = content.split('</think>')[-1].strip() %}
-    {%- set meta = message.get("metadata", "") %}
-
-    {%- if role == 'user' %}
-<|user|>
-{{ visible }}
-    {%- elif role == 'assistant' and not meta %}
-<|assistant|>
-{{ visible }}
-    {%- elif role == 'assistant' and meta %}
-<|assistant|>{{ meta }}
-{{ visible }}
-    {%- elif role == 'observation' %}
-<|observation|>
-{{ visible }}
-    {%- endif %}
-{%- endfor %}
-{% if add_generation_prompt %}<|assistant|>
-<think>{% endif %}"""
-
-
 priority_libs = {
     "cp311": {
         "GPU": [
@@ -1058,18 +1011,6 @@ CHAT_MODELS = {
         'license': 'apache-2.0',
         'max_new_tokens': 2048,
     },
-    'GLM4-Z1 - 9b (Thinking)': {
-        'model': 'GLM4-Z1 - 9b (Thinking)',
-        'repo_id': 'THUDM/GLM-Z1-9B-0414',
-        'cache_dir': 'THUDM--GLM-Z1-9B-0414',
-        'cps': 395.18,
-        'vram': 9592.77,
-        'function': 'GLM4Z1',
-        'precision': 'bfloat16',
-        'gated': False,
-        'license': 'mit',
-        'max_new_tokens': 2048,
-    },
     'Qwen 3 - 14b (Thinking)': {
         'model': 'Qwen 3 - 14b (Thinking)',
         'repo_id': 'Qwen/Qwen3-14B',
@@ -1104,18 +1045,6 @@ CHAT_MODELS = {
         'precision': 'bfloat16',
         'gated': False,
         'license': 'apache-2.0',
-        'max_new_tokens': 4096,
-    },
-    'GLM4-Z1 - 32b (Thinking)': {
-        'model': 'GLM4-Z1 - 32b (Thinking)',
-        'repo_id': 'THUDM/GLM-Z1-32B-0414',
-        'cache_dir': 'THUDM--GLM-Z1-32B-0414',
-        'cps': 121.65,
-        'vram': 19947.77,
-        'function': 'GLM4Z1',
-        'precision': 'bfloat16',
-        'gated': False,
-        'license': 'mit',
         'max_new_tokens': 4096,
     },
 }
@@ -3569,7 +3498,6 @@ master_questions = [
     "What chat models are available with the local models option?",
     "What are the Qwen 3 Chat Models?",
     "What are the Granite 3.3 Chat Models?",
-    "What are the GLM-Z1 Chat Models?",
     "What is the Mistral Small Chat Model?",
     "What is the gte-Qwen2-1.5B-instruct embedding model?",
     "What are the BGE Embedding Models?",
