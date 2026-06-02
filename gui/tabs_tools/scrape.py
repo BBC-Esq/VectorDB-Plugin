@@ -388,6 +388,19 @@ class ScrapeDocumentationTab(QWidget):
         except Exception as e:
             print(f"Error cancelling {doc_name}: {e}")
 
+    def cleanup(self) -> None:
+        for entry in list(self.active_workers.values()):
+            worker = entry.get("worker")
+            thread = entry.get("thread")
+            if worker is not None:
+                try:
+                    worker.cancel()
+                except Exception:
+                    pass
+            if thread is not None and thread.isRunning():
+                thread.quit()
+                thread.wait(5000)
+
     def show_error(self, message: str) -> None:
         QMessageBox.critical(self, "Error", message)
 
