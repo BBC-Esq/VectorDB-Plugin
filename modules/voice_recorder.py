@@ -71,7 +71,7 @@ class VoiceRecorder:
         self.channels, self.rate, self.chunk = channels, rate, chunk
         self.is_recording, self.frames = False, []
         self.recording_thread = None
-        self.transcription_thread = None
+        self.transcription_threads = []
 
     def record_audio(self):
         def callback(indata, frames, time, status):
@@ -106,9 +106,11 @@ class VoiceRecorder:
             temp_file.unlink()
             return
 
-        self.transcription_thread = TranscriptionThread(str(temp_file), self)
-        self.transcription_thread.transcription_complete.connect(self.gui_instance.update_transcription)
-        self.transcription_thread.start()
+        self.transcription_threads = [t for t in self.transcription_threads if t.isRunning()]
+        thread = TranscriptionThread(str(temp_file), self)
+        thread.transcription_complete.connect(self.gui_instance.update_transcription)
+        self.transcription_threads.append(thread)
+        thread.start()
 
     def start_recording(self):
         if not self.is_recording:
