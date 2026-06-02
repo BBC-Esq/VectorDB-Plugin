@@ -554,10 +554,10 @@ class MetricsWidget(QWidget):
         self.collector_thread.metrics_updated.connect(self.metrics_store.add_metrics)
         self.start_metrics_collector()
     def init_ui(self):
-        self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
         self.current_visualization = VIZ_FACTORY[VizType.SPARKLINE](self.metrics_store)
-        self.layout.addWidget(self.current_visualization)
+        self._layout.addWidget(self.current_visualization)
     def contextMenuEvent(self, event):
         menu = QMenu(self)
         visual_menu = menu.addMenu("Visualization")
@@ -586,11 +586,11 @@ class MetricsWidget(QWidget):
             return
         self.current_visualization_type = kind
         self.current_visualization.cleanup()
-        self.layout.removeWidget(self.current_visualization)
+        self._layout.removeWidget(self.current_visualization)
         self.current_visualization.deleteLater()
         self.current_visualization = VIZ_FACTORY[kind](self.metrics_store)
         self.current_visualization.setToolTip("Right click for display options")
-        self.layout.addWidget(self.current_visualization)
+        self._layout.addWidget(self.current_visualization)
 
     def start_metrics_collector(self):
         if not self.collector_thread.isRunning():
