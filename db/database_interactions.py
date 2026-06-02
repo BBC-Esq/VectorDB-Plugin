@@ -624,7 +624,17 @@ class CreateVectorDB:
             del chunk_texts, vectors_array, all_metadatas
             gc.collect()
 
-            create_metadata_db(self.PERSIST_DIRECTORY, json_docs_to_save, hash_id_mappings)
+            try:
+                create_metadata_db(self.PERSIST_DIRECTORY, json_docs_to_save, hash_id_mappings)
+            except Exception as e:
+                logger.error(f"Error creating SQLite metadata DB: {e}")
+                traceback.print_exc()
+                if self.PERSIST_DIRECTORY.exists():
+                    try:
+                        shutil.rmtree(self.PERSIST_DIRECTORY)
+                    except Exception:
+                        pass
+                raise
             del json_docs_to_save, hash_id_mappings
             gc.collect()
 
