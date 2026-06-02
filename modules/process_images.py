@@ -7,8 +7,6 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import torch
-import torchvision.transforms as T
-from torchvision.transforms.functional import InterpolationMode
 import yaml
 from PIL import Image
 from tqdm import tqdm
@@ -155,132 +153,90 @@ class BaseLoader:
 class loader_internvl(BaseLoader):
     def initialize_model_and_tokenizer(self):
         chosen_model = self.config['vision']['chosen_model']
-        info = VISION_MODELS[chosen_model]
-        cache_dir = CACHE_DIR / info["cache_dir"]
+        model_info = VISION_MODELS[chosen_model]
+        model_id = model_info['repo_id']
+        cache_dir = CACHE_DIR / model_info["cache_dir"]
         cache_dir.mkdir(parents=True, exist_ok=True)
-        
-        if self.device == "cuda":
-            dtype, precision_str = self.detect_dtype()
 
-            quant_config = BitsAndBytesConfig(
+        dtype, precision_str = self.detect_dtype()
+
+        processor = AutoProcessor.from_pretrained(
+            model_id,
+            use_fast=True,
+            cache_dir=cache_dir,
+            token=False,
+        )
+
+        if self.device == "cuda":
+            quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,
-                bnb_4bit_compute_dtype=dtype,
                 bnb_4bit_quant_type="nf4",
-                llm_int8_skip_modules=[
-                    "vision_model",
-                    "language_model.model.norm", 
-                    "language_model.output",
-                    "language_model.model.rotary_emb",
-                    "language_model.lm_head",
-                    "mlp1"
-                ]
+                bnb_4bit_compute_dtype=dtype,
+                bnb_4bit_use_double_quant=True,
+                llm_int8_skip_modules=["vision_tower", "multi_modal_projector", "lm_head"],
             )
-            model = AutoModel.from_pretrained(
-                info['repo_id'],
-                quantization_config=quant_config,
+            model = AutoModelForImageTextToText.from_pretrained(
+                model_id,
+                quantization_config=quantization_config,
                 torch_dtype=dtype,
                 low_cpu_mem_usage=True,
-                trust_remote_code=True,
                 cache_dir=cache_dir,
-                token=False
-            ).eval()
+                token=False,
+                device_map="auto",
+            )
             device_str = "CUDA"
         else:
             dtype = torch.float32
             precision_str = "float32"
-            model = AutoModel.from_pretrained(
-                info['repo_id'],
+            model = AutoModelForImageTextToText.from_pretrained(
+                model_id,
                 torch_dtype=dtype,
                 low_cpu_mem_usage=True,
-                trust_remote_code=True,
                 cache_dir=cache_dir,
                 token=False,
-                device_map={"": "cpu"}
-            ).eval()
+                device_map={"": "cpu"},
+            )
             device_str = "CPU"
 
+        model.eval()
         self.model_dtype = dtype
         my_cprint(f"{chosen_model} loaded into memory on {device_str} ({precision_str})", "green")
 
-        tokenizer = AutoTokenizer.from_pretrained(
-            info['repo_id'],
-            trust_remote_code=True,
-            cache_dir=cache_dir,
-            token=False
-        )
-
-        return model, tokenizer, None
-
-    def find_closest_aspect_ratio(self, aspect_ratio, ratios, w, h, sz):
-        best_diff = float('inf')
-        best = (1, 1)
-        area = w * h
-        for r in ratios:
-            ar = r[0] / r[1]
-            diff = abs(aspect_ratio - ar)
-            if diff < best_diff or (diff == best_diff and area > 0.5 * sz * sz * r[0] * r[1]):
-                best_diff = diff
-                best = r
-
-        return best
-
-    def _build_transform(self, size):
-        mean = (0.485, 0.456, 0.406)
-        std = (0.229, 0.224, 0.225)
-        return T.Compose([
-            T.Lambda(lambda img: img.convert('RGB') if img.mode != 'RGB' else img),
-            T.Resize((size, size), interpolation=InterpolationMode.LANCZOS, antialias=True),
-            T.ToTensor(),
-            T.Normalize(mean=mean, std=std)
-        ])
-
-    def dynamic_preprocess(self, img, min_num=1, max_num=12, image_size=448, use_thumbnail=False):
-        w, h = img.size
-        ar = w / h
-        ratios = sorted(
-            {(i, j)
-             for n in range(min_num, max_num + 1)
-             for i in range(1, n + 1)
-             for j in range(1, n + 1)
-             if i * j <= max_num and i * j >= min_num},
-            key=lambda x: x[0] * x[1]
-        )
-        best = self.find_closest_aspect_ratio(ar, ratios, w, h, image_size)
-        tw, th = image_size * best[0], image_size * best[1]
-        resized = img.resize((tw, th))
-        blocks = best[0] * best[1]
-        cols = tw // image_size
-        parts = []
-        for i in range(blocks):
-            x = (i % cols) * image_size
-            y = (i // cols) * image_size
-            parts.append(resized.crop((x, y, x + image_size, y + image_size)))
-        if use_thumbnail and len(parts) != 1:
-            parts.append(img.resize((image_size, image_size)))
-
-        return parts
-
-    def _prepare_image(self, raw_image, input_size=448, max_num=24):
-        imgs = self.dynamic_preprocess(raw_image, image_size=input_size, use_thumbnail=True, max_num=max_num)
-        tf = self._build_transform(input_size)
-
-        return torch.stack([tf(im) for im in imgs])
+        return model, None, processor
 
     @torch.inference_mode()
     def process_single_image(self, raw_image):
-        pv = self._prepare_image(raw_image).to(self.model_dtype).to(self.device)
+        if raw_image.mode != "RGB":
+            raw_image = raw_image.convert("RGB")
 
-        question = f"<image>\n{IMAGE_PROMPT}"
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": raw_image},
+                    {"type": "text", "text": IMAGE_PROMPT},
+                ],
+            }
+        ]
 
-        gen_cfg = {
-            'num_beams': 1,
-            'max_new_tokens': 512,
-            'do_sample': False,
-            'pad_token_id': self.tokenizer.pad_token_id
-        }
-        resp = self.model.chat(self.tokenizer, pv, question, gen_cfg)
+        inputs = self.processor.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            tokenize=True,
+            return_dict=True,
+            return_tensors="pt",
+        ).to(self.device, dtype=self.model_dtype)
 
-        return self.normalize_response(resp)
+        input_len = inputs["input_ids"].shape[1]
+        output = self.model.generate(
+            **inputs,
+            max_new_tokens=512,
+            do_sample=False,
+        )
+        new_tokens = output[:, input_len:]
+        text = self.processor.batch_decode(new_tokens, skip_special_tokens=True)[0].strip()
+
+        return self.normalize_response(text)
 
 
 class loader_granite(BaseLoader):
