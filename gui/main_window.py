@@ -177,7 +177,7 @@ class DocQA_GUI(QWidget):
         for item in docs_dir.glob('*'):
             if item.is_file():
                 item.unlink()
-        self.metrics_bar.stop_metrics_collector()
+        self.metrics_bar.cleanup()
 
         for i in range(self.tab_widget.count()):
             tab = self.tab_widget.widget(i)
