@@ -36,7 +36,10 @@ def update_config_file(**system_info):
     full_config_path = Path('config.yaml').resolve()
 
     with open(full_config_path, 'r', encoding='utf-8') as stream:
-        config_data = yaml.safe_load(stream)
+        config_data = yaml.safe_load(stream) or {}
+
+    if not config_data.get('Compute_Device'):
+        config_data['Compute_Device'] = {}
 
     compute_device_info = system_info.get('Compute_Device', {})
     config_data['Compute_Device']['available'] = compute_device_info.get('available', ['cpu'])
