@@ -638,6 +638,10 @@ libs = [
     "attrs==26.1.0",
     "av==16.0.1",
     "backoff==2.2.1",
+    # kept at 4.14.3 (NOT lowered): unstructured 0.20.8 requires bs4>=4.14.3 (central doc parser) vs extract-msg's
+    # conservative bs4<4.14 cap - mutually exclusive, so we favor unstructured. extract-msg's cap assumed stale until
+    # contrary evidence (msg-extractor#469: open, no maintainer reply, no reports of newer bs4 breaking .msg); bs4 was
+    # already >4.14 pre-sweep. Verify .msg ingestion if in doubt.
     "beautifulsoup4==4.14.3",
     "bitsandbytes==0.49.2",  # 0.48->0.49; may fix deferred Qwen-VL 4-bit crash (error 12); TEST quantized vision loading
     "braceexpand==0.1.7",
@@ -671,7 +675,7 @@ libs = [
     "distro==1.9.0",
     "docx2txt==0.9",
     "easygui==0.98.3",
-    "ebcdic==2.0.1",
+    "ebcdic==1.1.1",  # HOLD at <2: extract-msg 0.55.0 (latest, the .msg loader) requires ebcdic<2; 2.x breaks pip check / .msg handling
     "einops==0.8.2",
     "einx==0.3.0",
     "emoji==2.15.0",
@@ -811,7 +815,7 @@ libs = [
     "rpds-py==2026.5.1",  # used internally by jsonschema + referencing (not imported by app code); pinned (was unpinned)
     "rich==15.0.0",
     "RTFDE==0.1.2.2",
-    "ruamel.yaml==0.19.1",
+    "ruamel.yaml==0.18.17",  # capped at <0.19.0 by HyperPyYAML 1.2.3 (latest, used by speechbrain); 0.19.x violates it. 0.18.17 is highest <0.19.0
     "ruamel.yaml.clib==0.2.15",
     "s3tokenizer==0.3.0",
     "safetensors==0.7.0",
