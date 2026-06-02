@@ -8,7 +8,7 @@ from core.utilities import format_citations
 from core.constants import system_message, PROJECT_ROOT
 
 MINIMAX_BASE_URL = "https://api.minimax.io/v1"
-MINIMAX_MODELS = ["MiniMax-M2.7", "MiniMax-M2.7-highspeed"]
+MINIMAX_MODELS = ["MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.7-highspeed"]
 # Temperature must be in (0.0, 1.0] for MiniMax
 _MINIMAX_MIN_TEMP = 0.01
 
@@ -26,7 +26,7 @@ class MiniMaxChat:
 
     def connect_to_minimax(self, augmented_query):
         minimax_config = self.config.get('minimax', {})
-        model = minimax_config.get('model', 'MiniMax-M2.7')
+        model = minimax_config.get('model', 'MiniMax-M3')
         api_key = minimax_config.get('api_key')
 
         if not api_key:
