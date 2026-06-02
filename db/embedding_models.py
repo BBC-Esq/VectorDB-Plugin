@@ -364,9 +364,9 @@ class DirectEmbeddingModel:
         return np.asarray(embeddings, dtype=np.float32)
 
     @torch.inference_mode()
-    def embed_documents(self, texts: list) -> np.ndarray:
+    def embed_documents(self, texts: list) -> tuple:
         if not texts:
-            return np.array([], dtype=np.float32)
+            return np.array([], dtype=np.float32), np.array([], dtype=np.int64)
 
         total = len(texts)
         logger.info(f"Embedding {total} texts via subprocess tokenization pipeline")
@@ -452,14 +452,20 @@ class DirectEmbeddingModel:
             logger.info(f"Forward pass complete: {batch_count} batches processed")
 
             if not all_embeddings:
-                return np.array([], dtype=np.float32)
+                return np.array([], dtype=np.float32), np.array([], dtype=np.int64)
 
             sorted_embeddings = np.concatenate(all_embeddings, axis=0)
             indices = np.concatenate(all_seq_indices, axis=0)
-            result = np.empty_like(sorted_embeddings)
-            result[indices] = sorted_embeddings
-            logger.info(f"Unsorting embeddings: restored original order via seq_indices")
-            return result
+            order = np.argsort(indices)
+            result = sorted_embeddings[order]
+            surviving_indices = indices[order]
+            if len(surviving_indices) != total:
+                logger.warning(
+                    f"{total - len(surviving_indices)} of {total} texts were dropped during "
+                    f"tokenization; embedding the surviving {len(surviving_indices)}."
+                )
+            logger.info("Restored original chunk order via seq_indices")
+            return result, surviving_indices
 
         finally:
             import shutil

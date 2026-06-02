@@ -589,7 +589,13 @@ class CreateVectorDB:
                 )
 
             with cuda_mgr.cuda_operation():
-                vectors = embeddings.embed_documents(chunk_texts)
+                vectors, surviving_indices = embeddings.embed_documents(chunk_texts)
+
+            if len(surviving_indices) != len(chunk_texts):
+                dropped = len(chunk_texts) - len(surviving_indices)
+                my_cprint(f"Warning: {dropped} chunk(s) failed tokenization and were skipped.", "red")
+                chunk_texts = [chunk_texts[i] for i in surviving_indices]
+                all_metadatas = [all_metadatas[i] for i in surviving_indices]
 
             embed_elapsed = time.time() - embed_t0
             my_cprint(f"Embedding computation completed in {embed_elapsed:.2f} seconds.", "cyan")
