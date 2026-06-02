@@ -103,7 +103,7 @@ def _get_encode_batch_size(device: str, model_path: str = "") -> int:
 
     if device.startswith("cuda"):
         try:
-            gpu_props = torch.cuda.get_device_properties(0)
+            gpu_props = torch.cuda.get_device_properties(device)
             vram_gb = gpu_props.total_memory / (1024 ** 3)
             batch_size = max(10, min(256, int(vram_gb * 4)))
             logger.info(f"  ENCODE_BATCH_SIZE: {batch_size} (VRAM fallback, "
