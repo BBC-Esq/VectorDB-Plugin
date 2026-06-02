@@ -64,10 +64,18 @@ class ChatGPTChat:
                 delta = getattr(event, "delta", "") or ""
                 if delta:
                     yield delta
-            elif event_type == "response.error":
-                msg = str(getattr(event, "error", "unknown error"))
-                logging.error(f"OpenAI Responses API error: {msg}")
-                raise RuntimeError(msg)
+            elif event_type == "error":
+                detail = getattr(event, "message", None) or "unknown error"
+                code = getattr(event, "code", None)
+                if code:
+                    detail = f"{detail} (code: {code})"
+                logging.error(f"OpenAI Responses API error: {detail}")
+                raise RuntimeError(detail)
+            elif event_type == "response.failed":
+                err = getattr(getattr(event, "response", None), "error", None)
+                detail = getattr(err, "message", None) or "response failed"
+                logging.error(f"OpenAI Responses API failed: {detail}")
+                raise RuntimeError(detail)
 
     def handle_response_and_cleanup(self, full_response, metadata_list):
         citations = format_citations(metadata_list)
