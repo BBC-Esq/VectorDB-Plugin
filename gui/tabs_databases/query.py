@@ -647,9 +647,9 @@ class DatabaseQueryTab(QWidget):
             self.database_query_thread.stop()
             self.database_query_thread.wait()
         if self.chatgpt_thread and self.chatgpt_thread.isRunning():
-            self.chatgpt_thread.wait()
+            self.chatgpt_thread.wait(5000)
         if self.minimax_thread and self.minimax_thread.isRunning():
-            self.minimax_thread.wait()
+            self.minimax_thread.wait(5000)
         if self.kobold_thread and self.kobold_thread.isRunning():
             self.kobold_thread.stop()
             self.kobold_thread.wait(5000)
