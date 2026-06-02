@@ -477,7 +477,6 @@ class loader_qwenvl(BaseLoader):
             use_fast=True,
             min_pixels=28*28,
             max_pixels=1280*28*28,
-            trust_remote_code=True,
             cache_dir=cache_dir,
             token=False
         )
@@ -487,7 +486,6 @@ class loader_qwenvl(BaseLoader):
             quantization_config=quantization_config,
             torch_dtype=dtype,
             low_cpu_mem_usage=True,
-            trust_remote_code=True,
             cache_dir=cache_dir,
             token=False,
             device_map="auto",
@@ -547,7 +545,6 @@ class loader_liquidvl(BaseLoader):
 
         model = AutoModelForImageTextToText.from_pretrained(
             source,
-            trust_remote_code=True,
             torch_dtype=dtype,
             cache_dir=cache_dir,
             device_map=device_map,
@@ -555,7 +552,6 @@ class loader_liquidvl(BaseLoader):
 
         processor = AutoProcessor.from_pretrained(
             source,
-            trust_remote_code=True,
             cache_dir=cache_dir,
         )
 
