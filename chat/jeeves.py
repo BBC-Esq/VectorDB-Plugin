@@ -124,6 +124,7 @@ class ChatWindow(QMainWindow):
 
         self.model_selector.addItems(list(JEEVES_MODELS.keys()))
         self.model_selector.currentIndexChanged.connect(self.on_model_selected)
+        model_downloaded_signal.downloaded.connect(self.on_model_downloaded)
         model_layout.addWidget(self.model_selector)
 
         self.eject_button = QPushButton("Eject")
@@ -284,7 +285,6 @@ class ChatWindow(QMainWindow):
             self.downloader.moveToThread(self.download_worker)
 
             self.download_worker.started.connect(self.downloader.download)
-            model_downloaded_signal.downloaded.connect(self.on_model_downloaded)
 
             self.download_worker.start()
             return
