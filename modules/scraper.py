@@ -61,6 +61,11 @@ def _strip_trailing_version(path: str) -> str:
     return path
 
 
+def _path_within(path: str, base: str) -> bool:
+    base = base.rstrip("/")
+    return path == base or path.startswith(base + "/")
+
+
 _CRUFT_HEADINGS = {"copyright", "copyrights", "license", "licenses"}
 
 
@@ -768,10 +773,12 @@ class ScraperWorker(QObject):
             return False
 
         if acceptable_domain_extension:
-            base_no_version = _strip_trailing_version(acceptable_domain_extension)
-            return (
-                parsed.path.startswith(acceptable_domain_extension) or
-                parsed.path.startswith(base_no_version)
+            path = parsed.path
+            if _path_within(path, acceptable_domain_extension):
+                return True
+            return _path_within(
+                _strip_trailing_version(path),
+                _strip_trailing_version(acceptable_domain_extension),
             )
         return True
 
