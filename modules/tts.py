@@ -260,7 +260,10 @@ class BarkAudio(BaseAudio):
                     )
 
                     audio_array = speech_output[0].cpu().numpy()
-                    audio_array = np.int16(audio_array / np.max(np.abs(audio_array)) * 32767)
+                    peak = np.max(np.abs(audio_array)) if audio_array.size else 0
+                    if peak:
+                        audio_array = audio_array / peak
+                    audio_array = np.int16(audio_array * 32767)
                     self.audio_queue.put((audio_array, self.model.generation_config.sample_rate))
                 except Exception as e:
                     print(f"Exception during audio generation: {str(e)}")
