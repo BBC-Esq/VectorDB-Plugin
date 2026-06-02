@@ -289,6 +289,7 @@ class DatabaseQueryTab(QWidget):
             "Kobold",
             "LM Studio",
             "ChatGPT",
+            "MiniMax-M3",
             "MiniMax-M2.7",
             "MiniMax-M2.7-highspeed",
         ])
@@ -398,6 +399,7 @@ class DatabaseQueryTab(QWidget):
             "LM Studio": LMStudioStrategy(self),
             "Kobold": KoboldStrategy(self),
             "ChatGPT": ChatGPTStrategy(self),
+            "MiniMax-M3": MiniMaxStrategy(self),
             "MiniMax-M2.7": MiniMaxStrategy(self),
             "MiniMax-M2.7-highspeed": MiniMaxStrategy(self),
         }

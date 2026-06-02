@@ -14,7 +14,7 @@ class OpenAIConfig(BaseModel):
 
 class MiniMaxConfig(BaseModel):
     api_key: Optional[str] = None
-    model: str = "MiniMax-M2.7"
+    model: str = "MiniMax-M3"
 
 
 class ServerConfig(BaseModel):

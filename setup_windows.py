@@ -317,7 +317,7 @@ def update_config_yaml():
     if 'api_key' not in config['minimax']:
         config['minimax']['api_key'] = None
     if 'model' not in config['minimax']:
-        config['minimax']['model'] = 'MiniMax-M2.7'
+        config['minimax']['model'] = 'MiniMax-M3'
 
     with open(config_path, 'w', encoding='utf-8') as file:
         yaml.dump(config, file, default_flow_style=False)
