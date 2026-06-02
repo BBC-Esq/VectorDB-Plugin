@@ -75,21 +75,17 @@ class KoboldChat:
         augmented_query = build_augmented_query(contexts, query)
 
         full_response = ""
-        try:
-            response_generator = self.connect_to_kobold(augmented_query)
-            for response_chunk in response_generator:
-                if self.stop_request:
-                    break
-                self.signals.response_signal.emit(response_chunk)
-                full_response += response_chunk
+        response_generator = self.connect_to_kobold(augmented_query)
+        for response_chunk in response_generator:
+            if self.stop_request:
+                break
+            self.signals.response_signal.emit(response_chunk)
+            full_response += response_chunk
 
-            self.signals.response_signal.emit("\n")
+        self.signals.response_signal.emit("\n")
 
-            citations = self.handle_response_and_cleanup(full_response, metadata_list)
-            self.signals.citations_signal.emit(citations)
-        except Exception as e:
-            self.signals.error_signal.emit(str(e))
-            raise
+        citations = self.handle_response_and_cleanup(full_response, metadata_list)
+        self.signals.citations_signal.emit(citations)
 
 class KoboldThread(QThread):
     response_signal = Signal(str)
