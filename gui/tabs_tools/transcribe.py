@@ -1,8 +1,7 @@
-import threading
 from pathlib import Path
 import yaml
 import torch
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QPushButton, QFileDialog, QLabel, QComboBox, QSlider, QSizePolicy
 )
@@ -10,12 +9,35 @@ from modules.transcribe import WhisperTranscriber
 from core.utilities import my_cprint, has_bfloat16_support
 from core.constants import WHISPER_MODELS, TOOLTIPS
 
+
+class TranscriptionWorkerThread(QThread):
+    finished_signal = Signal(bool, str)
+
+    def __init__(self, model_key, batch_size, audio_file, parent=None):
+        super().__init__(parent)
+        self.model_key = model_key
+        self.batch_size = batch_size
+        self.audio_file = audio_file
+
+    def run(self):
+        try:
+            transcriber = WhisperTranscriber(
+                model_key=self.model_key,
+                batch_size=self.batch_size
+            )
+            transcriber.start_transcription_process(self.audio_file)
+            self.finished_signal.emit(True, "")
+        except Exception as e:
+            self.finished_signal.emit(False, str(e))
+
+
 class TranscriberToolSettingsTab(QWidget):
     CONFIG_FILE = 'config.yaml'
     
     def __init__(self):
         super().__init__()
         self.selected_audio_file = None
+        self.worker_thread = None
         self.create_layout()
 
     def set_buttons_enabled(self, enabled):
@@ -116,22 +138,30 @@ class TranscriberToolSettingsTab(QWidget):
         if not self.selected_audio_file:
             print("Please select an audio file.")
             return
-        
+
         selected_model_key = self.model_combo.currentText()
         selected_batch_size = int(self.slider_label.text())
-        
-        def transcription_thread():
-            self.set_buttons_enabled(False)
-            try:
-                transcriber = WhisperTranscriber(
-                    model_key=selected_model_key,
-                    batch_size=selected_batch_size
-                )
-                transcriber.start_transcription_process(self.selected_audio_file)
-                my_cprint("Transcription created and ready to be input into vector database.", 'green')
-            except Exception as e:
-                my_cprint(f"Transcription failed: {e}", 'red')
-            finally:
-                self.set_buttons_enabled(True)
-        
-        threading.Thread(target=transcription_thread, daemon=True).start()
+
+        self.set_buttons_enabled(False)
+
+        if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.wait()
+
+        self.worker_thread = TranscriptionWorkerThread(
+            selected_model_key, selected_batch_size, self.selected_audio_file
+        )
+        self.worker_thread.finished_signal.connect(self.transcription_finished)
+        self.worker_thread.start()
+
+    def transcription_finished(self, success, message):
+        self.set_buttons_enabled(True)
+
+        if self.worker_thread:
+            self.worker_thread.quit()
+            self.worker_thread.wait()
+            self.worker_thread = None
+
+        if success:
+            my_cprint("Transcription created and ready to be input into vector database.", 'green')
+        else:
+            my_cprint(f"Transcription failed: {message}", 'red')
