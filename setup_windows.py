@@ -2,6 +2,14 @@ import os
 import subprocess
 import sys
 
+if sys.platform == "win32":
+    import ctypes
+    _k = ctypes.windll.kernel32
+    _h = _k.GetStdHandle(-11)
+    _mode = ctypes.c_uint()
+    if _k.GetConsoleMode(_h, ctypes.byref(_mode)):
+        _k.SetConsoleMode(_h, _mode.value | 0x0004)  # enable ANSI/VT color processing in cmd.exe
+
 cache_dir = os.path.join(
     os.environ.get("USERPROFILE", os.path.expanduser("~")),
     ".triton"
