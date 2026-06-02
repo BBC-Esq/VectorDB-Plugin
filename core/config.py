@@ -1,23 +1,27 @@
 from pathlib import Path
 from typing import Optional, Dict, Any, Literal
-from pydantic import BaseModel, Field, field_validator, PrivateAttr
+from pydantic import BaseModel, ConfigDict, Field, field_validator, PrivateAttr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import yaml
 import threading
 
 
-class OpenAIConfig(BaseModel):
+class _SubConfig(BaseModel):
+    model_config = ConfigDict(extra='allow', validate_assignment=True)
+
+
+class OpenAIConfig(_SubConfig):
     api_key: Optional[str] = None
     model: str = "gpt-4o-mini"
     reasoning_effort: str = "medium"
 
 
-class MiniMaxConfig(BaseModel):
+class MiniMaxConfig(_SubConfig):
     api_key: Optional[str] = None
     model: str = "MiniMax-M3"
 
 
-class ServerConfig(BaseModel):
+class ServerConfig(_SubConfig):
     api_key: str = ""
     connection_str: str = "http://127.0.0.1:1234/v1"
     show_thinking: bool = False
@@ -30,7 +34,7 @@ class ServerConfig(BaseModel):
         return v
 
 
-class DatabaseConfig(BaseModel):
+class DatabaseConfig(_SubConfig):
     chunk_size: int = Field(default=700, gt=0, le=100000)
     chunk_overlap: int = Field(default=250, ge=0, le=100000)
     contexts: int = Field(default=5, gt=0, le=1000)
@@ -64,7 +68,7 @@ class DatabaseConfig(BaseModel):
         return v
 
 
-class ComputeDeviceConfig(BaseModel):
+class ComputeDeviceConfig(_SubConfig):
     available: list = Field(default_factory=lambda: ["cpu"])
     database_creation: str = "cpu"
     database_query: str = "cpu"
@@ -78,17 +82,17 @@ class ComputeDeviceConfig(BaseModel):
         return v
 
 
-class DatabaseInfo(BaseModel):
+class DatabaseInfo(_SubConfig):
     model: str
     chunk_size: int
     chunk_overlap: int
 
 
-class AppearanceConfig(BaseModel):
+class AppearanceConfig(_SubConfig):
     theme: str = "default"
 
 
-class PlatformInfo(BaseModel):
+class PlatformInfo(_SubConfig):
     os: str = ""
 
 
