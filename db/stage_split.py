@@ -135,14 +135,8 @@ def run_worker(python_exe: str, worker_script_path: str,
         bufsize=1,
         env={**os.environ, "PYTHONUNBUFFERED": "1", "VECTORDB_PROJECT_ROOT": project_root},
     ) as process:
-        output_lines = []
-        for line in process.stdout:
-            line = line.rstrip("\n")
-            if line.strip():
-                logger.warning(f"  [worker] {line}")
-                output_lines.append(line)
-
-        process.wait(timeout=timeout)
+        from db.subprocess_utils import drain_subprocess
+        drain_subprocess(process, timeout, on_line=lambda line: logger.warning(f"  [worker] {line}"))
         elapsed = time.time() - t0
         returncode = process.returncode
     return returncode, elapsed

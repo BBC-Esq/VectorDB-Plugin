@@ -128,14 +128,8 @@ def _run_subprocess_stage(name, cmd, timeout=3600):
         env={**os.environ, "PYTHONUNBUFFERED": "1"},
     )
 
-    output_lines = []
-    for line in process.stdout:
-        line = line.rstrip("\n")
-        if line.strip():
-            logger.info(f"  [{name}] {line}")
-            output_lines.append(line)
-
-    process.wait(timeout=timeout)
+    from db.subprocess_utils import drain_subprocess
+    output_lines = drain_subprocess(process, timeout, on_line=lambda line: logger.info(f"  [{name}] {line}"))
 
     if process.returncode != 0:
         for line in output_lines[-10:]:
