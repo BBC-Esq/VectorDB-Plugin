@@ -165,13 +165,11 @@ class MetricsCollectorThread(QThread):
         except Exception as e:
             print(f"Error collecting metrics: {e}")
     def run(self):
-        timer = QTimer()
-        timer.setInterval(self.interval)
-        timer.timeout.connect(self._collect_once)
-        timer.start()
-        self.exec()
+        while not self.isInterruptionRequested():
+            self._collect_once()
+            self.msleep(self.interval)
     def stop(self):
-        self.quit()
+        self.requestInterruption()
         self.wait()
 
 class BaseVisualization(QWidget):
