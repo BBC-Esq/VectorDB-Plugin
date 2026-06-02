@@ -78,7 +78,7 @@ def is_package_available(pkg_name: str) -> tuple[bool, str]:
         try:
             package_version = importlib.metadata.version(pkg_name)
         except importlib.metadata.PackageNotFoundError:
-            package_exists = False
+            package_version = "N/A"
     return package_exists, package_version
 
 def verify_installation(package_name: str, expected_version: str) -> bool:
