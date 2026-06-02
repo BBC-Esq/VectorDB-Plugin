@@ -1056,6 +1056,7 @@ CHAT_MODELS = {
         'precision': 'bfloat16',
         'gated': False,
         'license': 'apache-2.0',
+        'max_new_tokens': 2048,
     },
     'GLM4-Z1 - 9b (Thinking)': {
         'model': 'GLM4-Z1 - 9b (Thinking)',
