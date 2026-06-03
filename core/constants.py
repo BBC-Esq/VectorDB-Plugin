@@ -1011,6 +1011,18 @@ CHAT_MODELS = {
         'license': 'mit',
         'max_new_tokens': 2048,
     },
+    'Gemma 3 - 12b': {
+        'model': 'Gemma 3 - 12b',
+        'repo_id': 'google/gemma-3-12b-it',
+        'cache_dir': 'google--gemma-3-12b-it',
+        'cps': 130.0,
+        'vram': 9000.0,
+        'function': 'Gemma3',
+        'precision': 'bfloat16',
+        'gated': True,
+        'license': 'gemma',
+        'max_new_tokens': 2048,
+    },
     'Mistral Small 3 - 24b': {
         'model': 'Mistral Small 3 - 24b',
         'repo_id': 'mistralai/Mistral-Small-24B-Instruct-2501',

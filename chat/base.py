@@ -430,6 +430,30 @@ class Phi4(BaseModel):
         )
 
 
+class Gemma3(BaseModel):
+    def __init__(self, generation_settings, model_name):
+        model_info = CHAT_MODELS[model_name]
+        super().__init__(model_info, bnb_bfloat16_settings, generation_settings)
+
+    def create_prompt(self, augmented_query):
+        return (
+            f"<start_of_turn>user\n{system_message}\n\n{augmented_query}<end_of_turn>\n"
+            f"<start_of_turn>model\n"
+        )
+
+    @torch.inference_mode()
+    def generate_response(self, inputs, remove_token_type_ids=False):
+        streamer = TextIteratorStreamer(self.tokenizer, skip_prompt=True, skip_special_tokens=True)
+        eos_ids = [self.tokenizer.eos_token_id, self.tokenizer.convert_tokens_to_ids("<end_of_turn>")]
+        all_settings = {**inputs, **self.generation_settings, "streamer": streamer, "eos_token_id": eos_ids}
+        gen_thread, gen_box = _run_generation_thread(self.model, all_settings)
+        for chunk in streamer:
+            yield chunk
+        gen_thread.join()
+        if "error" in gen_box:
+            raise gen_box["error"]
+
+
 def generate_response(model_instance, augmented_query):
     prompt = model_instance.create_prompt(augmented_query)
     inputs = model_instance.create_inputs(prompt)
