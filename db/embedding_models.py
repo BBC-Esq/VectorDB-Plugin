@@ -1,3 +1,4 @@
+import functools
 import gc
 import logging
 import os
@@ -29,6 +30,25 @@ os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 # torch.compile (ModernBERT's reference_compile) needs MSVC's cl.exe on Windows; detect it silently so
 # compilation is only enabled when it will actually build (otherwise it falls back to eager/sdpa).
 _MSVC_AVAILABLE = shutil.which("cl") is not None
+
+
+@functools.lru_cache(maxsize=None)
+def _model_supports_flash(model_path: str) -> bool:
+    try:
+        import json
+        from transformers.models.auto.configuration_auto import CONFIG_MAPPING
+        from transformers.models.auto.modeling_auto import MODEL_MAPPING
+        model_type = json.loads((Path(model_path) / "config.json").read_text(encoding="utf-8")).get("model_type")
+        if not model_type or model_type not in CONFIG_MAPPING:
+            return False
+        model_cls = MODEL_MAPPING[CONFIG_MAPPING[model_type]]
+        flag = getattr(model_cls, "_supports_flash_attn", None)
+        if flag is None:
+            flag = getattr(model_cls, "_supports_flash_attn_2", False)
+        return bool(flag)
+    except Exception:
+        return False
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 STAGE_TOKENIZE_PATH = PROJECT_ROOT / "db" / "stage_tokenize.py"
@@ -319,21 +339,16 @@ class DirectEmbeddingModel:
         }
 
         is_cuda = self.device.lower().startswith("cuda")
+        is_half = self.dtype in (torch.float16, torch.bfloat16)
         config_kwargs = {}
-        if family == "qwen":
-            if is_cuda and supports_flash_attention():
-                model_kwargs["attn_implementation"] = "flash_attention_2"
-            else:
-                model_kwargs["attn_implementation"] = "sdpa"
-        elif family == "modernbert":
-            is_half = self.dtype in (torch.float16, torch.bfloat16)
-            if is_cuda and is_half and supports_flash_attention():
-                model_kwargs["attn_implementation"] = "flash_attention_2"
-            else:
-                model_kwargs["attn_implementation"] = "sdpa"
-            config_kwargs["reference_compile"] = _MSVC_AVAILABLE
+
+        if is_cuda and is_half and supports_flash_attention() and _model_supports_flash(self.model_path):
+            model_kwargs["attn_implementation"] = "flash_attention_2"
         else:
             model_kwargs["attn_implementation"] = "sdpa"
+
+        if family == "modernbert":
+            config_kwargs["reference_compile"] = _MSVC_AVAILABLE
 
         tokenizer_kwargs = {
             "model_max_length": self.max_seq_length,
