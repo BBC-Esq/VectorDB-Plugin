@@ -552,7 +552,8 @@ class MetricsWidget(QWidget):
         self.setToolTip("Right click for display options")
         self.collector_thread = MetricsCollectorThread()
         self.collector_thread.metrics_updated.connect(self.metrics_store.add_metrics)
-        self.start_metrics_collector()
+        # Diagnostic: metrics collector left stopped to rule out a background-thread (psutil/NVML) heap-corruption crash in the GUI; uncomment the next line to restore the live CPU/GPU bars.
+        # self.start_metrics_collector()
     def init_ui(self):
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
