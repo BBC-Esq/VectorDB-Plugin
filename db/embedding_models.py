@@ -2,6 +2,7 @@ import gc
 import logging
 import os
 import pickle
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -24,6 +25,10 @@ from core.utilities import (
 logger = logging.getLogger(__name__)
 
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+
+# torch.compile (ModernBERT's reference_compile) needs MSVC's cl.exe on Windows; detect it silently so
+# compilation is only enabled when it will actually build (otherwise it falls back to eager/sdpa).
+_MSVC_AVAILABLE = shutil.which("cl") is not None
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 STAGE_TOKENIZE_PATH = PROJECT_ROOT / "db" / "stage_tokenize.py"
@@ -321,8 +326,12 @@ class DirectEmbeddingModel:
             else:
                 model_kwargs["attn_implementation"] = "sdpa"
         elif family == "modernbert":
-            model_kwargs["attn_implementation"] = "eager"
-            config_kwargs["reference_compile"] = False
+            is_half = self.dtype in (torch.float16, torch.bfloat16)
+            if is_cuda and is_half and supports_flash_attention():
+                model_kwargs["attn_implementation"] = "flash_attention_2"
+            else:
+                model_kwargs["attn_implementation"] = "sdpa"
+            config_kwargs["reference_compile"] = _MSVC_AVAILABLE
         else:
             model_kwargs["attn_implementation"] = "sdpa"
 
