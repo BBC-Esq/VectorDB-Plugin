@@ -52,6 +52,8 @@ def _get_model_family(model_path: str) -> str:
         return "qwen"
     if "bge" in model_path_lower:
         return "bge"
+    if "modernbert" in model_path_lower:
+        return "modernbert"
     return "generic"
 
 
@@ -94,6 +96,8 @@ ENCODE_BATCH_SIZE_BY_MODEL = {
     "Octen-Embedding-0.6B": 10,
     "Octen-Embedding-4B": 5,
     "Octen-Embedding-8B": 3,
+    "modernbert-embed-base_finetune_512": 50,
+    "modernbert-embed-base_finetune_8192": 16,
 }
 
 
@@ -310,11 +314,15 @@ class DirectEmbeddingModel:
         }
 
         is_cuda = self.device.lower().startswith("cuda")
+        config_kwargs = {}
         if family == "qwen":
             if is_cuda and supports_flash_attention():
                 model_kwargs["attn_implementation"] = "flash_attention_2"
             else:
                 model_kwargs["attn_implementation"] = "sdpa"
+        elif family == "modernbert":
+            model_kwargs["attn_implementation"] = "eager"
+            config_kwargs["reference_compile"] = False
         else:
             model_kwargs["attn_implementation"] = "sdpa"
 
@@ -331,6 +339,7 @@ class DirectEmbeddingModel:
             trust_remote_code=True,
             model_kwargs=model_kwargs,
             tokenizer_kwargs=tokenizer_kwargs,
+            config_kwargs=config_kwargs,
         )
 
         self.model.max_seq_length = self.max_seq_length
@@ -519,6 +528,8 @@ def create_embedding_model(
 
     if family == "qwen":
         max_seq_length = 8192
+    elif family == "modernbert":
+        max_seq_length = 8192 if "8192" in model_name else 512
     else:
         max_seq_length = 512
 

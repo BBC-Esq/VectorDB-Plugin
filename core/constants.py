@@ -1339,6 +1339,34 @@ VECTOR_MODELS = {
             'license': 'apache-2.0',
         },
     ],
+    'FreeLawProject': [
+        {
+            'name': 'modernbert-embed-base_finetune_512',
+            'dimensions': 768,
+            'max_sequence': 512,
+            'size_mb': 596,
+            'repo_id': 'freelawproject/modernbert-embed-base_finetune_512',
+            'cache_dir': 'freelawproject--modernbert-embed-base_finetune_512',
+            'type': 'vector',
+            'parameters': '149m',
+            'precision': 'float32',
+            'rank': 9,
+            'license': 'cc0-1.0',
+        },
+        {
+            'name': 'modernbert-embed-base_finetune_8192',
+            'dimensions': 768,
+            'max_sequence': 8192,
+            'size_mb': 596,
+            'repo_id': 'freelawproject/modernbert-embed-base_finetune_8192',
+            'cache_dir': 'freelawproject--modernbert-embed-base_finetune_8192',
+            'type': 'vector',
+            'parameters': '149m',
+            'precision': 'float32',
+            'rank': 9,
+            'license': 'cc0-1.0',
+        },
+    ],
 }
 
 VISION_MODELS = {
