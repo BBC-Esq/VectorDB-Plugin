@@ -927,10 +927,10 @@ CHAT_MODELS = {
         'license': 'apache-2.0',
         'max_new_tokens': 2048,
     },
-    'Granite - 2b': {
-        'model': 'Granite - 2b',
-        'repo_id': 'ibm-granite/granite-3.3-2b-instruct',
-        'cache_dir': 'ibm-granite--granite-3.3-2b-instruct',
+    'Granite - 3b': {
+        'model': 'Granite - 3b',
+        'repo_id': 'ibm-granite/granite-4.1-3b',
+        'cache_dir': 'ibm-granite--granite-4.1-3b',
         'cps': 155.22,
         'vram': 3141.37,
         'function': 'Granite',
@@ -1001,8 +1001,8 @@ CHAT_MODELS = {
     },
     'Granite - 8b': {
         'model': 'Granite - 8b',
-        'repo_id': 'ibm-granite/granite-3.3-8b-instruct',
-        'cache_dir': 'ibm-granite--granite-3.3-8b-instruct',
+        'repo_id': 'ibm-granite/granite-4.1-8b',
+        'cache_dir': 'ibm-granite--granite-4.1-8b',
         'cps': 173.62,
         'vram': 8513.93,
         'function': 'Granite',

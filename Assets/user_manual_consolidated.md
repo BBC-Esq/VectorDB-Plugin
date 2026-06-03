@@ -488,11 +488,11 @@ it tends to produce the best results for retrieval augmented generation purposes
 as supporting up to 119 languages.  They were trained on approximately 36 trillion tokens, which is double the amount used for Qwen 2.5.
 Qwen has consistently created some of the best open source and free models available and they are a staple of this program.
 
-### What are the Granite 3.3 Chat Models?
-The Granite 3.3 chat models are the latest in the Granite series developed by IBM and are released under the Apache 2.0 license.
-They are "thinking" or "reasoning" models and have improved upon prior iterations in this regard.  The Granite models were trained
-on synthetically generated datasets for long-context tasks and are good for retrieval augmented generation purposes.  Version 3.3
-of the models exceed the performance of Granite 3.1 and 3.2 by a significant margin.
+### What are the Granite 4.1 Chat Models?
+The Granite 4.1 chat models are the latest in the Granite series developed by IBM and are released under the Apache 2.0 license.
+They are dense, decoder-only transformers trained on roughly 15 trillion tokens and support a long context window, which makes
+them well suited for retrieval augmented generation purposes.  Version 4.1 improves upon prior Granite releases in both reasoning
+and general response quality.
 
 ### What is the Mistral Small Chat Model?
 The Mistral Small chat model is the third iteration of Mistral models and has 24 billion parameters.  It is released under the

@@ -374,7 +374,7 @@ class Granite(BaseModel):
     def __init__(self, generation_settings, model_name):
         model_info = CHAT_MODELS[model_name]
 
-        if '2b' in model_name.lower() and not torch.cuda.is_available():
+        if '3b' in model_name.lower() and not torch.cuda.is_available():
             settings = {}
         else:
             settings = bnb_bfloat16_settings
