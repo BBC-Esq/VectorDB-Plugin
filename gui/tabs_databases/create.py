@@ -157,6 +157,10 @@ class DatabasesTab(QWidget):
         self.current_model_name = None
         self.current_database_name = None
 
+        self._docs_count_mtime = None
+        self._docs_count_cache = 0
+        self._config_mtime = None
+        self._config_cache = {}
         self._refresh_info_label()
         self.info_refresh_timer = QTimer(self)
         self.info_refresh_timer.setInterval(1000)
@@ -250,23 +254,43 @@ class DatabasesTab(QWidget):
         elif hasattr(self.docs_model, 'reindex'):
             self.docs_model.reindex()
 
+    @staticmethod
+    def _count_docs(docs_dir):
+        try:
+            with os.scandir(docs_dir) as it:
+                return sum(1 for entry in it if not entry.is_dir(follow_symlinks=False))
+        except OSError:
+            return 0
+
     def _refresh_info_label(self):
         script_dir = PROJECT_ROOT
         docs_dir = script_dir / "Docs_for_DB"
 
         try:
-            file_count = sum(1 for p in docs_dir.iterdir() if p.is_file()) if docs_dir.exists() else 0
+            docs_mtime = docs_dir.stat().st_mtime if docs_dir.exists() else None
         except OSError:
-            file_count = 0
+            docs_mtime = None
+        if docs_mtime != self._docs_count_mtime:
+            self._docs_count_mtime = docs_mtime
+            self._docs_count_cache = self._count_docs(docs_dir) if docs_mtime is not None else 0
+        file_count = self._docs_count_cache
 
         config_path = script_dir / "config.yaml"
-        config = {}
-        if config_path.exists():
-            try:
-                with open(config_path, "r", encoding="utf-8") as f:
-                    config = yaml.safe_load(f) or {}
-            except Exception:
-                config = {}
+        try:
+            config_mtime = config_path.stat().st_mtime if config_path.exists() else None
+        except OSError:
+            config_mtime = None
+        if config_mtime != self._config_mtime:
+            self._config_mtime = config_mtime
+            config = {}
+            if config_mtime is not None:
+                try:
+                    with open(config_path, "r", encoding="utf-8") as f:
+                        config = yaml.safe_load(f) or {}
+                except Exception:
+                    config = {}
+            self._config_cache = config
+        config = self._config_cache
 
         db_cfg = (config.get("database") or {})
         chunk_size = db_cfg.get("chunk_size", "—")
