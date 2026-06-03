@@ -503,14 +503,6 @@ users having 24 gigabytes of VRAM.  Sometimes larger models having 32 billion pa
 contexts but Mistral Small 3 leaves sufficient VRAM avaialble in such circumstances. Benchmark results also show that it excels at
 reasoning, coding, math, and instruction following, oftentimes producing more succinct answers than other similarly sized models.
 
-### What are the MiniCPM-4 chat models?
-The MiniCPM-4 chat models are ultra-efficient, open-source LLMs built by the OpenBMB team for edge devices, offered in lightweight
-0.5 B-parameter and 8 B-parameter versions.  The 8b variant achieves comparable performance to Qwen3-8B using only 22% of the training
-data.  The 0.5B parameter variant, despite having fewer parameters, significantly outperforms Qwen3-0.6B, Llama3.2-1B, and Gemma3-1B.
-The 8b variant matches Qwen3 8b and outperforms GLM4-9B, and exceeds larger models such as Gemma3-12B and approaches Phi4-14B.  The
-major advantage is on 128k context sequences where it achieves 7x faster decoding than Qwen3-8b due to the fact that it only attends
-to ~6k tokens out of 128k (5% sparsity).  These chat models focus on the English and Chinese languages.
-
 ### What are the BGE Embedding Models?
 The BGE family of embedding models were created by BAAI and have long been a staple within the embedding community and this program
 in particular.  They are well-respected as producing high quality embeddings for reasonable compute resources.  Although they are
