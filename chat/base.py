@@ -388,28 +388,6 @@ class Granite(BaseModel):
 <|start_of_role|>assistant<|end_of_role|>"""
 
 
-class Exaone(BaseModel):
-    def __init__(self, generation_settings, model_name):
-        model_info = CHAT_MODELS[model_name]
-
-        settings = copy.deepcopy(bnb_bfloat16_settings)
-        settings['tokenizer_settings']['trust_remote_code'] = True
-        settings['model_settings']['trust_remote_code'] = True
-
-        if '2.4b' in model_name.lower() and not torch.cuda.is_available():
-            settings = {
-                'tokenizer_settings': {'trust_remote_code': True},
-                'model_settings': {'trust_remote_code': True}
-            }
-
-        super().__init__(model_info, settings, generation_settings)
-
-    def create_prompt(self, augmented_query):
-        return f"""[|system|]{system_message}[|endofturn|]
-[|user|]{augmented_query}
-[|assistant|]"""
-
-
 class Qwen(BaseModel):
     def __init__(self, generation_settings, model_name):
         model_info = CHAT_MODELS[model_name]

@@ -415,8 +415,7 @@ is recommended to conserve VRAM for the LLM, as querying is less resource-intens
 You can always check the VRAM and speed for local models within the Tools Tab by clicking the "Chat Models" button, which will display
 a nice chart.  However, in general smaller models like Qwen 3 - 0.6b deliver exceptional speed at over 200 characters per second while
 requiring minimal VRAM (1.3GB), mid-range models in the 2-9 billion parameter range offer a sweet spot for most users, with speeds
-ranging from 150-400 characters per second and VRAM usage between 2.5-9.5GB. Notable standouts include the Exaone models, which consistently deliver faster performance than
-similarly-sized alternatives. For users with high-end GPUs, the larger 24-32 billion parameter models provide enhanced reasoning
+ranging from 150-400 characters per second and VRAM usage between 2.5-9.5GB. For users with high-end GPUs, the larger 24-32 billion parameter models provide enhanced reasoning
 capabilities at the cost of reduced speed (95-140 CPS) and substantial VRAM requirements (15-20GB).
 
 ### What are the speed and VRAM requirements for the various vision models?
