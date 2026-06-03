@@ -415,10 +415,9 @@ class CreateVectorDB:
                 dtype=object
             )
 
-            batch_structured = np.array(
-                [tuple(vec) for vec in batch_vectors],
-                dtype=[("", np.float32)] * embedding_dim
-            )
+            batch_structured = np.ascontiguousarray(batch_vectors).view(
+                [("", np.float32)] * embedding_dim
+            ).reshape(-1)
 
             with tiledb.open(array_uri, mode='w') as A:
                 A[batch_ids] = {
