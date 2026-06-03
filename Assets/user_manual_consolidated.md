@@ -511,13 +511,6 @@ The 8b variant matches Qwen3 8b and outperforms GLM4-9B, and exceeds larger mode
 major advantage is on 128k context sequences where it achieves 7x faster decoding than Qwen3-8b due to the fact that it only attends
 to ~6k tokens out of 128k (5% sparsity).  These chat models focus on the English and Chinese languages.
 
-### What is the Deepseek R1 Chat Model?
-The Deepseek R1 chat model was previously removed from this program, but it has been re-added since Deepseek released a newer and
-improved version in late May, 2025.  This new version, based on the Qwen3 architecture, has significantly improved both its reasoning
-and generic response tasks and is an excellent choice for retrieval augmented generation.  It claims to rival much larger open source
-models such as Qwen 3 32b and Phi-4 14b and even claims to outperform closed-source models such as OpenAI's os-mini (medium) and
-Google's Gemini 2.5 Flash, which is quite impressive.
-
 ### What are the BGE Embedding Models?
 The BGE family of embedding models were created by BAAI and have long been a staple within the embedding community and this program
 in particular.  They are well-respected as producing high quality embeddings for reasonable compute resources.  Although they are

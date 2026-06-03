@@ -1,7 +1,6 @@
 import yaml
 import logging
 import gc
-from copy import deepcopy
 import functools
 import copy
 from pathlib import Path
@@ -425,47 +424,6 @@ class Mistral_Small_24b(BaseModel):
 [SYSTEM_PROMPT]{system_message}[/SYSTEM_PROMPT]
 
 [INST]{augmented_query}[/INST]"""
-
-
-class DeepseekR1(BaseModel):
-    def __init__(self, generation_settings: dict, model_name: str):
-        model_info = CHAT_MODELS[model_name]
-
-        settings = deepcopy(bnb_bfloat16_settings)
-        settings["tokenizer_settings"]["trust_remote_code"] = True
-        settings["model_settings"]["trust_remote_code"] = True
-
-        custom_generation_settings = {
-            "max_length": generation_settings["max_length"],
-            "max_new_tokens": generation_settings["max_new_tokens"],
-            "do_sample": True,
-            "temperature": 0.6,
-            "top_p": 0.95,
-            "top_k": 40,
-            "num_beams": 1,
-            "use_cache": True
-        }
-
-        tokenizer_kwargs = {
-            "trust_remote_code": True,
-        }
-
-        super().__init__(
-            model_info,
-            settings,
-            custom_generation_settings,
-            attn_implementation=None,
-            tokenizer_kwargs=tokenizer_kwargs
-        )
-
-        self.generation_settings["pad_token_id"] = self.tokenizer.eos_token_id
-
-    def create_prompt(self, augmented_query: str) -> str:
-        return f"""<｜begin_of_sentence｜>{system_message}<｜User｜>{augmented_query}<｜Assistant｜>"""
-
-    @torch.inference_mode()
-    def generate_response(self, inputs, remove_token_type_ids: bool = False):
-        yield from super().generate_response(inputs, remove_token_type_ids)
 
 
 class SeedCoder(BaseModel):
