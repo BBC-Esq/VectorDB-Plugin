@@ -52,6 +52,7 @@ except ImportError:
     # (e.g. tests that only exercise pure helpers).
     pass
 
+import functools
 import gc
 import json
 import logging
@@ -95,9 +96,25 @@ from db.sqlite_operations import create_metadata_db
 from db.cuda_manager import get_cuda_manager
 from core.config import get_config
 from core.constants import PROJECT_ROOT, PIPELINE_PRESETS
-from core.utilities import my_cprint, set_cuda_paths, configure_logging
+from core.utilities import my_cprint, set_cuda_paths, configure_logging, normalize_text
 
 logger = logging.getLogger(__name__)
+
+
+@functools.lru_cache(maxsize=500000)
+def _sanitize_value(value):
+    cleaned = normalize_text(value)
+    return cleaned if cleaned is not None else ""
+
+
+def _sanitize_metadata(meta):
+    if not isinstance(meta, dict):
+        return meta
+    return {
+        key: _sanitize_value(value) if isinstance(value, str) else value
+        for key, value in meta.items()
+    }
+
 
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 os.environ.setdefault("RUST_BACKTRACE", "1")
@@ -568,7 +585,7 @@ class CreateVectorDB:
                     _, meta = chunks_with_meta[idx]
                 else:
                     meta = {}
-                all_metadatas.append(meta)
+                all_metadatas.append(_sanitize_metadata(meta))
 
             del chunks_with_meta
             gc.collect()
