@@ -48,7 +48,7 @@ def _get_tokenize_parallel_workers():
 
 def _get_model_family(model_path: str) -> str:
     model_path_lower = model_path.lower()
-    if "qwen" in model_path_lower or "qwen3-embedding" in model_path_lower:
+    if "qwen" in model_path_lower or "qwen3-embedding" in model_path_lower or "octen" in model_path_lower:
         return "qwen"
     if "bge" in model_path_lower:
         return "bge"
@@ -91,6 +91,9 @@ ENCODE_BATCH_SIZE_BY_MODEL = {
     "bge-large-en-v1.5": 50,
     "Qwen3-Embedding-0.6B": 10,
     "Qwen3-Embedding-4B": 5,
+    "Octen-Embedding-0.6B": 10,
+    "Octen-Embedding-4B": 5,
+    "Octen-Embedding-8B": 3,
 }
 
 

@@ -492,12 +492,15 @@ def get_model_native_precision(embedding_model_name, vector_models=None):
     model_name = os.path.basename(embedding_model_name)
     repo_style_name = model_name.replace('--', '/')
 
-    for group_name, group_models in vector_models.items():
-        logging.debug(f"Checking group: {group_name}")
+    for group_models in vector_models.values():
         for model in group_models:
-            logging.debug(f"Checking model: {model['repo_id']} / {model['name']}")
-            if model['repo_id'] == repo_style_name or model['name'] in model_name:
-                logging.debug(f"Found match! Using precision: {model['precision']}")
+            if model['repo_id'] == repo_style_name:
+                logging.debug(f"Exact repo_id match; using precision: {model['precision']}")
+                return model['precision']
+    for group_models in vector_models.values():
+        for model in group_models:
+            if model['name'] in model_name:
+                logging.debug(f"Name-substring match; using precision: {model['precision']}")
                 return model['precision']
     logging.debug("No match found, defaulting to float32")
     return 'float32'
@@ -566,6 +569,14 @@ def get_appropriate_dtype(compute_device, use_half, model_native_precision):
             else:
                 logging.debug("No CUDA available, returning float32")
                 return torch.float32
+
+    elif model_native_precision == 'int8':
+        if cuda_available:
+            dtype = torch.bfloat16 if cuda_capability[0] >= 8 else torch.float16
+            logging.debug(f"int8 (bnb 8-bit) model, using {dtype} compute dtype")
+            return dtype
+        logging.debug("int8 model without CUDA; bnb 8-bit needs a GPU, returning float32")
+        return torch.float32
 
     else:
         logging.debug(f"Unrecognized precision '{model_native_precision}', returning float32")
