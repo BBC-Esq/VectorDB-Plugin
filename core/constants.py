@@ -963,18 +963,6 @@ CHAT_MODELS = {
         'license': 'apache-2.0',
         'max_new_tokens': 2048,
     },
-    'Phi 4 Mini - 4b': {
-        'model': 'Phi 4 Mini - 4b',
-        'repo_id': 'microsoft/Phi-4-mini-instruct',
-        'cache_dir': 'microsoft--Phi-4-mini-instruct',
-        'cps': 222.77,
-        'vram': 4761.80,
-        'function': 'Phi4',
-        'precision': 'bfloat16',
-        'gated': False,
-        'license': 'mit',
-        'max_new_tokens': 2048,
-    },
     'Qwen 3 - 8b (Thinking)': {
         'model': 'Qwen 3 - 8b (Thinking)',
         'repo_id': 'Qwen/Qwen3-8B',

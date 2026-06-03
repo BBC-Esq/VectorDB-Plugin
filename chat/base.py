@@ -9,9 +9,7 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
     TextIteratorStreamer,
-    BitsAndBytesConfig,
-    StoppingCriteria,
-    StoppingCriteriaList
+    BitsAndBytesConfig
 )
 import threading
 from abc import ABC, abstractmethod
@@ -173,15 +171,6 @@ def check_if_model_is_gated(repo_id, hf_token):
             except Exception:
                 return False
         return False
-
-
-class _StopOnToken(StoppingCriteria):
-    def __init__(self, stop_ids):
-        self.stop_ids = set(stop_ids)
-
-    def __call__(self, input_ids, scores, **kwargs):
-        return input_ids[0, -1].item() in self.stop_ids
-
 
 
 class BaseModel(ABC):
@@ -444,77 +433,6 @@ class SeedCoder(BaseModel):
         inputs.pop("token_type_ids", None)
         yield from super().generate_response(inputs)
 
-
-class Phi4(BaseModel):
-    def __init__(self, generation_settings: dict, model_name: str):
-        model_info = CHAT_MODELS[model_name]
-
-        settings = copy.deepcopy(bnb_bfloat16_settings)
-        settings["model_settings"]["attn_implementation"] = "sdpa"
-        settings["model_settings"]["device_map"] = "auto"
-
-        if not torch.cuda.is_available():
-            settings = {"tokenizer_settings": {}, "model_settings": {"device_map": "cpu"}}
-
-        super().__init__(model_info, settings, generation_settings)
-
-        self.generation_settings["pad_token_id"] = self.tokenizer.eos_token_id
-
-    def create_prompt(self, augmented_query: str) -> str:
-        return (
-            f"<|system|>{system_message}<|end|>"
-            f"<|user|>{augmented_query}<|end|><|assistant|>"
-        )
-
-    @torch.inference_mode()
-    def generate_response(self, inputs, remove_token_type_ids: bool = False):
-        if remove_token_type_ids:
-            inputs.pop("token_type_ids", None)
-
-        eos_id   = self.tokenizer.eos_token_id
-        user_id  = self.tokenizer.convert_tokens_to_ids("<|user|>")
-        assist_id = self.tokenizer.convert_tokens_to_ids("<|assistant|>")
-
-        stop_criteria = StoppingCriteriaList([_StopOnToken({user_id, eos_id})])
-
-        streamer = TextIteratorStreamer(
-            self.tokenizer,
-            skip_prompt=True,
-            skip_special_tokens=False
-        )
-
-        gen_settings = {**inputs,
-                        **self.generation_settings,
-                        "streamer": streamer,
-                        "eos_token_id": eos_id,
-                        "pad_token_id": eos_id,
-                        "stopping_criteria": stop_criteria}
-        gen_thread, gen_box = _run_generation_thread(self.model, gen_settings)
-
-        buffer, sent = "", 0
-        ASSIST, USER, END = "<|assistant|>", "<|user|>", "<|end|>"
-
-        for chunk in streamer:
-            buffer += chunk
-
-            if ASSIST in buffer:
-                buffer = buffer.split(ASSIST)[-1]
-
-            for tag in (USER, END):
-                cut = buffer.find(tag)
-                if cut != -1:
-                    buffer = buffer[:cut]
-                    streamer.break_on_eos = True
-
-            clean = buffer.replace(ASSIST, "").replace(USER, "").replace(END, "")
-
-            if len(clean) > sent:
-                yield clean[sent:]
-                sent = len(clean)
-
-        gen_thread.join()
-        if "error" in gen_box:
-            raise gen_box["error"]
 
 def generate_response(model_instance, augmented_query):
     prompt = model_instance.create_prompt(augmented_query)
