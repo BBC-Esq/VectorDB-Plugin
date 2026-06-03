@@ -275,7 +275,11 @@ def check_pdfs_for_ocr(script_dir):
     n_procs = max(1, physical - 1)
 
     docs_dir = Path(script_dir) / "Docs_for_DB"
-    pdf_paths = [p for p in docs_dir.iterdir() if p.suffix.lower() == ".pdf"]
+    try:
+        with os.scandir(docs_dir) as it:
+            pdf_paths = [Path(entry.path) for entry in it if entry.name.lower().endswith(".pdf")]
+    except OSError:
+        pdf_paths = []
     if not pdf_paths:
         return True, ""
 
