@@ -415,6 +415,21 @@ class Mistral_Small_24b(BaseModel):
 [INST]{augmented_query}[/INST]"""
 
 
+class Phi4(BaseModel):
+    def __init__(self, generation_settings, model_name):
+        model_info = CHAT_MODELS[model_name]
+        settings = copy.deepcopy(bnb_bfloat16_settings)
+        settings['model_settings']['attn_implementation'] = "sdpa"
+        super().__init__(model_info, settings, generation_settings)
+
+    def create_prompt(self, augmented_query):
+        return (
+            f"<|im_start|>system<|im_sep|>{system_message}<|im_end|>"
+            f"<|im_start|>user<|im_sep|>{augmented_query}<|im_end|>"
+            f"<|im_start|>assistant<|im_sep|>"
+        )
+
+
 def generate_response(model_instance, augmented_query):
     prompt = model_instance.create_prompt(augmented_query)
     inputs = model_instance.create_inputs(prompt)

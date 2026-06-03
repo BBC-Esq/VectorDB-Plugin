@@ -999,6 +999,18 @@ CHAT_MODELS = {
         'license': 'apache-2.0',
         'max_new_tokens': 4096,
     },
+    'Phi 4 - 14b': {
+        'model': 'Phi 4 - 14b',
+        'repo_id': 'microsoft/phi-4',
+        'cache_dir': 'microsoft--phi-4',
+        'cps': 140.0,
+        'vram': 9500.0,
+        'function': 'Phi4',
+        'precision': 'bfloat16',
+        'gated': False,
+        'license': 'mit',
+        'max_new_tokens': 2048,
+    },
     'Mistral Small 3 - 24b': {
         'model': 'Mistral Small 3 - 24b',
         'repo_id': 'mistralai/Mistral-Small-24B-Instruct-2501',
