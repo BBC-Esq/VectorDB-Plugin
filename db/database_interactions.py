@@ -70,6 +70,13 @@ from typing import Optional
 import numpy as np
 import torch
 
+# Compatibility shim: numpy 2.4.0 removed the top-level np.in1d (deprecated since numpy 2.0), but
+# tiledb-vector-search 0.16.0 still calls it in ingest_flat, which crashes database creation.
+# np.isin is numpy's exact drop-in replacement.
+# REMOVE THIS SHIM once tiledb-vector-search switches np.in1d -> np.isin (a future release will fix it upstream).
+if not hasattr(np, "in1d"):
+    np.in1d = np.isin
+
 # orjson is a Rust-based JSON encoder that's ~10x faster than stdlib json
 # and avoids the heap fragmentation that triggers OverflowError + access
 # violation when serializing millions of metadata dicts in tight loops.
