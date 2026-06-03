@@ -1011,6 +1011,18 @@ CHAT_MODELS = {
         'license': 'mit',
         'max_new_tokens': 2048,
     },
+    'Gemma 3 - 4b': {
+        'model': 'Gemma 3 - 4b',
+        'repo_id': 'google/gemma-3-4b-it',
+        'cache_dir': 'google--gemma-3-4b-it',
+        'cps': 180.0,
+        'vram': 4500.0,
+        'function': 'Gemma3',
+        'precision': 'bfloat16',
+        'gated': True,
+        'license': 'gemma',
+        'max_new_tokens': 2048,
+    },
     'Gemma 3 - 12b': {
         'model': 'Gemma 3 - 12b',
         'repo_id': 'google/gemma-3-12b-it',
