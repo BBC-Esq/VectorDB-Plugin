@@ -415,25 +415,6 @@ class Mistral_Small_24b(BaseModel):
 [INST]{augmented_query}[/INST]"""
 
 
-class SeedCoder(BaseModel):
-    def __init__(self, generation_settings, model_name=None):
-        model_info = CHAT_MODELS[model_name]
-        super().__init__(model_info, bnb_bfloat16_settings, generation_settings)
-
-    def create_prompt(self, augmented_query):
-        return f"""<[begin_of_sentence]>system
-{system_message}
-
-<[end_of_sentence]><[begin_of_sentence]>user
-{augmented_query}<[begin_of_sentence]>assistant
-"""
-
-    @torch.inference_mode()
-    def generate_response(self, inputs):
-        inputs.pop("token_type_ids", None)
-        yield from super().generate_response(inputs)
-
-
 def generate_response(model_instance, augmented_query):
     prompt = model_instance.create_prompt(augmented_query)
     inputs = model_instance.create_inputs(prompt)

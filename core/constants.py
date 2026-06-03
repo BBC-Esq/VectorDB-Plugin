@@ -975,18 +975,6 @@ CHAT_MODELS = {
         'license': 'apache-2.0',
         'max_new_tokens': 2048,
     },
-    'Seed Coder - 8b': {
-        'model': 'Seed Coder - 8b',
-        'repo_id': 'ByteDance-Seed/Seed-Coder-8B-Instruct',
-        'cache_dir': 'ByteDance-Seed--Seed-Coder-8B-Instruct',
-        'cps': 183.82,
-        'vram': 8441.93,
-        'function': 'SeedCoder',
-        'precision': 'bfloat16',
-        'gated': False,
-        'license': 'mit',
-        'max_new_tokens': 2048,
-    },
     'Granite - 8b': {
         'model': 'Granite - 8b',
         'repo_id': 'ibm-granite/granite-4.1-8b',
