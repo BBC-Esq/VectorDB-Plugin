@@ -2,6 +2,7 @@ import os
 import traceback
 import inspect
 import time
+import types
 import warnings
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
@@ -447,6 +448,7 @@ class loader_qwenvl(BaseLoader):
             device_map="auto",
         )
         model.eval()
+        self._replace_conv3d_patch_embed_with_matmul(model)
 
         _, precision_str = self.detect_dtype()
         device_str = "CUDA" if self.device == "cuda" else "CPU"
@@ -481,6 +483,39 @@ class loader_qwenvl(BaseLoader):
         response = response.split('assistant')[-1].strip()
 
         return self.normalize_response(response)
+
+    def _replace_conv3d_patch_embed_with_matmul(self, model):
+        """Replace the Qwen-VL vision patch-embed Conv3d with its exact matmul equivalent.
+
+        The patch embed is an ``nn.Conv3d``. On some GPUs cuDNN has no fast bf16/fp16
+        3D-convolution kernel for certain shapes and falls back to a path ~100x slower:
+        Qwen3-VL's conv took ~12-15s per image here (the entire prefill), while
+        Qwen2.5-VL's differently shaped conv hits a fast kernel and stays ~0.15s -- same
+        code and dtypes, only the conv dimensions differ.
+
+        Because ``kernel == stride == patch size``, each patch is an independent linear
+        projection, so the conv is mathematically an exact matmul. Swapping it for that
+        matmul sidesteps cuDNN: microseconds in bf16, numerically identical to within
+        bf16 rounding. No-op if the patch embed is not an ``nn.Conv3d``.
+        """
+        try:
+            patch_embed = model.model.visual.patch_embed
+            proj = patch_embed.proj
+            if not isinstance(proj, torch.nn.Conv3d):
+                return
+            weight = proj.weight.detach().reshape(proj.weight.shape[0], -1).t().contiguous()
+            bias = proj.bias.detach() if proj.bias is not None else None
+            in_features = weight.shape[0]
+
+            def forward(self, hidden_states):
+                hidden_states = hidden_states.view(-1, in_features).to(weight.dtype)
+                if bias is None:
+                    return hidden_states.matmul(weight)
+                return torch.addmm(bias, hidden_states, weight)
+
+            patch_embed.forward = types.MethodType(forward, patch_embed)
+        except Exception as exc:
+            my_cprint(f"Qwen-VL patch-embed optimization skipped: {exc}", "yellow")
 
 
 class loader_liquidvl(BaseLoader):
