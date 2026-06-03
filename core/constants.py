@@ -1011,18 +1011,6 @@ CHAT_MODELS = {
         'license': 'apache-2.0',
         'max_new_tokens': 4096,
     },
-    'Qwen 3 - 32b (Thinking)': {
-        'model': 'Qwen 3 - 32b (Thinking)',
-        'repo_id': 'Qwen/Qwen3-32B',
-        'cache_dir': 'Qwen--Qwen3-32B',
-        'cps': 97.56,
-        'vram': 19493.55,
-        'function': 'Qwen',
-        'precision': 'bfloat16',
-        'gated': False,
-        'license': 'apache-2.0',
-        'max_new_tokens': 4096,
-    },
 }
 
 VECTOR_MODELS = {
