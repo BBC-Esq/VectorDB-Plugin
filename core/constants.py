@@ -699,7 +699,7 @@ libs = [
     "nodeenv==1.10.0",
     "nltk==3.9.4",
     "numba==0.65.1",  # locked to llvmlite 0.47.x; caps numpy<2.5 (raised from 0.62.1's <2.4, which unblocks numpy 2.4.6)
-    "numpy==2.4.6",  # enabled by numba 0.65.1 (caps numpy<2.5); numba 0.62.1's <2.4 would block this, so don't roll numba back. Upper ceiling is scipy 1.16.3 (numpy<2.6): 2.5.x reachable later, 2.6+ needs newer scipy
+    "numpy==2.3.4",  # HOLD at 2.3.4: numpy 2.4.6 corrupts the heap during large TileDB builds (~1.9M chunks), causing an access violation in _create_tiledb_array (confirmed by bisection). Do not bump until that 2.4 regression is fixed upstream. numba 0.65.1 caps numpy<2.5 regardless.
     # ocrmypdf capped at 16.13.0 (Option A): gets onto pikepdf 10.x with NO new deps and no pydantic change.
     # The full feature jump to ocrmypdf 17.x swaps the PDF render/generate backend and would ALSO require:
     # pydantic 2.13.x + pydantic_core 2.46.x, PLUS 4 new libs to add here (fpdf2, pypdfium2, uharfbuzz, defusedxml).
