@@ -98,7 +98,7 @@ class CustomFileSystemModel(QFileSystemModel):
 
 
 class DatabasesTab(QWidget):
-    CREATE_DB_BUTTON_LABEL = "Create Vector Database"
+    CREATE_DB_BUTTON_LABEL = "Create Database"
     CREATE_DB_BUTTON_BUSY_LABEL = "Creating..."
 
     def __init__(self):
