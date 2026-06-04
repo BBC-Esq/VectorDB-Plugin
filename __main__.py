@@ -8,4 +8,6 @@ from core.utilities import set_cuda_paths
 set_cuda_paths()
 
 from gui.main_window import main
-main()
+
+if __name__ == '__main__':
+    main()
