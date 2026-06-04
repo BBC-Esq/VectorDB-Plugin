@@ -347,6 +347,9 @@ class DirectEmbeddingModel:
         else:
             model_kwargs["attn_implementation"] = "sdpa"
 
+        # Force sdpa for now. flash-attn was NOT the cause of the earlier large-build crashes (that was numpy 2.4.6, now pinned to 2.3.4); this is kept only out of caution. To re-enable adaptive flash-attention-2 selection, delete this line.
+        model_kwargs["attn_implementation"] = "sdpa"
+
         if family == "modernbert":
             config_kwargs["reference_compile"] = _MSVC_AVAILABLE
 
