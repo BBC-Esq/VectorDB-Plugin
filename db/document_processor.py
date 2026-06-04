@@ -4,10 +4,8 @@ import logging
 import warnings
 import datetime
 import hashlib
-import re
 from pathlib import Path
-from dataclasses import dataclass, field
-from typing import List, Tuple, Optional
+from typing import Optional
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 
 import fitz
