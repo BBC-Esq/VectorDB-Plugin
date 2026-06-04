@@ -395,10 +395,20 @@ class CreateVectorDB:
             # than stdlib json). The stdlib json.dumps loop here triggered an
             # OverflowError + access violation at the Caselaw scale due to
             # heap fragmentation from millions of small string allocations.
-            batch_metadata = np.array(
-                [_json_dumps(metadatas[i]) for i in range(start, end)],
-                dtype=object
-            )
+            # Consecutive-dedup: a file's chunks are consecutive with identical metadata, so reuse
+            # the prior JSON string when the dict is unchanged (cuts serializations ~1.9M -> ~125K).
+            batch_meta_strs = []
+            prev_meta = None
+            prev_meta_str = None
+            for i in range(start, end):
+                meta = metadatas[i]
+                if prev_meta_str is not None and meta == prev_meta:
+                    batch_meta_strs.append(prev_meta_str)
+                else:
+                    prev_meta_str = _json_dumps(meta)
+                    prev_meta = meta
+                    batch_meta_strs.append(prev_meta_str)
+            batch_metadata = np.array(batch_meta_strs, dtype=object)
 
             batch_structured = np.ascontiguousarray(batch_vectors).view(
                 [("", np.float32)] * embedding_dim
