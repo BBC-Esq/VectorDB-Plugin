@@ -42,7 +42,7 @@ def main():
         doc_data = pickle.load(f)
 
     from db.document_processor import FixedSizeTextSplitter, add_pymupdf_page_metadata, Document
-    from core.utilities import normalize_text
+    from core.text_utils import normalize_text
 
     splitter = FixedSizeTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 

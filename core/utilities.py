@@ -21,6 +21,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from termcolor import cprint
 
 from core.constants import PROJECT_ROOT, THEMES
+from core.text_utils import normalize_text
 
 def set_cuda_paths():
     import sys
@@ -873,65 +874,6 @@ def prepare_long_path(base_path: str, filename: str) -> str:
         full_path = "\\\\?\\" + os.path.abspath(full_path)
 
     return full_path
-
-
-def normalize_text(text, preserve_whitespace=False):
-    import unicodedata
-
-    if text is None:
-        return None
-
-    if isinstance(text, (list, tuple)):
-        text = " ".join(str(item) for item in text if item is not None)
-
-    if not isinstance(text, str):
-        text = str(text)
-
-    text = unicodedata.normalize("NFKC", text)
-
-    INVISIBLE_CHARS = {
-        '\u00ad', '\u200b', '\u200c', '\u200d', '\u200e', '\u200f',
-        '\u2060', '\u2061', '\u2062', '\u2063', '\u2064', '\ufeff',
-    }
-
-    cleaned = []
-    for char in text:
-        code = ord(char)
-        if char == '\n' or char == '\t':
-            if preserve_whitespace:
-                cleaned.append(char)
-            else:
-                cleaned.append(' ')
-        elif char == '\r':
-            cleaned.append(' ')
-        elif code < 32:
-            continue
-        elif code == 127:
-            continue
-        elif code > 65535:
-            continue
-        elif char in INVISIBLE_CHARS:
-            continue
-        elif 128 <= code <= 159:
-            continue
-        elif code == 65533:
-            continue
-        elif 57344 <= code <= 63743:
-            continue
-        else:
-            cleaned.append(char)
-
-    result = "".join(cleaned)
-
-    if preserve_whitespace:
-        result = re.sub(r'[^\S\n\t]+', ' ', result)
-        result = re.sub(r' *\n *', '\n', result)
-        result = re.sub(r'\n{3,}', '\n\n', result)
-    else:
-        result = " ".join(result.split())
-
-    result = result.strip()
-    return result if result else None
 
 
 def get_embedding_batch_size(model_name: str, compute_device: str) -> int:

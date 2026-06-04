@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_compl
 import fitz
 from bs4 import BeautifulSoup
 
-from core.utilities import normalize_text
+from core.text_utils import normalize_text
 from core.constants import SUPPORTED_EXTENSIONS, PIPELINE_PRESETS
 
 warnings.filterwarnings("ignore", category=FutureWarning)
