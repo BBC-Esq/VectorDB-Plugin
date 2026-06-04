@@ -273,7 +273,7 @@ def check_pdfs_for_ocr(script_dir):
         estimate = max(logical // 2, logical - 4)
         physical = max(1, estimate)
 
-    n_procs = max(1, physical - 1)
+    n_threads = max(1, physical - 1)
 
     docs_dir = Path(script_dir) / "Docs_for_DB"
     try:
@@ -284,9 +284,12 @@ def check_pdfs_for_ocr(script_dir):
     if not pdf_paths:
         return True, ""
 
-    ctx = mp.get_context("spawn")
-    with ctx.Pool(processes=n_procs) as pool:
-        mask = pool.map(_needs_ocr_worker, map(str, pdf_paths), chunksize=16)
+    # fitz across threads is safe here (each call opens/closes its OWN doc; the GIL serializes MuPDF),
+    # the same pattern load_documents uses. Threads avoid a spawn Pool re-importing the GUI's torch +
+    # PySide6 __main__ in every worker, and the spawn-from-GUI 0xC0000005 hazard, for a fitz-only check.
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=n_threads) as ex:
+        mask = list(ex.map(_needs_ocr_worker, map(str, pdf_paths)))
 
     non_ocr_pdfs = [p for p, flag in zip(pdf_paths, mask) if flag]
     if non_ocr_pdfs:
