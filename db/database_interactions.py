@@ -383,9 +383,11 @@ class CreateVectorDB:
             )
             all_ids[start:end] = batch_ids
 
+            # Build all id strings in one C-level call instead of ~1.9M per-item str() calls, to reduce write-loop heap churn.
+            batch_id_strs = batch_ids.astype(str).tolist()
             for i in range(start, end):
                 file_hash = metadatas[i].get('hash', '')
-                hash_id_mappings.append((str(batch_ids[i - start]), file_hash))
+                hash_id_mappings.append((batch_id_strs[i - start], file_hash))
 
             batch_vectors = vectors_array[start:end]
             batch_texts = np.array(texts[start:end], dtype=object)
