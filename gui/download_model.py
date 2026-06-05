@@ -108,8 +108,6 @@ class ModelDownloader(QObject):
             "*.tflite",
             "*.pb",
             "*.msgpack",
-            "*.safetensors.index.json",
-            "*.bin.index.json",
             "*.flax",
             "*.npz",
             "*.tar",
@@ -133,6 +131,7 @@ class ModelDownloader(QObject):
         bin_files = [f.rfilename for f in repo_files if isinstance(f, RepoFile) and f.rfilename.endswith(".bin")]
         if safetensors_files and bin_files:
             final_ignore.append("*.bin")
+            final_ignore.append("*.bin.index.json")
         if safetensors_files or bin_files:
             final_ignore.append("*consolidated*")
         if allow_patterns is None:
