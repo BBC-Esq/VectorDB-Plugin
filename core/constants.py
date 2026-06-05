@@ -867,8 +867,8 @@ CHAT_MODELS = {
         'license': 'lfm1.0',
         'max_new_tokens': 1024,
     },
-    'Qwen 3 - 0.6b (Thinking)': {
-        'model': 'Qwen 3 - 0.6b (Thinking)',
+    'Qwen 3 - 0.6b': {
+        'model': 'Qwen 3 - 0.6b',
         'repo_id': 'Qwen/Qwen3-0.6B',
         'cache_dir': 'Qwen--Qwen3-0.6B',
         'cps': 203.25,
@@ -903,8 +903,8 @@ CHAT_MODELS = {
         'license': 'lfm1.0',
         'max_new_tokens': 2048,
     },
-    'Qwen 3 - 1.7b (Thinking)': {
-        'model': 'Qwen 3 - 1.7b (Thinking)',
+    'Qwen 3 - 1.7b': {
+        'model': 'Qwen 3 - 1.7b',
         'repo_id': 'Qwen/Qwen3-1.7B',
         'cache_dir': 'Qwen--Qwen3-1.7B',
         'cps': 200.81,
@@ -939,20 +939,8 @@ CHAT_MODELS = {
         'license': 'apache-2.0',
         'max_new_tokens': 2048,
     },
-    'Qwen 3 - 4b (Thinking)': {
-        'model': 'Qwen 3 - 4b (Thinking)',
-        'repo_id': 'Qwen/Qwen3-4B-Thinking-2507',
-        'cache_dir': 'Qwen--Qwen3-4B-Thinking-2507',
-        'cps': 153.87,
-        'vram': 4439.74,
-        'function': 'Qwen',
-        'precision': 'bfloat16',
-        'gated': False,
-        'license': 'apache-2.0',
-        'max_new_tokens': 2048,
-    },
-    'Qwen 3 - 8b (Thinking)': {
-        'model': 'Qwen 3 - 8b (Thinking)',
+    'Qwen 3 - 8b': {
+        'model': 'Qwen 3 - 8b',
         'repo_id': 'Qwen/Qwen3-8B',
         'cache_dir': 'Qwen--Qwen3-8B',
         'cps': 152.61,
@@ -975,8 +963,8 @@ CHAT_MODELS = {
         'license': 'apache-2.0',
         'max_new_tokens': 2048,
     },
-    'Qwen 3 - 14b (Thinking)': {
-        'model': 'Qwen 3 - 14b (Thinking)',
+    'Qwen 3 - 14b': {
+        'model': 'Qwen 3 - 14b',
         'repo_id': 'Qwen/Qwen3-14B',
         'cache_dir': 'Qwen--Qwen3-14B',
         'cps': 140.79,

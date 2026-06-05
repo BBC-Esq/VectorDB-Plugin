@@ -67,14 +67,7 @@ _JEEVES_CLASSES = {
 }
 
 
-_JEEVES_KEY_ALIASES = {
-    "Qwen 3 - 0.6b": "Qwen 3 - 0.6b (Thinking)",
-    "Qwen 3 - 1.7b": "Qwen 3 - 1.7b (Thinking)",
-}
-
-
 def load_jeeves_model(chat_model_key):
-    chat_model_key = _JEEVES_KEY_ALIASES.get(chat_model_key, chat_model_key)
     info = CHAT_MODELS.get(chat_model_key)
     if info is None:
         raise ValueError(f"'{chat_model_key}' is not in CHAT_MODELS.")

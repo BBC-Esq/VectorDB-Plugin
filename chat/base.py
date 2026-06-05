@@ -394,12 +394,16 @@ class Qwen(BaseModel):
         super().__init__(model_info, settings, generation_settings)
 
     def create_prompt(self, augmented_query):
-        return f"""<|im_start|>system
-{system_message}<|im_end|>
-<|im_start|>user
-{augmented_query}<|im_end|>
-<|im_start|>assistant
-"""
+        messages = [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": augmented_query},
+        ]
+        return self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=False,
+        )
 
 
 class Mistral_Small_24b(BaseModel):

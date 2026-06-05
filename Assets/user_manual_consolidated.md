@@ -582,14 +582,12 @@ chat models that this program uses sometimes changes as newer models come out wi
 added or removed will be noted in the release notes on Github for the record.
 
 ### What are the Qwen 3 Chat Models?
-Qwen3 is the latest release in the Qwen family of large language models from Alibaba. They come in six sizes ranging from .6
-billion parameters to 32 billion parameters and can be used under the liberal Apache 2.0 license. A key innovation with the Qwen3
-series is its hybrid "thinking" versus "non-thinking" modes, and this program offers both: the "Thinking" variants reason step-by-
-step before answering, which can improve quality on complex questions, while the standard instruct (non-thinking) variants respond
-more directly and quickly. The name shown in the pulldown menu indicates which mode you are selecting. The Qwen3 models are
-multilingual and are touted as supporting up to 119 languages. They were trained on approximately 36 trillion tokens, double the
-amount used for Qwen 2.5. Qwen has consistently produced some of the best open source and free models available, and they are a
-staple of this program.
+Qwen3 is the latest release in the Qwen family of large language models from Alibaba. This program offers several sizes -- 0.6b,
+1.7b, 4b, 8b, and 14b -- all usable under the liberal Apache 2.0 license. The Qwen3 models are capable of a step-by-step
+"thinking" mode, but this program runs them in non-thinking mode so they answer directly and concisely without a visible reasoning
+trace, which suits retrieval augmented generation well. The Qwen3 models are multilingual and are touted as supporting up to 119
+languages. They were trained on approximately 36 trillion tokens, double the amount used for Qwen 2.5. Qwen has consistently
+produced some of the best open source and free models available, and they are a staple of this program.
 
 ### What are the Granite 4.1 Chat Models?
 The Granite 4.1 chat models are the latest in the Granite series developed by IBM and are released under the Apache 2.0 license.
