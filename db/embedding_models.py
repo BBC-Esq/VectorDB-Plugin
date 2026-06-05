@@ -340,6 +340,9 @@ class DirectEmbeddingModel:
             return "left"
         return None
 
+    def _extra_tokenizer_kwargs(self):
+        return {}
+
     def _initialize_model(self):
         family = _get_model_family(self.model_path)
 
@@ -369,6 +372,8 @@ class DirectEmbeddingModel:
         padding_side = self._resolve_padding_side(family)
         if padding_side is not None:
             tokenizer_kwargs["padding_side"] = padding_side
+
+        tokenizer_kwargs.update(self._extra_tokenizer_kwargs())
 
         self.model = SentenceTransformer(
             model_name_or_path=self.model_path,
@@ -555,6 +560,9 @@ class HarrierEmbeddingModel(DirectEmbeddingModel):
 
     def _resolve_padding_side(self, family):
         return self.PADDING_SIDE
+
+    def _extra_tokenizer_kwargs(self):
+        return {"fix_mistral_regex": False}
 
 
 def create_embedding_model(
