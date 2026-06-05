@@ -7,9 +7,9 @@ import shutil
 import subprocess
 from pathlib import Path
 import yaml
-from PySide6.QtCore import QDir, QRegularExpression, QThread, QTimer, Qt, Signal
+from PySide6.QtCore import QAbstractListModel, QModelIndex, QRegularExpression, QThread, QTimer, Qt, Signal
 from PySide6.QtGui import QAction, QRegularExpressionValidator
-from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QTreeView, QFileSystemModel, QMenu, QGroupBox, QLabel, QLineEdit, QGridLayout, QSizePolicy, QComboBox
+from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QListView, QMenu, QGroupBox, QLabel, QLineEdit, QGridLayout, QSizePolicy, QComboBox
 
 from db.database_interactions import create_vector_db_in_process
 from db.choose_documents import choose_documents_directory
@@ -91,10 +91,23 @@ class VectorDBWorker(QThread):
             self._process.terminate()
 
 
-class CustomFileSystemModel(QFileSystemModel):
+class StagedFilesModel(QAbstractListModel):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFilter(QDir.Files)
+        self._names = []
+
+    def set_files(self, names):
+        self.beginResetModel()
+        self._names = names
+        self.endResetModel()
+
+    def rowCount(self, parent=QModelIndex()):
+        return 0 if parent.isValid() else len(self._names)
+
+    def data(self, index, role=Qt.DisplayRole):
+        if index.isValid() and role == Qt.DisplayRole:
+            return self._names[index.row()]
+        return None
 
 
 class DatabasesTab(QWidget):
@@ -248,19 +261,16 @@ class DatabasesTab(QWidget):
         group_box.toggled.connect(lambda checked, gb=group_box: self.toggle_group_box(gb, checked))
         return group_box
 
-    def _refresh_docs_model(self):
-        if hasattr(self.docs_model, 'refresh'):
-            self.docs_model.refresh()
-        elif hasattr(self.docs_model, 'reindex'):
-            self.docs_model.reindex()
-
     @staticmethod
-    def _count_docs(docs_dir):
+    def _scan_docs(docs_dir):
         try:
             with os.scandir(docs_dir) as it:
-                return sum(1 for entry in it if not entry.is_dir(follow_symlinks=False))
+                return sorted(
+                    entry.name for entry in it
+                    if not entry.is_dir(follow_symlinks=False)
+                )
         except OSError:
-            return 0
+            return []
 
     def _refresh_info_label(self):
         script_dir = PROJECT_ROOT
@@ -272,7 +282,10 @@ class DatabasesTab(QWidget):
             docs_mtime = None
         if docs_mtime != self._docs_count_mtime:
             self._docs_count_mtime = docs_mtime
-            self._docs_count_cache = self._count_docs(docs_dir) if docs_mtime is not None else 0
+            names = self._scan_docs(docs_dir) if docs_mtime is not None else []
+            self._docs_count_cache = len(names)
+            if getattr(self, "docs_list_model", None) is not None:
+                self.docs_list_model.set_files(names)
         file_count = self._docs_count_cache
 
         config_path = script_dir / "config.yaml"
@@ -306,6 +319,10 @@ class DatabasesTab(QWidget):
             f"&nbsp;&nbsp;|&nbsp;&nbsp;<b>Embedding precision:</b> {precision_str}"
         )
         self.info_label.setText(text)
+
+    def refresh_staged_files(self):
+        self._docs_count_mtime = object()
+        self._refresh_info_label()
 
     def _compute_precision_str(self, config, use_half):
         from core.constants import VECTOR_MODELS
@@ -341,48 +358,39 @@ class DatabasesTab(QWidget):
             return native_precision
 
     def setup_directory_view(self, directory_name):
-        tree_view = QTreeView()
-        model = CustomFileSystemModel()
-        tree_view.setModel(model)
-        tree_view.setSelectionMode(QTreeView.ExtendedSelection)
-        script_dir = PROJECT_ROOT
-        directory_path = script_dir / directory_name
-        model.setRootPath(str(directory_path))
-        tree_view.setRootIndex(model.index(str(directory_path)))
-        tree_view.hideColumn(1)
-        tree_view.hideColumn(2)
-        tree_view.hideColumn(3)
-        tree_view.doubleClicked.connect(self.on_double_click)
-        tree_view.setContextMenuPolicy(Qt.CustomContextMenu)
-        tree_view.customContextMenuRequested.connect(self.on_context_menu)
+        list_view = QListView()
+        model = StagedFilesModel(self)
+        list_view.setModel(model)
+        list_view.setSelectionMode(QListView.ExtendedSelection)
+        list_view.setUniformItemSizes(True)
+        list_view.setEditTriggers(QListView.NoEditTriggers)
+        list_view.doubleClicked.connect(self.on_double_click)
+        list_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        list_view.customContextMenuRequested.connect(self.on_context_menu)
         if directory_name == "Docs_for_DB":
-            self.docs_model = model
-            self.docs_refresh = QTimer(self)
-            self.docs_refresh.setInterval(500)
-            self.docs_refresh.timeout.connect(self._refresh_docs_model)
-        return tree_view
+            self.docs_list_model = model
+            self.docs_list_view = list_view
+        return list_view
 
     def on_double_click(self, index):
-        tree_view = self.sender()
-        model = tree_view.model()
-        file_path = model.filePath(index)
-        open_file(file_path)
+        name = index.data(Qt.DisplayRole)
+        if name:
+            open_file(str(PROJECT_ROOT / "Docs_for_DB" / name))
 
     def on_context_menu(self, point):
-        tree_view = self.sender()
+        list_view = self.sender()
         context_menu = QMenu(self)
         delete_action = QAction("Delete File", self)
         context_menu.addAction(delete_action)
-        delete_action.triggered.connect(lambda: self.on_delete_file(tree_view))
-        context_menu.exec_(tree_view.viewport().mapToGlobal(point))
+        delete_action.triggered.connect(lambda: self.on_delete_file(list_view))
+        context_menu.exec_(list_view.viewport().mapToGlobal(point))
 
-    def on_delete_file(self, tree_view):
-        selected_indexes = tree_view.selectedIndexes()
-        model = tree_view.model()
-        for index in selected_indexes:
-            if index.column() == 0:
-                file_path = model.filePath(index)
-                delete_file(file_path)
+    def on_delete_file(self, list_view):
+        names = [idx.data(Qt.DisplayRole) for idx in list_view.selectedIndexes()]
+        for name in names:
+            if name:
+                delete_file(str(PROJECT_ROOT / "Docs_for_DB" / name))
+        self.refresh_staged_files()
 
     def on_create_db_clicked(self):
         if self.model_combobox.currentIndex() == 0:

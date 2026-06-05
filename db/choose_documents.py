@@ -6,7 +6,6 @@ from PySide6.QtCore import QElapsedTimer, QThread, Signal, Qt
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
-    QFileSystemModel,
     QHBoxLayout,
     QProgressDialog,
     QVBoxLayout,
@@ -148,15 +147,6 @@ def choose_documents_directory():
 
         worker = SymlinkWorker(source, target_dir)
         main_window = _get_main_window()
-        if main_window and hasattr(main_window, "databases_tab"):
-            db_tab = main_window.databases_tab
-            if hasattr(db_tab, "docs_model") and db_tab.docs_model:
-                if hasattr(QFileSystemModel, "DontWatchForChanges"):
-                    db_tab.docs_model.setOption(
-                        QFileSystemModel.DontWatchForChanges, True
-                    )
-                if hasattr(db_tab, "docs_refresh"):
-                    db_tab.docs_refresh.start()
 
         progress.canceled.connect(worker.requestInterruption)
 
@@ -170,17 +160,8 @@ def choose_documents_directory():
         def _done(count, errs):
             if main_window and hasattr(main_window, "databases_tab"):
                 db_tab = main_window.databases_tab
-                if hasattr(db_tab, "docs_refresh"):
-                    db_tab.docs_refresh.stop()
-                if hasattr(db_tab, "docs_model") and db_tab.docs_model:
-                    if hasattr(db_tab.docs_model, "refresh"):
-                        db_tab.docs_model.refresh()
-                    elif hasattr(db_tab.docs_model, "reindex"):
-                        db_tab.docs_model.reindex()
-                    if hasattr(QFileSystemModel, "DontWatchForChanges"):
-                        db_tab.docs_model.setOption(
-                            QFileSystemModel.DontWatchForChanges, False
-                        )
+                if hasattr(db_tab, "refresh_staged_files"):
+                    db_tab.refresh_staged_files()
 
             progress.reset()
             msg = f"Created {count} symlinks"
