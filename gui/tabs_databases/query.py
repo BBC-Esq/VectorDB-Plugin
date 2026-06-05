@@ -312,14 +312,6 @@ class DatabaseQueryTab(QWidget):
         self.eject_button.setEnabled(False)
         hbox1_layout.addWidget(self.eject_button)
 
-        if not torch.cuda.is_available():
-            self.model_source_combo.setItemData(0, 0, Qt.UserRole - 1)
-            tooltip = "The Local Model option requires GPU-acceleration."
-            self.model_source_combo.setItemData(0, tooltip, Qt.ToolTipRole)
-            self.model_combo_box.setEnabled(False)
-            self.model_combo_box.setToolTip(tooltip)
-            self.model_combo_box.setStyleSheet("QComboBox:disabled { color: #707070; }")
-
         layout.addLayout(hbox1_layout)
 
         self.text_input = QTextEdit()
@@ -406,7 +398,7 @@ class DatabaseQueryTab(QWidget):
         self.model_combo_box.setVisible(is_local)
         self.eject_button.setVisible(is_local)
         if is_local:
-            self.model_combo_box.setEnabled(torch.cuda.is_available())
+            self.model_combo_box.setEnabled(True)
             self.eject_button.setEnabled(self.local_model_chat.is_model_loaded())
         else:
             self.model_combo_box.setEnabled(False)
