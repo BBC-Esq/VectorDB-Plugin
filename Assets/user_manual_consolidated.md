@@ -651,10 +651,11 @@ before downloading it. It is released under the Gemma license.
 ### What are the Octen Embedding Models?
 The Octen embedding models are high-quality embedding models fine-tuned from Alibaba's Qwen3-Embedding models. This program uses
 the 0.6-billion parameter version, which produces 1024-dimensional embeddings and supports a long maximum sequence length of 8,192
-tokens. Like the Qwen3 embedding models they are based on, they are multilingual (with a focus on English and Chinese) and rank
-strongly on embedding leaderboards for their size, often punching above their weight class. They are released under the liberal
-Apache-2.0 license. They are a good option for users who want strong multilingual embeddings and long-context support without the
-compute cost of a multi-billion-parameter model.
+tokens. They excel at domain-specific retrieval -- particularly legal, financial, healthcare, and code embeddings -- while also
+serving as strong generalist models for everyday text. Like the Qwen3 embedding models they are based on, they are multilingual
+(with a focus on English and Chinese) and rank strongly on embedding leaderboards for their size, often punching above their
+weight class. They are released under the liberal Apache-2.0 license. They are a good option for users who want strong
+multilingual embeddings and long-context support without the compute cost of a multi-billion-parameter model.
 
 ### What are the Harrier (Microsoft) Embedding Models?
 The Harrier embedding models (officially named harrier-oss-v1) were released by Microsoft in March 2026 under the permissive MIT
@@ -665,12 +666,13 @@ automatically added to your search queries; this program handles that for you, s
 
 ### Are the Harrier embedding models good for multilingual or non-English text?
 Yes -- multilingual quality is the standout strength of Microsoft's Harrier embedding models. They were trained across roughly 94
-languages, including Arabic, Chinese, French, German, Hindi, Japanese, Korean, Russian, Spanish, and many more, and they rank
-strongly on the Multilingual MTEB (MMTEB) benchmark. This makes the Harrier family an excellent choice when your documents or
-questions are in languages other than English, or when you want reliable cross-lingual retrieval -- for example, asking a question
-in English and matching passages written in another language. If your collection is heavily non-English, the Harrier models are
-among the strongest options in this program; for English-only collections the lighter BGE, Intfloat, or ModernBERT models may give
-you similar quality at a lower compute cost.
+languages, including Arabic, Chinese, French, German, Hindi, Japanese, Korean, Russian, Spanish, and many more, and they achieve
+top results on multilingual benchmarks such as the Multilingual MTEB (MMTEB). A particular strength is cross-lingual retrieval:
+they work well even when you ask a question in one language and the matching text was embedded from a document written in a
+different language -- for example, asking in English and retrieving passages originally written in Japanese or Spanish. This makes
+the Harrier family an excellent choice when your documents or questions span more than one language. If your collection is heavily
+non-English, the Harrier models are among the strongest options in this program; for English-only collections the lighter BGE,
+Intfloat, or ModernBERT models may give you similar quality at a lower compute cost.
 
 ### What are the ModernBERT (Free Law Project) Embedding Models?
 These embedding models were fine-tuned by the Free Law Project, a non-profit focused on legal data, and are built on ModernBERT, a
