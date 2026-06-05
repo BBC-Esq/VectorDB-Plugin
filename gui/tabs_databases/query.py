@@ -295,10 +295,10 @@ class DatabaseQueryTab(QWidget):
         else:
             for key in [
                 "LiquidAI - .35b",
-                "Qwen 3 - 0.6b",
+                "LiquidAI - .7b",
                 "LiquidAI - 1.2b",
+                "Qwen 3 - 0.6b",
                 "Qwen 3 - 1.7b",
-                "Granite - 3b",
             ]:
                 self.model_combo_box.addItem(CHAT_MODELS[key]["model"])
             self.model_combo_box.setToolTip("Choose a local model. It will be downloaded.")
