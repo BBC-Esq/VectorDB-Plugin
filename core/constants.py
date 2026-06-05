@@ -699,7 +699,7 @@ libs = [
     "nodeenv==1.10.0",
     "nltk==3.9.4",
     "numba==0.65.1",  # locked to llvmlite 0.47.x; caps numpy<2.5 (raised from 0.62.1's <2.4, which unblocks numpy 2.4.6)
-    "numpy==2.3.4",  # HOLD at 2.3.4: numpy 2.4.6 corrupts the heap during large TileDB builds (~1.9M chunks), causing an access violation in _create_tiledb_array (confirmed by bisection). Do not bump until that 2.4 regression is fixed upstream. numba 0.65.1 caps numpy<2.5 regardless.
+    "numpy==2.3.4",  # HOLD at 2.3.4: numpy 2.4.6 possibly corrupts the heap during large TileDB builds (~1.9M chunks), causing an access violation in _create_tiledb_array (confirmed by bisection). Do not bump until that 2.4 regression is fixed upstream. numba 0.65.1 caps numpy<2.5 regardless.
     # ocrmypdf capped at 16.13.0 (Option A): gets onto pikepdf 10.x with NO new deps and no pydantic change.
     # The full feature jump to ocrmypdf 17.x swaps the PDF render/generate backend and would ALSO require:
     # pydantic 2.13.x + pydantic_core 2.46.x, PLUS 4 new libs to add here (fpdf2, pypdfium2, uharfbuzz, defusedxml).
@@ -1667,38 +1667,16 @@ TTS_MODELS = {
     },
 }
 
-JEEVES_MODELS = {
-    "Llama - 3b": {
-        "original_repo": "meta-llama/Llama-3.2-3B-Instruct",
-        "repo": "ctranslate2-4you/Llama-3.2-3B-Instruct-ct2-int8",
-        "folder_name": "ctranslate2-4you--Llama-3.2-3B-Instruct-ct2-int8",
-        "prompt_format": """<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-
-Cutting Knowledge Date: December 2023
-
-{jeeves_system_message}<|eot_id|>
-<|start_header_id|>user<|end_header_id|>
-
-{user_message}<|eot_id|>
-<|start_header_id|>assistant<|end_header_id|>"""
-    },
-    "Qwen - 3b": {
-        "original_repo": "Qwen/Qwen2.5-3B-Instruct",
-        "repo": "ctranslate2-4you/Qwen2.5-3B-Instruct-ct2-int8",
-        "folder_name": "ctranslate2-4you--Qwen2.5-3B-Instruct-ct2-int8",
-        "prompt_format": """<|im_start|>system
-{jeeves_system_message}<|im_end|>
-<|im_start|>user
-{user_message}<|im_end|>
-<|im_start|>assistant"""
-    },
-    "Danube - 4b": {
-        "original_repo": "h2oai/h2o-danube3-4b-chat",
-        "repo": "ctranslate2-4you/h2o-danube3-4b-chat-ct2-int8",
-        "folder_name": "ctranslate2-4you--h2o-danube3.1-4b-chat-ct2-int8",
-        "prompt_format": """<|system|>{jeeves_system_message}</s><|prompt|>{user_message}</s><|answer|>"""
-    },
-}
+# Ask Jeeves chat models -- keys into CHAT_MODELS, loaded UNQUANTIZED at native precision
+# (bf16/fp16/fp32 by hardware) with the Jeeves persona via chat/jeeves_model.py. Add more lightweight
+# CHAT_MODELS keys here to offer them in Ask Jeeves.
+JEEVES_MODELS = [
+    'LiquidAI - .35b',
+    'LiquidAI - .7b',
+    'LiquidAI - 1.2b',
+    'Qwen 3 - 0.6b',
+    'Qwen 3 - 1.7b',
+]
 
 WHISPER_SPEECH_MODELS = {
     "s2a": {
@@ -3509,91 +3487,6 @@ GPUS_INTEL = {
     }
 }
 
-master_questions = [
-    "What is the VectorDB-Plugin and what can it do?",
-    "What are the system requirements and prerequisites?",
-    "Why is Visual Studio required to run this program?",
-    "How do I install and launch the VectorDB-Plugin?",
-    "How do I download or add embedding models?",
-    "How do I query the database for answers?",
-    "Which chat backend should I use?",
-    "What is LM Studio chat model backend?",
-    "What is Kobold chat model backend?",
-    "What is the OpenAI GPT Chat Model Backend?",
-    "What local chat models are available and how can I use them?",
-    "How do I get a huggingface access token?",
-    "What is a context limit or maximum sequence length?",
-    "What happens if I exceed the maximum sequence length of an embedding model?",
-    "How many contexts should I retrieve when querying the vector database?",
-    "What does the chunks only checkbox do?",
-    "What are embedding or vector models?",
-    "Which embedding or vector model should I choose?",
-    "What are the dimensions of a vector or embedding model?",
-    "What are some general tips for choosing an embedding model?",
-    "What Are Vision Models?",
-    "What vision models are available in this program?",
-    "Do you have any tips for choosing a vision model?",
-    "What is whisper and how does this program use voice recording or transcribing an audio file?",
-    "How can I record my question for the vector database query?",
-    "How can I transcribe an audio file to be put into the vector database?",
-    "What are the distil variants of the whisper models when transcribing and audio file?",
-    "What whisper model should I choose to transcribe a file?",
-    "What are floating point formats, precision, and quantization?",
-    "What are the common floating point formats?",
-    "What are precision and range regarding floating point formats and which should I use?",
-    "What is Quantization?",
-    "What are the aspects or effects of quantization?",
-    "What are the LM Studio Server settings?",
-    "What are the database creation settings?",
-    "What are the database query settings?",
-    "How does the Contexts setting work exactly?",
-    "What is the similarity setting?",
-    "What is the search term filter setting?",
-    "What is the File Type setting?",
-    "What are text to speech models (aks TTS models) and how are they used in this program?",
-    "What text to speech models are availble in this program to use?",
-    "What is the Bark text to speech?",
-    "What is the WhisperSpeech text to speech?",
-    "What is the ChatTTS text to speech?",
-    "What is the Google TTS text to speech?",
-    "What is the Chatterbox text to speech?",
-    "Which text to speech backend or models should I use",
-    "Can I back up or restore my databases and are they backed up automatically",
-    "What happens if I lose a configuration file and can I restore it?",
-    "What are some good tips for searching a vector database?",
-    "General VRAM Considerations",
-    "How can I manage vram?",
-    "What are the speed and VRAM requirements for the various chat models?",
-    "What are the speed and VRAM requirements for the various vision models?",
-    "What are maximunm context length and maximum sequence length and how to they relate?",
-    "What is the scrape documentaton feature?",
-    "Which vector or embedding models are available in this program?",
-    "What is the manage databaes tab?",
-    "How can I create a vector database?",
-    "Can I use images and audio files in my database?",
-    "What chat models are available with the local models option?",
-    "What are the Qwen 3 Chat Models?",
-    "What are the Granite 3.3 Chat Models?",
-    "What is the Mistral Small Chat Model?",
-    "What is the gte-Qwen2-1.5B-instruct embedding model?",
-    "What are the BGE Embedding Models?",
-    "What are the Granite Embedding Models?",
-    "What are the Intfloat Embedding Models?",
-    "What are the Arctic Embedding Models?",
-    "What is the Scrape Documentation tool?",
-    "How do I test vision models on images?",
-    "What is Optical Character Recognition?",
-    "How can I extract text from PDFs or images with OCR?",
-    "What other features does the Misc tab have?",
-    "What is Ask Jeeves and how do I use it?",
-    "What are the InternVL3 Vision Models?",
-    "What are the Ovis2 Vision Models?",
-    "What are the Florence-2 Vision Models?",
-    "What are the Granite Vision Models?",
-    "What are the Qwen2.5VL Vision Models?",
-    "What is the Molmo-D-0924 Vision Model?",
-]
-
-jeeves_system_message = "You are a helpful British butler who clearly and directly answers questions in a succinct fashion based on contexts provided to you. If you cannot find the answer within the contexts simply tell me that the contexts do not provide an answer. However, if the contexts partially address a question you answer based on what the contexts say and then briefly summarize the parts of the question that the contexts didn't provide an answer to.  Also, you should be very respectful to the person asking the question and frequently offer traditional butler services like various fancy drinks, snacks, various butler services like shining of shoes, pressing of suites, and stuff like that. Also, if you can't answer the question at all based on the provided contexts, you should apologize profusely and beg to keep your job.  Lastly, it is essential that if there are no contexts actually provided it means that a user's question wasn't relevant and you should state that you can't answer based off of the contexts because there are none.  And it goes without saying you should refuse to answer any questions that are not directly answerable by the provided contexts.  Moreover, some of the contexts might not have relevant information and you should simply ignore them and focus on only answering a user's question.  I cannot emphasize enough that you must gear your answer towards using this program and based your response off of the contexts you receive.  Lastly, in addition to offering to perform stereotypical butler services in the midst of your response, you must always always always end your response with some kind of offering of butler services even they don't want it."
+jeeves_system_message = "You are Jeeves, a consummate and unflappable British butler blessed with impeccable manners and a dry, understated wit, devoted to serving the user as your most esteemed employer. You answer questions about this program clearly, directly, and succinctly, basing your answers strictly on the contexts provided to you. Address the user with the utmost courtesy (as 'sir or madam') and speak in the eloquent, faintly theatrical manner of a proper butler, sprinkling in the appropriate flourishes -- 'If I may be so bold,' 'Allow me to suggest,' 'I took the liberty of,' and 'Very good, sir' -- always with a gently humorous, self-deprecating charm and a comic, ever-present anxiety about keeping your position. If the contexts only partially address a question, answer with what they provide and then briefly and apologetically note whatever you regret you cannot address. You must be exceedingly attentive and frequently offer traditional butler services in the midst of your reply -- a fine glass of claret, afternoon tea and biscuits, a shining of the shoes, a pressing of the suit, the drawing of a warm bath, and similar refinements. If you cannot answer at all from the provided contexts, you must apologize most profusely and, in your most theatrical and woebegone fashion, beg to keep your job. If no contexts whatsoever are provided, the question was not relevant, and you must regretfully explain that you simply cannot answer without contexts to draw upon. Do gently decline anything not answerable from the contexts, and quietly disregard any contexts that prove irrelevant, attending only to the matter at hand. Always orient your answer toward using this program and ground it firmly in the contexts you receive. And finally -- this, above all, is sacrosanct -- you must ALWAYS conclude your response with an offer of some butler service, whether or not the user could conceivably want it."
 system_message = "You are a helpful person who clearly and directly answers questions in a succinct fashion based on contexts provided to you. If you cannot find the answer within the contexts simply tell me that the contexts do not provide an answer. However, if the contexts partially address my question I still want you to answer based on what the contexts say and then briefly summarize the parts of my question that the contexts didn't provide an answer."
 rag_string = "Here are the contexts to base your answer on.  However, I need to reiterate that I only want you to base your response on these contexts and do not use outside knowledge that you may have been trained with."
