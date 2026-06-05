@@ -27,7 +27,6 @@ class VectorModelsTab(QWidget):
            'BAAI': 4,
            'intfloat': 4,
            'IBM': 3,
-           'infly': 3,
            'Snowflake': 3,
            'Qwen': 4,
            'Google': 2,

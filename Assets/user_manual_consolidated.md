@@ -676,14 +676,6 @@ tokens, and uses Matryoshka representation learning, which allows the embedding 
 very little loss in quality. Like the Gemma chat models, EmbeddingGemma is "gated," so you must enter a Huggingface access token
 before downloading it. It is released under the Gemma license.
 
-### What are the Inf-Retriever Embedding Models?
-The Inf-Retriever embedding models, created by the INF (infly) team, are retrieval-focused embedding models fine-tuned from
-Alibaba's gte-Qwen2 models. This program uses the 1.5-billion parameter version, which produces high-quality 1536-dimensional
-embeddings and supports a long maximum sequence length of 8,192 tokens. Because they are specifically optimized for retrieval,
-they perform very well on retrieval benchmarks despite their relatively modest size, and they support both English and Chinese.
-They are released under the liberal Apache-2.0 license. As with any larger embedding model, expect them to require more VRAM and
-compute time than small models like BGE, so they are best chosen when embedding quality is a priority.
-
 ### What are the Octen Embedding Models?
 The Octen embedding models are high-quality embedding models fine-tuned from Alibaba's Qwen3-Embedding models. This program uses
 the 0.6-billion parameter version, which produces 1024-dimensional embeddings and supports a long maximum sequence length of 8,192
