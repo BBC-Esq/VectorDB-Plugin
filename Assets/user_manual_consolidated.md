@@ -626,15 +626,6 @@ in particular.  They are well-respected as producing high quality embeddings for
 over a year old now, they are still regarded as producing quality embeddings for a reasonable compute cost for most use cases.  At
 the time of their release they were state of the art for open source and free embedding models.
 
-### What are the Granite Embedding Models?
-The Granite family of embedding models were created by IBM and are lightweight embedding models based on the RoBERTa architecture as
-opposed to the BERT architecture like most other embedding models.  IBM touts these models as being suitable for "enterprise" use
-cases and come in 30.3 and 125 million parameter sizes.  Along with the Snowflake Arctic embedding models, they are one of the fastest
-embedding models that this program offers when considered in relation to the quality of embeddings that they produce.  In contrast to
-the Snowflake Arctic embedding models, however, they do not rely upon the Xformers library to achieve this, which is not supported by
-all graphics cards.  The Granite embedding models were released in early 2025 under the liberal Apache-2.0 license.  This program only
-usese the English-trained variations of the models.
-
 ### What are the Intfloat Embedding Models?
 Similar to the BGE embedding models produced by BAAI, the Intfloat embedding models have long been a staple of high quality embedding
 models in the community and this program.  They include "small," "base," and "large' variants for your particular use case.  They offer

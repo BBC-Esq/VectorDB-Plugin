@@ -893,7 +893,6 @@ def get_embedding_batch_size(model_name: str, compute_device: str) -> int:
         'bge-large-en-v1.5': 6,
         'e5-small': 10,
         'gte-large': 12,
-        'Granite-30m-English': 12,
         'bge-small': 12,
         'bge-small-en-v1.5': 12,
         'bge-base-en-v1.5': 8,
