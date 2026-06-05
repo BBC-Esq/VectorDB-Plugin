@@ -610,10 +610,9 @@ reasoning, coding, math, and instruction following, oftentimes producing more su
 The LiquidAI chat models are part of Liquid AI's LFM2 (Liquid Foundation Models 2) family and are built for fast, memory-efficient
 inference on everyday hardware and edge devices. Instead of a standard transformer they use a hybrid architecture that combines
 short convolutions with attention, which lets them run very quickly while staying small. This program offers the .35b (LFM2-350M),
-.7b (LFM2-700M), and 1.2b (LFM2.5-1.2B) sizes, with the 1.2b available in both a standard instruct version and a "thinking"
-version that reasons step-by-step before answering. They are multilingual and released under Liquid AI's open LFM license. Because
-of their small size and speed they are an excellent choice for users with limited VRAM, and these same lightweight LiquidAI models
-power the built-in Ask Jeeves help assistant.
+.7b (LFM2-700M), and 1.2b (LFM2.5-1.2B Instruct) sizes, all instruction-tuned for direct, helpful answers. They are multilingual
+and released under Liquid AI's open LFM license. Because of their small size and speed they are an excellent choice for users with
+limited VRAM, and these same lightweight LiquidAI models power the built-in Ask Jeeves help assistant.
 
 ### What is the Phi 4 Chat Model?
 Phi 4 is a 14-billion-parameter chat model developed by Microsoft and released in December 2024 under the permissive MIT license.

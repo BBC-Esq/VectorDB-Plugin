@@ -903,18 +903,6 @@ CHAT_MODELS = {
         'license': 'lfm1.0',
         'max_new_tokens': 2048,
     },
-    'LiquidAI - 1.2b (Thinking)': {
-        'model': 'LiquidAI - 1.2b (Thinking)',
-        'repo_id': 'LiquidAI/LFM2.5-1.2B-Thinking',
-        'cache_dir': 'LiquidAI--LFM2.5-1.2B-Thinking',
-        'cps': 278.5,
-        'vram': 1170.3,
-        'function': 'LiquidAI',
-        'precision': 'bfloat16',
-        'gated': False,
-        'license': 'lfm1.0',
-        'max_new_tokens': 4096,
-    },
     'Qwen 3 - 1.7b (Thinking)': {
         'model': 'Qwen 3 - 1.7b (Thinking)',
         'repo_id': 'Qwen/Qwen3-1.7B',
