@@ -36,6 +36,8 @@ push_to_github.ps1
 metadata.txt
 chat_history.txt
 *.log
+bug_hunt.md
+Assets/User_Guide_Chunks/
 
 .claude/
 .lock
