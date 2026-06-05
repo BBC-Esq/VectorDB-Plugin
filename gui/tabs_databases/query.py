@@ -11,7 +11,7 @@ import yaml
 from PySide6.QtCore import QThread, Signal, QObject, Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QTextEdit, QPushButton, QCheckBox, QHBoxLayout, QMessageBox,
-                               QApplication, QComboBox, QLabel, QTextBrowser, QProgressBar, QSizePolicy)
+                               QApplication, QComboBox, QLabel, QTextBrowser)
 
 from abc import ABC, abstractmethod
 from chat.lm_studio import LMStudioChatThread
@@ -92,15 +92,6 @@ class ChunksOnlyStrategy(SubmitStrategy):
         t.chunks_ready.connect(self.tab.display_chunks)
         t.finished.connect(self.tab.on_database_query_finished)
         t.start()
-
-class ThinkingIndicator(QProgressBar):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setRange(0, 0)
-        self.setTextVisible(False)
-        self.setFixedHeight(12)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-
 
 class ChunksOnlyThread(QThread):
     chunks_ready = Signal(str)
@@ -248,7 +239,6 @@ class DatabaseQueryTab(QWidget):
         self.database_query_thread = None
         self.raw_response = ""
         self.citations_block = ""
-        self.in_think_block = False
         self.initWidgets()
         self.setup_signals()
 
@@ -261,19 +251,6 @@ class DatabaseQueryTab(QWidget):
 
         self.token_count_label = QLabel("")
         layout.addWidget(self.token_count_label)
-
-        self.thinking_indicator = ThinkingIndicator()
-        self.thinking_label = QLabel("Thinking…")
-        self.thinking_label.setAlignment(Qt.AlignLeft)
-
-        indicator_layout = QHBoxLayout()
-        indicator_layout.setContentsMargins(0, 0, 0, 0)
-        indicator_layout.addWidget(self.thinking_label)
-        indicator_layout.addWidget(self.thinking_indicator)
-
-        self.thinking_label.hide()
-        self.thinking_indicator.hide()
-        layout.addLayout(indicator_layout)
 
         hbox1_layout = QHBoxLayout()
 
@@ -318,10 +295,10 @@ class DatabaseQueryTab(QWidget):
         else:
             for key in [
                 "LiquidAI - .35b",
-                "Qwen 3 - 0.6b (Thinking)",
+                "Qwen 3 - 0.6b",
                 "LiquidAI - 1.2b",
-                "Qwen 3 - 1.7b (Thinking)",
-                "Granite - 2b",
+                "Qwen 3 - 1.7b",
+                "Granite - 3b",
             ]:
                 self.model_combo_box.addItem(CHAT_MODELS[key]["model"])
             self.model_combo_box.setToolTip("Choose a local model. It will be downloaded.")
@@ -351,11 +328,6 @@ class DatabaseQueryTab(QWidget):
         layout.addWidget(self.text_input, 1)
 
         toggles_row = QHBoxLayout()
-
-        self.show_thinking_checkbox = QCheckBox("Show Thinking")
-        self.show_thinking_checkbox.setChecked(False)
-        self.show_thinking_checkbox.stateChanged.connect(self.toggle_thinking_visibility)
-        toggles_row.addWidget(self.show_thinking_checkbox)
 
         self.chunks_only_checkbox = QCheckBox("Chunks Only")
         self.chunks_only_checkbox.setToolTip(TOOLTIPS["CHUNKS_ONLY"])
@@ -418,24 +390,13 @@ class DatabaseQueryTab(QWidget):
         self.local_model_chat.signals.token_count_signal.connect(self.update_token_count_label)
 
     def _render_html(self):
-        if self.show_thinking_checkbox.isChecked():
-            visible_text = self.raw_response
-        else:
-            txt = self.raw_response
-            txt = re.sub(r"<think>.*?</think>", "", txt, flags=re.DOTALL | re.IGNORECASE)
-            txt = re.sub(r"<think>.*$", "", txt, flags=re.DOTALL | re.IGNORECASE)
-            txt = re.sub(r"\n\s*\n", "\n", txt).lstrip()
-            visible_text = txt
-
-        body = html.escape(visible_text).replace("\n", "<br>")
+        txt = re.sub(r"\n\s*\n", "\n", self.raw_response).lstrip()
+        body = html.escape(txt).replace("\n", "<br>")
         body += self.citations_block
 
         self.response_widget.setHtml(body)
         self.response_widget.verticalScrollBar().setValue(
             self.response_widget.verticalScrollBar().maximum())
-
-    def toggle_thinking_visibility(self):
-        self._render_html()
 
     def update_token_count_label(self, token_count_string):
         self.token_count_label.setText(token_count_string)
@@ -598,17 +559,6 @@ class DatabaseQueryTab(QWidget):
         )
 
     def update_response_local_model(self, chunk: str):
-        chunk_lower = chunk.lower()
-        open_pos = chunk_lower.rfind("<think>")
-        close_pos = chunk_lower.rfind("</think>")
-        
-        if open_pos != -1 or close_pos != -1:
-            self.in_think_block = open_pos > close_pos
-
-        visible = self.in_think_block and not self.show_thinking_checkbox.isChecked()
-        self.thinking_indicator.setVisible(visible)
-        self.thinking_label.setVisible(visible)
-
         self.raw_response += chunk
         self._render_html()
 
@@ -627,9 +577,7 @@ class DatabaseQueryTab(QWidget):
     def on_submission_finished(self):
         self.submit_button.setDisabled(False)
 
-        ix = self.raw_response.lower().rfind("</think>")
-        answer_only = self.raw_response[ix + len("</think>"):] if ix != -1 else self.raw_response
-        answer_only = answer_only.lstrip("\n")
+        answer_only = self.raw_response.lstrip("\n")
 
         try:
             with open(input_text_file, "w", encoding="utf-8") as f:
