@@ -29,7 +29,7 @@ class VectorModelsTab(QWidget):
            'Microsoft': 3,
            'intfloat': 4,
            'Qwen': 4,
-           'Octen': 6,
+           'Octen': 4,
            'FreeLawProject': 3,
        }
 
