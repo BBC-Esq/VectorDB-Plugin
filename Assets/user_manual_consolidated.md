@@ -633,14 +633,6 @@ high quality embeddings for the compute resources required and often go head-to-
 Although they are well over a year old now they still offer high quality embeddings for a reasonable compute cost and many other
 embedding models have been built upon the e5 family of models.
 
-### What are the Arctic Embedding Models?
-Snowflake's Arctic-embed models are retrieval-optimized text embedding models built on E5-small and E5-large embedding models created
-by Intfloat. Despite their relatively modest sizes, these models outperformed larger competitors on several benchmarks.  They are
-also significantly faster than similarly sized models due to their reliance on the Xformers library.  These models can, however, be
-run with or without reliance on the Xformers library depending on whether a user's hardware supports it.  The Snowflake Arctic embedding
-models are also unique in that they have a maximum sequence length of 8192 tokens, which is far greater than the typical 512 token limit
-of other embedding models.
-
 ### What are the Qwen3 Embedding Models?
 Released in June, 2025, Alibaba’s Qwen 3 Embedding family delivers state-of-the-art text embeddings while staying friendly to everyday hardware.  They are based on the popular Qwen 3 chat models but have special training to make them suitable for generating embeddings.
 As of June, 2025, they hold the top three ranked spots on the Huggingface leaderboard.  They are primarily trained on English and

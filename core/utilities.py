@@ -889,7 +889,6 @@ def get_embedding_batch_size(model_name: str, compute_device: str) -> int:
         'Qwen3-Embedding-0.6B': 4,
         'e5-base': 6,
         'e5-large': 7,
-        'arctic-embed-l': 7,
         'bge-large-en-v1.5': 6,
         'e5-small': 10,
         'gte-large': 12,
@@ -897,7 +896,6 @@ def get_embedding_batch_size(model_name: str, compute_device: str) -> int:
         'bge-small-en-v1.5': 12,
         'bge-base-en-v1.5': 8,
         'gte-base': 14,
-        'arctic-embed-m': 14,
     }
 
     model_name_lower = model_name.lower()
