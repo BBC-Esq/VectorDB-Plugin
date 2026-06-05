@@ -649,13 +649,14 @@ very little loss in quality. Like the Gemma chat models, EmbeddingGemma is "gate
 before downloading it. It is released under the Gemma license.
 
 ### What are the Octen Embedding Models?
-The Octen embedding models are high-quality embedding models fine-tuned from Alibaba's Qwen3-Embedding models. This program uses
-the 0.6-billion parameter version, which produces 1024-dimensional embeddings and supports a long maximum sequence length of 8,192
-tokens. They excel at domain-specific retrieval -- particularly legal, financial, healthcare, and code embeddings -- while also
-serving as strong generalist models for everyday text. Like the Qwen3 embedding models they are based on, they are multilingual
-(with a focus on English and Chinese) and rank strongly on embedding leaderboards for their size, often punching above their
-weight class. They are released under the liberal Apache-2.0 license. They are a good option for users who want strong
-multilingual embeddings and long-context support without the compute cost of a multi-billion-parameter model.
+The Octen embedding models are high-quality embedding models fine-tuned from Alibaba's Qwen3-Embedding models. This program offers
+the 0.6-billion, 4-billion, and 8-billion parameter versions, which produce 1024-, 2560-, and 4096-dimensional embeddings
+respectively and all support a long maximum sequence length of 8,192 tokens. They excel at domain-specific retrieval --
+particularly legal, financial, healthcare, and code embeddings -- while also serving as strong generalist models for everyday
+text. Like the Qwen3 embedding models they are based on, they are multilingual (with a focus on English and Chinese) and rank
+strongly on embedding leaderboards for their size, often punching above their weight class. They are released under the liberal
+Apache-2.0 license. They are a good option for users who want strong multilingual embeddings and long-context support without the
+compute cost of a multi-billion-parameter model.
 
 ### What are the Harrier (Microsoft) Embedding Models?
 The Harrier embedding models (officially named harrier-oss-v1) were released by Microsoft in March 2026 under the permissive MIT
