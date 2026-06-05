@@ -73,6 +73,8 @@ def _get_tokenize_parallel_workers():
 
 def _get_model_family(model_path: str) -> str:
     model_path_lower = model_path.lower()
+    if "harrier" in model_path_lower:
+        return "harrier"
     if "qwen" in model_path_lower or "qwen3-embedding" in model_path_lower or "octen" in model_path_lower:
         return "qwen"
     if "bge" in model_path_lower:
@@ -113,6 +115,8 @@ def _normalize_text(text: str) -> str:
 
 
 ENCODE_BATCH_SIZE_BY_MODEL = {
+    "harrier-oss-v1-270m": 50,
+    "harrier-oss-v1-0.6b": 10,
     "bge-small-en-v1.5": 100,
     "bge-base-en-v1.5": 80,
     "bge-large-en-v1.5": 50,
@@ -331,6 +335,11 @@ class DirectEmbeddingModel:
 
         self._initialize_model()
 
+    def _resolve_padding_side(self, family):
+        if family == "qwen":
+            return "left"
+        return None
+
     def _initialize_model(self):
         family = _get_model_family(self.model_path)
 
@@ -357,8 +366,9 @@ class DirectEmbeddingModel:
             "model_max_length": self.max_seq_length,
         }
 
-        if family == "qwen":
-            tokenizer_kwargs["padding_side"] = "left"
+        padding_side = self._resolve_padding_side(family)
+        if padding_side is not None:
+            tokenizer_kwargs["padding_side"] = padding_side
 
         self.model = SentenceTransformer(
             model_name_or_path=self.model_path,
@@ -528,6 +538,25 @@ class DirectEmbeddingModel:
             self.tokenizer = None
 
 
+class HarrierEmbeddingModel(DirectEmbeddingModel):
+    QUERY_PROMPT = "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
+    MAX_SEQ_LENGTH = 8192
+    PADDING_SIDE = "left"
+
+    def __init__(self, model_path, device="cpu", dtype=None, batch_size=8, is_query=False):
+        super().__init__(
+            model_path=model_path,
+            device=device,
+            dtype=dtype,
+            batch_size=batch_size,
+            max_seq_length=self.MAX_SEQ_LENGTH,
+            prompt=self.QUERY_PROMPT if is_query else "",
+        )
+
+    def _resolve_padding_side(self, family):
+        return self.PADDING_SIDE
+
+
 def create_embedding_model(
     model_path: str,
     compute_device: str = "cpu",
@@ -552,6 +581,15 @@ def create_embedding_model(
 
     final_dtype = dtype if dtype is not None else _dtype
     final_batch_size = batch_size if batch_size is not None else _batch_size
+
+    if family == "harrier":
+        return HarrierEmbeddingModel(
+            model_path=model_path,
+            device=compute_device,
+            dtype=final_dtype,
+            batch_size=final_batch_size,
+            is_query=is_query,
+        )
 
     if family == "qwen":
         max_seq_length = 8192

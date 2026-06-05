@@ -25,9 +25,12 @@ class VectorModelsTab(QWidget):
        self.model_radiobuttons.setExclusive(True)
        self.stretch_factors = {
            'BAAI': 4,
+           'Google': 2,
+           'Microsoft': 3,
            'intfloat': 4,
            'Qwen': 4,
-           'Google': 2,
+           'Octen': 6,
+           'FreeLawProject': 3,
        }
 
        models_dir = Path('Models')
