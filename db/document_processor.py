@@ -48,7 +48,7 @@ def compute_file_hash(file_path):
 def extract_document_metadata(file_path, content_hash=None):
     file_path = os.path.realpath(file_path)
     file_name = os.path.basename(file_path)
-    file_type = os.path.splitext(file_path)[1]
+    file_type = os.path.splitext(file_path)[1].lower()
     creation_date = datetime.datetime.fromtimestamp(os.path.getctime(file_path)).isoformat()
     modification_date = datetime.datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat()
     file_hash = content_hash if content_hash else compute_file_hash(file_path)

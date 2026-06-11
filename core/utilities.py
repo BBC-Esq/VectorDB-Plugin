@@ -602,7 +602,7 @@ def format_citations(metadata_list):
                 'file_type': metadata.get('file_type', '')
             })
             grouped[file_path]['scores'].append(metadata['similarity_score'])
-            if grouped[file_path]['file_type'] == '.pdf':
+            if grouped[file_path]['file_type'].lower() == '.pdf':
                 page_number = metadata.get('page_number')
                 if page_number is not None:
                     grouped[file_path]['pages'].add(page_number)

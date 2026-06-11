@@ -53,7 +53,7 @@ def main():
         try:
             doc = Document(page_content=content, metadata=metadata)
 
-            if metadata.get("file_type") == ".pdf":
+            if (metadata.get("file_type") or "").lower() == ".pdf":
                 chunks = add_pymupdf_page_metadata(
                     doc,
                     chunk_size=chunk_size,
