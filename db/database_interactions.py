@@ -104,10 +104,12 @@ os.environ.setdefault("RUST_BACKTRACE", "1")
 
 STAGE_EXTRACT_PATH = PROJECT_ROOT / "db" / "stage_extract.py"
 STAGE_SPLIT_PATH = PROJECT_ROOT / "db" / "stage_split.py"
+STAGE_WRITE_PATH = PROJECT_ROOT / "db" / "stage_write.py"
 
 EXTRACT_MAX_RETRIES = 3
 SPLIT_MAX_WORKER_RETRIES = 3
 SPLIT_MAX_RETRIES = 5
+WRITE_MAX_RETRIES = 5
 TILEDB_WRITE_BATCH_SIZE = 100000
 
 MAX_UINT64_SENTINEL = np.iinfo(np.uint64).max
@@ -201,6 +203,35 @@ def _run_split_with_retry(extracted_pkl, chunks_pkl, chunk_size, chunk_overlap, 
             gc.collect()
 
     raise RuntimeError(f"Split stage failed after {SPLIT_MAX_RETRIES} attempts")
+
+
+def _run_write_with_retry(persist_dir, data_dir):
+    python = sys.executable
+    cmd = [python, str(STAGE_WRITE_PATH), str(persist_dir), str(data_dir)]
+    mappings_pkl = Path(data_dir) / "hash_id_mappings.pkl"
+
+    for attempt in range(1, WRITE_MAX_RETRIES + 1):
+        logger.info(f"Write attempt {attempt}/{WRITE_MAX_RETRIES}")
+        if mappings_pkl.exists():
+            try:
+                mappings_pkl.unlink()
+            except Exception:
+                pass
+
+        exit_code, _ = _run_subprocess_stage(f"Write (attempt {attempt})", cmd)
+
+        if exit_code == 0 and mappings_pkl.exists():
+            logger.info(f"Write stage completed on attempt {attempt}")
+            return
+
+        logger.error(f"Write attempt {attempt} failed (exit code {exit_code})")
+
+        if attempt < WRITE_MAX_RETRIES:
+            logger.info("Waiting 3 seconds before retry...")
+            time.sleep(3)
+            gc.collect()
+
+    raise RuntimeError(f"Write stage failed after {WRITE_MAX_RETRIES} attempts")
 
 
 def _setup_tiledb_dlls():
@@ -620,9 +651,37 @@ class CreateVectorDB:
             del vectors
             gc.collect()
 
-            # Stage 5: Write TileDB array + FLAT index (IDs generated per-batch)
+            # Stage 5: Write TileDB array + FLAT index in an isolated subprocess
+            num_vectors = vectors_array.shape[0]
+            embedding_dim = vectors_array.shape[1]
+            num_write_batches = (num_vectors + TILEDB_WRITE_BATCH_SIZE - 1) // TILEDB_WRITE_BATCH_SIZE
+
+            write_data_dir = tmp_path / "write_data"
+            write_data_dir.mkdir(exist_ok=True)
+            np.save(write_data_dir / "vectors.npy", vectors_array)
+            for b in range(num_write_batches):
+                bstart = b * TILEDB_WRITE_BATCH_SIZE
+                bend = min(bstart + TILEDB_WRITE_BATCH_SIZE, num_vectors)
+                with open(write_data_dir / f"shard_{b:05d}.pkl", "wb") as f:
+                    pickle.dump(
+                        {"texts": chunk_texts[bstart:bend], "metadatas": all_metadatas[bstart:bend]},
+                        f, protocol=pickle.HIGHEST_PROTOCOL,
+                    )
+            with open(write_data_dir / "meta.json", "w", encoding="utf-8") as f:
+                json.dump({
+                    "embedding_dim": embedding_dim,
+                    "num_vectors": num_vectors,
+                    "batch_size": TILEDB_WRITE_BATCH_SIZE,
+                    "num_batches": num_write_batches,
+                }, f)
+
+            del vectors_array, chunk_texts, all_metadatas
+            gc.collect()
+
             try:
-                hash_id_mappings = self._create_tiledb_array(chunk_texts, vectors_array, all_metadatas)
+                _run_write_with_retry(self.PERSIST_DIRECTORY, write_data_dir)
+                with open(write_data_dir / "hash_id_mappings.pkl", "rb") as f:
+                    hash_id_mappings = pickle.load(f)
             except Exception as e:
                 logger.error(f"Error creating TileDB database: {e}")
                 traceback.print_exc()
@@ -639,7 +698,6 @@ class CreateVectorDB:
             my_cprint(f"Database created. Total time: {pipeline_elapsed:.2f} seconds.", "green")
 
             # Stage 6: Write SQLite metadata DB
-            del chunk_texts, vectors_array, all_metadatas
             gc.collect()
 
             try:
