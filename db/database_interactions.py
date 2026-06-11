@@ -526,6 +526,7 @@ class CreateVectorDB:
         chunks_pkl = tmp_path / "chunks.pkl"
         checkpoint_dir = tmp_path / "checkpoints"
         checkpoint_dir.mkdir(exist_ok=True)
+        created_persist_dir = False
 
         try:
             # Stage 1: Extract documents via subprocess
@@ -624,6 +625,7 @@ class CreateVectorDB:
 
             try:
                 self.PERSIST_DIRECTORY.mkdir(parents=True, exist_ok=False)
+                created_persist_dir = True
                 my_cprint(f"Created directory: {self.PERSIST_DIRECTORY}", "green")
             except FileExistsError:
                 raise FileExistsError(
@@ -718,6 +720,8 @@ class CreateVectorDB:
 
         except Exception:
             traceback.print_exc()
+            if created_persist_dir and self.PERSIST_DIRECTORY.exists():
+                shutil.rmtree(self.PERSIST_DIRECTORY, ignore_errors=True)
             raise
         finally:
             try:
