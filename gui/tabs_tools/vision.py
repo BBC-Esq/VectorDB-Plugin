@@ -283,24 +283,39 @@ class VisionToolSettingsTab(QWidget):
             self.startProcessing()
 
     def startProcessing(self):
-        if self.thread is None:
-            self.thread = ImageProcessorThread()
-            self.thread.finished.connect(self.onProcessingFinished)
-            self.thread.error.connect(self.onProcessingError)
-            self.thread.start()
+        if self.thread is not None:
+            QMessageBox.warning(
+                self,
+                "Processing In Progress",
+                "An image-processing task is already running. Please wait for it to finish before starting another."
+            )
+            return
+        self.thread = ImageProcessorThread()
+        self.thread.finished.connect(self.onProcessingFinished)
+        self.thread.error.connect(self.onProcessingError)
+        self.thread.start()
 
     def onProcessingFinished(self, documents):
-        self.thread = None
+        if self.thread is self.sender():
+            self.thread = None
         print(f"Processed {len(documents)} documents")
         contents = self.extract_page_content(documents)
         self.save_page_contents(contents)
 
     def onProcessingError(self, error_msg):
-        self.thread = None
+        if self.thread is self.sender():
+            self.thread = None
         logging.error(f"Processing error: {error_msg}")
         QMessageBox.critical(self, "Processing Error", f"An error occurred during image processing:\n\n{error_msg}")
 
     def selectSingleImage(self):
+        if self.thread is not None:
+            QMessageBox.warning(
+                self,
+                "Processing In Progress",
+                "An image-processing task is already running. Please wait for it to finish before starting another."
+            )
+            return
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Select Image File",
@@ -346,21 +361,25 @@ class VisionToolSettingsTab(QWidget):
             self.thread.cancel()
 
     def onMultiModelProcessingFinished(self, results):
+        thread = self.sender()
         if self.progress:
             self.progress.mark_finished()
         try:
-            output_file = self.save_comparison_results(self.thread.image_path, results)
+            image_path = thread.image_path if thread is not None else None
+            output_file = self.save_comparison_results(image_path, results)
             self.open_file(output_file)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred while saving results:\n\n{str(e)}")
-        self.thread = None
+        if self.thread is thread:
+            self.thread = None
 
     def onMultiModelProcessingError(self, error_msg):
         if self.progress:
             self.progress.mark_finished()
             self.progress.close()
         QMessageBox.critical(self, "Error", f"An error occurred during processing:\n\n{error_msg}")
-        self.thread = None
+        if self.thread is self.sender():
+            self.thread = None
 
     def extract_page_content(self, documents):
         contents = []
