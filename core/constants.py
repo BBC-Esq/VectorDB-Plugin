@@ -2136,7 +2136,7 @@ scrape_documentation = {
     },
     "joblib": {
         "URL": "https://joblib.readthedocs.io/en/stable/",
-        "folder": "kiwisolver",
+        "folder": "joblib",
         "scraper_class": "ReadthedocsScraper"
     },
     "kiwisolver": {
@@ -2546,7 +2546,7 @@ scrape_documentation = {
     },
     "typing-inspection": {
         "URL": "https://pydantic.github.io/typing-inspection/dev/",
-        "folder": "typing_extensions",
+        "folder": "typing_inspection",
         "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
     "tzdata": {
