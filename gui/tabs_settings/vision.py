@@ -107,6 +107,9 @@ class VisionSettingsTab(QWidget):
         self.avgLenLabel.setText(str(avg_length))
 
         cfg = _read_cfg()
+        p = Path(CONFIG_FILE)
+        if not cfg and p.exists() and p.stat().st_size > 0:
+            return
         cfg.setdefault("vision", {})
         if cfg["vision"].get("chosen_model") != model_name:
             cfg["vision"]["chosen_model"] = model_name

@@ -86,6 +86,8 @@ class AIBackendsDialog(QDialog):
                 return
 
         config = self._load_config()
+        if not config and self.config_path.exists() and self.config_path.stat().st_size > 0:
+            return
         for tab in self.tabs:
             tab.save_to_config(config)
 

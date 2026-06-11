@@ -211,6 +211,10 @@ class TTSSettingsTab(QWidget):
     def _save_to_yaml(self):
         cfg = self._try_read_yaml()
 
+        config_path = self._config_path()
+        if not cfg and config_path.exists() and config_path.stat().st_size > 0:
+            return
+
         backend_key = self.backend_combo.currentData()
         tts_cfg = cfg.setdefault("tts", {})
         tts_cfg["model"] = backend_key
@@ -270,12 +274,12 @@ class TTSSettingsTab(QWidget):
             kyutai["temp"] = 0.6
             kyutai["cfg_coef"] = 2.0
 
-        with self._config_path().open("w") as f:
-            yaml.dump(cfg, f, sort_keys=False)
+        with self._config_path().open("w", encoding="utf-8") as f:
+            yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
 
     def _try_read_yaml(self):
         try:
-            with self._config_path().open() as f:
+            with self._config_path().open(encoding="utf-8") as f:
                 return yaml.safe_load(f) or {}
         except FileNotFoundError:
             return {}
