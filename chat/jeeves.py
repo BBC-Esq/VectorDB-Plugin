@@ -643,12 +643,21 @@ class ChatWindow(QMainWindow):
             f"An error occurred while trying to speak: {error_message}")
 
     def closeEvent(self, event):
+        for w in (self.worker, self._load_worker, self._text_worker):
+            if w is not None and w.isRunning():
+                if hasattr(w, 'stop'):
+                    w.stop()
+                w.wait(5000)
+        if self.tts_thread is not None and self.tts_thread.isRunning():
+            self.tts_thread.quit()
+            self.tts_thread.wait(5000)
+
         if hasattr(self, 'vector_db'):
             self.vector_db.cleanup()
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-            
+
         event.accept()
 
 class TTSWorker(QObject):

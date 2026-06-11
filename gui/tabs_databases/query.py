@@ -593,4 +593,6 @@ class DatabaseQueryTab(QWidget):
         if self.kobold_thread and self.kobold_thread.isRunning():
             self.kobold_thread.stop()
             self.kobold_thread.wait(5000)
+        if self.lm_studio_chat_thread and self.lm_studio_chat_thread.isRunning():
+            self.lm_studio_chat_thread.wait(5000)
         print("Cleanup completed")

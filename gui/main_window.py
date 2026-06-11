@@ -173,16 +173,20 @@ class DocQA_GUI(QWidget):
         except Exception:
             pass
 
-        docs_dir = PROJECT_ROOT / 'Docs_for_DB'
-        for item in docs_dir.glob('*'):
-            if item.is_file():
-                item.unlink()
         self.metrics_bar.cleanup()
 
         for i in range(self.tab_widget.count()):
             tab = self.tab_widget.widget(i)
             if hasattr(tab, 'cleanup') and callable(tab.cleanup):
                 tab.cleanup()
+
+        docs_dir = PROJECT_ROOT / 'Docs_for_DB'
+        for item in docs_dir.glob('*'):
+            if item.is_file():
+                try:
+                    item.unlink()
+                except OSError:
+                    pass
 
         super().closeEvent(event)
 

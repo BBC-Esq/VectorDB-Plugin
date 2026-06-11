@@ -33,6 +33,7 @@ class GuiSettingsTab(QWidget):
         super().__init__()
         self.layout = QVBoxLayout(self)
         self.groups = {}
+        self._subtabs = []
         classes = {
             "TRANSCRIBE FILE": (TranscriberToolSettingsTab, 3),
             "SCRAPE DOCUMENTATION": (ScrapeDocumentationTab, 5),
@@ -42,6 +43,7 @@ class GuiSettingsTab(QWidget):
         }
         for title, (TabClass, stretch) in classes.items():
             settings = TabClass()
+            self._subtabs.append(settings)
             group = QGroupBox(title, checkable=True, checked=True)
             group.setLayout(QVBoxLayout())
             group.layout().addWidget(settings)
@@ -55,3 +57,8 @@ class GuiSettingsTab(QWidget):
     def adjust_stretch(self):
         for group, factor in self.groups.items():
             self.layout.setStretchFactor(group, factor if group.isChecked() else 0)
+
+    def cleanup(self):
+        for sub in self._subtabs:
+            if hasattr(sub, 'cleanup') and callable(sub.cleanup):
+                sub.cleanup()

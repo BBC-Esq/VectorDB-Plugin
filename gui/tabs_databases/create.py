@@ -520,11 +520,10 @@ class DatabasesTab(QWidget):
         
         gc.collect()
 
-    def closeEvent(self, event):
+    def cleanup(self):
         if self.db_worker is not None and self.db_worker.isRunning():
             self.db_worker.cancel()
             self.db_worker.wait(5000)
-        event.accept()
 
     def toggle_group_box(self, group_box, checked):
         self.groups[group_box] = 1 if checked else 0
