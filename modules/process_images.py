@@ -459,9 +459,12 @@ class loader_qwenvl(BaseLoader):
     @torch.inference_mode()
     def process_single_image(self, raw_image):
 
+        # Prompt is hand-built as ChatML. A more robust alternative is to build it via
+        # self.processor.apply_chat_template(messages, ...) (like the sibling loaders),
+        # which produces the exact per-model template -- consider switching to that later.
         prompt = (
             "<|im_start|>user\n"
-            f"{IMAGE_PROMPT} <|vis_start|><|image_pad|><|vis_end|>\n"
+            f"{IMAGE_PROMPT} <|vision_start|><|image_pad|><|vision_end|>\n"
             "<|im_end|>\n"
             "<|im_start|>assistant\n"
         )
@@ -470,6 +473,7 @@ class loader_qwenvl(BaseLoader):
             text=prompt,
             return_tensors="pt"
         ).to(self.device)
+        input_len = inputs["input_ids"].shape[1]
         output = self.model.generate(
             **inputs,
             max_new_tokens=1024,
@@ -479,8 +483,8 @@ class loader_qwenvl(BaseLoader):
             num_beams=1,
             temperature=None
         )
-        response = self.processor.decode(output[0], skip_special_tokens=True)
-        response = response.split('assistant')[-1].strip()
+        new_tokens = output[:, input_len:]
+        response = self.processor.batch_decode(new_tokens, skip_special_tokens=True)[0].strip()
 
         return self.normalize_response(response)
 
