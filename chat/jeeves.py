@@ -352,7 +352,9 @@ class ChatWindow(QMainWindow):
         self.sources_view.setVisible(False)
 
         try:
-            contexts, metadata = self.vector_db.search(user_message, k=5, score_threshold=0.5)
+            contexts, metadata = self.vector_db.search(
+                user_message, k=5, score_threshold=0.5, search_term="", document_types=""
+            )
             if not contexts:
                 QMessageBox.warning(
                     self, "No Contexts Found",

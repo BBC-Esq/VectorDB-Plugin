@@ -759,7 +759,8 @@ class QueryVectorDB:
         )
 
     @torch.inference_mode()
-    def search(self, query, k: Optional[int] = None, score_threshold: Optional[float] = None):
+    def search(self, query, k: Optional[int] = None, score_threshold: Optional[float] = None,
+               search_term: Optional[str] = None, document_types: Optional[str] = None):
         _setup_tiledb_dlls()
         import tiledb
         import tiledb.vector_search as vs
@@ -777,6 +778,8 @@ class QueryVectorDB:
         self.config = self.load_configuration()
         k = k if k is not None else self.config.database.contexts
         score_threshold = score_threshold if score_threshold is not None else self.config.database.similarity
+        search_term = search_term if search_term is not None else self.config.database.search_term
+        document_types = document_types if document_types is not None else self.config.database.document_types
 
         with cuda_mgr.cuda_operation():
             query_vector = self.embeddings.embed_query(query)
@@ -871,7 +874,7 @@ class QueryVectorDB:
                     logger.warning(f"Failed to retrieve data for vector ID {vec_id}: {e}")
                     continue
 
-        search_term = self.config.database.search_term.lower()
+        search_term = (search_term or "").lower()
         if search_term:
             filtered_results = [
                 (text, metadata) for text, metadata in results
@@ -880,7 +883,6 @@ class QueryVectorDB:
         else:
             filtered_results = results
 
-        document_types = self.config.database.document_types
         if document_types:
             filtered_results = [
                 (text, metadata) for text, metadata in filtered_results
