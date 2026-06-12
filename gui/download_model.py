@@ -190,6 +190,7 @@ class ModelDownloader(QObject):
             model_downloaded_signal.failed.emit(msg)
             return
         local_dir = self.get_model_directory()
+        had_existing_download = local_dir.exists() and any(local_dir.iterdir())
         local_dir.mkdir(parents=True, exist_ok=True)
         atexit.register(self.cleanup_incomplete_download)
         try:
@@ -222,9 +223,12 @@ class ModelDownloader(QObject):
         except Exception as e:
             msg = f"An error occurred during download: {str(e)}"
             print(msg)
-            if local_dir.exists():
+            if not had_existing_download and local_dir.exists():
                 import shutil
-                shutil.rmtree(local_dir)
+                try:
+                    shutil.rmtree(local_dir)
+                except OSError:
+                    pass
             model_downloaded_signal.failed.emit(msg)
 
 def download_embedding_model(repo_id, local_dir=None):
