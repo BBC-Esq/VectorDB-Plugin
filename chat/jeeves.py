@@ -106,6 +106,24 @@ class ModelLoadWorker(QThread):
         except Exception as e:
             self.error_signal.emit(str(e))
 
+class SearchWorker(QThread):
+    results_signal = Signal(list, list)
+    error_signal = Signal(str)
+
+    def __init__(self, vector_db, query):
+        super().__init__()
+        self.vector_db = vector_db
+        self.query = query
+
+    def run(self):
+        try:
+            contexts, metadata = self.vector_db.search(
+                self.query, k=5, score_threshold=0.5, search_term="", document_types=""
+            )
+            self.results_signal.emit(contexts, metadata)
+        except Exception as e:
+            self.error_signal.emit(str(e))
+
 class ChatWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -215,9 +233,16 @@ class ChatWindow(QMainWindow):
         self._current_response = ""
         self.poems = self._load_poems()
         self._text_worker = None
+        self._search_worker = None
+        self._pending_question = None
         self.poem_combo = None
 
-        self.vector_db = get_query_db("user_manual")
+        self.vector_db = None
+        self._vector_db_error = None
+        try:
+            self.vector_db = get_query_db("user_manual")
+        except Exception as e:
+            self._vector_db_error = str(e)
 
         try:
             tts_path = PROJECT_ROOT / "Models" / "tts" / "ctranslate2-4you--Kokoro-82M-light"
@@ -343,6 +368,17 @@ class ChatWindow(QMainWindow):
         if self.worker and self.worker.isRunning():
             return
 
+        if self._search_worker and self._search_worker.isRunning():
+            return
+
+        if self.vector_db is None:
+            QMessageBox.warning(
+                self, "User Manual Database Missing",
+                "The user manual database could not be loaded, so Jeeves cannot answer questions.\n\n"
+                f"{self._vector_db_error}"
+            )
+            return
+
         user_message = self.input_field.text().strip()
         if not user_message:
             return
@@ -351,21 +387,41 @@ class ChatWindow(QMainWindow):
         self.sources_toggle.setVisible(False)
         self.sources_view.setVisible(False)
 
-        try:
-            contexts, metadata = self.vector_db.search(
-                user_message, k=5, score_threshold=0.5, search_term="", document_types=""
+        self.input_field.setDisabled(True)
+        self._pending_question = user_message
+        self._search_worker = SearchWorker(self.vector_db, user_message)
+        self._search_worker.results_signal.connect(self._on_search_results)
+        self._search_worker.error_signal.connect(self._on_search_error)
+        self._search_worker.start()
+
+    def _finish_search_worker(self):
+        if self._search_worker:
+            self._search_worker.wait()
+            self._search_worker = None
+
+    def _on_search_error(self, error_message):
+        self._finish_search_worker()
+        self.input_field.setDisabled(False)
+        QMessageBox.warning(self, "Database Query Error",
+                            f"An error occurred while querying the database: {error_message}")
+
+    def _on_search_results(self, contexts, metadata):
+        self._finish_search_worker()
+
+        if not contexts:
+            self.input_field.setDisabled(False)
+            QMessageBox.warning(
+                self, "No Contexts Found",
+                "No relevant chunks were found in the user manual database for this question. "
+                "Try rephrasing your question."
             )
-            if not contexts:
-                QMessageBox.warning(
-                    self, "No Contexts Found",
-                    "No relevant chunks were found in the user manual database for this question. "
-                    "Try rephrasing your question."
-                )
-                return
-        except Exception as e:
-            QMessageBox.warning(self, "Database Query Error", f"An error occurred while querying the database: {e}")
             return
 
+        if not self.model_instance:
+            self.input_field.setDisabled(False)
+            return
+
+        user_message = self._pending_question
         self.last_contexts = contexts
         self.last_metadata = metadata
         self._current_response = ""
@@ -378,7 +434,6 @@ class ChatWindow(QMainWindow):
         )
 
         self.input_field.clear()
-        self.input_field.setDisabled(True)
         self.chat_display.append(f"User: {user_message}")
         self.chat_display.append("\nJeeves: ")
 
@@ -645,7 +700,7 @@ class ChatWindow(QMainWindow):
             f"An error occurred while trying to speak: {error_message}")
 
     def closeEvent(self, event):
-        for w in (self.worker, self._load_worker, self._text_worker):
+        for w in (self.worker, self._load_worker, self._text_worker, self._search_worker):
             if w is not None and w.isRunning():
                 if hasattr(w, 'stop'):
                     w.stop()
@@ -654,7 +709,7 @@ class ChatWindow(QMainWindow):
             self.tts_thread.quit()
             self.tts_thread.wait(5000)
 
-        if hasattr(self, 'vector_db'):
+        if getattr(self, 'vector_db', None) is not None:
             self.vector_db.cleanup()
 
         if torch.cuda.is_available():
@@ -709,7 +764,12 @@ def launch_jeeves_process():
     theme = ensure_theme_config()
     app.setStyleSheet(load_stylesheet(theme))
 
-    window = ChatWindow()
+    try:
+        window = ChatWindow()
+    except Exception as e:
+        print(f"Jeeves failed to start: {e}")
+        QMessageBox.critical(None, "Ask Jeeves", f"Jeeves could not start:\n{e}")
+        return
     window.show()
 
     ret = app.exec()
