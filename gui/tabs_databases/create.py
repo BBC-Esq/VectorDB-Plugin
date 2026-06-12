@@ -87,8 +87,33 @@ class VectorDBWorker(QThread):
 
     def cancel(self):
         self._cancelled = True
-        if self._process and self._process.poll() is None:
-            self._process.terminate()
+        proc = self._process
+        if proc and proc.poll() is None:
+            self._terminate_process_tree(proc.pid)
+
+    @staticmethod
+    def _terminate_process_tree(pid):
+        import psutil
+        try:
+            parent = psutil.Process(pid)
+        except psutil.NoSuchProcess:
+            return
+        try:
+            procs = parent.children(recursive=True)
+        except psutil.NoSuchProcess:
+            procs = []
+        procs.append(parent)
+        for p in procs:
+            try:
+                p.terminate()
+            except psutil.NoSuchProcess:
+                pass
+        _, alive = psutil.wait_procs(procs, timeout=5)
+        for p in alive:
+            try:
+                p.kill()
+            except psutil.NoSuchProcess:
+                pass
 
 
 class StagedFilesModel(QAbstractListModel):
