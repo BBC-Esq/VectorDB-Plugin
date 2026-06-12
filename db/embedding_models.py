@@ -297,6 +297,9 @@ def _run_tokenize_with_retry(
         time.sleep(3)
         gc.collect()
 
+    if not all_batches:
+        raise RuntimeError(f"Tokenize stage failed after {TOKENIZE_MAX_RETRIES} attempts")
+
     total_tokens = total_real_tokens + total_pad_tokens
     efficiency_pct = (total_real_tokens / total_tokens * 100) if total_tokens > 0 else 100.0
 
