@@ -197,17 +197,21 @@ class DatabasesTab(QWidget):
             self.sync_combobox_with_config()
 
     def populate_model_combobox(self):
-        self.model_combobox.clear()
-        self.model_combobox.addItem("Select a model", None)
-        script_dir = PROJECT_ROOT
-        vector_dir = script_dir / "Models" / "vector"
-        if not vector_dir.exists():
-            return
-        for folder in vector_dir.iterdir():
-            if folder.is_dir():
-                display_name = folder.name
-                full_path = str(folder)
-                self.model_combobox.addItem(display_name, full_path)
+        self.model_combobox.blockSignals(True)
+        try:
+            self.model_combobox.clear()
+            self.model_combobox.addItem("Select a model", None)
+            script_dir = PROJECT_ROOT
+            vector_dir = script_dir / "Models" / "vector"
+            if not vector_dir.exists():
+                return
+            for folder in vector_dir.iterdir():
+                if folder.is_dir():
+                    display_name = folder.name
+                    full_path = str(folder)
+                    self.model_combobox.addItem(display_name, full_path)
+        finally:
+            self.model_combobox.blockSignals(False)
 
     def sync_combobox_with_config(self):
         config_path = PROJECT_ROOT / "config.yaml"
