@@ -75,6 +75,7 @@ class CredentialManager(ABC):
 
             def save_credential():
                 if credential := credential_input.text():
+                    self.config = self._load_config()
                     self.update_credential(credential)
                     self._save_config()
                     QMessageBox.information(self.parent_widget, "Success", 
@@ -83,6 +84,7 @@ class CredentialManager(ABC):
                 dialog.accept()
 
             def clear_credential():
+                self.config = self._load_config()
                 self.update_credential(None)
                 self._save_config()
                 QMessageBox.information(self.parent_widget, "Success", 
