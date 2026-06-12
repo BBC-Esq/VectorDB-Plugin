@@ -603,7 +603,7 @@ class CreateVectorDB:
 
             if not chunk_texts:
                 my_cprint("No chunks produced after splitting.", "red")
-                return
+                raise RuntimeError("No chunks were produced after splitting; nothing to ingest.")
 
             # Extract metadata dicts from chunks_with_meta, then free it
             all_metadatas = []
