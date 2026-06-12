@@ -246,12 +246,19 @@ LOADER_MAP = {
 }
 
 
+def _safe_print(message):
+    try:
+        print(message)
+    except UnicodeEncodeError:
+        print(message.encode("ascii", "replace").decode("ascii"))
+
+
 def load_single_document(file_path: Path) -> Optional[Document]:
     file_extension = file_path.suffix.lower()
     loader_fn = LOADER_MAP.get(file_extension)
 
     if not loader_fn:
-        print(f"\033[91mFailed---> {file_path.name} (extension: {file_extension})\033[0m")
+        _safe_print(f"\033[91mFailed---> {file_path.name} (extension: {file_extension})\033[0m")
         logger.error(f"Unsupported file type: {file_path.name} (extension: {file_extension})")
         return None
 
@@ -259,21 +266,21 @@ def load_single_document(file_path: Path) -> Optional[Document]:
         content = loader_fn(file_path)
 
         if not content:
-            print(f"\033[91mFailed---> {file_path.name} (No content extracted)\033[0m")
+            _safe_print(f"\033[91mFailed---> {file_path.name} (No content extracted)\033[0m")
             logger.error(f"No content extracted: {file_path.name}")
             return None
 
         content_hash = compute_content_hash(content)
         metadata = extract_document_metadata(file_path, content_hash)
-        print(f"Loaded---> {file_path.name}")
+        _safe_print(f"Loaded---> {file_path.name}")
         return Document(page_content=content, metadata=metadata)
 
     except (OSError, UnicodeDecodeError) as e:
-        print(f"\033[91mFailed---> {file_path.name} (Access/encoding error)\033[0m")
+        _safe_print(f"\033[91mFailed---> {file_path.name} (Access/encoding error)\033[0m")
         logger.error(f"File access/encoding error - File: {file_path.name} - Error: {str(e)}")
         return None
     except Exception as e:
-        print(f"\033[91mFailed---> {file_path.name} (Unexpected error)\033[0m")
+        _safe_print(f"\033[91mFailed---> {file_path.name} (Unexpected error)\033[0m")
         logger.error(f"Unexpected error processing file: {file_path.name} - Error: {type(e).__name__}: {str(e)}")
         logging.exception("Full traceback:")
         return None

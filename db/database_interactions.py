@@ -132,9 +132,11 @@ def _run_subprocess_stage(name, cmd, timeout=3600):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         bufsize=1,
         cwd=str(PROJECT_ROOT),
-        env={**os.environ, "PYTHONUNBUFFERED": "1"},
+        env={**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"},
     )
 
     from db.subprocess_utils import drain_subprocess
