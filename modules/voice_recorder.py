@@ -11,7 +11,7 @@ import whisper_s2t
 from core.utilities import my_cprint
 
 def get_logical_core_count():
-    return psutil.cpu_count(logical=False)
+    return psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True) or 12
 
 CPU_THREADS = max(4, get_logical_core_count() - 8)
 DEVICE = "cpu"
