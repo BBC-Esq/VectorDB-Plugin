@@ -307,7 +307,7 @@ def update_config_yaml():
     if 'connection_str' not in config['server']:
         config['server']['connection_str'] = 'http://localhost:1234/v1'
     if 'show_thinking' not in config['server']:
-        config['server']['show_thinking'] = 'medium'
+        config['server']['show_thinking'] = False
 
     server_allowed_keys = {'api_key', 'connection_str', 'show_thinking'}
     server_keys = list(config['server'].keys())
