@@ -147,9 +147,11 @@ class LocalModelChat:
                 else:
                     time.sleep(0.1)
             except (BrokenPipeError, EOFError, OSError):
+                self.signals.finished_signal.emit()
                 break
             except Exception as e:
                 logging.warning(f"Unexpected error in _listen_for_response: {str(e)}")
+                self.signals.finished_signal.emit()
                 break
         self.cleanup_listener_resources()
 
@@ -160,7 +162,17 @@ class LocalModelChat:
 
     @staticmethod
     def _local_model_process(conn, model_name):
-        model_instance = module_chat.choose_model(model_name)
+        try:
+            model_instance = module_chat.choose_model(model_name)
+        except Exception as e:
+            logging.exception(f"Failed to load local model '{model_name}': {e}")
+            try:
+                conn.send(PipeMessage(MessageType.ERROR, f"Failed to load model '{model_name}': {e}"))
+                conn.send(PipeMessage(MessageType.FINISHED))
+            except (BrokenPipeError, OSError):
+                pass
+            conn.close()
+            return
         query_vector_db = None
         current_database = None
         try:
