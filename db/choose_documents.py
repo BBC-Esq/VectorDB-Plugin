@@ -87,6 +87,9 @@ class SymlinkWorker(QThread):
                 for i, (ok, err) in enumerate(
                     pool.imap_unordered(_create_single_symlink, file_args), 1
                 ):
+                    if self.isInterruptionRequested():
+                        pool.terminate()
+                        break
                     if ok:
                         made += 1
                     if err:
