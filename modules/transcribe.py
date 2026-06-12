@@ -134,8 +134,7 @@ class WhisperTranscriber:
                  av.open(str(output_path), mode='w') as output_container:
                 input_stream = input_container.streams.audio[0]
 
-                output_stream = output_container.add_stream('pcm_s16le', rate=16000)
-                output_stream.channels = 1
+                output_stream = output_container.add_stream('pcm_s16le', rate=16000, layout='mono')
 
                 resampler = av.AudioResampler(format='s16', layout='mono', rate=16000)
 
