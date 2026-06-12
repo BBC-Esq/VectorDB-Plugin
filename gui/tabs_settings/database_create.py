@@ -1,5 +1,6 @@
 import yaml
 from PySide6.QtGui import QIntValidator
+from PySide6.QtCore import QLocale
 from PySide6.QtWidgets import QWidget, QLabel, QLineEdit, QGridLayout, QHBoxLayout, QComboBox, QCheckBox, QMessageBox
 
 from core.constants import TOOLTIPS
@@ -127,7 +128,7 @@ class ChunkSettingsTab(QWidget):
         new_chunk_size_text = self.chunk_size_edit.text().strip()
         if new_chunk_size_text:
             try:
-                new_chunk_size = int(new_chunk_size_text)
+                new_chunk_size = int(new_chunk_size_text.replace(QLocale().groupSeparator(), ""))
                 if new_chunk_size <= 0:
                     raise ValueError("Chunk size must be a positive integer.")
             except ValueError as ve:
@@ -138,7 +139,7 @@ class ChunkSettingsTab(QWidget):
         new_chunk_overlap_text = self.chunk_overlap_edit.text().strip()
         if new_chunk_overlap_text:
             try:
-                new_chunk_overlap = int(new_chunk_overlap_text)
+                new_chunk_overlap = int(new_chunk_overlap_text.replace(QLocale().groupSeparator(), ""))
                 if new_chunk_overlap < 0:
                     raise ValueError("Chunk overlap cannot be negative.")
             except ValueError as ve:

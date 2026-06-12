@@ -1,5 +1,6 @@
 import yaml
 from PySide6.QtGui import QIntValidator, QDoubleValidator
+from PySide6.QtCore import QLocale
 from PySide6.QtWidgets import (
     QWidget,
     QLabel,
@@ -169,7 +170,7 @@ class DatabaseSettingsTab(QWidget):
         new_contexts_text = self.contexts_edit.text().strip()
         if new_contexts_text:
             try:
-                new_contexts = int(new_contexts_text)
+                new_contexts = int(new_contexts_text.replace(QLocale().groupSeparator(), ""))
                 if new_contexts < 1:
                     raise ValueError("Contexts must be a positive integer.")
             except ValueError:
