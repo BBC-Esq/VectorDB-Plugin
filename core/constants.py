@@ -1402,7 +1402,7 @@ VISION_MODELS = {
     'InternVL3 - 8b': {
         'precision': 'bfloat16',
         'quant': '4-bit',
-        'size': '1b',
+        'size': '8b',
         'repo_id': 'OpenGVLab/InternVL3-8B-HF',
         'cache_dir': 'OpenGVLab--InternVL3-8B-HF',
         'requires_cuda': True,
@@ -1640,7 +1640,7 @@ WHISPER_MODELS = {
         'vram': '3.3 GB'
     },
     'Distil Whisper medium.en - float32': {
-        'name': 'Distil Whisper large-v3',
+        'name': 'Distil Whisper medium.en',
         'precision': 'float32',
         'repo_id': 'ctranslate2-4you/distil-whisper-medium.en-ct2-float32',
         'cps': 160,
