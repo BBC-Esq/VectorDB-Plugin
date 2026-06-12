@@ -121,6 +121,14 @@ class SymlinkWorker(QThread):
 
 
 def choose_documents_directory():
+    existing_worker = getattr(choose_documents_directory, "_symlink_thread", None)
+    if existing_worker is not None and existing_worker.isRunning():
+        QMessageBox.information(
+            None, "Staging In Progress",
+            "Files are still being staged. Wait for the current job to finish or cancel it before starting another."
+        )
+        return
+
     current_dir = PROJECT_ROOT
     target_dir = current_dir / DOCS_FOLDER
     target_dir.mkdir(parents=True, exist_ok=True)
