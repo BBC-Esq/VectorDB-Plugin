@@ -248,6 +248,7 @@ def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesser
     process.start()
     total_pages = None
     pbar = None
+    documents_done = 0
     try:
         while True:
             try:
@@ -255,12 +256,16 @@ def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesser
                 cmd, data = msg
                 if cmd == 'total':
                     total_pages = data
+                    if pbar:
+                        pbar.close()
                     pbar = tqdm.tqdm(total=total_pages, desc="Processing pages")
                 elif cmd == 'update':
                     if pbar:
                         pbar.update(data)
                 elif cmd == 'done':
-                    break
+                    documents_done += 1
+                    if documents_done >= len(pdf_paths):
+                        break
             except queue.Empty:
                 if not process.is_alive():
                     break
