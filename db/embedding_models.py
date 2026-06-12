@@ -116,17 +116,18 @@ def _normalize_text(text: str) -> str:
 
 ENCODE_BATCH_SIZE_BY_MODEL = {
     "harrier-oss-v1-270m": 50,
-    "harrier-oss-v1-0.6b": 10,
+    "harrier-oss-v1-0.6b": 14,
     "bge-small-en-v1.5": 100,
     "bge-base-en-v1.5": 80,
     "bge-large-en-v1.5": 50,
-    "Qwen3-Embedding-0.6B": 10,
-    "Qwen3-Embedding-4B": 5,
-    "Octen-Embedding-0.6B": 10,
-    "Octen-Embedding-4B": 5,
-    "Octen-Embedding-8B": 3,
+    "Qwen3-Embedding-0.6B": 14,
+    "Qwen3-Embedding-4B": 6,
+    "Qwen3-Embedding-8B": 2,
+    "Octen-Embedding-0.6B": 14,
+    "Octen-Embedding-4B": 6,
+    "Octen-Embedding-8B": 2,
     "modernbert-embed-base_finetune_512": 50,
-    "modernbert-embed-base_finetune_8192": 16,
+    "modernbert-embed-base_finetune_8192": 20,
 }
 
 
