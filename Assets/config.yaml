@@ -57,7 +57,7 @@ tts:
   s2a:
   t2s:
 vision:
-  chosen_model: Florence-2-base
+  chosen_model: Liquid-VL - 480M
   chosen_quant: float16
   chosen_size: 2b
   flash_attention2: null
