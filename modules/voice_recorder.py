@@ -58,12 +58,16 @@ class TranscriptionThread(QThread):
                 del self.model
 
 class RecordingThread(QThread):
+    error = Signal(str)
+
     def __init__(self, voice_recorder):
         super().__init__()
         self.voice_recorder = voice_recorder
 
     def run(self):
-        self.voice_recorder.record_audio()
+        error_message = self.voice_recorder.record_audio()
+        if error_message:
+            self.error.emit(error_message)
 
 class VoiceRecorder:
     def __init__(self, gui_instance, channels=1, rate=16000, chunk=1024):
@@ -87,7 +91,8 @@ class VoiceRecorder:
         except sd.PortAudioError as e:
             my_cprint(f"Audio recording error: {str(e)}", 'red')
             self.is_recording = False
-            self.gui_instance.update_transcription("Error: Failed to access microphone")
+            return "Error: Failed to access microphone"
+        return None
 
     def save_audio(self):
         self.is_recording = False
@@ -116,6 +121,7 @@ class VoiceRecorder:
         if not self.is_recording:
             self.is_recording = True
             self.recording_thread = RecordingThread(self)
+            self.recording_thread.error.connect(self.gui_instance.update_transcription)
             self.recording_thread.start()
 
     def stop_recording(self):
