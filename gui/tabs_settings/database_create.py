@@ -148,13 +148,16 @@ class ChunkSettingsTab(QWidget):
         else:
             new_chunk_overlap = self.database_config.get("chunk_overlap", 0)
 
-        if new_chunk_size and new_chunk_overlap >= new_chunk_size:
-            errors.append("Chunk overlap must be less than chunk size.")
-
         if errors:
             error_message = "\n".join(errors)
             QMessageBox.warning(
                 self, "Invalid Input", f"The following errors occurred:\n{error_message}"
+            )
+            return False
+
+        if new_chunk_size and new_chunk_overlap >= new_chunk_size:
+            QMessageBox.warning(
+                self, "Invalid Input", "Chunk overlap must be less than chunk size."
             )
             return False
 
