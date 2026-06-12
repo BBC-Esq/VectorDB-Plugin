@@ -93,7 +93,7 @@ from db.document_processor import Document
 from db.embedding_models import load_embedding_model
 from db.sqlite_operations import create_metadata_db
 from db.cuda_manager import get_cuda_manager
-from core.config import get_config
+from core.config import get_config, reload_config
 from core.constants import PROJECT_ROOT, PIPELINE_PRESETS
 from core.utilities import my_cprint, set_cuda_paths, configure_logging
 
@@ -805,7 +805,7 @@ class QueryVectorDB:
 
     def load_configuration(self):
         try:
-            return get_config()
+            return reload_config()
         except Exception as e:
             logger.error(f"Error loading configuration: {e}")
             raise
