@@ -151,21 +151,37 @@ class AppConfig(BaseSettings):
             instance._config_path = config_path
             instance.save(config_path)
             return instance
+        data = {}
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 data = yaml.safe_load(f) or {}
-            if 'created_databases' in data:
-                for db_name, db_data in data['created_databases'].items():
-                    if isinstance(db_data, dict) and not isinstance(db_data, DatabaseInfo):
+        except Exception as e:
+            print(f"Error reading config file {config_path}: {e}")
+            data = {}
+
+        if isinstance(data, dict) and isinstance(data.get('created_databases'), dict):
+            for db_name, db_data in list(data['created_databases'].items()):
+                if isinstance(db_data, dict) and not isinstance(db_data, DatabaseInfo):
+                    try:
                         data['created_databases'][db_name] = DatabaseInfo(**db_data)
+                    except Exception as e:
+                        print(f"Ignoring invalid database entry '{db_name}' in config: {e}")
+                        del data['created_databases'][db_name]
+
+        try:
             instance = cls(**data)
-            instance._config_path = config_path
-            return instance
         except Exception as e:
             print(f"Error loading config: {e}")
+            print("Preserving valid fields and using defaults for the invalid ones.")
             instance = cls()
-            instance._config_path = config_path
-            return instance
+            if isinstance(data, dict):
+                for field_name, value in data.items():
+                    try:
+                        setattr(instance, field_name, value)
+                    except Exception as fe:
+                        print(f"  Ignoring invalid config field '{field_name}': {fe}")
+        instance._config_path = config_path
+        return instance
 
     def save(self, path: Optional[Path] = None) -> None:
         save_path = path or self._config_path
