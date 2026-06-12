@@ -100,20 +100,6 @@ if __name__ == "__main__":
 '''
 
 
-def save_checkpoint(checkpoint_path, data):
-    tmp_path = checkpoint_path.with_suffix(".tmp")
-    with open(tmp_path, "wb") as f:
-        pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
-    for attempt in range(5):
-        try:
-            os.replace(tmp_path, checkpoint_path)
-            return
-        except PermissionError:
-            if attempt == 4:
-                raise
-            time.sleep(0.2)
-
-
 def run_worker(python_exe: str, worker_script_path: str,
                docs_pkl: str, output_pkl: str,
                chunk_size: int, chunk_overlap: int,
@@ -251,7 +237,6 @@ def main():
     parser.add_argument("--max-worker-retries", type=int, default=3)
     parser.add_argument("--max-parallel-workers", type=int, default=0)
     parser.add_argument("--checkpoint-dir", type=Path, default=None)
-    parser.add_argument("--checkpoint-interval", type=int, default=5)
     args = parser.parse_args()
 
     if not args.input_pickle.exists():
@@ -260,10 +245,8 @@ def main():
 
     python_exe = sys.executable
     checkpoint_dir = args.checkpoint_dir
-    checkpoint_path = None
     if checkpoint_dir is not None:
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        checkpoint_path = checkpoint_dir / "split_checkpoint.pkl"
 
     worker_dir = checkpoint_dir if checkpoint_dir else Path(tempfile.gettempdir())
     worker_dir.mkdir(parents=True, exist_ok=True)
@@ -320,8 +303,6 @@ def main():
     all_chunks = []
     all_errors = []
     total_skipped = 0
-    workers_completed = 0
-    workers_since_checkpoint = 0
 
     if effective_parallel <= 1:
         for wid, chunk_docs in worker_jobs:
@@ -335,16 +316,6 @@ def main():
             all_chunks.extend(result.get("chunks", []))
             all_errors.extend(result["errors"])
             total_skipped += result["skipped"]
-            workers_completed += 1
-            workers_since_checkpoint += 1
-
-            if checkpoint_path is not None and workers_since_checkpoint >= args.checkpoint_interval:
-                save_checkpoint(checkpoint_path, {
-                    "texts": all_texts, "chunks": all_chunks,
-                    "errors": all_errors, "skipped": total_skipped,
-                    "workers_completed": workers_completed,
-                })
-                workers_since_checkpoint = 0
 
             gc.collect()
     else:
@@ -384,16 +355,6 @@ def main():
                 all_chunks.extend(result.get("chunks", []))
                 all_errors.extend(result["errors"])
                 total_skipped += result.get("skipped", 0)
-                workers_completed += 1
-                workers_since_checkpoint += 1
-
-            if checkpoint_path is not None and workers_since_checkpoint >= args.checkpoint_interval:
-                save_checkpoint(checkpoint_path, {
-                    "texts": all_texts, "chunks": all_chunks,
-                    "errors": all_errors, "skipped": total_skipped,
-                    "workers_completed": workers_completed,
-                })
-                workers_since_checkpoint = 0
 
             gc.collect()
 
@@ -409,11 +370,6 @@ def main():
         worker_script_path.unlink()
     except Exception:
         pass
-    if checkpoint_path is not None and checkpoint_path.exists():
-        try:
-            checkpoint_path.unlink()
-        except Exception:
-            pass
 
 
 if __name__ == "__main__":

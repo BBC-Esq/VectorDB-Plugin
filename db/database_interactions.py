@@ -188,7 +188,6 @@ def _run_split_with_retry(extracted_pkl, chunks_pkl, chunk_size, chunk_overlap, 
             "--max-worker-retries", str(SPLIT_MAX_WORKER_RETRIES),
             "--max-parallel-workers", str(split_parallel),
             "--checkpoint-dir", str(checkpoint_dir),
-            "--checkpoint-interval", "5",
         ]
 
         exit_code, _ = _run_subprocess_stage(f"Split (attempt {attempt})", split_cmd)
