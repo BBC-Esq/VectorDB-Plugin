@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QMessageBox,
 )
+from core.utilities import save_config_atomically
 
 from core.constants import TOOLTIPS
 
@@ -223,8 +224,7 @@ class DatabaseSettingsTab(QWidget):
 
         if settings_changed:
             try:
-                with open("config.yaml", "w", encoding="utf-8") as f:
-                    yaml.safe_dump(config_data, f)
+                save_config_atomically(config_data, "config.yaml")
             except Exception as e:
                 QMessageBox.critical(
                     self,
@@ -273,8 +273,7 @@ class DatabaseSettingsTab(QWidget):
         config_data["database"]["search_term"] = ""
 
         try:
-            with open("config.yaml", "w", encoding="utf-8") as f:
-                yaml.safe_dump(config_data, f)
+            save_config_atomically(config_data, "config.yaml")
         except Exception as e:
             QMessageBox.critical(
                 self,

@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QM
 
 from db.database_interactions import create_vector_db_in_process
 from db.choose_documents import choose_documents_directory
-from core.utilities import check_preconditions_for_db_creation, open_file, delete_file, backup_database, my_cprint
+from core.utilities import check_preconditions_for_db_creation, open_file, delete_file, backup_database, my_cprint, save_config_atomically
 from gui.download_model import model_downloaded_signal
 from core.constants import TOOLTIPS, PROJECT_ROOT
 
@@ -248,8 +248,7 @@ class DatabasesTab(QWidget):
         else:
             config_data.pop("EMBEDDING_MODEL_NAME", None)
             config_data.pop("EMBEDDING_MODEL_DIMENSIONS", None)
-        with open(config_path, 'w', encoding='utf-8') as file:
-            yaml.safe_dump(config_data, file, allow_unicode=True)
+        save_config_atomically(config_data, config_path, allow_unicode=True)
 
     def create_group_box(self, title, directory_name):
         group_box = QGroupBox(title)
@@ -503,8 +502,7 @@ class DatabasesTab(QWidget):
                 'chunk_size': chunk_size,
                 'chunk_overlap': chunk_overlap
             }
-            with open(config_path, 'w', encoding='utf-8') as file:
-                yaml.safe_dump(config, file, allow_unicode=True)
+            save_config_atomically(config, config_path, allow_unicode=True)
 
     def reenable_create_db_button(self):
         self.create_db_button.setDisabled(False)

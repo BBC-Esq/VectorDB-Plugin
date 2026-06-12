@@ -4,6 +4,7 @@ import torch
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QGridLayout, QVBoxLayout, QComboBox, QWidget
 from core.constants import VISION_MODELS
+from core.utilities import save_config_atomically
 
 CONFIG_FILE = "config.yaml"
 
@@ -20,8 +21,7 @@ def _read_cfg() -> dict:
 
 
 def _write_cfg(cfg: dict) -> None:
-    with Path(CONFIG_FILE).open("w", encoding="utf-8") as f:
-        yaml.safe_dump(cfg, f, sort_keys=True)
+    save_config_atomically(cfg, CONFIG_FILE, sort_keys=True)
 
 
 def is_cuda_available():

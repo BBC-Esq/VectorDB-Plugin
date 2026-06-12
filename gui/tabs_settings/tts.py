@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.constants import WHISPER_SPEECH_MODELS
+from core.utilities import save_config_atomically
 
 WHISPER_SPEECH_SPEAKERS = ["default", "classic", "voice_b"]
 WHISPER_SPEECH_VOICE_CLONING_LABEL = "Voice Cloning (Coming Soon)"
@@ -274,8 +275,7 @@ class TTSSettingsTab(QWidget):
             kyutai["temp"] = 0.6
             kyutai["cfg_coef"] = 2.0
 
-        with self._config_path().open("w", encoding="utf-8") as f:
-            yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
+        save_config_atomically(cfg, self._config_path(), sort_keys=False, allow_unicode=True)
 
     def _try_read_yaml(self):
         try:

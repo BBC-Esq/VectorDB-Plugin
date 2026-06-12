@@ -700,6 +700,13 @@ def update_theme_in_config(new_theme):
     except Exception:
         pass
 
+def save_config_atomically(config_data, config_path, **dump_kwargs):
+    config_path = Path(config_path)
+    tmp = config_path.with_name(config_path.name + ".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        yaml.safe_dump(config_data, f, **dump_kwargs)
+    os.replace(tmp, config_path)
+
 def make_theme_changer(theme_name):
     def change_theme():
         QApplication.instance().setStyleSheet(load_stylesheet(theme_name))

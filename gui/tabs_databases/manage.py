@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QGroupBox, QLabel, QComboBox, QMessageBox, QHeaderView
 )
 
-from core.utilities import open_file
+from core.utilities import open_file, save_config_atomically
 from core.constants import PROJECT_ROOT
 
 
@@ -212,8 +212,7 @@ class ManageDatabasesTab(QWidget):
 
                     config.setdefault('database', {})['database_to_search'] = ''
 
-                    with open(self.config_path, 'w', encoding='utf-8') as file:
-                        yaml.safe_dump(config, file)
+                    save_config_atomically(config, self.config_path)
 
                     base_dir = PROJECT_ROOT
                     deletion_failed = False

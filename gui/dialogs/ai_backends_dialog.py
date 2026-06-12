@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.constants import PROJECT_ROOT
+from core.utilities import save_config_atomically
 from gui.dialogs.chatgpt_tab import ChatGPTTab
 from gui.dialogs.lm_studio_tab import LMStudioTab
 from gui.dialogs.minimax_tab import MiniMaxTab
@@ -70,8 +71,7 @@ class AIBackendsDialog(QDialog):
 
     def _save_config(self, config: dict) -> bool:
         try:
-            with open(self.config_path, "w", encoding="utf-8") as f:
-                yaml.safe_dump(config, f, allow_unicode=True)
+            save_config_atomically(config, self.config_path, allow_unicode=True)
             return True
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save config.yaml: {e}")

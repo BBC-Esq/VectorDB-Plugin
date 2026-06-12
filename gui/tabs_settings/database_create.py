@@ -3,6 +3,7 @@ from PySide6.QtGui import QIntValidator
 from PySide6.QtWidgets import QWidget, QLabel, QLineEdit, QGridLayout, QHBoxLayout, QComboBox, QCheckBox, QMessageBox
 
 from core.constants import TOOLTIPS
+from core.utilities import save_config_atomically
 
 
 class ChunkSettingsTab(QWidget):
@@ -188,8 +189,7 @@ class ChunkSettingsTab(QWidget):
 
         if settings_changed:
             try:
-                with open("config.yaml", "w", encoding="utf-8") as f:
-                    yaml.safe_dump(config_data, f)
+                save_config_atomically(config_data, "config.yaml")
 
                 self.database_config["chunk_size"] = config_data["database"]["chunk_size"]
                 self.database_config["chunk_overlap"] = config_data["database"]["chunk_overlap"]

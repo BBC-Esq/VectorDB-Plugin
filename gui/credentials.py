@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QVBoxLayout,
 import yaml
 import logging
 import traceback
-from core.utilities import my_cprint
+from core.utilities import my_cprint, save_config_atomically
 from core.constants import PROJECT_ROOT
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
@@ -22,8 +22,7 @@ class CredentialManager(ABC):
         return {}
 
     def _save_config(self) -> None:
-        with open(self.config_file_path, 'w', encoding='utf-8') as file:
-            yaml.safe_dump(self.config, file, allow_unicode=True)
+        save_config_atomically(self.config, self.config_file_path, allow_unicode=True)
 
     @property
     @abstractmethod
