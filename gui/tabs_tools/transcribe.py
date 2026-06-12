@@ -1,5 +1,4 @@
 from pathlib import Path
-import yaml
 import torch
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
@@ -32,8 +31,6 @@ class TranscriptionWorkerThread(QThread):
 
 
 class TranscriberToolSettingsTab(QWidget):
-    CONFIG_FILE = 'config.yaml'
-    
     def __init__(self):
         super().__init__()
         self.selected_audio_file = None
@@ -119,10 +116,6 @@ class TranscriberToolSettingsTab(QWidget):
 
     def update_slider_label(self, value):
         self.slider_label.setText(str(value))
-
-    def update_config_file(self):
-        with open(self.CONFIG_FILE, 'w') as file:
-            yaml.dump(self.config, file)
 
     def select_audio_file(self):
         current_dir = Path.cwd()
