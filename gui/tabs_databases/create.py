@@ -551,6 +551,10 @@ class DatabasesTab(QWidget):
         if self.db_worker is not None and self.db_worker.isRunning():
             self.db_worker.cancel()
             self.db_worker.wait(5000)
+            if self.current_database_name:
+                partial_dir = PROJECT_ROOT / "Vector_DB" / self.current_database_name
+                if partial_dir.exists():
+                    shutil.rmtree(partial_dir, ignore_errors=True)
 
     def toggle_group_box(self, group_box, checked):
         self.groups[group_box] = 1 if checked else 0
