@@ -11,23 +11,31 @@ def _points_to(link_path: Path, source_path) -> bool:
         return False
 
 
+def _try_symlink(link_path: Path, source_path) -> str:
+    try:
+        link_path.symlink_to(source_path)
+        return "created"
+    except FileExistsError:
+        return "ours" if _points_to(link_path, source_path) else "collision"
+
+
 def _create_single_symlink(args):
     source_path, target_dir = args
     try:
         source = Path(source_path)
         target = Path(target_dir)
         link_path = target / source.name
-        if not link_path.exists():
-            link_path.symlink_to(source_path)
+        outcome = _try_symlink(link_path, source_path)
+        if outcome == "created":
             return True, None
-        if _points_to(link_path, source_path):
+        if outcome == "ours":
             return False, None
         suffix_hash = hashlib.md5(str(source).encode("utf-8")).hexdigest()[:8]
         disambiguated = target / f"{source.stem}_{suffix_hash}{source.suffix}"
-        if not disambiguated.exists():
-            disambiguated.symlink_to(source_path)
+        outcome = _try_symlink(disambiguated, source_path)
+        if outcome == "created":
             return True, None
-        if _points_to(disambiguated, source_path):
+        if outcome == "ours":
             return False, None
         return False, f"Symlink collision could not be resolved for {source.name}"
     except Exception as e:

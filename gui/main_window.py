@@ -182,7 +182,7 @@ class DocQA_GUI(QWidget):
 
         docs_dir = PROJECT_ROOT / 'Docs_for_DB'
         for item in docs_dir.glob('*'):
-            if item.is_file():
+            if item.is_file() or item.is_symlink():
                 try:
                     item.unlink()
                 except OSError:
