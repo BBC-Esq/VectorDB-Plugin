@@ -81,7 +81,7 @@ def _load_docx(file_path: Path) -> Optional[str]:
 
 
 def _load_txt(file_path: Path) -> Optional[str]:
-    encodings = ["utf-8", "utf-8-sig", "latin-1", "cp1252"]
+    encodings = ["utf-8", "utf-8-sig", "cp1252", "latin-1"]
     for enc in encodings:
         try:
             with open(file_path, "r", encoding=enc) as f:
@@ -93,7 +93,7 @@ def _load_txt(file_path: Path) -> Optional[str]:
 
 
 def _load_csv(file_path: Path) -> Optional[str]:
-    encodings = ["utf-8", "utf-8-sig", "latin-1", "cp1252"]
+    encodings = ["utf-8", "utf-8-sig", "cp1252", "latin-1"]
     for enc in encodings:
         rows = []
         try:
@@ -108,7 +108,7 @@ def _load_csv(file_path: Path) -> Optional[str]:
 
 
 def _load_html(file_path: Path) -> Optional[str]:
-    encodings = ["utf-8", "utf-8-sig", "latin-1", "cp1252"]
+    encodings = ["utf-8", "utf-8-sig", "cp1252", "latin-1"]
     for enc in encodings:
         try:
             with open(file_path, "r", encoding=enc) as f:
@@ -205,7 +205,7 @@ def _load_xlsx(file_path: Path) -> Optional[str]:
 def _load_rtf(file_path: Path) -> Optional[str]:
     from striprtf.striprtf import rtf_to_text
 
-    encodings = ["utf-8", "utf-8-sig", "latin-1", "cp1252"]
+    encodings = ["utf-8", "utf-8-sig", "cp1252", "latin-1"]
     for enc in encodings:
         try:
             with open(file_path, "r", encoding=enc) as f:
@@ -218,7 +218,7 @@ def _load_rtf(file_path: Path) -> Optional[str]:
 
 
 def _load_md(file_path: Path) -> Optional[str]:
-    encodings = ["utf-8", "utf-8-sig", "latin-1", "cp1252"]
+    encodings = ["utf-8", "utf-8-sig", "cp1252", "latin-1"]
     for enc in encodings:
         try:
             with open(file_path, "r", encoding=enc) as f:
