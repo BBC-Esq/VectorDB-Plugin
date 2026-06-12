@@ -693,6 +693,8 @@ class ChatWindow(QMainWindow):
         if self.tts_thread:
             self.tts_thread.quit()
             self.tts_thread.wait()
+            self.tts_thread = None
+            self.tts_worker = None
 
     def handle_tts_error(self, error_message):
         self.on_speech_finished()
