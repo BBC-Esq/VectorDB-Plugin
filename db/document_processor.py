@@ -93,18 +93,18 @@ def _load_txt(file_path: Path) -> Optional[str]:
 
 
 def _load_csv(file_path: Path) -> Optional[str]:
-    rows = []
     encodings = ["utf-8", "utf-8-sig", "latin-1", "cp1252"]
     for enc in encodings:
+        rows = []
         try:
             with open(file_path, "r", encoding=enc, newline="") as f:
                 reader = csv.reader(f)
                 for row in reader:
                     rows.append(" ".join(row))
-            break
+            return "\n".join(rows) if rows else None
         except UnicodeDecodeError:
             continue
-    return "\n".join(rows) if rows else None
+    return None
 
 
 def _load_html(file_path: Path) -> Optional[str]:
