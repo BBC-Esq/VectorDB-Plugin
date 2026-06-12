@@ -763,7 +763,7 @@ def delete_file(file_path):
     try:
         os.remove(file_path)
     except OSError:
-        QMessageBox.warning(None, "Unable to delete file(s), please delete manually.")
+        QMessageBox.warning(None, "Delete Failed", "Unable to delete file(s), please delete manually.")
 
 def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=False):
     if not database_name or len(database_name) < 3 or database_name.lower() in ["null", "none"]:
