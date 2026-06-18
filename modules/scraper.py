@@ -207,6 +207,9 @@ _MINTLIFY_DOC_INDEX_RE = re.compile(
 _MINTLIFY_FENCE_OPEN_RE = re.compile(r"^(\s*)```(\S+)(\s+.*)?$")
 _MINTLIFY_FENCE_KV_ATTR_RE = re.compile(r"\s+\w+=(?:\{[^}]*\}|\S+)")
 _MINTLIFY_TITLE_ATTR_RE = re.compile(r'\btitle="([^"]*)"')
+_MINTLIFY_FENCE_TOGGLE_RE = re.compile(r"^\s*```")
+_MINTLIFY_INLINE_CODE_RE = re.compile(r"(`+[^`]*`+)")
+_MINTLIFY_LEFTOVER_TAG_RE = re.compile(r"</?[A-Z][A-Za-z0-9]*(?:\s[^>]*?)?/?>")
 
 
 def _mintlify_open_indent(text, start):
@@ -227,10 +230,19 @@ def _mintlify_dedent(block, width):
     return "\n".join(out)
 
 
+def _mintlify_is_inline(m):
+    if "\n" in m.group(0):
+        return False
+    line_start = m.string.rfind("\n", 0, m.start()) + 1
+    return bool(m.string[line_start:m.start()].strip())
+
+
 def _mintlify_unwrap(md, name):
     pat = re.compile(rf"<{name}(\s[^>]*)?>(.*?)</{name}>", re.DOTALL)
     while True:
         def repl(m):
+            if _mintlify_is_inline(m):
+                return m.group(2).strip()
             inner = _mintlify_dedent(m.group(2), _mintlify_open_indent(m.string, m.start())).strip("\n")
             return "\n\n" + inner + "\n\n"
         new = pat.sub(repl, md)
@@ -261,8 +273,13 @@ def _mintlify_quote(md, name):
     while True:
         def repl(m):
             inner = _mintlify_dedent(m.group(2), _mintlify_open_indent(m.string, m.start())).strip("\n")
-            lines = inner.split("\n")
-            return "\n\n" + "\n".join(f"> {ln}" for ln in lines) + "\n\n"
+            inner = _mintlify_normalize_fences(inner)
+            body = markdown.markdown(
+                inner,
+                extensions=["fenced_code", "tables", "attr_list"],
+                output_format="html",
+            )
+            return f"\n\n<blockquote>\n{body}\n</blockquote>\n\n"
         new = pat.sub(repl, md)
         if new == md:
             return new
@@ -285,6 +302,24 @@ def _mintlify_normalize_fences(md_text):
     return "\n".join(out)
 
 
+def _mintlify_strip_leftover_tags(md_text):
+    out = []
+    in_fence = False
+    for line in md_text.split("\n"):
+        if _MINTLIFY_FENCE_TOGGLE_RE.match(line):
+            in_fence = not in_fence
+            out.append(line)
+            continue
+        if in_fence:
+            out.append(line)
+            continue
+        parts = _MINTLIFY_INLINE_CODE_RE.split(line)
+        for i in range(0, len(parts), 2):
+            parts[i] = _MINTLIFY_LEFTOVER_TAG_RE.sub("", parts[i])
+        out.append("".join(parts))
+    return "\n".join(out)
+
+
 def render_mintlify_markdown(md_text):
     md_text = _MINTLIFY_DOC_INDEX_RE.sub("", md_text, count=1)
     for name, action in _MINTLIFY_MDX_COMPONENTS.items():
@@ -294,6 +329,7 @@ def render_mintlify_markdown(md_text):
             md_text = _mintlify_heading(md_text, name)
         elif action == "QUOTE":
             md_text = _mintlify_quote(md_text, name)
+    md_text = _mintlify_strip_leftover_tags(md_text)
     md_text = _mintlify_normalize_fences(md_text)
     return markdown.markdown(
         md_text,
