@@ -209,13 +209,31 @@ _MINTLIFY_FENCE_KV_ATTR_RE = re.compile(r"\s+\w+=(?:\{[^}]*\}|\S+)")
 _MINTLIFY_TITLE_ATTR_RE = re.compile(r'\btitle="([^"]*)"')
 
 
+def _mintlify_open_indent(text, start):
+    line_start = text.rfind("\n", 0, start) + 1
+    prefix = text[line_start:start]
+    return len(prefix) if not prefix.strip() else 0
+
+
+def _mintlify_dedent(block, width):
+    if width <= 0:
+        return textwrap.dedent(block)
+    out = []
+    for line in block.split("\n"):
+        i = 0
+        while i < width and i < len(line) and line[i] == " ":
+            i += 1
+        out.append(line[i:])
+    return "\n".join(out)
+
+
 def _mintlify_unwrap(md, name):
     pat = re.compile(rf"<{name}(\s[^>]*)?>(.*?)</{name}>", re.DOTALL)
     while True:
-        new = pat.sub(
-            lambda m: "\n\n" + textwrap.dedent(m.group(2)).strip("\n") + "\n\n",
-            md,
-        )
+        def repl(m):
+            inner = _mintlify_dedent(m.group(2), _mintlify_open_indent(m.string, m.start())).strip("\n")
+            return "\n\n" + inner + "\n\n"
+        new = pat.sub(repl, md)
         if new == md:
             return new
         md = new
@@ -226,7 +244,7 @@ def _mintlify_heading(md, name):
     while True:
         def repl(m):
             attrs = m.group(1) or ""
-            inner = textwrap.dedent(m.group(2)).strip("\n")
+            inner = _mintlify_dedent(m.group(2), _mintlify_open_indent(m.string, m.start())).strip("\n")
             tm = _MINTLIFY_TITLE_ATTR_RE.search(attrs)
             if tm:
                 title = tm.group(1).replace("#", r"\#")
@@ -242,7 +260,7 @@ def _mintlify_quote(md, name):
     pat = re.compile(rf"<{name}(\s[^>]*)?>(.*?)</{name}>", re.DOTALL)
     while True:
         def repl(m):
-            inner = textwrap.dedent(m.group(2)).strip("\n")
+            inner = _mintlify_dedent(m.group(2), _mintlify_open_indent(m.string, m.start())).strip("\n")
             lines = inner.split("\n")
             return "\n\n" + "\n".join(f"> {ln}" for ln in lines) + "\n\n"
         new = pat.sub(repl, md)
