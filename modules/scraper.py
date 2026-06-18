@@ -100,6 +100,9 @@ def _strip_embedded_cruft(content):
             ).strip()
             if not non_anchor_text:
                 p.decompose()
+    for el in content.find_all(True):
+        for attr in [a for a in el.attrs if a.lower().startswith("on")]:
+            del el[attr]
     return content
 
 
@@ -377,9 +380,12 @@ class MintlifyScraper(BaseScraper):
         if head.startswith("<!doctype") or head.startswith("<html"):
             return text
         rendered = render_mintlify_markdown(text)
-        return f"<html><body>{rendered}</body></html>"
+        return f"<div>{rendered}</div>"
 
     def extract_main_content(self, soup):
+        div = soup.find("div")
+        if div is not None:
+            return div
         return soup.body if soup.body else soup
 
 
@@ -506,6 +512,9 @@ class ScraperWorker(QObject):
     def count_saved_files(self):
         return len([f for f in os.listdir(self.save_dir) if f.endswith(".html")])
 
+    def _emit_count(self):
+        self.status_updated.emit(self.name, str(self.stats["scraped"]))
+
     def _filename_key(self, url):
         if hasattr(self.scraper, "canonical_url"):
             return self.scraper.canonical_url(url)
@@ -522,6 +531,8 @@ class ScraperWorker(QObject):
         acceptable_domain_extension = parsed_url.path.rstrip("/")
 
         log_file = os.path.join(self.save_dir, "failed_urls.log")
+
+        self.stats["scraped"] = self.count_saved_files()
 
         semaphore = asyncio.BoundedSemaphore(max_concurrent_requests)
         visited = set()
@@ -658,8 +669,7 @@ class ScraperWorker(QObject):
                 except (asyncio.TimeoutError, RequestsError, OSError):
                     if attempt == retries:
                         await self.log_failed_url(url, log_file)
-                        self.stats["scraped"] = self.count_saved_files()
-                        self.status_updated.emit(self.name, str(self.stats["scraped"]))
+                        self._emit_count()
                     await asyncio.sleep(2)
                     continue
 
@@ -668,46 +678,43 @@ class ScraperWorker(QObject):
                     if self._429s_since_last_success >= self.RATE_LIMIT_THRESHOLD:
                         self._rate_limited = True
                     await self.log_failed_url(url, log_file)
-                    self.stats["scraped"] = self.count_saved_files()
-                    self.status_updated.emit(self.name, str(self.stats["scraped"]))
+                    self._emit_count()
                     return set()
 
                 if response.status_code != 200:
                     await self.log_failed_url(url, log_file)
-                    self.stats["scraped"] = self.count_saved_files()
-                    self.status_updated.emit(self.name, str(self.stats["scraped"]))
+                    self._emit_count()
                     return set()
 
                 self._429s_since_last_success = 0
 
                 content_type = response.headers.get("content-type", "").lower()
                 if not has_response_transform and "text/html" not in content_type:
-                    self.stats["scraped"] = self.count_saved_files()
-                    self.status_updated.emit(self.name, str(self.stats["scraped"]))
+                    self._emit_count()
                     return set()
 
                 html = response.text
                 if has_response_transform:
                     try:
                         html = self.scraper.transform_response(html, url)
-                    except Exception:
+                    except Exception as e:
+                        print(f"transform_response failed for {url}: {type(e).__name__}: {e}")
                         await self.log_failed_url(url, log_file)
-                        self.stats["scraped"] = self.count_saved_files()
-                        self.status_updated.emit(self.name, str(self.stats["scraped"]))
+                        self._emit_count()
                         return set()
 
                 try:
                     links = self.extract_links(
                         html, url, base_domain, acceptable_domain_extension
                     )
-                    await self.save_html(html, url, save_dir, links=links)
+                    created = await self.save_html(html, url, save_dir, links=links)
                 except Exception:
                     await self.log_failed_url(url, log_file)
-                    self.stats["scraped"] = self.count_saved_files()
-                    self.status_updated.emit(self.name, str(self.stats["scraped"]))
+                    self._emit_count()
                     return set()
-                self.stats["scraped"] = self.count_saved_files()
-                self.status_updated.emit(self.name, str(self.stats["scraped"]))
+                if created:
+                    self.stats["scraped"] += 1
+                self._emit_count()
                 return links
         return set()
 
@@ -732,9 +739,11 @@ class ScraperWorker(QObject):
             new_html.insert(0, new_body)
             processed_soup.insert(0, new_html)
 
+        created = False
         try:
             async with aiofiles.open(filename, "x", encoding="utf-8") as f:
                 await f.write(str(processed_soup))
+            created = True
         except FileExistsError:
             pass
 
@@ -750,6 +759,8 @@ class ScraperWorker(QObject):
                     await asyncio.to_thread(os.remove, tmp)
                 except Exception:
                     pass
+
+        return created
 
     def sanitize_filename(self, url: str) -> str:
         original_url = url
