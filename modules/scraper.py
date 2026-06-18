@@ -526,7 +526,7 @@ class ScraperWorker(QObject):
             return out
 
         async with AsyncSession(impersonate="chrome") as session:
-            if not self.resume and hasattr(self.scraper, "collect_seed_urls"):
+            if hasattr(self.scraper, "collect_seed_urls"):
                 try:
                     extra = await self.scraper.collect_seed_urls(session)
                     if extra:
@@ -612,7 +612,10 @@ class ScraperWorker(QObject):
 
         async with semaphore:
             for attempt in range(1, retries + 1):
-                if self._rate_limited or self._cancelled:
+                if self._cancelled:
+                    return set()
+                if self._rate_limited:
+                    await self.log_failed_url(url, log_file)
                     return set()
                 try:
                     response = await session.get(fetch_url, timeout=30, allow_redirects=True)
