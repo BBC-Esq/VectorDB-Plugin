@@ -327,6 +327,9 @@ class MintlifyScraper(BaseScraper):
             urls.append(base_url)
         return urls
 
+    def canonical_url(self, url):
+        return url.rstrip("/")
+
     def fetch_url_for(self, url):
         u = url.rstrip("/")
         if u.endswith(".md"):
@@ -467,6 +470,11 @@ class ScraperWorker(QObject):
     def count_saved_files(self):
         return len([f for f in os.listdir(self.save_dir) if f.endswith(".html")])
 
+    def _filename_key(self, url):
+        if hasattr(self.scraper, "canonical_url"):
+            return self.scraper.canonical_url(url)
+        return url
+
     async def crawl_domain(
         self,
         max_concurrent_requests: int = 20,
@@ -591,7 +599,7 @@ class ScraperWorker(QObject):
         acceptable_domain_extension,
         retries: int = 3,
     ):
-        filename = os.path.join(save_dir, self.sanitize_filename(url) + ".html")
+        filename = os.path.join(save_dir, self.sanitize_filename(self._filename_key(url)) + ".html")
         if os.path.exists(filename):
             return set()
 
@@ -665,7 +673,7 @@ class ScraperWorker(QObject):
         return set()
 
     async def save_html(self, content, url, save_dir, links=None):
-        filename = os.path.join(save_dir, self.sanitize_filename(url) + ".html")
+        filename = os.path.join(save_dir, self.sanitize_filename(self._filename_key(url)) + ".html")
         soup = BeautifulSoup(content, "lxml")
         processed_soup = self.scraper.process_html(soup)
 
