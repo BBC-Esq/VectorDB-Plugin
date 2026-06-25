@@ -21,6 +21,12 @@ class MiniMaxConfig(_SubConfig):
     model: str = "MiniMax-M3"
 
 
+class TwelveLabsConfig(_SubConfig):
+    api_key: Optional[str] = None
+    pegasus_model: str = "pegasus1.5"
+    marengo_model: str = "marengo3.0"
+
+
 class ServerConfig(_SubConfig):
     api_key: str = ""
     connection_str: str = "http://127.0.0.1:1234/v1"
@@ -105,6 +111,7 @@ class AppConfig(BaseSettings):
 
     openai: OpenAIConfig = Field(default_factory=OpenAIConfig)
     minimax: MiniMaxConfig = Field(default_factory=MiniMaxConfig)
+    twelvelabs: TwelveLabsConfig = Field(default_factory=TwelveLabsConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     Compute_Device: ComputeDeviceConfig = Field(default_factory=ComputeDeviceConfig)

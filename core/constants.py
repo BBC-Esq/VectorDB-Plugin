@@ -804,6 +804,7 @@ libs = [
     # and safetensors>=0.4.3. The jump to 5.x (5.9.0) requires huggingface-hub>=1.5.0 -> full hub-1.x migration +
     # new CLI deps (typer/shellingham/annotated-doc) + v5 breaking API changes. Revisit 5.x as a deliberate migration.
     "transformers==4.57.6",
+    "twelvelabs==1.2.8",  # optional cloud backend: Pegasus video analysis + Marengo embeddings (modules/twelvelabs_video.py)
     "typing-inspection==0.4.2",
     "typing_extensions==4.15.0",
     "unstructured-client==0.44.1",

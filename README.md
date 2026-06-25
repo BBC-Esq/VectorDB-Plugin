@@ -60,8 +60,8 @@ python gui.py
 
 |                |                                                                                                                                                                                                          |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 📂 **Ingest**  | 📄 `.pdf`, `.docx`, `.txt`, `.html`, `.htm`, `.md`, `.csv`, `.xls`, `.xlsx`, `.xlsm`, `.rtf`, `.eml`, `.msg`  <br> 🖼️ `.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif`, `.tif`, `.tiff`  <br> 🎵 `.mp3`, `.wav`, `.m4a`, `.ogg`, `.wma`, `.flac` |
-| ⚙️ **Process** | 📝 Extract text from documents  <br> 🖼️ Generate descriptions from images  <br> 🎧 Transcribe speech from audio                                                                                         |
+| 📂 **Ingest**  | 📄 `.pdf`, `.docx`, `.txt`, `.html`, `.htm`, `.md`, `.csv`, `.xls`, `.xlsx`, `.xlsm`, `.rtf`, `.eml`, `.msg`  <br> 🖼️ `.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif`, `.tif`, `.tiff`  <br> 🎵 `.mp3`, `.wav`, `.m4a`, `.ogg`, `.wma`, `.flac`  <br> 🎬 video (optional, via [TwelveLabs](#optional-video-understanding-with-twelvelabs)) |
+| ⚙️ **Process** | 📝 Extract text from documents  <br> 🖼️ Generate descriptions from images  <br> 🎧 Transcribe speech from audio  <br> 🎬 Describe video with TwelveLabs Pegasus (optional)                                  |
 | 🧠 **Store**   | All processed content is embedded and saved into the vector database for searching.                                                                                                              |
 
 ### Query → LLM → Output
@@ -80,6 +80,41 @@ python gui.py
 
 > [!NOTE]
 > Instructions on how to use the program are being consolidated into the `Ask Jeeves` functionality, which can be accessed from the "Ask Jeeves" menu option.  Please create an issue if Jeeves is not working.
+
+<a name="optional-video-understanding-with-twelvelabs"></a>
+<div align="center"> <h2>Optional: Video understanding with TwelveLabs</h2></div>
+
+Audio files are transcribed locally with Whisper, but full **video** understanding
+(visuals + speech + on-screen text) is available as an *opt-in* cloud backend via
+[TwelveLabs](https://twelvelabs.io). It is off by default and changes nothing about
+the existing local pipeline.
+
+- **Pegasus** analyzes a video and produces a rich text description, which is written
+  to `Docs_for_DB` in the same `{page_content, metadata}` shape as a transcript, so it
+  flows through the normal chunk → embed → store → search pipeline.
+- **Marengo** produces 512‑dim multimodal embeddings for video and text, for callers
+  that want to embed video directly instead of going through a description.
+
+Set your key in `config.yaml`:
+
+```yaml
+twelvelabs:
+  api_key: "tlk_..."        # or set the TWELVELABS_API_KEY environment variable
+  pegasus_model: pegasus1.5
+  marengo_model: marengo3.0
+```
+
+Then ingest a video by URL:
+
+```python
+from modules.twelvelabs_video import TwelveLabsVideoProcessor
+
+TwelveLabsVideoProcessor().start_transcription_process(
+    "https://example.com/clips/talk.mp4"
+)  # writes Docs_for_DB/talk.json, ready for the vector database
+```
+
+You can grab a free API key at https://twelvelabs.io — there's a generous free tier.
 
 <a name="request-a-feature-or-report-a-bug"></a>
 
