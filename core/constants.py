@@ -2137,7 +2137,7 @@ scrape_documentation = {
     "joblib": {
         "URL": "https://joblib.readthedocs.io/en/stable/",
         "folder": "joblib",
-        "scraper_class": "ReadthedocsScraper"
+        "scraper_class": "BodyRoleMainScraper"
     },
     "kiwisolver": {
         "URL": "https://kiwisolver.readthedocs.io/en/stable/",
@@ -2477,7 +2477,7 @@ scrape_documentation = {
     "SQLAlchemy 20": {
         "URL": "https://docs.sqlalchemy.org/en/20/",
         "folder": "sqlalchemy_20",
-        "scraper_class": "BodyRoleMainScraper"
+        "scraper_class": "DivIdDocsBodyScraper"
     },
     "sympy": {
         "URL": "https://docs.sympy.org/latest/",

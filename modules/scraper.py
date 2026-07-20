@@ -154,6 +154,7 @@ SCRAPER_SELECTORS = {
     "MainScraper": ("main", {}),
     "DivClassThemeDocMarkdownMarkdownScraper": ("div", {"class_": ["theme-doc-markdown", "markdown"]}),
     "DivIdContentScraper": ("div", {"id": "content"}),
+    "DivIdDocsBodyScraper": ("div", {"id": "docs-body"}),
     "DivClassTdContentScraper": ("div", {"class_": "td-content"}),
     "BodyScraper": ("body", {}),
     "ArticleRoleMainScraper": ("article", {"attrs": {"role": "main"}}),
