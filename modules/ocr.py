@@ -595,7 +595,14 @@ def _process_documents_worker(pdf_paths: List[Path], backend: str, model_path: s
             output_path = None
             if output_dir:
                 output_path = output_dir / f"{pdf_path.stem}_ocr.txt"
-            processor.process_document(pdf_path, output_path)
+            try:
+                processor.process_document(pdf_path, output_path)
+            except Exception as e:
+                print(f"\033[93m[OCR] file failed: {pdf_path.name} ({type(e).__name__}: {e})\033[0m", flush=True)
+                try:
+                    progress_queue.put(('fileerror', {'file': str(pdf_path), 'error': f"{type(e).__name__}: {e}"}))
+                except Exception:
+                    pass
     finally:
         if hasattr(processor, 'cleanup'):
             processor.cleanup()
@@ -609,7 +616,7 @@ def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesser
     total_pages = None
     pbar = None
     documents_done = 0
-    events = {'lowconf': [], 'notext': [], 'oriented': [], 'pageerror': [], 'verifyfail': []}
+    events = {'lowconf': [], 'notext': [], 'oriented': [], 'pageerror': [], 'verifyfail': [], 'fileerror': []}
     try:
         while True:
             try:
@@ -625,10 +632,12 @@ def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesser
                         pbar.update(data)
                 elif cmd == 'done':
                     documents_done += 1
-                    if documents_done >= len(pdf_paths):
+                    if documents_done + len(events['fileerror']) >= len(pdf_paths):
                         break
                 elif cmd in events:
                     events[cmd].append(data)
+                    if cmd == 'fileerror' and documents_done + len(events['fileerror']) >= len(pdf_paths):
+                        break
             except queue.Empty:
                 if not process.is_alive():
                     break
@@ -648,12 +657,18 @@ def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesser
     if process.exitcode is not None and process.exitcode != 0:
         raise RuntimeError(f"OCR worker exited with code {process.exitcode}")
 
-    n_low, n_nt, n_or, n_err, n_bad = (len(events['lowconf']), len(events['notext']),
-                                       len(events['oriented']), len(events['pageerror']),
-                                       len(events['verifyfail']))
-    if n_low or n_nt or n_or or n_err or n_bad:
+    if events['fileerror'] and len(events['fileerror']) >= len(pdf_paths):
+        details = "; ".join(f"{Path(e['file']).name}: {e['error']}" for e in events['fileerror'])
+        raise RuntimeError(f"OCR failed for all {len(pdf_paths)} file(s): {details}")
+
+    n_low, n_nt, n_or, n_err, n_bad, n_file = (len(events['lowconf']), len(events['notext']),
+                                               len(events['oriented']), len(events['pageerror']),
+                                               len(events['verifyfail']), len(events['fileerror']))
+    if n_low or n_nt or n_or or n_err or n_bad or n_file:
         print(f"\033[93m[RapidOCR] summary: {n_low} low-confidence page(s), "
               f"{n_nt} no-text page(s), {n_or} auto-oriented page(s), "
-              f"{n_err} page error(s), {n_bad} verification warning(s)\033[0m", flush=True)
+              f"{n_err} page error(s), {n_bad} verification warning(s), "
+              f"{n_file} failed file(s)\033[0m", flush=True)
     return {'lowconf': events['lowconf'], 'notext': events['notext'], 'oriented': events['oriented'],
-            'pageerror': events['pageerror'], 'verifyfail': events['verifyfail']}
+            'pageerror': events['pageerror'], 'verifyfail': events['verifyfail'],
+            'fileerror': events['fileerror']}
