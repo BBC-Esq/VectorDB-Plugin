@@ -552,6 +552,11 @@ class RapidOCRBackend(OCRProcessor):
                 orig_pages.append({'width': page.rect.width, 'height': page.rect.height,
                                    'rotation': page.rotation, 'mediabox': page.mediabox,
                                    'cropbox': getattr(page, 'cropbox', None)})
+            src_meta = dict(original_doc.metadata or {})
+            try:
+                src_lang = original_doc.xref_get_key(original_doc.pdf_catalog(), "Lang")
+            except Exception:
+                src_lang = (None, None)
         temp_path = str(ocr_pdf_path) + ".optimized"
         with fitz.open(ocr_pdf_path) as ocr_doc:
             for i, page in enumerate(ocr_doc):
@@ -569,6 +574,20 @@ class RapidOCRBackend(OCRProcessor):
                                     page.set_cropbox(cropbox)
                             except ValueError:
                                 pass
+            meta = {k: v for k, v in src_meta.items()
+                    if v and k in ('title', 'author', 'subject', 'keywords', 'creator',
+                                   'creationDate', 'trapped')}
+            meta['producer'] = 'VectorDB-Plugin RapidOCR (PP-OCRv6)'
+            meta['modDate'] = fitz.get_pdf_now()
+            try:
+                ocr_doc.set_metadata(meta)
+            except Exception:
+                pass
+            try:
+                if src_lang[0] == 'string' and src_lang[1]:
+                    ocr_doc.xref_set_key(ocr_doc.pdf_catalog(), "Lang", fitz.get_pdf_str(src_lang[1]))
+            except Exception:
+                pass
             ocr_doc.save(temp_path, garbage=4, deflate=True, clean=True)
         os.replace(temp_path, ocr_pdf_path)
 
