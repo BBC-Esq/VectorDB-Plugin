@@ -380,16 +380,42 @@ class RapidOCRBackend(OCRProcessor):
         subs = [s for t, s in zip(res.txts, res.scores) if len(t) >= 3]
         return float(sum(subs) / len(subs)) if subs else 0.0
 
+    @staticmethod
+    def _remap_k1(poly, w, h):
+        return np.array([[w - 1 - p[1], p[0]] for p in poly])
+
+    @staticmethod
+    def _remap_k2(poly, w, h):
+        return np.array([[w - 1 - p[0], h - 1 - p[1]] for p in poly])
+
+    @staticmethod
+    def _remap_k3(poly, w, h):
+        return np.array([[p[1], h - 1 - p[0]] for p in poly])
+
     def _ocr_oriented(self, img, w: int, h: int):
         r0 = self.engine(img, use_cls=False)
         if self._mean_conf(r0) >= self._ORIENT_ACCEPT_CONF:
-            return self._unpack(r0)
-        r180 = self.engine(np.ascontiguousarray(img[::-1, ::-1]), use_cls=False)
-        if self._text_mass(r180) > self._text_mass(r0) * self._ORIENT_MARGIN:
-            txts, boxes, scores = self._unpack(r180)
-            boxes = [np.array([[w - p[0], h - p[1]] for p in np.asarray(poly)]) for poly in boxes]
-            return txts, boxes, scores
-        return self._unpack(r0)
+            return self._unpack(r0) + ('none',)
+        base_mass = self._text_mass(r0)
+        variants = (
+            ('rot90', np.ascontiguousarray(np.rot90(img, 1)), self._remap_k1),
+            ('rot180', np.ascontiguousarray(np.rot90(img, 2)), self._remap_k2),
+            ('rot270', np.ascontiguousarray(np.rot90(img, 3)), self._remap_k3),
+            ('invert', np.ascontiguousarray(255 - img), None),
+        )
+        ranked = []
+        for name, vimg, remap in variants:
+            probe = np.ascontiguousarray(vimg[::2, ::2])
+            ranked.append((self._text_mass(self.engine(probe, use_cls=False)), name, vimg, remap))
+        ranked.sort(key=lambda s: s[0], reverse=True)
+        _, name, vimg, remap = ranked[0]
+        r_win = self.engine(vimg, use_cls=False)
+        if self._text_mass(r_win) > base_mass * self._ORIENT_MARGIN:
+            txts, boxes, scores = self._unpack(r_win)
+            if remap is not None:
+                boxes = [remap(np.asarray(p), w, h) for p in boxes]
+            return txts, boxes, scores, name
+        return self._unpack(r0) + ('none',)
 
     def process_page(self, page_num: int, pdf_path: str) -> Tuple[int, str]:
         fd, temp_pdf_path = tempfile.mkstemp(suffix=".pdf", dir=self.temp_dir)
@@ -403,7 +429,11 @@ class RapidOCRBackend(OCRProcessor):
                 pix = page.get_pixmap(matrix=fitz.Matrix(z, z))
                 img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
                     pix.height, pix.width, pix.n)[:, :, :3][:, :, ::-1].copy()
-                txts, boxes, scores = self._ocr_oriented(img, pix.width, pix.height)
+                txts, boxes, scores, orient = self._ocr_oriented(img, pix.width, pix.height)
+                if orient != 'none':
+                    self._signal('oriented',
+                                 f"page {page_num + 1}: auto-corrected orientation ({orient})",
+                                 {'page': page_num + 1, 'orient': orient})
                 if txts and boxes:
                     hocr_text, stats = self._build_hocr(txts, boxes, scores, pix.width, pix.height)
                     if stats['emitted'] > 0:
@@ -571,7 +601,7 @@ def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesser
     total_pages = None
     pbar = None
     documents_done = 0
-    events = {'lowconf': [], 'notext': [], 'pageerror': [], 'verifyfail': []}
+    events = {'lowconf': [], 'notext': [], 'oriented': [], 'pageerror': [], 'verifyfail': []}
     try:
         while True:
             try:
@@ -610,10 +640,12 @@ def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesser
     if process.exitcode is not None and process.exitcode != 0:
         raise RuntimeError(f"OCR worker exited with code {process.exitcode}")
 
-    n_low, n_nt, n_err, n_bad = (len(events['lowconf']), len(events['notext']),
-                                 len(events['pageerror']), len(events['verifyfail']))
-    if n_low or n_nt or n_err or n_bad:
+    n_low, n_nt, n_or, n_err, n_bad = (len(events['lowconf']), len(events['notext']),
+                                       len(events['oriented']), len(events['pageerror']),
+                                       len(events['verifyfail']))
+    if n_low or n_nt or n_or or n_err or n_bad:
         print(f"\033[93m[RapidOCR] summary: {n_low} low-confidence page(s), "
-              f"{n_nt} no-text page(s), {n_err} page error(s), {n_bad} verification warning(s)\033[0m", flush=True)
-    return {'lowconf': events['lowconf'], 'notext': events['notext'],
+              f"{n_nt} no-text page(s), {n_or} auto-oriented page(s), "
+              f"{n_err} page error(s), {n_bad} verification warning(s)\033[0m", flush=True)
+    return {'lowconf': events['lowconf'], 'notext': events['notext'], 'oriented': events['oriented'],
             'pageerror': events['pageerror'], 'verifyfail': events['verifyfail']}
