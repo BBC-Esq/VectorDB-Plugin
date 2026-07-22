@@ -199,12 +199,15 @@ class TesseractOCR(OCRProcessor):
         with fitz.open(original_pdf_path) as original_doc:
             orig_pages = []
             for page in original_doc:
-                orig_pages.append({'width': page.rect.width, 'height': page.rect.height, 'mediabox': page.mediabox, 'cropbox': getattr(page, 'cropbox', None)})
+                orig_pages.append({'width': page.rect.width, 'height': page.rect.height, 'rotation': page.rotation, 'mediabox': page.mediabox, 'cropbox': getattr(page, 'cropbox', None)})
         temp_path = str(ocr_pdf_path) + ".optimized"
         with fitz.open(ocr_pdf_path) as ocr_doc:
             for i, page in enumerate(ocr_doc):
                 if i < len(orig_pages):
                     orig = orig_pages[i]
+                    if orig['rotation'] in (90, 270):
+                        page.set_mediabox(fitz.Rect(0, 0, orig['width'], orig['height']))
+                        continue
                     page.set_mediabox(orig['mediabox'])
                     if orig['cropbox']:
                         try:
@@ -314,6 +317,39 @@ class RapidOCRBackend(OCRProcessor):
             f"<div class='ocr_carea' title='bbox 0 0 {width} {height}'><p class='ocr_par'>"
             f"{body}</p></div></div></body></html>")
 
+    _ORIENT_ACCEPT_CONF = 0.90
+    _ORIENT_MARGIN = 1.20
+
+    @staticmethod
+    def _unpack(res):
+        txts = list(res.txts) if res.txts is not None else []
+        boxes = list(res.boxes) if res.boxes is not None else []
+        return txts, boxes
+
+    @staticmethod
+    def _text_mass(res) -> float:
+        if res.txts is None:
+            return 0.0
+        return float(sum(s * len(t) for t, s in zip(res.txts, res.scores) if len(t) >= 3))
+
+    @staticmethod
+    def _mean_conf(res) -> float:
+        if res.txts is None:
+            return 0.0
+        subs = [s for t, s in zip(res.txts, res.scores) if len(t) >= 3]
+        return float(sum(subs) / len(subs)) if subs else 0.0
+
+    def _ocr_oriented(self, img, w: int, h: int):
+        r0 = self.engine(img, use_cls=False)
+        if self._mean_conf(r0) >= self._ORIENT_ACCEPT_CONF:
+            return self._unpack(r0)
+        r180 = self.engine(np.ascontiguousarray(img[::-1, ::-1]), use_cls=False)
+        if self._text_mass(r180) > self._text_mass(r0) * self._ORIENT_MARGIN:
+            txts, boxes = self._unpack(r180)
+            boxes = [np.array([[w - p[0], h - p[1]] for p in np.asarray(poly)]) for poly in boxes]
+            return txts, boxes
+        return self._unpack(r0)
+
     def process_page(self, page_num: int, pdf_path: str) -> Tuple[int, str]:
         fd, temp_pdf_path = tempfile.mkstemp(suffix=".pdf", dir=self.temp_dir)
         os.close(fd)
@@ -323,9 +359,7 @@ class RapidOCRBackend(OCRProcessor):
             pix = page.get_pixmap(matrix=fitz.Matrix(self.zoom, self.zoom))
             img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
                 pix.height, pix.width, pix.n)[:, :, :3][:, :, ::-1].copy()
-            res = self.engine(img)
-            txts = list(res.txts) if res.txts is not None else []
-            boxes = list(res.boxes) if res.boxes is not None else []
+            txts, boxes = self._ocr_oriented(img, pix.width, pix.height)
             out_pdf.insert_pdf(page.parent, from_page=page_num, to_page=page_num)
             if txts and boxes:
                 hocr_text = self._build_hocr(txts, boxes, pix.width, pix.height)
@@ -387,21 +421,25 @@ class RapidOCRBackend(OCRProcessor):
             orig_pages = []
             for page in original_doc:
                 orig_pages.append({'width': page.rect.width, 'height': page.rect.height,
-                                   'mediabox': page.mediabox, 'cropbox': getattr(page, 'cropbox', None)})
+                                   'rotation': page.rotation, 'mediabox': page.mediabox,
+                                   'cropbox': getattr(page, 'cropbox', None)})
         temp_path = str(ocr_pdf_path) + ".optimized"
         with fitz.open(ocr_pdf_path) as ocr_doc:
             for i, page in enumerate(ocr_doc):
                 if i < len(orig_pages):
                     orig = orig_pages[i]
-                    page.set_mediabox(orig['mediabox'])
-                    if orig['cropbox']:
-                        try:
-                            cropbox = orig['cropbox']
-                            mediabox = orig['mediabox']
-                            if cropbox[0] >= mediabox[0] and cropbox[1] >= mediabox[1] and cropbox[2] <= mediabox[2] and cropbox[3] <= mediabox[3]:
-                                page.set_cropbox(cropbox)
-                        except ValueError:
-                            pass
+                    if orig['rotation'] in (90, 270):
+                        page.set_mediabox(fitz.Rect(0, 0, orig['width'], orig['height']))
+                    else:
+                        page.set_mediabox(orig['mediabox'])
+                        if orig['cropbox']:
+                            try:
+                                cropbox = orig['cropbox']
+                                mediabox = orig['mediabox']
+                                if cropbox[0] >= mediabox[0] and cropbox[1] >= mediabox[1] and cropbox[2] <= mediabox[2] and cropbox[3] <= mediabox[3]:
+                                    page.set_cropbox(cropbox)
+                            except ValueError:
+                                pass
             ocr_doc.save(temp_path, garbage=4, deflate=True, clean=True)
         os.replace(temp_path, ocr_pdf_path)
 
