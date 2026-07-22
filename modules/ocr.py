@@ -684,7 +684,7 @@ def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesser
                                                len(events['oriented']), len(events['pageerror']),
                                                len(events['verifyfail']), len(events['fileerror']))
     if n_low or n_nt or n_or or n_err or n_bad or n_file:
-        print(f"\033[93m[RapidOCR] summary: {n_low} low-confidence page(s), "
+        print(f"\033[93m[OCR] summary: {n_low} low-confidence page(s), "
               f"{n_nt} no-text page(s), {n_or} auto-oriented page(s), "
               f"{n_err} page error(s), {n_bad} verification warning(s), "
               f"{n_file} failed file(s)\033[0m", flush=True)

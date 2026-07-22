@@ -1,8 +1,9 @@
+import html
 import time
 from pathlib import Path
 import fitz
 from PySide6.QtWidgets import (
-    QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel, 
+    QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel,
     QComboBox, QFileDialog, QMessageBox
 )
 from PySide6.QtCore import QThread, Signal
@@ -18,16 +19,49 @@ def get_pdf_page_count(pdf_path):
 
 def run_ocr_process(pdf_path, backend):
     try:
-        process_documents(
+        events = process_documents(
             pdf_paths=Path(pdf_path),
             backend=backend,
         )
-        return True, None
+        return True, None, events if isinstance(events, dict) else {}
     except Exception as e:
-        return False, str(e)
+        return False, str(e), {}
+
+def _page_list(pages, limit=10):
+    shown = ", ".join(str(p) for p in pages[:limit])
+    return shown + ", ..." if len(pages) > limit else shown
+
+def summarize_events(events):
+    events = events or {}
+    def entries(key):
+        return [e for e in events.get(key, []) if isinstance(e, dict)]
+    def pages(items):
+        return sorted({e.get('page') for e in items if e.get('page')})
+    warnings, infos = [], []
+    lc = pages(entries('lowconf'))
+    if lc:
+        warnings.append(f"{len(lc)} low-confidence page(s): {_page_list(lc)} (worth a manual review)")
+    nt = entries('notext')
+    nt_sus = pages([e for e in nt if e.get('ink_frac', 0) >= 0.002])
+    nt_blank = pages([e for e in nt if e.get('ink_frac', 0) < 0.002])
+    if nt_sus:
+        warnings.append(f"{len(nt_sus)} page(s) with visible content but no OCR text: {_page_list(nt_sus)}")
+    if nt_blank:
+        infos.append(f"{len(nt_blank)} blank page(s): {_page_list(nt_blank)}")
+    pe = pages(entries('pageerror'))
+    if pe:
+        warnings.append(f"{len(pe)} page(s) failed OCR (image kept, no text layer): {_page_list(pe)}")
+    for e in entries('verifyfail'):
+        warnings.append(f"verification: {e.get('msg', 'output verification warning')}")
+    for e in entries('fileerror'):
+        warnings.append(f"file failed: {e.get('error', 'unknown error')}")
+    orp = pages(entries('oriented'))
+    if orp:
+        infos.append(f"{len(orp)} page(s) auto-rotated to read: {_page_list(orp)}")
+    return warnings, infos
 
 class OcrWorkerThread(QThread):
-    finished_signal = Signal(bool, str, float)
+    finished_signal = Signal(bool, str, float, object)
 
     def __init__(self, pdf_path, backend, parent=None):
         super().__init__(parent)
@@ -36,9 +70,9 @@ class OcrWorkerThread(QThread):
 
     def run(self):
         start_time = time.time()
-        result = run_ocr_process(self.pdf_path, self.backend)
+        success, message, events = run_ocr_process(self.pdf_path, self.backend)
         elapsed_time = time.time() - start_time
-        self.finished_signal.emit(*result, elapsed_time)
+        self.finished_signal.emit(success, message or "", elapsed_time, events)
 
 class OCRToolSettingsTab(QWidget):
     ENGINE_MAPPING = {
@@ -49,6 +83,7 @@ class OCRToolSettingsTab(QWidget):
     def __init__(self):
         super().__init__()
         self.selected_pdf_file = None
+        self.last_events = {}
         self.create_layout()
         self.setButtons(True)
         self.worker_thread = None
@@ -119,11 +154,16 @@ class OCRToolSettingsTab(QWidget):
         QMessageBox.critical(self, "Error", f"OCR process failed:\n{message}")
 
     def show_success_message(self):
-        self.status_label.setStyleSheet("color: #4CAF50;")
+        warnings, infos = summarize_events(getattr(self, 'last_events', {}))
 
         minutes, seconds = divmod(self.elapsed_time, 60)
         time_str = f"{int(minutes)}m {seconds:.1f}s" if minutes > 0 else f"{seconds:.1f}s"
-        self.status_label.setText(f"Success! Completed in {time_str}")
+        if warnings:
+            self.status_label.setStyleSheet("color: #FF9800;")
+            self.status_label.setText(f"Success with {len(warnings)} warning(s) - {time_str}")
+        else:
+            self.status_label.setStyleSheet("color: #4CAF50;")
+            self.status_label.setText(f"Success! Completed in {time_str}")
 
         if not self.selected_pdf_file:
             return
@@ -136,6 +176,12 @@ class OCRToolSettingsTab(QWidget):
         else:
             file_link = "The processed file could not be found."
 
+        notes = ""
+        if warnings or infos:
+            bullets = "".join(f'&bull; <span style="color:#FF9800;">{html.escape(w)}</span><br>' for w in warnings)
+            bullets += "".join(f"&bull; {html.escape(i)}<br>" for i in infos)
+            notes = f"<br><b>Quality notes:</b><br>{bullets}"
+
         QMessageBox.information(
             self,
             "Success!",
@@ -144,6 +190,7 @@ class OCRToolSettingsTab(QWidget):
             in the same directory as the original file.<br><br>
 
             {file_link}
+            {notes}
             """
         )
 
@@ -168,10 +215,11 @@ class OCRToolSettingsTab(QWidget):
         self.worker_thread.finished_signal.connect(self.ocr_finished)
         self.worker_thread.start()
 
-    def ocr_finished(self, success, message, elapsed_time):
+    def ocr_finished(self, success, message, elapsed_time, events):
         self.setButtons(True)
 
         self.elapsed_time = elapsed_time
+        self.last_events = events if isinstance(events, dict) else {}
 
         if self.worker_thread:
             self.worker_thread.quit()

@@ -44,3 +44,5 @@ Assets/User_Guide_Chunks/
 
 # Tests (local only)
 tests/
+
+temp_ocr/
