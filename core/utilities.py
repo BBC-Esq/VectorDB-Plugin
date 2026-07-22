@@ -228,15 +228,13 @@ def gpu_summary():
 
 def _needs_ocr_worker(path: str) -> bool:
     import fitz, logging
+    from core.pdf_ocr_gate import document_needs_ocr
     try:
         with fitz.open(path) as doc:
-            for page in doc:
-                if page.get_text().strip():
-                    return False
-        return True
+            return document_needs_ocr(doc)
     except Exception as e:
         logging.error(f"PDF check error {path}: {e}")
-        return False
+        return True
 
 
 def clean_triton_cache():

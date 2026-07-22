@@ -9,6 +9,7 @@ from pathlib import Path
 from io import BytesIO
 from abc import ABC, abstractmethod
 from core.constants import PROJECT_ROOT
+from core.pdf_ocr_gate import page_needs_ocr
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import Process, Queue
 
@@ -424,6 +425,13 @@ class RapidOCRBackend(OCRProcessor):
             page = pdf_document[page_num]
             page.remove_rotation()
             out_pdf.insert_pdf(page.parent, from_page=page_num, to_page=page_num)
+            try:
+                needs = page_needs_ocr(page)
+            except Exception:
+                needs = True
+            if not needs:
+                out_pdf.save(temp_pdf_path)
+                return page_num, temp_pdf_path
             try:
                 z = self._safe_zoom(page)
                 pix = page.get_pixmap(matrix=fitz.Matrix(z, z))
