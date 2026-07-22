@@ -293,19 +293,31 @@ class RapidOCRBackend(OCRProcessor):
         return int(a[:, 0].min()), int(a[:, 1].min()), int(a[:, 0].max()), int(a[:, 1].max())
 
     @classmethod
-    def _build_hocr(cls, txts, boxes, width: int, height: int) -> str:
+    def _build_hocr(cls, txts, boxes, scores, width: int, height: int):
         spans = []
-        for i, (t, poly) in enumerate(zip(txts, boxes)):
+        emitted = dropped = flagged = 0
+        confs = []
+        for i, (t, poly, sc) in enumerate(zip(txts, boxes, scores)):
             if not t:
                 continue
             x0, y0, x1, y1 = cls._poly_to_bbox(poly)
+            if x1 - x0 <= 1 or y1 - y0 <= 1:
+                continue
+            if sc < cls._REC_HARD_FLOOR:
+                dropped += 1
+                continue
+            if sc < cls._REC_FLAG_FLOOR:
+                flagged += 1
+            confs.append(sc)
+            wconf = max(0, min(100, int(round(sc * 100))))
             esc = html.escape(str(t))
             spans.append(
                 f"<span class='ocr_line' id='line_{i}' title='bbox {x0} {y0} {x1} {y1}'>"
-                f"<span class='ocrx_word' id='word_{i}' title='bbox {x0} {y0} {x1} {y1}; x_wconf 90'>"
+                f"<span class='ocrx_word' id='word_{i}' title='bbox {x0} {y0} {x1} {y1}; x_wconf {wconf}'>"
                 f"{esc}</span></span>")
+            emitted += 1
         body = "\n".join(spans)
-        return (
+        hocr = (
             "<?xml version='1.0' encoding='UTF-8'?>\n"
             "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" "
             "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n"
@@ -316,25 +328,54 @@ class RapidOCRBackend(OCRProcessor):
             f"<div class='ocr_page' id='page_1' title='bbox 0 0 {width} {height}'>"
             f"<div class='ocr_carea' title='bbox 0 0 {width} {height}'><p class='ocr_par'>"
             f"{body}</p></div></div></body></html>")
+        mean_conf = float(sum(confs) / len(confs)) if confs else 0.0
+        return hocr, {'emitted': emitted, 'dropped': dropped, 'flagged': flagged, 'mean_conf': mean_conf}
 
     _ORIENT_ACCEPT_CONF = 0.90
     _ORIENT_MARGIN = 1.20
+
+    _REC_HARD_FLOOR = 0.30
+    _REC_FLAG_FLOOR = 0.60
+    _PAGE_LOWCONF = 0.75
+    _MAX_PIXELS = 30_000_000
+    _MAX_DIM = 12000
+
+    def _signal(self, kind: str, msg: str, data: dict = None):
+        print(f"\033[93m[RapidOCR] {kind}: {msg}\033[0m", flush=True)
+        if self.progress_queue:
+            try:
+                payload = {'msg': msg}
+                if data:
+                    payload.update(data)
+                self.progress_queue.put((kind, payload))
+            except Exception:
+                pass
+
+    def _safe_zoom(self, page) -> float:
+        wpt = max(float(page.rect.width), 1.0)
+        hpt = max(float(page.rect.height), 1.0)
+        z = float(self.zoom)
+        z = min(z, self._MAX_DIM / max(wpt, hpt), (self._MAX_PIXELS / (wpt * hpt)) ** 0.5)
+        return max(z, 0.1)
 
     @staticmethod
     def _unpack(res):
         txts = list(res.txts) if res.txts is not None else []
         boxes = list(res.boxes) if res.boxes is not None else []
-        return txts, boxes
+        scores = list(res.scores) if res.scores is not None else []
+        if len(scores) < len(txts):
+            scores = scores + [1.0] * (len(txts) - len(scores))
+        return txts, boxes, scores
 
     @staticmethod
     def _text_mass(res) -> float:
-        if res.txts is None:
+        if res.txts is None or res.scores is None:
             return 0.0
         return float(sum(s * len(t) for t, s in zip(res.txts, res.scores) if len(t) >= 3))
 
     @staticmethod
     def _mean_conf(res) -> float:
-        if res.txts is None:
+        if res.txts is None or res.scores is None:
             return 0.0
         subs = [s for t, s in zip(res.txts, res.scores) if len(t) >= 3]
         return float(sum(subs) / len(subs)) if subs else 0.0
@@ -345,9 +386,9 @@ class RapidOCRBackend(OCRProcessor):
             return self._unpack(r0)
         r180 = self.engine(np.ascontiguousarray(img[::-1, ::-1]), use_cls=False)
         if self._text_mass(r180) > self._text_mass(r0) * self._ORIENT_MARGIN:
-            txts, boxes = self._unpack(r180)
+            txts, boxes, scores = self._unpack(r180)
             boxes = [np.array([[w - p[0], h - p[1]] for p in np.asarray(poly)]) for poly in boxes]
-            return txts, boxes
+            return txts, boxes, scores
         return self._unpack(r0)
 
     def process_page(self, page_num: int, pdf_path: str) -> Tuple[int, str]:
@@ -356,37 +397,70 @@ class RapidOCRBackend(OCRProcessor):
         with fitz.open(pdf_path) as pdf_document, fitz.open() as out_pdf:
             page = pdf_document[page_num]
             page.remove_rotation()
-            pix = page.get_pixmap(matrix=fitz.Matrix(self.zoom, self.zoom))
-            img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
-                pix.height, pix.width, pix.n)[:, :, :3][:, :, ::-1].copy()
-            txts, boxes = self._ocr_oriented(img, pix.width, pix.height)
             out_pdf.insert_pdf(page.parent, from_page=page_num, to_page=page_num)
-            if txts and boxes:
-                hocr_text = self._build_hocr(txts, boxes, pix.width, pix.height)
-                hocr_output = f"{self.temp_dir}/page_{page_num}.hocr"
-                Path(hocr_output).write_text(hocr_text, encoding="utf-8")
-                fd, text_pdf = tempfile.mkstemp(suffix=".pdf", dir=self.temp_dir)
-                os.close(fd)
-                pdf_width_pts = page.rect.width
-                pdf_height_pts = page.rect.height
-                dpi = ((pix.width * 72) / pdf_width_pts + (pix.height * 72) / pdf_height_pts) / 2.0
-                hocr_transform = HocrTransform(hocr_filename=hocr_output, dpi=dpi)
-                hocr_transform.width = pdf_width_pts
-                hocr_transform.height = pdf_height_pts
-                hocr_transform.to_pdf(out_filename=text_pdf, invisible_text=True)
-                with fitz.open(text_pdf) as text_page:
-                    out_pdf[0].show_pdf_page(out_pdf[0].rect, text_page, 0, overlay=True)
-                Path(hocr_output).unlink(missing_ok=True)
-                for _ in range(10):
-                    try:
-                        Path(text_pdf).unlink()
-                        break
-                    except PermissionError:
-                        time.sleep(0.1)
+            try:
+                z = self._safe_zoom(page)
+                pix = page.get_pixmap(matrix=fitz.Matrix(z, z))
+                img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
+                    pix.height, pix.width, pix.n)[:, :, :3][:, :, ::-1].copy()
+                txts, boxes, scores = self._ocr_oriented(img, pix.width, pix.height)
+                if txts and boxes:
+                    hocr_text, stats = self._build_hocr(txts, boxes, scores, pix.width, pix.height)
+                    if stats['emitted'] > 0:
+                        hocr_output = f"{self.temp_dir}/page_{page_num}.hocr"
+                        Path(hocr_output).write_text(hocr_text, encoding="utf-8")
+                        fd, text_pdf = tempfile.mkstemp(suffix=".pdf", dir=self.temp_dir)
+                        os.close(fd)
+                        pdf_width_pts = page.rect.width
+                        pdf_height_pts = page.rect.height
+                        dpi = ((pix.width * 72) / pdf_width_pts + (pix.height * 72) / pdf_height_pts) / 2.0
+                        hocr_transform = HocrTransform(hocr_filename=hocr_output, dpi=dpi)
+                        hocr_transform.width = pdf_width_pts
+                        hocr_transform.height = pdf_height_pts
+                        hocr_transform.to_pdf(out_filename=text_pdf, invisible_text=True)
+                        with fitz.open(text_pdf) as text_page:
+                            out_pdf[0].show_pdf_page(out_pdf[0].rect, text_page, 0, overlay=True)
+                        Path(hocr_output).unlink(missing_ok=True)
+                        for _ in range(10):
+                            try:
+                                Path(text_pdf).unlink()
+                                break
+                            except PermissionError:
+                                time.sleep(0.1)
+                    if stats['dropped'] or stats['flagged'] or stats['mean_conf'] < self._PAGE_LOWCONF:
+                        self._signal(
+                            'lowconf',
+                            f"page {page_num + 1}: mean_conf={stats['mean_conf']:.2f} "
+                            f"flagged={stats['flagged']} dropped={stats['dropped']} "
+                            f"(consider a vision re-read)",
+                            {'page': page_num + 1, **stats})
+                else:
+                    ink = float((img.min(axis=2) < 100).mean())
+                    self._signal(
+                        'notext',
+                        f"page {page_num + 1}: no text detected "
+                        f"(ink={ink * 100:.1f}%; "
+                        f"{'looks blank' if ink < 0.002 else 'has content but OCR found nothing'})",
+                        {'page': page_num + 1, 'ink_frac': ink})
+            except Exception as e:
+                self._signal(
+                    'pageerror',
+                    f"page {page_num + 1} failed ({type(e).__name__}: {e}); kept the page image, no text layer",
+                    {'page': page_num + 1, 'error': f"{type(e).__name__}: {e}"})
             out_pdf.save(temp_pdf_path)
         return page_num, temp_pdf_path
 
     def process_document(self, pdf_path: Path, output_path: Path = None):
+        src_had_text = False
+        try:
+            with fitz.open(str(pdf_path)) as _doc:
+                if _doc.needs_pass and not _doc.authenticate(''):
+                    raise ValueError(f"Encrypted PDF requires a password (cannot OCR): {pdf_path.name}")
+                src_had_text = any(pg.get_text().strip() for pg in _doc)
+        except ValueError:
+            raise
+        except Exception:
+            pass
         if not self.validate_pdf(pdf_path):
             raise ValueError(f"Invalid or corrupted PDF file: {pdf_path}")
         if output_path is None:
@@ -413,8 +487,25 @@ class RapidOCRBackend(OCRProcessor):
             output_pdf.save(output_path)
         self.optimize_final_pdf(pdf_path, output_path)
         self.cleanup_temp_pdfs()
+        self._verify_output(pdf_path, output_path, num_pages, src_had_text)
         if self.progress_queue:
             self.progress_queue.put(('done', None))
+
+    def _verify_output(self, pdf_path: Path, output_path: Path, num_pages: int, src_had_text: bool):
+        try:
+            if not Path(output_path).exists():
+                self._signal('verifyfail', f"output not written: {Path(output_path).name}")
+                return
+            with fitz.open(str(output_path)) as out:
+                if len(out) != num_pages:
+                    self._signal('verifyfail',
+                                 f"page count mismatch in {Path(output_path).name}: in={num_pages} out={len(out)}")
+                if not src_had_text:
+                    if not "".join(pg.get_text() for pg in out).strip():
+                        self._signal('verifyfail',
+                                     f"image-only input produced NO extractable text: {pdf_path.name}")
+        except Exception as e:
+            self._signal('verifyfail', f"could not verify {Path(output_path).name}: {type(e).__name__}: {e}")
 
     def optimize_final_pdf(self, original_pdf_path: Path, ocr_pdf_path: Path) -> None:
         with fitz.open(original_pdf_path) as original_doc:
@@ -480,6 +571,7 @@ def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesser
     total_pages = None
     pbar = None
     documents_done = 0
+    events = {'lowconf': [], 'notext': [], 'pageerror': [], 'verifyfail': []}
     try:
         while True:
             try:
@@ -497,6 +589,8 @@ def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesser
                     documents_done += 1
                     if documents_done >= len(pdf_paths):
                         break
+                elif cmd in events:
+                    events[cmd].append(data)
             except queue.Empty:
                 if not process.is_alive():
                     break
@@ -515,3 +609,11 @@ def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesser
 
     if process.exitcode is not None and process.exitcode != 0:
         raise RuntimeError(f"OCR worker exited with code {process.exitcode}")
+
+    n_low, n_nt, n_err, n_bad = (len(events['lowconf']), len(events['notext']),
+                                 len(events['pageerror']), len(events['verifyfail']))
+    if n_low or n_nt or n_err or n_bad:
+        print(f"\033[93m[RapidOCR] summary: {n_low} low-confidence page(s), "
+              f"{n_nt} no-text page(s), {n_err} page error(s), {n_bad} verification warning(s)\033[0m", flush=True)
+    return {'lowconf': events['lowconf'], 'notext': events['notext'],
+            'pageerror': events['pageerror'], 'verifyfail': events['verifyfail']}
