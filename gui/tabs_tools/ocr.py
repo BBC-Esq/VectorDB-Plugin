@@ -42,6 +42,7 @@ class OcrWorkerThread(QThread):
 
 class OCRToolSettingsTab(QWidget):
     ENGINE_MAPPING = {
+        "RapidOCR": "rapidocr",
         "Tesseract": "tesseract"
     }
 
@@ -61,8 +62,8 @@ class OCRToolSettingsTab(QWidget):
         engine_selection_hbox.addWidget(engine_label)
 
         self.engine_combo = QComboBox()
-        self.engine_combo.addItems(["Tesseract"])
-        self.engine_combo.setCurrentText("Tesseract")
+        self.engine_combo.addItems(["RapidOCR", "Tesseract"])
+        self.engine_combo.setCurrentText("RapidOCR")
         engine_selection_hbox.addWidget(self.engine_combo)
 
         self.select_pdf_button = QPushButton("Choose PDF")

@@ -825,7 +825,16 @@ libs = [
     "xxhash==3.7.0",
     "yarl==1.24.2",
     "zipp==4.1.0",
-    "zstandard==0.25.0"
+    "zstandard==0.25.0",
+    "rapidocr==3.9.2",
+    "onnxruntime==1.27.0",
+    "opencv-python-headless==5.0.0.93",
+    "pyclipper==1.4.0",
+    "shapely==2.1.2",
+    "omegaconf==2.3.1",
+    "antlr4-python3-runtime==4.9.3",
+    "colorlog==6.11.0",
+    "flatbuffers==25.12.19"
 ]
 
 full_install_libs = [

@@ -1,5 +1,6 @@
 import os
 import io
+import html
 import tempfile
 import threading
 import queue
@@ -12,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import Process, Queue
 
 import fitz
+import numpy as np
 import psutil
 from PIL import Image
 import tesserocr
@@ -224,9 +226,200 @@ class TesseractOCR(OCRProcessor):
             except PermissionError:
                 pass
 
+class RapidOCRBackend(OCRProcessor):
+    _MODELS_SUBDIR = PROJECT_ROOT / "models" / "ocr" / "rapidocr"
+    _MODEL_SOURCES = {
+        "PP-OCRv6_det_small.onnx": ("PaddlePaddle/PP-OCRv6_small_det_onnx", "inference.onnx"),
+        "PP-OCRv6_rec_small.onnx": ("PaddlePaddle/PP-OCRv6_small_rec_onnx", "inference.onnx"),
+        "ch_ppocr_mobile_v2.0_cls_mobile.onnx": ("SWHL/RapidOCR",
+                                                 "PP-OCRv1/ch_ppocr_mobile_v2.0_cls_infer.onnx"),
+    }
+
+    def __init__(self, zoom: int = 2, progress_queue: Queue = None):
+        super().__init__(zoom, progress_queue)
+        self.temp_dir = None
+        self.engine = None
+        self.show_progress = True
+
+    def _ensure_model(self, name: str) -> Path:
+        p = self._MODELS_SUBDIR / name
+        if p.exists():
+            return p
+        self._MODELS_SUBDIR.mkdir(parents=True, exist_ok=True)
+        from huggingface_hub import hf_hub_download
+        if name == "PP-OCRv6_rec_keys.txt":
+            import yaml
+            yml = hf_hub_download("PaddlePaddle/PP-OCRv6_small_rec_onnx", "inference.yml")
+            chars = yaml.safe_load(Path(yml).read_text(encoding="utf-8"))["PostProcess"]["character_dict"]
+            p.write_bytes("\n".join(chars).encode("utf-8"))
+            return p
+        repo, fn = self._MODEL_SOURCES[name]
+        print(f"\033[92m[RapidOCR] fetching {name} from HuggingFace {repo}\033[0m")
+        src = hf_hub_download(repo, fn)
+        p.write_bytes(Path(src).read_bytes())
+        return p
+
+    def initialize(self):
+        self.temp_dir = PROJECT_ROOT / "temp_ocr"
+        self.temp_dir.mkdir(exist_ok=True)
+        os.environ['TMP'] = str(self.temp_dir)
+        os.environ['TEMP'] = str(self.temp_dir)
+        tempfile.tempdir = str(self.temp_dir)
+        from rapidocr import RapidOCR, OCRVersion
+        det = self._ensure_model("PP-OCRv6_det_small.onnx")
+        rec = self._ensure_model("PP-OCRv6_rec_small.onnx")
+        keys = self._ensure_model("PP-OCRv6_rec_keys.txt")
+        cls = self._ensure_model("ch_ppocr_mobile_v2.0_cls_mobile.onnx")
+        threads = max(4, psutil.cpu_count(logical=True) - 4)
+        self.engine = RapidOCR(params={
+            "Det.model_path": str(det), "Det.ocr_version": OCRVersion.PPOCRV6,
+            "Rec.model_path": str(rec), "Rec.rec_keys_path": str(keys),
+            "Cls.model_path": str(cls),
+            "EngineConfig.onnxruntime.intra_op_num_threads": threads,
+        })
+
+    def clean_text(self, text: str) -> str:
+        return text
+
+    def cleanup(self):
+        self.cleanup_temp_pdfs()
+
+    @staticmethod
+    def _poly_to_bbox(poly) -> Tuple[int, int, int, int]:
+        a = np.asarray(poly, dtype=float)
+        return int(a[:, 0].min()), int(a[:, 1].min()), int(a[:, 0].max()), int(a[:, 1].max())
+
+    @classmethod
+    def _build_hocr(cls, txts, boxes, width: int, height: int) -> str:
+        spans = []
+        for i, (t, poly) in enumerate(zip(txts, boxes)):
+            if not t:
+                continue
+            x0, y0, x1, y1 = cls._poly_to_bbox(poly)
+            esc = html.escape(str(t))
+            spans.append(
+                f"<span class='ocr_line' id='line_{i}' title='bbox {x0} {y0} {x1} {y1}'>"
+                f"<span class='ocrx_word' id='word_{i}' title='bbox {x0} {y0} {x1} {y1}; x_wconf 90'>"
+                f"{esc}</span></span>")
+        body = "\n".join(spans)
+        return (
+            "<?xml version='1.0' encoding='UTF-8'?>\n"
+            "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" "
+            "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n"
+            "<html xmlns='http://www.w3.org/1999/xhtml'><head>"
+            "<meta http-equiv='Content-Type' content='text/html;charset=utf-8'/>"
+            "<meta name='ocr-system' content='rapidocr'/>"
+            "<meta name='ocr-capabilities' content='ocr_page ocr_line ocrx_word'/></head><body>"
+            f"<div class='ocr_page' id='page_1' title='bbox 0 0 {width} {height}'>"
+            f"<div class='ocr_carea' title='bbox 0 0 {width} {height}'><p class='ocr_par'>"
+            f"{body}</p></div></div></body></html>")
+
+    def process_page(self, page_num: int, pdf_path: str) -> Tuple[int, str]:
+        fd, temp_pdf_path = tempfile.mkstemp(suffix=".pdf", dir=self.temp_dir)
+        os.close(fd)
+        with fitz.open(pdf_path) as pdf_document, fitz.open() as out_pdf:
+            page = pdf_document[page_num]
+            page.remove_rotation()
+            pix = page.get_pixmap(matrix=fitz.Matrix(self.zoom, self.zoom))
+            img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
+                pix.height, pix.width, pix.n)[:, :, :3][:, :, ::-1].copy()
+            res = self.engine(img)
+            txts = list(res.txts) if res.txts is not None else []
+            boxes = list(res.boxes) if res.boxes is not None else []
+            out_pdf.insert_pdf(page.parent, from_page=page_num, to_page=page_num)
+            if txts and boxes:
+                hocr_text = self._build_hocr(txts, boxes, pix.width, pix.height)
+                hocr_output = f"{self.temp_dir}/page_{page_num}.hocr"
+                Path(hocr_output).write_text(hocr_text, encoding="utf-8")
+                fd, text_pdf = tempfile.mkstemp(suffix=".pdf", dir=self.temp_dir)
+                os.close(fd)
+                pdf_width_pts = page.rect.width
+                pdf_height_pts = page.rect.height
+                dpi = ((pix.width * 72) / pdf_width_pts + (pix.height * 72) / pdf_height_pts) / 2.0
+                hocr_transform = HocrTransform(hocr_filename=hocr_output, dpi=dpi)
+                hocr_transform.width = pdf_width_pts
+                hocr_transform.height = pdf_height_pts
+                hocr_transform.to_pdf(out_filename=text_pdf, invisible_text=True)
+                with fitz.open(text_pdf) as text_page:
+                    out_pdf[0].show_pdf_page(out_pdf[0].rect, text_page, 0, overlay=True)
+                Path(hocr_output).unlink(missing_ok=True)
+                for _ in range(10):
+                    try:
+                        Path(text_pdf).unlink()
+                        break
+                    except PermissionError:
+                        time.sleep(0.1)
+            out_pdf.save(temp_pdf_path)
+        return page_num, temp_pdf_path
+
+    def process_document(self, pdf_path: Path, output_path: Path = None):
+        if not self.validate_pdf(pdf_path):
+            raise ValueError(f"Invalid or corrupted PDF file: {pdf_path}")
+        if output_path is None:
+            output_path = pdf_path.with_stem(f"{pdf_path.stem}_OCR")
+        if self.temp_dir is None or self.engine is None:
+            self.initialize()
+        self.cleanup_temp_pdfs()
+        with fitz.open(str(pdf_path)) as pdf_document:
+            num_pages = len(pdf_document)
+        if self.progress_queue:
+            self.progress_queue.put(('total', num_pages))
+        results = []
+        for page_num in range(num_pages):
+            _, temp_pdf_path = self.process_page(page_num, str(pdf_path))
+            results.append((temp_pdf_path, page_num))
+            if self.progress_queue:
+                self.progress_queue.put(('update', 1))
+        results.sort(key=lambda x: x[1])
+        with fitz.open() as output_pdf:
+            for temp_pdf_path, _ in results:
+                with fitz.open(temp_pdf_path) as src:
+                    output_pdf.insert_pdf(src)
+                Path(temp_pdf_path).unlink(missing_ok=True)
+            output_pdf.save(output_path)
+        self.optimize_final_pdf(pdf_path, output_path)
+        self.cleanup_temp_pdfs()
+        if self.progress_queue:
+            self.progress_queue.put(('done', None))
+
+    def optimize_final_pdf(self, original_pdf_path: Path, ocr_pdf_path: Path) -> None:
+        with fitz.open(original_pdf_path) as original_doc:
+            orig_pages = []
+            for page in original_doc:
+                orig_pages.append({'width': page.rect.width, 'height': page.rect.height,
+                                   'mediabox': page.mediabox, 'cropbox': getattr(page, 'cropbox', None)})
+        temp_path = str(ocr_pdf_path) + ".optimized"
+        with fitz.open(ocr_pdf_path) as ocr_doc:
+            for i, page in enumerate(ocr_doc):
+                if i < len(orig_pages):
+                    orig = orig_pages[i]
+                    page.set_mediabox(orig['mediabox'])
+                    if orig['cropbox']:
+                        try:
+                            cropbox = orig['cropbox']
+                            mediabox = orig['mediabox']
+                            if cropbox[0] >= mediabox[0] and cropbox[1] >= mediabox[1] and cropbox[2] <= mediabox[2] and cropbox[3] <= mediabox[3]:
+                                page.set_cropbox(cropbox)
+                        except ValueError:
+                            pass
+            ocr_doc.save(temp_path, garbage=4, deflate=True, clean=True)
+        os.replace(temp_path, ocr_pdf_path)
+
+    def cleanup_temp_pdfs(self):
+        if self.temp_dir is None:
+            return
+        for temp_file in Path(self.temp_dir).glob("tmp*.pdf"):
+            try:
+                temp_file.unlink()
+            except PermissionError:
+                pass
+
+
 def _process_documents_worker(pdf_paths: List[Path], backend: str, model_path: str, output_dir: Path, progress_queue: Queue):
     if backend.lower() == 'tesseract':
         processor = TesseractOCR(progress_queue=progress_queue)
+    elif backend.lower() == 'rapidocr':
+        processor = RapidOCRBackend(progress_queue=progress_queue)
     else:
         raise ValueError(f"Unsupported backend: {backend}")
     processor.initialize()
