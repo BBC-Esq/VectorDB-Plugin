@@ -51,6 +51,9 @@ def summarize_events(events):
     pe = pages(entries('pageerror'))
     if pe:
         warnings.append(f"{len(pe)} page(s) failed OCR (image kept, no text layer): {_page_list(pe)}")
+    mm = pages(entries('datamismatch'))
+    if mm:
+        warnings.append(f"{len(mm)} page(s) with inconsistent OCR data (partial text kept): {_page_list(mm)}")
     for e in entries('verifyfail'):
         warnings.append(f"verification: {e.get('msg', 'output verification warning')}")
     for e in entries('fileerror'):

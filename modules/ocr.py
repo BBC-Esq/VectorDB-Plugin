@@ -1,6 +1,7 @@
 import os
 import io
 import html
+import hashlib
 import tempfile
 import threading
 import queue
@@ -240,16 +241,30 @@ class RapidOCRBackend(OCRProcessor):
                                                  "PP-OCRv1/ch_ppocr_mobile_v2.0_cls_infer.onnx"),
     }
 
+    _MODEL_SHA256 = {
+        "PP-OCRv6_det_small.onnx": "d73e0058b7a8086bbd57f3d10b8bcd4ff95363f67e06e2762b5e814fe9c9410e",
+        "PP-OCRv6_rec_small.onnx": "5435fd747c9e0efe15a96d0b378d5bd157e9492ed8fd80edf08f30d02fa24634",
+        "PP-OCRv6_rec_keys.txt": "f7aa897ca828a4c7c9e2739c30f9161a33306d532f020bcdb91dcfb664a5507e",
+        "ch_ppocr_mobile_v2.0_cls_mobile.onnx": "e47acedf663230f8863ff1ab0e64dd2d82b838fceb5957146dab185a89d6215c",
+    }
+
     def __init__(self, zoom: int = 2, progress_queue: Queue = None):
         super().__init__(zoom, progress_queue)
         self.temp_dir = None
         self.engine = None
         self.show_progress = True
 
-    def _ensure_model(self, name: str) -> Path:
-        p = self._MODELS_SUBDIR / name
-        if p.exists():
-            return p
+    def _verify_model(self, p: Path) -> bool:
+        expected = self._MODEL_SHA256.get(p.name)
+        if not expected:
+            return True
+        h = hashlib.sha256()
+        with open(p, 'rb') as f:
+            for chunk in iter(lambda: f.read(1 << 20), b''):
+                h.update(chunk)
+        return h.hexdigest() == expected
+
+    def _fetch_model(self, name: str, p: Path):
         self._MODELS_SUBDIR.mkdir(parents=True, exist_ok=True)
         from huggingface_hub import hf_hub_download
         if name == "PP-OCRv6_rec_keys.txt":
@@ -257,11 +272,24 @@ class RapidOCRBackend(OCRProcessor):
             yml = hf_hub_download("PaddlePaddle/PP-OCRv6_small_rec_onnx", "inference.yml")
             chars = yaml.safe_load(Path(yml).read_text(encoding="utf-8"))["PostProcess"]["character_dict"]
             p.write_bytes("\n".join(chars).encode("utf-8"))
-            return p
+            return
         repo, fn = self._MODEL_SOURCES[name]
         print(f"\033[92m[RapidOCR] fetching {name} from HuggingFace {repo}\033[0m")
         src = hf_hub_download(repo, fn)
         p.write_bytes(Path(src).read_bytes())
+
+    def _ensure_model(self, name: str) -> Path:
+        p = self._MODELS_SUBDIR / name
+        if p.exists():
+            if self._verify_model(p):
+                return p
+            print(f"\033[93m[RapidOCR] {name} failed integrity check; re-fetching\033[0m")
+            p.unlink()
+        self._fetch_model(name, p)
+        if not self._verify_model(p):
+            p.unlink(missing_ok=True)
+            raise RuntimeError(f"OCR model {name} failed integrity check after download "
+                               f"(sha256 mismatch); check network or update _MODEL_SHA256 if upstream changed")
         return p
 
     def initialize(self):
@@ -444,9 +472,17 @@ class RapidOCRBackend(OCRProcessor):
                                  f"page {page_num + 1}: auto-corrected orientation ({orient})",
                                  {'page': page_num + 1, 'orient': orient})
                 if txts and boxes:
+                    n = min(len(txts), len(boxes), len(scores))
+                    if any(len(a) != n for a in (txts, boxes, scores)):
+                        self._signal(
+                            'datamismatch',
+                            f"page {page_num + 1}: engine returned {len(txts)} texts / "
+                            f"{len(boxes)} boxes / {len(scores)} scores; keeping first {n}",
+                            {'page': page_num + 1, 'texts': len(txts),
+                             'boxes': len(boxes), 'scores': len(scores)})
+                        txts, boxes, scores = txts[:n], boxes[:n], scores[:n]
                     try:
-                        n = min(len(txts), len(boxes), len(scores))
-                        perm = column_reading_order(boxes[:n])
+                        perm = column_reading_order(boxes)
                         if perm is not None:
                             txts = [txts[i] for i in perm]
                             boxes = [boxes[i] for i in perm]
@@ -645,7 +681,8 @@ def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesser
     total_pages = None
     pbar = None
     documents_done = 0
-    events = {'lowconf': [], 'notext': [], 'oriented': [], 'pageerror': [], 'verifyfail': [], 'fileerror': []}
+    events = {'lowconf': [], 'notext': [], 'oriented': [], 'pageerror': [], 'verifyfail': [], 'fileerror': [],
+              'datamismatch': []}
     try:
         while True:
             try:
@@ -690,14 +727,15 @@ def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesser
         details = "; ".join(f"{Path(e['file']).name}: {e['error']}" for e in events['fileerror'])
         raise RuntimeError(f"OCR failed for all {len(pdf_paths)} file(s): {details}")
 
-    n_low, n_nt, n_or, n_err, n_bad, n_file = (len(events['lowconf']), len(events['notext']),
-                                               len(events['oriented']), len(events['pageerror']),
-                                               len(events['verifyfail']), len(events['fileerror']))
-    if n_low or n_nt or n_or or n_err or n_bad or n_file:
+    n_low, n_nt, n_or, n_err, n_bad, n_file, n_mm = (len(events['lowconf']), len(events['notext']),
+                                                     len(events['oriented']), len(events['pageerror']),
+                                                     len(events['verifyfail']), len(events['fileerror']),
+                                                     len(events['datamismatch']))
+    if n_low or n_nt or n_or or n_err or n_bad or n_file or n_mm:
         print(f"\033[93m[OCR] summary: {n_low} low-confidence page(s), "
               f"{n_nt} no-text page(s), {n_or} auto-oriented page(s), "
               f"{n_err} page error(s), {n_bad} verification warning(s), "
-              f"{n_file} failed file(s)\033[0m", flush=True)
+              f"{n_file} failed file(s), {n_mm} data-mismatch page(s)\033[0m", flush=True)
     return {'lowconf': events['lowconf'], 'notext': events['notext'], 'oriented': events['oriented'],
             'pageerror': events['pageerror'], 'verifyfail': events['verifyfail'],
-            'fileerror': events['fileerror']}
+            'fileerror': events['fileerror'], 'datamismatch': events['datamismatch']}
