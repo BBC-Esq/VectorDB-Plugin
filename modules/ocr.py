@@ -10,6 +10,7 @@ from io import BytesIO
 from abc import ABC, abstractmethod
 from core.constants import PROJECT_ROOT
 from core.pdf_ocr_gate import page_needs_ocr
+from core.text_order import column_reading_order
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import Process, Queue
 
@@ -443,6 +444,15 @@ class RapidOCRBackend(OCRProcessor):
                                  f"page {page_num + 1}: auto-corrected orientation ({orient})",
                                  {'page': page_num + 1, 'orient': orient})
                 if txts and boxes:
+                    try:
+                        n = min(len(txts), len(boxes), len(scores))
+                        perm = column_reading_order(boxes[:n])
+                        if perm is not None:
+                            txts = [txts[i] for i in perm]
+                            boxes = [boxes[i] for i in perm]
+                            scores = [scores[i] for i in perm]
+                    except Exception:
+                        pass
                     hocr_text, stats = self._build_hocr(txts, boxes, scores, pix.width, pix.height)
                     if stats['emitted'] > 0:
                         hocr_output = f"{self.temp_dir}/page_{page_num}.hocr"
