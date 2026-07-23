@@ -307,7 +307,7 @@ class RapidOCRBackend(OCRProcessor):
             if sc < cls._REC_HARD_FLOOR:
                 dropped += 1
                 continue
-            if sc < cls._REC_FLAG_FLOOR:
+            if sc < cls._REC_FLAG_FLOOR and len(str(t)) >= 3:
                 flagged += 1
             confs.append(sc)
             wconf = max(0, min(100, int(round(sc * 100))))

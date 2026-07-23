@@ -4,6 +4,7 @@ _MIN_INTERIOR_WORDS = 4
 _MARGIN_FRAC = 0.125
 _CORRUPT_THRESHOLD = 0.30
 _IMAGE_COVER_FRAC = 0.5
+_IMAGE_COVER_FRAC_NOTEXT = 0.05
 _MIN_DRAWINGS = 20
 _CID_RE = re.compile(r'\(cid:\d+\)')
 
@@ -31,7 +32,7 @@ def interior_word_count(page):
     return n
 
 
-def has_page_image(page):
+def has_page_image(page, frac=_IMAGE_COVER_FRAC):
     r = page.rect
     parea = r.width * r.height
     if parea <= 0:
@@ -45,11 +46,11 @@ def has_page_image(page):
         b = im.get("bbox")
         if b:
             total += abs((b[2] - b[0]) * (b[3] - b[1]))
-    return total >= _IMAGE_COVER_FRAC * parea
+    return total >= frac * parea
 
 
-def has_visible_content(page):
-    if has_page_image(page):
+def has_visible_content(page, frac=_IMAGE_COVER_FRAC):
+    if has_page_image(page, frac):
         return True
     try:
         return len(page.get_drawings()) >= _MIN_DRAWINGS
@@ -63,7 +64,8 @@ def page_needs_ocr(page):
         return True
     if interior_word_count(page) >= _MIN_INTERIOR_WORDS:
         return False
-    return has_visible_content(page)
+    frac = _IMAGE_COVER_FRAC if text.strip() else _IMAGE_COVER_FRAC_NOTEXT
+    return has_visible_content(page, frac)
 
 
 def document_needs_ocr(doc):
