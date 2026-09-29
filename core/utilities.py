@@ -852,6 +852,12 @@ def cuda_usable():
 def runs_on_this_hardware(model_info):
     return not (model_info or {}).get("requires_cuda", False) or cuda_usable()
 
+
+def fallback_if_unavailable(saved_key, registry, default_key):
+    if saved_key in registry and runs_on_this_hardware(registry[saved_key]):
+        return saved_key
+    return default_key
+
 def set_logging_level():
     library_levels = {
         "accelerate": logging.WARNING,

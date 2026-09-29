@@ -871,7 +871,40 @@ BACKEND_DEPENDENCIES = {
     "chatterbox": {
     },
     "googletts": {
+    },
+    "kokoro": {
     }
+}
+
+TTS_BACKENDS = {
+    "googletts": {"requires_cuda": False},
+    "kokoro": {"requires_cuda": False},
+    "kyutaipocket": {"requires_cuda": False},
+    "chattts": {"requires_cuda": False},
+    "chatterbox": {"requires_cuda": True},
+    "bark": {"requires_cuda": True},
+    "whisperspeech": {"requires_cuda": True},
+    "kyutai": {"requires_cuda": True},
+}
+
+KOKORO_VOICES = [
+    'af',
+    'af_bella',
+    'af_sarah',
+    'am_adam',
+    'am_michael',
+    'bf_emma',
+    'bf_isabella',
+    'bm_george',
+    'bm_lewis',
+    'af_nicole',
+    'af_sky'
+]
+
+KOKORO_SPEEDS = {
+    "Slow": 1.0,
+    "Medium": 1.3,
+    "Fast": 1.6,
 }
 
 CHAT_MODELS = {

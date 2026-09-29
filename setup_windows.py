@@ -281,6 +281,10 @@ def create_directory_structure():
 
 create_directory_structure()
 
+from core.utilities import download_kokoro_tts
+if not download_kokoro_tts():
+    print("\033[91mThe Kokoro text-to-speech model could not be downloaded. It can be downloaded later from within the program.\033[0m")
+
 def update_config_yaml():
     import yaml
     script_dir = os.path.dirname(os.path.abspath(__file__))

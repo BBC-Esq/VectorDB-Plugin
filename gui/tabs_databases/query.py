@@ -494,9 +494,39 @@ class DatabaseQueryTab(QWidget):
 
         tts_model = tts_config.get('model', '').lower()
 
-        if tts_model not in ['googletts', 'chattts', 'kyutaipocket', 'chatterbox'] and not torch.cuda.is_available():
+        from core.constants import TTS_BACKENDS
+        from core.utilities import runs_on_this_hardware
+        if not runs_on_this_hardware(TTS_BACKENDS.get(tts_model, {"requires_cuda": True})):
             QMessageBox.warning(self, "Error", "The Text to Speech backend you selected requires GPU-acceleration.")
             return
+
+        if tts_model == 'kokoro':
+            kokoro_dir = script_dir / "Models" / "tts" / "ctranslate2-4you--Kokoro-82M-light"
+            if not kokoro_dir.is_dir():
+                reply = QMessageBox.question(
+                    self,
+                    "Kokoro TTS Model Not Found",
+                    "The Kokoro TTS model is missing!\n\nWould you like to download it now?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.Yes
+                )
+                if reply == QMessageBox.Yes:
+                    from core.utilities import download_with_threadpool, download_kokoro_tts
+
+                    def on_kokoro_download_complete(success, message):
+                        if success:
+                            QMessageBox.information(
+                                self, "Download Complete",
+                                "The Kokoro TTS model has been downloaded. Click the button again to hear the response."
+                            )
+                        else:
+                            QMessageBox.critical(
+                                self, "Download Error",
+                                "Failed to download the Kokoro TTS model. Check your internet connection and try again."
+                            )
+
+                    download_with_threadpool(download_kokoro_tts, callback=on_kokoro_download_complete)
+                return
 
         from core.utilities import check_backend_dependencies, install_packages
         from core.constants import BACKEND_DEPENDENCIES

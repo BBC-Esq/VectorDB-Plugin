@@ -40,9 +40,11 @@ class BaseAudio:
                 print(f"Warning: Section '{section}' not found in config file.")
                 self.config = {}
 
-    def initialize_device(self):
+    def initialize_device(self, allow_cpu=False):
         if torch.cuda.is_available():
             self.device = 'cuda'
+        elif allow_cpu:
+            self.device = 'cpu'
         else:
             raise RuntimeError("CUDA is not available, but it's required for this program.")
 
@@ -350,7 +352,7 @@ class ChatTTSAudio(BaseAudio):
 
         print("Initializing ChatTTSAudio...")
 
-        self.initialize_device()
+        self.initialize_device(allow_cpu=True)
         self.chat = ChatTTS.Chat()
 
         chattts_dir = CACHE_DIR / "2Noise--ChatTTS"
@@ -812,6 +814,41 @@ class KyutaiPocketAudio(BaseAudio):
         self.audio_queue.put(None)
 
 
+class KokoroAudio:
+    MODEL_DIR = PROJECT_ROOT / "Models" / "tts" / "ctranslate2-4you--Kokoro-82M-light"
+
+    def __init__(self, config_path):
+        from core.constants import KOKORO_VOICES
+        from modules.kokoro import KokoroTTS
+
+        with open(config_path, 'r', encoding='utf-8') as f:
+            kokoro_cfg = (yaml.safe_load(f) or {}).get('kokoro') or {}
+        voice = kokoro_cfg.get('voice', 'bm_george')
+        self.voice = voice if voice in KOKORO_VOICES else 'bm_george'
+        try:
+            self.speed = float(kokoro_cfg.get('speed', 1.3))
+        except (TypeError, ValueError):
+            self.speed = 1.3
+        if self.speed <= 0:
+            self.speed = 1.3
+
+        if not self.MODEL_DIR.is_dir():
+            raise FileNotFoundError(f"Kokoro TTS model not found at {self.MODEL_DIR}")
+        self.tts = KokoroTTS(repo_path=str(self.MODEL_DIR))
+
+    def run(self, input_text_file):
+        try:
+            with open(input_text_file, 'r', encoding='utf-8') as file:
+                text = file.read()
+        except Exception as e:
+            print(f"Error reading {input_text_file}: {e}")
+            return
+
+        text = re.sub(r'#{2,}', '', text.replace('*', ''))
+        if text.strip():
+            self.tts.speak(text, voice=self.voice, speed=self.speed)
+
+
 def run_tts(config_path, input_text_file):
     with open(config_path, 'r', encoding='utf-8') as file:
         config = yaml.safe_load(file)
@@ -831,6 +868,8 @@ def run_tts(config_path, input_text_file):
         audio_class = KyutaiAudio()
     elif tts_model == 'kyutaipocket':
         audio_class = KyutaiPocketAudio()
+    elif tts_model == 'kokoro':
+        audio_class = KokoroAudio(config_path)
     else:
         raise ValueError(f"Invalid TTS model specified in config.yaml: {tts_model}")
 

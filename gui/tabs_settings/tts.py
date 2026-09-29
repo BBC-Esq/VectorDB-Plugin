@@ -5,8 +5,8 @@ from PySide6.QtWidgets import (
     QLabel, QComboBox, QWidget, QGridLayout, QMessageBox, QHBoxLayout, QCheckBox
 )
 
-from core.constants import WHISPER_SPEECH_MODELS
-from core.utilities import save_config_atomically
+from core.constants import WHISPER_SPEECH_MODELS, TTS_BACKENDS, KOKORO_VOICES, KOKORO_SPEEDS
+from core.utilities import save_config_atomically, runs_on_this_hardware, fallback_if_unavailable
 
 WHISPER_SPEECH_SPEAKERS = ["default", "classic", "voice_b"]
 WHISPER_SPEECH_VOICE_CLONING_LABEL = "Voice Cloning (Coming Soon)"
@@ -66,7 +66,7 @@ class TTSSettingsTab(QWidget):
             },
         },
         "chattts": {
-            "label": "ChatTTS (CPU/CPU)",
+            "label": "ChatTTS (CPU/GPU)",
             "extras": {},
         },
         "chatterbox": {
@@ -76,6 +76,21 @@ class TTSSettingsTab(QWidget):
         "googletts": {
             "label": "Google TTS (CPU)",
             "extras": {},
+        },
+        "kokoro": {
+            "label": "Kokoro (CPU)",
+            "extras": {
+                "voice": {
+                    "label": "Voice",
+                    "options": KOKORO_VOICES,
+                    "default": "bm_george",
+                },
+                "speed": {
+                    "label": "Speed",
+                    "options": list(KOKORO_SPEEDS),
+                    "default": "Medium",
+                },
+            },
         },
         "kyutaipocket": {
             "label": "Kyutai Pocket (CPU)",
@@ -124,7 +139,8 @@ class TTSSettingsTab(QWidget):
         layout.addWidget(QLabel("TTS Backend:"), 0, 0)
         self.backend_combo = QComboBox()
         for key, spec in self.BACKENDS.items():
-            self.backend_combo.addItem(spec["label"], userData=key)
+            if runs_on_this_hardware(TTS_BACKENDS.get(key)):
+                self.backend_combo.addItem(spec["label"], userData=key)
         layout.addWidget(self.backend_combo, 0, 1)
 
         self._extras_box = QWidget()
@@ -164,7 +180,7 @@ class TTSSettingsTab(QWidget):
         cfg = self._try_read_yaml()
 
         tts_cfg = cfg.get("tts", {}) if cfg else {}
-        backend = tts_cfg.get("model", "whisperspeech")
+        backend = fallback_if_unavailable(tts_cfg.get("model", "googletts"), TTS_BACKENDS, "googletts")
         idx = self.backend_combo.findData(backend)
         self.backend_combo.setCurrentIndex(idx if idx != -1 else 0)
 
@@ -201,6 +217,18 @@ class TTSSettingsTab(QWidget):
         self._pocket_quantize_checkbox.setChecked(
             bool(pocket_cfg.get("quantize", True))
         )
+
+        kokoro_cfg = (cfg or {}).get("kokoro") or {}
+        voice = kokoro_cfg.get("voice", "bm_george")
+        self.widgets_for_backend["kokoro"]["voice"][1].setCurrentText(
+            voice if voice in KOKORO_VOICES else "bm_george"
+        )
+        try:
+            speed = float(kokoro_cfg.get("speed", KOKORO_SPEEDS["Medium"]))
+        except (TypeError, ValueError):
+            speed = KOKORO_SPEEDS["Medium"]
+        speed_label = next((k for k, v in KOKORO_SPEEDS.items() if abs(v - speed) < 1e-6), "Medium")
+        self.widgets_for_backend["kokoro"]["speed"][1].setCurrentText(speed_label)
 
         kyutai_cfg = cfg.get("kyutai", {}) if cfg else {}
         for extra_key, (lbl, cmb) in self.widgets_for_backend["kyutai"].items():
@@ -243,6 +271,13 @@ class TTSSettingsTab(QWidget):
             pocket["voice"] = self.widgets_for_backend["kyutaipocket"]["voice"][1].currentText()
             pocket["quantize"] = bool(self._pocket_quantize_checkbox.isChecked())
             pocket["temp"] = 0.7
+
+        elif backend_key == "kokoro":
+            kokoro = cfg.setdefault("kokoro", {})
+            kokoro["voice"] = self.widgets_for_backend["kokoro"]["voice"][1].currentText()
+            kokoro["speed"] = KOKORO_SPEEDS.get(
+                self.widgets_for_backend["kokoro"]["speed"][1].currentText(), KOKORO_SPEEDS["Medium"]
+            )
 
         elif backend_key == "kyutai":
             kyutai = cfg.setdefault("kyutai", {})

@@ -30,6 +30,9 @@ database:
   search_term: ''
   similarity: 0.8
 hf_access_token:
+kokoro:
+  speed: 1.3
+  voice: bm_george
 minimax:
   api_key:
   model: MiniMax-M2.7

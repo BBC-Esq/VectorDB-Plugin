@@ -10,21 +10,11 @@ import warnings
 import logging
 from typing import Optional, Union
 
+from core.constants import KOKORO_VOICES
+
 class KokoroTTS:
-    VOICES = [
-        'af',
-        'af_bella',
-        'af_sarah',
-        'am_adam',
-        'am_michael',
-        'bf_emma',
-        'bf_isabella',
-        'bm_george',
-        'bm_lewis',
-        'af_nicole',
-        'af_sky'
-    ]
-    
+    VOICES = KOKORO_VOICES
+
     def __init__(self, repo_path: str):
         self.REPO_PATH = Path(repo_path)
         sys.path.append(str(self.REPO_PATH))
