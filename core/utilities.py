@@ -798,19 +798,23 @@ def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=Fals
     if not any(file.is_file() for file in documents_dir.iterdir()):
         return False, "No documents are yet added to be processed."
 
+    if any(file.is_file() and file.suffix.lower() in image_extensions for file in documents_dir.iterdir()):
+        from core.constants import VISION_MODELS
+        vision_model = (config.get('vision') or {}).get('chosen_model')
+        vision_info = VISION_MODELS.get(vision_model)
+        if vision_info and not runs_on_this_hardware(vision_info):
+            alternatives = ", ".join(name for name, info in VISION_MODELS.items() if runs_on_this_hardware(info))
+            return False, (f"Your files include images, but the selected vision model ({vision_model}) requires "
+                           "a supported NVIDIA GPU, so the images would not be added to the database. "
+                           f"Choose a different model under Settings > Vision Models ({alternatives}) "
+                           "or remove the images from the files to add.")
+
     compute_device = config.get('Compute_Device', {}).get('available', [])
     database_creation = config.get('Compute_Device', {}).get('database_creation')
     if ("cuda" in compute_device or "mps" in compute_device) and database_creation == "cpu":
         return False, ("GPU-acceleration is available and strongly recommended. "
                        "Please switch the database creation device to 'cuda' or 'mps', "
                        "or confirm your choice in the GUI.")
-
-    if not torch.cuda.is_available():
-        if config.get('database', {}).get('half', False):
-            message = ("CUDA is not available on your system, but half-precision (FP16) "
-                       "is selected for database creation. Half-precision requires CUDA. "
-                       "Please disable half-precision in the configuration or use a CUDA-enabled GPU.")
-            return False, message
 
     if not skip_ocr:
         ocr_check, ocr_message = check_pdfs_for_ocr(script_dir)
@@ -839,6 +843,14 @@ def has_bfloat16_support():
    has_support = capability >= (8, 0)
    logging.debug(f"bfloat16 {'supported' if has_support else 'not supported'}")
    return has_support
+
+
+def cuda_usable():
+    return torch.cuda.is_available()
+
+
+def runs_on_this_hardware(model_info):
+    return not (model_info or {}).get("requires_cuda", False) or cuda_usable()
 
 def set_logging_level():
     library_levels = {

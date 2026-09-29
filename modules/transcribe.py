@@ -3,7 +3,9 @@ from pathlib import Path
 import warnings
 import shutil
 import json
+import os
 
+import psutil
 import torch
 import av
 
@@ -58,6 +60,10 @@ class WhisperTranscriber:
 
         if 'large-v3' in self.model_identifier:
             self.model_kwargs['n_mels'] = 128
+
+        if not torch.cuda.is_available():
+            self.model_kwargs['device'] = 'cpu'
+            self.model_kwargs['cpu_threads'] = psutil.cpu_count(logical=False) or os.cpu_count() or 4
 
     def start_transcription_process(self, audio_file):
         self.audio_file = audio_file

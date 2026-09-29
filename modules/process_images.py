@@ -108,6 +108,8 @@ class BaseLoader:
 
     @staticmethod
     def detect_dtype():
+        if not torch.cuda.is_available():
+            return torch.float32, "float32"
         use_bf16 = torch.cuda.get_device_capability()[0] >= 8
         return (torch.bfloat16, "bfloat16") if use_bf16 else (torch.float16, "float16")
 

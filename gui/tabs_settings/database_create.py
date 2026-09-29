@@ -4,7 +4,7 @@ from PySide6.QtCore import QLocale
 from PySide6.QtWidgets import QWidget, QLabel, QLineEdit, QGridLayout, QHBoxLayout, QComboBox, QCheckBox, QMessageBox
 
 from core.constants import TOOLTIPS
-from core.utilities import save_config_atomically
+from core.utilities import save_config_atomically, cuda_usable
 
 
 class ChunkSettingsTab(QWidget):
@@ -45,6 +45,12 @@ class ChunkSettingsTab(QWidget):
         self.half_precision_checkbox = QCheckBox()
         self.half_precision_checkbox.setChecked(self.database_config.get("half", False))
         self.half_precision_checkbox.setToolTip(TOOLTIPS["HALF_PRECISION"])
+        if not cuda_usable():
+            self.half_precision_checkbox.setChecked(False)
+            self.half_precision_checkbox.setEnabled(False)
+            self.half_precision_checkbox.setToolTip(
+                "Half-precision requires a supported NVIDIA GPU. Databases are created in full precision on this computer."
+            )
 
         self.preset_label = QLabel("Pipeline Performance:")
         self.preset_label.setToolTip(preset_tooltip)
@@ -182,7 +188,7 @@ class ChunkSettingsTab(QWidget):
             settings_changed = True
 
         new_half_precision = self.half_precision_checkbox.isChecked()
-        if new_half_precision != self.database_config.get("half", False):
+        if self.half_precision_checkbox.isEnabled() and new_half_precision != self.database_config.get("half", False):
             config_data["database"]["half"] = new_half_precision
             settings_changed = True
 
@@ -197,7 +203,7 @@ class ChunkSettingsTab(QWidget):
 
                 self.database_config["chunk_size"] = config_data["database"]["chunk_size"]
                 self.database_config["chunk_overlap"] = config_data["database"]["chunk_overlap"]
-                self.database_config["half"] = config_data["database"]["half"]
+                self.database_config["half"] = config_data["database"].get("half", False)
                 self.database_config["pipeline_preset"] = config_data["database"].get("pipeline_preset", "normal")
 
                 self.database_creation_device = config_data["Compute_Device"][
