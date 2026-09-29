@@ -37,18 +37,16 @@ def is_nvidia_gpu_available():
     except (FileNotFoundError, subprocess.CalledProcessError):
         return False
 
-HAS_NVIDIA_GPU = is_nvidia_gpu_available()
-if HAS_NVIDIA_GPU:
-    import pynvml
-    pynvml.nvmlInit()
-    HANDLE = pynvml.nvmlDeviceGetHandleByIndex(0)
-    def _shutdown_nvml():
-        try:
-            pynvml.nvmlShutdown()
-        except Exception:
-            pass
-else:
-    HANDLE = None
+HAS_NVIDIA_GPU = False
+HANDLE = None
+if is_nvidia_gpu_available():
+    try:
+        import pynvml
+        pynvml.nvmlInit()
+        HANDLE = pynvml.nvmlDeviceGetHandleByIndex(0)
+        HAS_NVIDIA_GPU = True
+    except Exception:
+        HANDLE = None
 
 class MetricsStore(QObject):
     metrics_added = Signal(object)

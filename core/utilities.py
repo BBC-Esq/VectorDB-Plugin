@@ -37,22 +37,27 @@ def set_cuda_paths():
     nvrtc_path = nvidia_base_path / 'cuda_nvrtc' / 'bin'
     nvcc_path = nvidia_base_path / 'cuda_nvcc' / 'bin'
     paths_to_add = [
-        str(cuda_path_runtime),
-        str(cuda_path_runtime_lib),
-        str(cuda_path_runtime_include),
-        str(cublas_path),
-        str(cudnn_path),
-        str(nvrtc_path),
-        str(nvcc_path),
+        str(p) for p in (
+            cuda_path_runtime,
+            cuda_path_runtime_lib,
+            cuda_path_runtime_include,
+            cublas_path,
+            cudnn_path,
+            nvrtc_path,
+            nvcc_path,
+        )
+        if p.is_dir()
     ]
-    current_value = os.environ.get('PATH', '')
-    new_value = os.pathsep.join(paths_to_add + ([current_value] if current_value else []))
-    os.environ['PATH'] = new_value
+    if paths_to_add:
+        current_value = os.environ.get('PATH', '')
+        new_value = os.pathsep.join(paths_to_add + ([current_value] if current_value else []))
+        os.environ['PATH'] = new_value
 
     triton_cuda_path = nvidia_base_path / 'cuda_runtime'
-    current_cuda_path = os.environ.get('CUDA_PATH', '')
-    new_cuda_path = os.pathsep.join([str(triton_cuda_path)] + ([current_cuda_path] if current_cuda_path else []))
-    os.environ['CUDA_PATH'] = new_cuda_path
+    if triton_cuda_path.is_dir():
+        current_cuda_path = os.environ.get('CUDA_PATH', '')
+        new_cuda_path = os.pathsep.join([str(triton_cuda_path)] + ([current_cuda_path] if current_cuda_path else []))
+        os.environ['CUDA_PATH'] = new_cuda_path
 
 
 def check_backend_dependencies(backend_name: str, interactive: bool = True) -> bool:

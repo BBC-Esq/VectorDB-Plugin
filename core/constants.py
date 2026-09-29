@@ -508,6 +508,8 @@ SUPPORTED_EXTENSIONS = (
     ".xls", ".xlsx", ".xlsm", ".rtf", ".md", ".html", ".htm",
 )
 
+MIN_CUDA_COMPUTE_CAPABILITY = (7, 0)
+
 priority_libs = {
     "cp311": {
         "GPU": [
@@ -526,6 +528,9 @@ priority_libs = {
             "nvidia-ml-py==13.610.43",
         ],
         "CPU": [
+            "https://download.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=389e1e0b8083fd355f7caf5ba82356b5e01c318998bd575dbf2285a0d8137089",
+            "https://download.pytorch.org/whl/cpu/torchvision-0.23.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=51603eb071d0681abc4db98b10ff394ace31f425852e8de249b91c09c60eb19a",
+            "https://download.pytorch.org/whl/cpu/torchaudio-2.9.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=cfd6e9d9bb2215bf301e81a91018e1a2af9ed67fe778a2162cfbb6f8d7394fbd",
         ],
         "COMMON": [
             "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.9.1-tesseract-5.5.1/tesserocr-2.9.1-cp311-cp311-win_amd64.whl",
@@ -548,6 +553,9 @@ priority_libs = {
             "nvidia-ml-py==13.610.43",
         ],
         "CPU": [
+            "https://download.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=e438061b87ec7dd6018fca9f975219889aa0a3f6cdc3ea10dd0ae2bc7f1c47ce",
+            "https://download.pytorch.org/whl/cpu/torchvision-0.24.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=6ec2ebf962e7dca034e06a6eb07dafe388b16e7b01168f1c10b0c299e95946d5",
+            "https://download.pytorch.org/whl/cpu/torchaudio-2.9.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=b93b54b5e01fbb645fd6c753d522a7a489e531f1e54b2a2e49714640ec3f0f43",
         ],
         "COMMON": [
             "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.9.1-tesseract-5.5.1/tesserocr-2.9.1-cp312-cp312-win_amd64.whl",
@@ -570,6 +578,9 @@ priority_libs = {
             "nvidia-ml-py==13.610.43",
         ],
         "CPU": [
+            "https://download.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp313-cp313-win_amd64.whl#sha256=728372e3f58c5826445f677746e5311c1935c1a7c59599f73a49ded850e038e8",
+            "https://download.pytorch.org/whl/cpu/torchvision-0.24.0%2Bcpu-cp313-cp313-win_amd64.whl#sha256=24ae40dd443486bd32118a431ee4f38a23455665c477bb42136415e2a1c940e5",
+            "https://download.pytorch.org/whl/cpu/torchaudio-2.9.0%2Bcpu-cp313-cp313-win_amd64.whl#sha256=ec6e2af7e0ab6033def1f3f2a3e3173924dc65d8bbb6fa8b444faeb6eb42644f",
         ],
         "COMMON": [
             "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.9.1-tesseract-5.5.1/tesserocr-2.9.1-cp313-cp313-win_amd64.whl",

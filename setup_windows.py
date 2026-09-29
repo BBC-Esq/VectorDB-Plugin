@@ -34,9 +34,12 @@ from tools.replace_sourcecode import (
     check_embedding_model_dimensions,
 )
 
-from core.constants import priority_libs, libs, full_install_libs
+from core.constants import priority_libs, libs, full_install_libs, MIN_CUDA_COMPUTE_CAPABILITY
+from core.gpu_guard import query_nvidia_gpus, is_supported_gpu, describe_gpus
 
 start_time = time.time()
+
+force_cpu = "--force-cpu" in sys.argv
 
 def has_nvidia_gpu():
     try:
@@ -49,9 +52,21 @@ def has_nvidia_gpu():
     except FileNotFoundError:
         return False
 
+def detect_hardware():
+    if force_cpu:
+        return "CPU", "CPU-only mode was requested with --force-cpu."
+    if not has_nvidia_gpu():
+        return "CPU", "No NVIDIA GPU was detected."
+    gpus = query_nvidia_gpus()
+    if not gpus or any(is_supported_gpu(g) for g in gpus):
+        return "GPU", None
+    required = "{}.{}".format(*MIN_CUDA_COMPUTE_CAPABILITY)
+    return "CPU", (f"An NVIDIA GPU was detected ({describe_gpus(gpus)}), but the bundled PyTorch "
+                   f"requires compute capability {required} or newer.")
+
 python_version = f"cp{sys.version_info.major}{sys.version_info.minor}"
 
-hardware_type = "GPU" if has_nvidia_gpu() else "CPU"
+hardware_type, cpu_reason = detect_hardware()
 
 def tkinter_message_box(title, message, type="info", yes_no=False):
     root = tk.Tk()
@@ -83,13 +98,6 @@ def check_python_version_and_confirm():
         )
         return False
 
-def is_nvidia_gpu_installed():
-    try:
-        subprocess.check_output(["nvidia-smi"])
-        return True
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        return False
-
 def manual_installation_confirmation():
     if not tkinter_message_box("Confirmation", "Have you installed Git?\n\nClick YES to confirm or NO to cancel installation.", yes_no=True):
         return False
@@ -104,13 +112,14 @@ def manual_installation_confirmation():
 if not check_python_version_and_confirm():
     sys.exit(1)
 
-nvidia_gpu_detected = is_nvidia_gpu_installed()
-if nvidia_gpu_detected:
-    message = "An NVIDIA GPU has been detected.\n\nDo you want to proceed with the installation?"
+if hardware_type == "GPU":
+    message = "A supported NVIDIA GPU has been detected. The GPU version will be installed.\n\nDo you want to proceed with the installation?"
 else:
-    message = "No NVIDIA GPU has been detected. An NVIDIA GPU is required for this script to function properly.\n\nDo you still want to proceed with the installation?"
+    message = (f"{cpu_reason}\n\nThe CPU-only version will be installed. Large local models and some "
+               "GPU-only features will not be available. For chatting with local models, LM Studio is "
+               "recommended.\n\nDo you want to proceed with the installation?")
 
-if not tkinter_message_box("GPU Detection", message, yes_no=True):
+if not tkinter_message_box("Hardware Detection", message, yes_no=True):
     sys.exit(1)
 
 if not manual_installation_confirmation():
@@ -245,12 +254,14 @@ elif not all_failed:
 if all_failed:
     sys.exit(1)
 
-from core.utilities import clean_triton_cache
-clean_triton_cache()
+if hardware_type == "GPU":
+    from core.utilities import clean_triton_cache
+    clean_triton_cache()
 
 replace_sentence_transformer_file()
 replace_chattts_file()
-add_cuda_files()
+if hardware_type == "GPU":
+    add_cuda_files()
 setup_vector_db()
 check_embedding_model_dimensions()
 
