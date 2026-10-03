@@ -159,11 +159,19 @@ class TesseractOCR(OCRProcessor):
         os.close(fd)
         with fitz.open(pdf_path) as pdf_document, fitz.open() as out_pdf:
             page = pdf_document[page_num]
+            page.remove_rotation()
+            try:
+                needs = page_needs_ocr(page)
+            except Exception:
+                needs = True
+            if not needs:
+                out_pdf.insert_pdf(page.parent, from_page=page_num, to_page=page_num)
+                out_pdf.save(temp_pdf_path)
+                return page_num, temp_pdf_path
             api = getattr(thread_local, 'api', None)
             if api is None:
                 api = tesserocr.PyTessBaseAPI(lang="eng", path=str(self.tessdata_path))
                 thread_local.api = api
-            page.remove_rotation()
             pix = page.get_pixmap(matrix=fitz.Matrix(self.zoom, self.zoom))
             pil_image = Image.open(BytesIO(pix.tobytes("png")))
             api.SetImage(pil_image)
