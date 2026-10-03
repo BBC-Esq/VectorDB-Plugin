@@ -571,10 +571,11 @@ descriptive, such as 'tax_records_2024' or 'project-notes.'
 ### What is the PDF OCR check when creating a database?
 If you include one or more PDF files when creating a database, the program asks whether you want to check if any of the PDFs need
 OCR (optical character recognition). This matters because a PDF that is really just scanned images has no extractable text layer,
-and embedding it would add nothing useful to the database. If you choose to run the check, the program inspects your PDFs and
-performs OCR on any that lack a text layer so their contents can be extracted and embedded. For a large number of PDFs this check
-can be time-consuming, but it is strongly recommended because it prevents image-only PDFs from being silently added with no
-searchable text. You can also OCR a PDF yourself ahead of time using the OCR tool in the Tools Tab.
+and embedding it would add nothing useful to the database. If you choose to run the check, the program inspects the pages of your
+PDFs. If any PDF appears to need OCR, it lists those files (with a 'View Report' button) and stops before creating the database.
+The check does not perform OCR itself: run the OCR tool in the Tools Tab on the listed PDFs, or remove them from the files you
+selected, and then create the database again. For a large number of PDFs this check can be time-consuming, but it is strongly
+recommended because it prevents image-only PDFs from being silently added with no searchable text.
 
 ### How do I select files or a whole folder when creating a database?
 In the Create Database Tab, click 'Choose Files' to add documents. You are first asked whether you want to select an entire
@@ -743,18 +744,17 @@ have, which is unseen but which is ultimately extracted when text is extracted f
 layer then text cannot be extracted from a .pdf unless OCR has been done on it, which you can do with this program.  To do so, go to
 the Tool Tab, select a .pdf, and perform OCR.  You can Ask Jeeves for more details regarding this if need be.
 
-### How can I extract text from PDFs or images with OCR?
-The OCR tool, found in the Tools tab, converts image-based documents into searchable text using the built-in Tesseract engine. To use it:
+### How can I extract text from scanned PDFs with OCR?
+The OCR tool, found in the Tools tab, turns scanned, image-only PDFs into searchable PDFs. To use it:
 (1) Go to the "OPTICAL CHARACTER RECOGNITION" section in the Tools tab.
-(2) Ensure "Tesseract" is selected from the dropdown (it’s usually pre-selected).
-(3) Click "Choose PDF" to upload your scanned PDF or image file.
+(2) Choose an OCR engine from the dropdown. RapidOCR is selected by default; Tesseract is also available.
+(3) Click "Choose PDF" to select your scanned PDF (the tool accepts PDF files only).
 (4) Click "Process" to start extracting text.
-Once processing is complete, the tool generates two outputs:
-(1) A new PDF file with an "_OCR" suffix that includes the original document along with an invisible, searchable text layer.
-(2) A plain text file containing all the recognized text, including page markers like [[page1]].
-You can then upload either the OCR-enhanced PDF or the plain text file to your vector database using the Create Database tab. The
-tool works best with PDFs, including multi-page ones, but it also supports image files. OCR accuracy varies depending on the clarity
-and quality of the input, so it's important to review the results carefully when accuracy is critical.
+When processing is complete, the tool saves a new PDF with an "_OCR" suffix in the same folder as the original. It looks the same
+as the original but has an invisible, searchable text layer, and a link in the completion message opens it. Add that "_OCR" PDF to
+your vector database using the Create Database tab. RapidOCR also reports quality notes when it finishes, such as low-confidence
+pages worth reviewing, pages with visible content but no text, and pages it rotated to read. OCR accuracy depends on the clarity
+and quality of the scan, so review the results carefully when accuracy is critical.
 
 ### What other features does the Misc tab have?
 The Tools Tab includes a 'Misc' section with database backup and restore plus a GPU comparison chart. Click 'Backup Databases' to
