@@ -7,6 +7,8 @@ _IMAGE_COVER_FRAC = 0.5
 _IMAGE_COVER_FRAC_NOTEXT = 0.05
 _MIN_DRAWINGS = 20
 _CID_RE = re.compile(r'\(cid:\d+\)')
+_CONTROL_RE = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f]')
+_WORD_SPLIT_RE = re.compile(r'[ \t\n\r\xa0]+')
 OCR_PRODUCER_PREFIX = "VectorDB-Plugin"
 
 
@@ -17,6 +19,19 @@ def corrupt_fraction(text):
     bad = sum(1 for ch in s if ord(ch) == 0xFFFD or 0xE000 <= ord(ch) <= 0xF8FF)
     cid = sum(len(m) for m in _CID_RE.findall(s))
     return (bad + cid) / len(s)
+
+
+def control_fraction(text):
+    words = [w for w in _WORD_SPLIT_RE.split(text) if w]
+    total = sum(len(w) for w in words)
+    if not total:
+        return 0.0
+    return sum(len(w) for w in words if _CONTROL_RE.search(w)) / total
+
+
+def text_is_garbled(text):
+    return bool(text.strip()) and (corrupt_fraction(text) > _CORRUPT_THRESHOLD
+                                   or control_fraction(text) > _CORRUPT_THRESHOLD)
 
 
 def interior_word_count(page):
@@ -61,7 +76,7 @@ def has_visible_content(page, frac=_IMAGE_COVER_FRAC):
 
 def page_needs_ocr(page):
     text = page.get_text()
-    if text.strip() and corrupt_fraction(text) > _CORRUPT_THRESHOLD:
+    if text_is_garbled(text):
         return True
     if interior_word_count(page) >= _MIN_INTERIOR_WORDS:
         return False

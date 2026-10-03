@@ -12,6 +12,7 @@ import fitz
 from bs4 import BeautifulSoup
 
 from core.text_utils import normalize_text
+from core.pdf_ocr_gate import text_is_garbled, corrupt_fraction, control_fraction
 from core.constants import SUPPORTED_EXTENSIONS, PIPELINE_PRESETS
 from db.text_splitter import Document, FixedSizeTextSplitter, add_pymupdf_page_metadata
 
@@ -64,11 +65,26 @@ def extract_document_metadata(file_path, content_hash=None):
     }
 
 
+def _ocr_text_for_garbled_page(page) -> Optional[str]:
+    visible, hidden = [], []
+    for block in page.get_text("dict")["blocks"]:
+        for line in block.get("lines", []):
+            spans = line["spans"]
+            visible.append("".join(span["text"] for span in spans if span.get("alpha") != 0))
+            hidden.append("".join(span["text"] for span in spans if span.get("alpha") == 0))
+    hidden_text = "\n".join(t for t in hidden if t.strip())
+    if hidden_text and text_is_garbled("\n".join(t for t in visible if t.strip())):
+        return hidden_text
+    return None
+
+
 def _load_pdf(file_path: Path) -> Optional[str]:
     full_content = []
     with fitz.open(str(file_path)) as doc:
         for page in doc:
             text = page.get_text()
+            if corrupt_fraction(text) or control_fraction(text):
+                text = _ocr_text_for_garbled_page(page) or text
             if text.strip():
                 full_content.append(f"[[page{page.number + 1}]]{text}")
     return "".join(full_content) if full_content else None
