@@ -478,7 +478,7 @@ class GoogleTTSAudio:
 
     @staticmethod
     def tokenize_and_minimize(text):
-        sentences = re.split('(?<=[.!?])\s+', text)
+        sentences = re.split(r'(?<=[.!?])\s+', text)
         
         minimized_tokens = []
         for sentence in sentences:
