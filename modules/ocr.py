@@ -363,6 +363,7 @@ class RapidOCRBackend(OCRProcessor):
 
     _ORIENT_ACCEPT_CONF = 0.90
     _ORIENT_MARGIN = 1.20
+    _LAYER_ROTATION = {'rot90': 270, 'rot180': 180, 'rot270': 90}
 
     _REC_HARD_FLOOR = 0.30
     _REC_FLAG_FLOOR = 0.60
@@ -422,12 +423,29 @@ class RapidOCRBackend(OCRProcessor):
     def _remap_k3(poly, w, h):
         return np.array([[p[1], h - 1 - p[0]] for p in poly])
 
+    @staticmethod
+    def _horizontal_fraction(res) -> float:
+        if res.txts is None or res.boxes is None:
+            return 0.0
+        horizontal = total = 0
+        for t, poly in zip(res.txts, res.boxes):
+            if len(t) < 3:
+                continue
+            a = np.asarray(poly, dtype=float).reshape(-1, 2)
+            total += len(t)
+            if a[:, 0].max() - a[:, 0].min() >= a[:, 1].max() - a[:, 1].min():
+                horizontal += len(t)
+        return horizontal / total if total else 0.0
+
+    def _orientation_score(self, res) -> float:
+        return self._text_mass(res) * self._horizontal_fraction(res)
+
     def _ocr_oriented(self, img, w: int, h: int):
         r0 = self.engine(img, use_cls=False)
-        if self._mean_conf(r0) >= self._ORIENT_ACCEPT_CONF:
+        if self._mean_conf(r0) >= self._ORIENT_ACCEPT_CONF and self._horizontal_fraction(r0) >= 0.5:
             txts, boxes, scores = self._unpack(r0)
-            return txts, boxes, scores, 'none', boxes
-        base_mass = self._text_mass(r0)
+            return txts, boxes, scores, 'none', boxes, (w, h)
+        base_score = self._orientation_score(r0)
         variants = (
             ('rot90', np.ascontiguousarray(np.rot90(img, 1)), self._remap_k1),
             ('rot180', np.ascontiguousarray(np.rot90(img, 2)), self._remap_k2),
@@ -437,18 +455,18 @@ class RapidOCRBackend(OCRProcessor):
         ranked = []
         for name, vimg, remap in variants:
             probe = np.ascontiguousarray(vimg[::2, ::2])
-            ranked.append((self._text_mass(self.engine(probe, use_cls=False)), name, vimg, remap))
+            ranked.append((self._orientation_score(self.engine(probe, use_cls=False)), name, vimg, remap))
         ranked.sort(key=lambda s: s[0], reverse=True)
         _, name, vimg, remap = ranked[0]
         r_win = self.engine(vimg, use_cls=False)
-        if self._text_mass(r_win) > base_mass * self._ORIENT_MARGIN:
+        if self._orientation_score(r_win) > base_score * self._ORIENT_MARGIN:
             txts, upright_boxes, scores = self._unpack(r_win)
             boxes = upright_boxes
             if remap is not None:
                 boxes = [remap(np.asarray(p), w, h) for p in upright_boxes]
-            return txts, boxes, scores, name, upright_boxes
+            return txts, boxes, scores, name, upright_boxes, (vimg.shape[1], vimg.shape[0])
         txts, boxes, scores = self._unpack(r0)
-        return txts, boxes, scores, 'none', boxes
+        return txts, boxes, scores, 'none', boxes, (w, h)
 
     def process_page(self, page_num: int, pdf_path: str) -> Tuple[int, str]:
         fd, temp_pdf_path = tempfile.mkstemp(suffix=".pdf", dir=self.temp_dir)
@@ -469,7 +487,7 @@ class RapidOCRBackend(OCRProcessor):
                 pix = page.get_pixmap(matrix=fitz.Matrix(z, z))
                 img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
                     pix.height, pix.width, pix.n)[:, :, :3][:, :, ::-1].copy()
-                txts, boxes, scores, orient, upright_boxes = self._ocr_oriented(img, pix.width, pix.height)
+                txts, boxes, scores, orient, upright_boxes, upright_size = self._ocr_oriented(img, pix.width, pix.height)
                 if orient != 'none':
                     self._signal('oriented',
                                  f"page {page_num + 1}: auto-corrected orientation ({orient})",
@@ -491,23 +509,32 @@ class RapidOCRBackend(OCRProcessor):
                             txts = [txts[i] for i in perm]
                             boxes = [boxes[i] for i in perm]
                             scores = [scores[i] for i in perm]
+                            upright_boxes = [upright_boxes[i] for i in perm]
                     except Exception:
                         pass
-                    hocr_text, stats = self._build_hocr(txts, boxes, scores, pix.width, pix.height)
+                    layer_rotate = self._LAYER_ROTATION.get(orient, 0)
+                    if layer_rotate:
+                        layer_boxes, (layer_w, layer_h) = upright_boxes, upright_size
+                    else:
+                        layer_boxes, layer_w, layer_h = boxes, pix.width, pix.height
+                    hocr_text, stats = self._build_hocr(txts, layer_boxes, scores, layer_w, layer_h)
                     if stats['emitted'] > 0:
                         hocr_output = f"{self.temp_dir}/page_{page_num}.hocr"
                         Path(hocr_output).write_text(hocr_text, encoding="utf-8")
                         fd, text_pdf = tempfile.mkstemp(suffix=".pdf", dir=self.temp_dir)
                         os.close(fd)
-                        pdf_width_pts = page.rect.width
-                        pdf_height_pts = page.rect.height
-                        dpi = ((pix.width * 72) / pdf_width_pts + (pix.height * 72) / pdf_height_pts) / 2.0
+                        if layer_rotate in (90, 270):
+                            pdf_width_pts, pdf_height_pts = page.rect.height, page.rect.width
+                        else:
+                            pdf_width_pts, pdf_height_pts = page.rect.width, page.rect.height
+                        dpi = ((layer_w * 72) / pdf_width_pts + (layer_h * 72) / pdf_height_pts) / 2.0
                         hocr_transform = HocrTransform(hocr_filename=hocr_output, dpi=dpi)
                         hocr_transform.width = pdf_width_pts
                         hocr_transform.height = pdf_height_pts
                         hocr_transform.to_pdf(out_filename=text_pdf, invisible_text=True)
                         with fitz.open(text_pdf) as text_page:
-                            out_pdf[0].show_pdf_page(out_pdf[0].rect, text_page, 0, overlay=True)
+                            out_pdf[0].show_pdf_page(out_pdf[0].rect, text_page, 0, overlay=True,
+                                                     rotate=layer_rotate)
                         Path(hocr_output).unlink(missing_ok=True)
                         for _ in range(10):
                             try:
