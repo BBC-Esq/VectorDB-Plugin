@@ -221,6 +221,28 @@ class DatabasesTab(QWidget):
         QMessageBox.warning(self, "Validation Failed", message)
         self.reenable_create_db_button()
 
+    def _confirm_cpu_creation(self):
+        config_path = PROJECT_ROOT / "config.yaml"
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                compute = (yaml.safe_load(f) or {}).get('Compute_Device') or {}
+        except (OSError, yaml.YAMLError):
+            return True
+        available = compute.get('available') or []
+        if compute.get('database_creation') != 'cpu' or not any(d in available for d in ('cuda', 'mps')):
+            return True
+        reply = QMessageBox.question(
+            self,
+            "GPU Acceleration Available",
+            "GPU acceleration is available and strongly recommended for creating a vector database, "
+            "but the database creation device is set to CPU.\n\n"
+            "Create this database on the CPU anyway?\n\n"
+            "Choose No to change the device in the Settings tab first.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        return reply == QMessageBox.Yes
+
     def refresh_model_combobox(self, index):
         current_text = self.model_combobox.currentText()
         self.populate_model_combobox()
@@ -485,6 +507,10 @@ class DatabasesTab(QWidget):
             ok, msg = check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=skip_ocr)
             if not ok:
                 self._validation_failed(msg)
+                return
+
+            if not self._confirm_cpu_creation():
+                self.reenable_create_db_button()
                 return
 
             self.db_worker = VectorDBWorker(database_name, parent=self)

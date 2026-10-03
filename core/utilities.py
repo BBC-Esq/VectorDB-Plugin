@@ -830,13 +830,6 @@ def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=Fals
                            f"Choose a different model under Settings > Vision Models ({alternatives}) "
                            "or remove the images from the files to add.")
 
-    compute_device = config.get('Compute_Device', {}).get('available', [])
-    database_creation = config.get('Compute_Device', {}).get('database_creation')
-    if ("cuda" in compute_device or "mps" in compute_device) and database_creation == "cpu":
-        return False, ("GPU-acceleration is available and strongly recommended. "
-                       "Please switch the database creation device to 'cuda' or 'mps', "
-                       "or confirm your choice in the GUI.")
-
     if not skip_ocr:
         ocr_check, ocr_message = check_pdfs_for_ocr(script_dir)
         if not ocr_check:
