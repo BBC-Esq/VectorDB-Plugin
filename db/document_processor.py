@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import csv
 import codecs
 import logging
@@ -93,8 +94,20 @@ def _load_pdf(file_path: Path) -> Optional[str]:
 
 
 def _load_docx(file_path: Path) -> Optional[str]:
+    import zipfile
     import docx2txt
+    from docx2txt.docx2txt import xml2text
     text = docx2txt.process(str(file_path))
+    notes = []
+    with zipfile.ZipFile(str(file_path)) as zf:
+        names = set(zf.namelist())
+        for part, label in (("word/footnotes.xml", "Footnotes"), ("word/endnotes.xml", "Endnotes")):
+            if part in names:
+                note_text = xml2text(zf.read(part)).strip()
+                if note_text:
+                    notes.append(f"{label}:\n{note_text}")
+    if notes:
+        text = "\n\n".join(([text] if text else []) + notes)
     return text if text and text.strip() else None
 
 
@@ -268,6 +281,31 @@ def _load_xlsx(file_path: Path) -> Optional[str]:
     return "\n".join(parts) if parts else None
 
 
+def _split_rtf_footnotes(rtf: str):
+    body, notes, pos = [], [], 0
+    for match in re.finditer(r"\{\\footnote(?![a-zA-Z])", rtf):
+        if match.start() < pos:
+            continue
+        depth, end = 0, match.start()
+        while end < len(rtf):
+            ch = rtf[end]
+            if ch == "\\":
+                end += 2
+                continue
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            end += 1
+        body.append(rtf[pos:match.start()])
+        notes.append("{" + rtf[match.end():end + 1])
+        pos = end + 1
+    body.append(rtf[pos:])
+    return "".join(body), notes
+
+
 def _load_rtf(file_path: Path) -> Optional[str]:
     from striprtf.striprtf import rtf_to_text
 
@@ -276,7 +314,11 @@ def _load_rtf(file_path: Path) -> Optional[str]:
         try:
             with open(file_path, "r", encoding=enc) as f:
                 rtf_content = f.read()
-            text = rtf_to_text(rtf_content)
+            body, notes = _split_rtf_footnotes(rtf_content)
+            text = rtf_to_text(body)
+            note_texts = [t.strip() for t in (rtf_to_text("{\\rtf1 " + n + "}") for n in notes) if t.strip()]
+            if note_texts:
+                text = text.rstrip() + "\n\nFootnotes:\n" + "\n".join(note_texts)
             return text if text and text.strip() else None
         except UnicodeDecodeError:
             continue
