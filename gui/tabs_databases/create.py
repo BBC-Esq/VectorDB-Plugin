@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QM
 
 from db.database_interactions import create_vector_db_in_process, NOT_ADDED_MARKER
 from db.choose_documents import choose_documents_directory
-from core.utilities import check_preconditions_for_db_creation, open_file, delete_file, backup_database, my_cprint, save_config_atomically, runs_on_this_hardware
+from core.utilities import check_preconditions_for_db_creation, open_file, delete_file, backup_database, my_cprint, save_config_atomically, runs_on_this_hardware, max_database_name_length
 from gui.download_model import model_downloaded_signal, is_complete_download
 from core.constants import TOOLTIPS, PROJECT_ROOT
 
@@ -198,6 +198,7 @@ class DatabasesTab(QWidget):
         regex = QRegularExpression("^[a-z0-9_-]*$")
         validator = QRegularExpressionValidator(regex, self.database_name_input)
         self.database_name_input.setValidator(validator)
+        self.database_name_input.setMaxLength(max(3, max_database_name_length(PROJECT_ROOT)))
         hbox2.addWidget(self.database_name_input)
         self.layout.addLayout(grid_layout_top_buttons)
         self.layout.addLayout(hbox2)

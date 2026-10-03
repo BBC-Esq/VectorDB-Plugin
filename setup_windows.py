@@ -123,6 +123,19 @@ if not install_dir.isascii() and not tkinter_message_box(
 ):
     sys.exit(1)
 
+name_limit = 259 - (len(os.path.join(install_dir, "Vector_DB")) + 1) - 150 - 10
+if name_limit < 25 and not tkinter_message_box(
+    "Install Location",
+    f"This folder's path is long ({len(install_dir)} characters):\n\n{install_dir}\n\n"
+    "Windows limits how long file paths can be, so "
+    + (f"database names will be limited to {name_limit} characters here"
+       if name_limit >= 3 else "new vector databases cannot be created here")
+    + ". Installing in a shorter folder such as C:\\VectorDB-Plugin avoids this.\n\n"
+    "Click YES to install here anyway or NO to exit.",
+    yes_no=True,
+):
+    sys.exit(1)
+
 if hardware_type == "GPU":
     message = "A supported NVIDIA GPU has been detected. The GPU version will be installed.\n\nDo you want to proceed with the installation?"
 else:

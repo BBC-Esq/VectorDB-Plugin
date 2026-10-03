@@ -776,6 +776,16 @@ def delete_file(file_path):
     except OSError:
         QMessageBox.warning(None, "Delete Failed", "Unable to delete file(s), please delete manually.")
 
+TILEDB_DEEPEST_RELATIVE_PATH = 150
+PATH_SAFETY_MARGIN = 10
+WINDOWS_MAX_PATH = 259
+
+
+def max_database_name_length(project_root):
+    base = len(str(Path(project_root) / "Vector_DB")) + 1
+    return WINDOWS_MAX_PATH - base - TILEDB_DEEPEST_RELATIVE_PATH - PATH_SAFETY_MARGIN
+
+
 def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=False):
     if not str(script_dir).isascii():
         return False, ("The program's folder path contains accented or other non-English characters:\n\n"
@@ -785,6 +795,13 @@ def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=Fals
 
     if not database_name or len(database_name) < 3 or database_name.lower() in ["null", "none"]:
         return False, "Name must be at least 3 characters long and not be 'null' or 'none.'"
+
+    name_limit = max_database_name_length(script_dir)
+    if len(database_name) > name_limit:
+        return False, ("The database name is too long for the folder this program is installed in, because Windows "
+                       "limits how long file paths can be. "
+                       + (f"Use a name of at most {name_limit} characters, or " if name_limit >= 3 else "")
+                       + "move the VectorDB-Plugin folder to a shorter path (for example C:\\VectorDB-Plugin).")
 
     vector_db_path = script_dir / "Vector_DB" / database_name
     if vector_db_path.exists():
