@@ -909,18 +909,46 @@ class QueryVectorDB:
 
         logger.info(f"Querying TileDB index: {self.index_uri}")
 
+        results, exhausted = self._retrieve(query_vector_np, k, score_threshold, tiledb)
+
+        if document_types:
+            total = int(getattr(self.index, "size", 0) or 0)
+            fetch_k = k
+            typed = [r for r in results if r[1].get('document_type') == document_types]
+            while len(typed) < k and not exhausted and fetch_k < total:
+                fetch_k = min(max(fetch_k * 4, 100), total)
+                results, exhausted = self._retrieve(query_vector_np, fetch_k, score_threshold, tiledb)
+                typed = [r for r in results if r[1].get('document_type') == document_types]
+            results = typed[:k]
+
+        search_term = (search_term or "").lower()
+        if search_term:
+            filtered_results = [
+                (text, metadata) for text, metadata in results
+                if search_term in text.lower()
+            ]
+        else:
+            filtered_results = results
+
+        contexts = [text for text, _ in filtered_results]
+        metadata_list = [metadata for _, metadata in filtered_results]
+
+        logger.info(f"Final results returned: {len(contexts)}")
+        return contexts, metadata_list
+
+    def _retrieve(self, query_vector_np, k, score_threshold, tiledb):
         result_distances, result_ids = self.index.query(query_vector_np, k=k)
 
         if len(result_distances) == 0 or len(result_distances[0]) == 0:
             logger.warning("No results returned from vector search")
-            return [], []
+            return [], True
 
         distances = result_distances[0]
         ids = result_ids[0]
 
         if len(ids) > 0 and ids[0] == MAX_UINT64_SENTINEL:
             logger.warning("TileDB returned sentinel value - no matches found in index")
-            return [], []
+            return [], True
 
         valid_mask = ids != MAX_UINT64_SENTINEL
         distances = distances[valid_mask]
@@ -928,7 +956,7 @@ class QueryVectorDB:
 
         if len(ids) == 0:
             logger.warning("All results were sentinel values - no valid matches")
-            return [], []
+            return [], True
 
         logger.info(f"Raw distances - min: {distances.min():.4f}, max: {distances.max():.4f}, mean: {distances.mean():.4f}")
 
@@ -946,10 +974,11 @@ class QueryVectorDB:
         valid_indices = similarities >= score_threshold
         num_passing = np.sum(valid_indices)
         logger.info(f"Results passing threshold: {num_passing}")
+        exhausted = bool(num_passing < len(ids) or len(ids) < k)
 
         if not np.any(valid_indices):
             logger.warning(f"No results passed the similarity threshold of {score_threshold}")
-            return [], []
+            return [], True
 
         filtered_distances = distances[valid_indices]
         filtered_ids = ids[valid_indices]
@@ -995,26 +1024,7 @@ class QueryVectorDB:
                     logger.warning(f"Failed to retrieve data for vector ID {vec_id}: {e}")
                     continue
 
-        search_term = (search_term or "").lower()
-        if search_term:
-            filtered_results = [
-                (text, metadata) for text, metadata in results
-                if search_term in text.lower()
-            ]
-        else:
-            filtered_results = results
-
-        if document_types:
-            filtered_results = [
-                (text, metadata) for text, metadata in filtered_results
-                if metadata.get('document_type') == document_types
-            ]
-
-        contexts = [text for text, _ in filtered_results]
-        metadata_list = [metadata for _, metadata in filtered_results]
-
-        logger.info(f"Final results returned: {len(contexts)}")
-        return contexts, metadata_list
+        return results, exhausted
 
     def cleanup(self):
         if self.embeddings:
