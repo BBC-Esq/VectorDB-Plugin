@@ -18,6 +18,7 @@
 | 🧲 [Git LFS](https://git-lfs.com/)                                                       | Handle large model files                          |
 | 📄 [Pandoc](https://github.com/jgm/pandoc/releases)                                      | Document parsing support                          |
 | 🛠️ [Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) | Required for compiling dependencies               |
+| 🎮 NVIDIA GPU (optional)                                                                 | GTX 16-series / RTX 20-series or newer for GPU acceleration; without one the program runs in CPU-only mode |
 
 <details>
 <summary>Or you can try running these commands in Powershell on Windows:</summary>
@@ -53,6 +54,9 @@ python setup_windows.py
 ```
 python gui.py
 ```
+
+> [!TIP]
+> The installer detects your hardware automatically. If no supported NVIDIA GPU is found, it installs the CPU-only version, which offers smaller models suited to running on a CPU. To force a CPU-only install on a computer that has a GPU, run `python setup_windows.py --force-cpu` instead.
 
 <div align="center">
 

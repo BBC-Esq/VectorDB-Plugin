@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.constants import VECTOR_MODELS, TOOLTIPS
-from core.utilities import runs_on_this_hardware
+from core.utilities import cuda_usable, runs_on_this_hardware
 from gui.download_model import ModelDownloader, model_downloaded_signal
 
 class VectorModelsTab(QWidget):
@@ -49,6 +49,15 @@ class VectorModelsTab(QWidget):
 
        def add_centered_widget(grid, widget, row, col):
            grid.addWidget(widget, row, col, alignment=Qt.AlignCenter)
+
+       if not cuda_usable():
+           cpu_note = QLabel(
+               "Running on the CPU (no supported NVIDIA GPU). Smaller models create databases much faster. "
+               "Approximate time per 10,000 chunks on a 24-core CPU: small models ~5 min, base and 300M models "
+               "~7-16 min, large models ~20-25 min, 0.6B models ~35-40 min. Slower CPUs take longer."
+           )
+           cpu_note.setWordWrap(True)
+           self.main_layout.addWidget(cpu_note)
 
        row_counter = 1
        for vendor, models in VECTOR_MODELS.items():

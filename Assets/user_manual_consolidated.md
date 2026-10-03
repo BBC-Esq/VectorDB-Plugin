@@ -10,9 +10,10 @@ chunks from your data and have the chat model incorporate them into its answer.
 System Requirements for VectorDB-Plugin include a Windows operating system (Windows 10 or 11) and Python (version 3.11 or 3.12 is
 recommended). You should also have Git installed (with Git LFS for handling large model files) and Pandoc (a document converter).
 If you plan to use GPU acceleration or certain models, you'll need a suitable C++ compiler and possibly Visual Studio build tools
-on Windows. An NVIDIA GPU is optional but can greatly speed up embedding and model inference (the program will also work on CPU,
-just more slowly). Make sure you have sufficient disk space for storing models and databases – vector models and chat models can
-be several hundred MBs to a few GBs each.
+on Windows. An NVIDIA GPU (a GeForce GTX 16-series or RTX 20-series card or newer) is optional but greatly speeds up embedding and
+model inference. Without one, the program installs in CPU-only mode, which works but is slower and offers fewer models. Make sure
+you have sufficient disk space for storing models and databases – vector models and chat models can be several hundred MBs to a
+few GBs each.
 
 ### Why is Visual Studio required to run this program?
 Visual Studio is requried to run this program because some of the libraries that it relies on must be compiled before they can be
@@ -27,9 +28,23 @@ for "MSVC v143 – VS 2022 C++ x64/x86 build tools...", "Windows 10 SDK (10.0.19
 Download the latest release from the GitHub repository (look for a ZIP file under Releases). Extract the ZIP archive to a folder of
 your choice.  Create a virtual environment by opening a command prompt within the "src" directory of the extracted files by running
 the command "python -m venv ." The second step is to activate the virtual environment by running the command ".\Scripts\activate".
-Third, run the setup script with the command "python setup_windows.py". It is important to note that this progam is only supported
-on Windows at this time.  Lastly, you run the program by using the command "python gui.py". A window should open with this program's
-graphical user interface.
+Third, run the setup script with the command "python setup_windows.py". The setup script checks whether you have a supported
+NVIDIA GPU and installs either the GPU version or the CPU-only version, and it also downloads the Kokoro text to speech model. It is
+important to note that this progam is only supported on Windows at this time.  Lastly, you run the program by using the command
+"python gui.py". A window should open with this program's graphical user interface.
+
+### Can I use this program without an NVIDIA GPU (CPU-only mode)?
+Yes. When you run "python setup_windows.py" the installer checks your hardware. If it does not find a supported NVIDIA GPU (a
+GeForce GTX 16-series or RTX 20-series card or newer, meaning CUDA compute capability 7.0 or higher), it tells you and installs the
+CPU-only version. Older cards such as the GTX 10-series also use CPU-only mode. To force a CPU-only install on a computer that has a
+GPU, run "python setup_windows.py --force-cpu" instead. In CPU-only mode the program hides models that are too large or too slow to
+run on a CPU. You can still use the local chat models LiquidAI .35b, .7b, and 1.2b, Qwen 3 0.6b, 1.7b, and 4b, Granite 3b, and
+Gemma 3 4b; the Liquid-VL 480M vision model; every embedding model except the 4B and 8B versions of Qwen3-Embedding and
+Octen-Embedding; all float32 whisper models; and the Kokoro, Kyutai Pocket, ChatTTS, and Google TTS text to speech backends. The
+"half" (half-precision) checkbox in the Settings Tab is greyed out because half precision only helps on a GPU. Everything runs more
+slowly than on a GPU, so smaller models
+are recommended, and for chatting with larger models LM Studio is a good choice because it runs them efficiently on a CPU. Ask
+Jeeves works the same way in either mode.
 
 ### How do I change the program's color theme?
 This program ships with a large selection of color themes so you can customize its appearance. To change the theme, open the
@@ -79,7 +94,8 @@ loaded a chat model.  You must download Kobold prior to using this backend and s
 in that it requires downloading an external program prior to using it and setting it up correctly.  The ChatGPT backed uses the API
 from Openai and connects to one of several models. You must first create an account with Openai and get an API key, which must then
 be entered into this program from the menu at the top.  Unlike the other backends, the ChatGPT backend cannot run without an Internet
-connection.
+connection.  If you do not have a supported NVIDIA GPU, the LM Studio backend is recommended because it runs larger chat models
+much faster on a CPU than the Local Models backend does.
 
 ### What is LM Studio chat model backend?
 LM Studio is an application that allows users to run and interact with local language models on their own hardware. This program
@@ -125,7 +141,7 @@ MiniMax API key is entered from the File menu). Click OK to save.
 ### What local chat models are available and how can I use them?
 The "local models" option within the Query Database Tab downloads chat models directly from Huggingface and requires no external program.
 You can select a local model from the pulldown menu and when you use it for the first time it will automatically download the model and
-it can then be used thereafter for subsequent queries.  Please note that certain models are "gated," which means that you must first
+it can then be used thereafter for subsequent queries.  Without a supported NVIDIA GPU only the smaller chat models are listed.  Please note that certain models are "gated," which means that you must first
 enter a huggingface access token.  You can create an access token on Huggingface's website and then enter it within the "File" menu
 within this program in the upper left. You must do this before trying to use certain "gated" "local models".  To get a Huggingface
 access token you must create a huggingface account and then go to your profile.  On the left-hand side will be an "Access Tokens"
@@ -201,8 +217,10 @@ embedding models, embedding models typically do not use as much VRAM as typical 
 an embedding model is how much compute time you are willing to spend before the vector database is create.  It is highly recommented
 to choose as high a quality of embedding model as possible.  Also, if compute resources are limited make sure and check the "half"
 checkbox within the Settings Tab.  This will run the embedding model in either bfloat16 or float16 (commonly referred to as half
-precision).  Studies show that there is very little loss in quality between full precision and half precision.  Lastly, always use
-"cuda" within the Settings Tab when creating embeddings if you have a GPU.
+precision).  Studies show that there is very little loss in quality between full precision and half precision.  The "half"
+checkbox only works with a supported NVIDIA GPU, so it is greyed out in CPU-only mode.  Lastly, always use "cuda" within the
+Settings Tab when creating embeddings if you have a GPU.  On a CPU, smaller embedding models create databases much faster, and the
+Models Tab shows approximate CPU times for each size.
 
 ### What Are Vision Models?
 Vision models are a category of large language models trained to understand what is in an image.  For purposes of this program,
@@ -215,7 +233,8 @@ The vision models that you can use in this program can be seen within the Settin
 vision model you want to use.  Each of these vision models can be researched on the huggingface website if you need more details.
 Also, you can Ask Jeeves for more information about a specific family of models.  In general, the visions models are arranged within
 this pulldown menu from smallest at top to largest at the bottom.  The larger the model generally means the higher quality results you
-will get, but not always.  Smaller vision models that are newer sometimes outperform larger but older vision models.  Also, some
+will get, but not always.  Without a supported NVIDIA GPU only Liquid-VL 480M is offered, because the larger vision models are far
+too slow on a CPU.  Smaller vision models that are newer sometimes outperform larger but older vision models.  Also, some
 vision models excel at certain types of images over other types. The best strategy to choose an appropriate vision models before
 committing to processing a large number of images is to go to the Tools Tab and test the various vision models.  You can Ask Jeeves
 for details of how to do this.
@@ -257,7 +276,8 @@ loss in quality.
 When transcribing an audio file in order to put it into a vector database it is generally recommended to use as high a quality of
 a whisper model as your hardware will support.  The quality of a whisper model is determined by a few factors.  Firstly, its size
 is the most important factor - e.g. large versus medium versus small.  Secondly, the precision of the model that you use.  This
-program allows you to choose float32 for the highest qualityy or bfloat16 or float16 (i.e. half precision).  In general, using
+program allows you to choose float32 for the highest qualityy or bfloat16 or float16 (i.e. half precision), although only the
+float32 models are listed in CPU-only mode because half precision requires a GPU.  In general, using
 half precision results in about 95% of the quality of float32 for half the compute resources needed.  Lastly, some of the whisper
 models come in "distil" variants that have certain layers of the model removed.  Again, this typically gives approximately 95%
 of the non-distil variant for half the compute resources.  It is highly recommended to test the various whisper models on a small
@@ -316,7 +336,15 @@ see within the Models Tab.  Remember, each tokens is approximately 3-4 character
 at the beginning of a chunk are from the preceding chunk.  When a document is processed sometimes it is split in the middle of an
 important concept and this setting ensures that there is an overlap to avoid losing meaning.  A good rule of thumb is to set the
 Overlap setting to 30-49 percent of the Chunk Size setting.  The half-precision setting, if checked, will run the embedding model
-in half precision resulting in a slight reduction in quality but half the compute resources.
+in half precision resulting in a slight reduction in quality but half the compute resources.  It only applies to GPUs, so it is
+greyed out in CPU-only mode.
+
+### What does the half (half-precision) checkbox do and why is it greyed out?
+The "half" checkbox is in the database creation settings within the Settings Tab. When checked, the embedding model runs in half
+precision (bfloat16 or float16) instead of full float32 precision while a vector database is being created. This uses about half
+the memory and compute with very little loss in quality, so it is a good choice when your GPU's VRAM is limited. Half precision only
+helps on a supported NVIDIA GPU, so in CPU-only mode the checkbox is greyed out and unchecked, and databases are always created in
+full precision.
 
 ### What is the Pipeline Performance setting?
 The Pipeline Performance setting, found in the Database Creation settings within the Settings Tab, controls how much of your CPU
@@ -370,13 +398,13 @@ voice format.  This program allows you to use TTS models to speak the response t
 
 ### What text to speech models are availble in this program to use?
 You choose a text-to-speech (TTS) backend within the Settings Tab. The current options are Bark, WhisperSpeech, ChatTTS,
-Chatterbox, Google TTS, Kyutai, and Kyutai Pocket. Bark and WhisperSpeech are GPU-only and produce very high quality speech; Bark
-lets you pick a model size (normal or small) and a speaker voice (such as v2/en_speaker_6, usually the highest quality, or
-v2/en_speaker_9, the only female voice), while WhisperSpeech lets you choose its S2A and T2S models and a speaker. ChatTTS,
-Chatterbox, and Kyutai Pocket can run on a CPU or a GPU. Google TTS is the lightest option but is not local -- it connects to a
-free online Google service and therefore requires an Internet connection. Kyutai (GPU) and Kyutai Pocket (CPU) are newer backends
-that offer a selection of named voices. Whichever backend you select is used by the 'Speak Response' button after you query a
-vector database.
+Chatterbox, Google TTS, Kokoro, Kyutai, and Kyutai Pocket. Bark and WhisperSpeech are GPU-only and produce very high quality speech;
+Bark lets you pick a model size (normal or small) and a speaker voice (such as v2/en_speaker_6, usually the highest quality, or
+v2/en_speaker_9, the only female voice), while WhisperSpeech lets you choose its S2A and T2S models and a speaker. Chatterbox and
+Kyutai (GPU) also require a GPU. Kokoro, ChatTTS, and Kyutai Pocket can run on a CPU or a GPU; Kokoro lets you choose a voice and
+a Slow, Medium, or Fast speed. Google TTS is the lightest option but is not local -- it connects to a free online Google service
+and therefore requires an Internet connection. In CPU-only mode the list shows only Kokoro, Kyutai Pocket, ChatTTS, and Google TTS.
+Whichever backend you select is used by the 'Speak Response' button after you query a vector database.
 
 ### What is the Bark text to speech?
 Bark TTS by Suno AI is a fully generative, open-source text-to-audio model that produces highly expressive and realistic speech,
@@ -402,23 +430,23 @@ expressive timing, and multi-speaker interactions. Trained on over 100,000 hours
 realistic and emotionally resonant voices tailored for chatbots and AI companions. Unlike many TTS engines, ChatTTS includes
 conversational structure like speaker turns and can even insert interjections like laughter using special tokens. While it lacks a
 large preset voice library like Bark, it can produce distinct speakers and supports fine-tuning on custom data. It runs efficiently
-on consumer GPUs and offers Python bindings, making it one of the most practical and expressive TTS options for developers aiming to
+on consumer GPUs, can also run more slowly on a CPU, and offers Python bindings, making it one of the most practical and expressive TTS options for developers aiming to
 build natural, back-and-forth conversational agents in English or Mandarin.
 
 ### What is the Kokoro text to speech?
 Kokoro is a remarkably lightweight open-source text-to-speech model with only 82 million parameters, built on the StyleTTS 2
 architecture and released under the permissive Apache-2.0 license. Despite its tiny size it produces very natural, high-quality
 speech, has consistently ranked at or near the top of community text-to-speech leaderboards, and runs quickly even on a CPU. In
-this program, Kokoro is the dedicated voice of the Ask Jeeves help assistant: when you click the 'Speak Response' button inside
-Ask Jeeves, Kokoro reads the butler's answer aloud. It is downloaded automatically the first time you launch Ask Jeeves if it is
-not already present.
+this program, Kokoro is the voice of the Ask Jeeves help assistant, and you can also select it in the Settings Tab as the backend
+for the 'Speak Response' button in the Query Database Tab, where you can pick its voice and a Slow, Medium, or Fast speed. The setup
+script downloads Kokoro during installation, and if it is ever missing the program offers to download it again.
 
 ### What is the Chatterbox text to speech?
 Chatterbox, developed by Resemble AI, is an open-source text-to-speech model released under the permissive MIT license. Its
 standout features include zero-shot voice cloning -- mimicking a voice from just a few seconds of reference audio -- and emotion-
 exaggeration control. Its alignment-informed inference produces ultra-stable, natural-sounding speech, making it well suited to
 real-time uses like voice assistants. In blind evaluations it has been preferred over some proprietary models such as ElevenLabs.
-Within this program it can be run on either a CPU or a GPU, making it a flexible, high-quality option.
+Within this program it requires a supported NVIDIA GPU, so it is not offered in CPU-only mode.
 
 ### What is the Google TTS text to speech?
 Google TTS offers industry-leading neural speech synthesis via a cloud API, producing ultra-clear, stable voices across many
@@ -438,10 +466,10 @@ speech on the CPU.
 
 ### Which text to speech backend or models should I use
 It is recommended to experiment with each backend to find the voice you like. In general, Bark and WhisperSpeech produce the
-highest quality results but require a GPU. ChatTTS, Chatterbox, and Kyutai Pocket are strong options that can run on either a CPU
-or a GPU, making them a good choice if you do not have a powerful GPU. Kyutai (GPU) offers expressive named voices if you have the
-VRAM for it. Google TTS is comparable in quality but requires an Internet connection because it uses an online service rather than
-running locally.
+highest quality results but require a GPU, as does Chatterbox. Kokoro is fast and natural sounding on either a CPU or a GPU, which
+makes it a good default, and ChatTTS and Kyutai Pocket are also strong options that run on either, making them a good choice if you
+do not have a powerful GPU. Kyutai (GPU) offers expressive named voices if you have the VRAM for it. Google TTS is comparable in
+quality but requires an Internet connection because it uses an online service rather than running locally.
 
 ### Can I back up or restore my databases and are they backed up automatically
 When you create a vector database it is automatically backed up.  However, if you want to manually backup all databases you can go
@@ -505,7 +533,9 @@ to scrape to make sure you have a stable Internet connection.
 ### Which vector or embedding models are available in this program?
 All of the embedding models that this program uses are listed on the Models Tab.  You can click on a hyperlink for each one to find
 out more information.  The embedding models sometimes change as different versions of this program are released and newer and better
-embedding models are released.  This program vets all embedding models, however, before including them for usage.
+embedding models are released.  This program vets all embedding models, however, before including them for usage.  Without a
+supported NVIDIA GPU, the 4B and 8B versions of the Qwen3 and Octen embedding models are hidden because they are far too slow on a
+CPU, and a note at the top of the Models Tab gives approximate CPU times for the remaining models.
 
 ### What is the manage databaes tab?
 The Manage Databases Tab allows you to see all of the vector databases that you have created thus far and what documents are in them.
@@ -567,7 +597,8 @@ correctly.
 
 ### What chat models are available with the local models option?
 Within the Query Database Tab if you choose the local models option it will allow you to use a specified number of chat models that
-will be downloaded directly from the Huggingface website.  All of these models have been specifically chosen for their strength
+will be downloaded directly from the Huggingface website.  On computers without a supported NVIDIA GPU the list is limited to eight
+smaller models: LiquidAI .35b, .7b, and 1.2b, Qwen 3 0.6b, 1.7b, and 4b, Granite 3b, and Gemma 3 4b.  All of these models have been specifically chosen for their strength
 in question answering using contexts provided by a vector database.  Please ask about a particular family of chat models for more
 information or you can visit the repository for the various chat models on Huggingface for more detailed information.  The available
 chat models that this program uses sometimes changes as newer models come out with higher capabilities.  All chat models that are
@@ -638,7 +669,7 @@ Released in June, 2025, Alibaba’s Qwen 3 Embedding family delivers state-of-th
 As of June, 2025, they hold the top three ranked spots on the Huggingface leaderboard.  They are primarily trained on English and
 Chinese data, but a fair amount of their training data is also from numerous other languages so they can be reliably used for multilingual
 embedding tasks as well.  They are released under the liberal Apache-2.0 license. The Qwen 3 family of embedding models comes in three
-practical sizes—“small” (0.6 B parameters), “base” (4 B), and “large” (8 B). Even the 0.6 B version outperforms older 7 B embedding models, which is a phenomenal accomplishment while the 8 B model often edges out commercial offerings. All variants support long contexts (up to 32 k tokens). 
+practical sizes—“small” (0.6 B parameters), “base” (4 B), and “large” (8 B). Even the 0.6 B version outperforms older 7 B embedding models, which is a phenomenal accomplishment while the 8 B model often edges out commercial offerings. All variants support long contexts (up to 32 k tokens). In CPU-only mode only the 0.6 B version is offered.
 
 ### What is the EmbeddingGemma Embedding Model?
 EmbeddingGemma is a 300-million-parameter embedding model released by Google in September 2025 and built on the Gemma 3
@@ -656,7 +687,7 @@ particularly legal, financial, healthcare, and code embeddings -- while also ser
 text. Like the Qwen3 embedding models they are based on, they are multilingual (with a focus on English and Chinese) and rank
 strongly on embedding leaderboards for their size, often punching above their weight class. They are released under the liberal
 Apache-2.0 license. They are a good option for users who want strong multilingual embeddings and long-context support without the
-compute cost of a multi-billion-parameter model.
+compute cost of a multi-billion-parameter model. In CPU-only mode only the 0.6-billion parameter version is offered.
 
 ### What are the Harrier (Microsoft) Embedding Models?
 The Harrier embedding models (officially named harrier-oss-v1) were released by Microsoft in March 2026 under the permissive MIT
@@ -698,7 +729,8 @@ It offers two main options: (1) Multiple Files + One Vision Model, which tests o
 image files in the Create Database tab, then choose your vision model in Settings. Return to Tools and click "Multiple Files + One
 Vision Model – Process." The tool generates descriptions for all images without creating a database, showing average description
 length to help you evaluate the model's performance.  Single Image + All Vision Models: Compare multiple vision models on one image.
-Click this option, select an image, then choose which vision models to test from the dialog (they're listed with VRAM requirements).
+Click this option, select an image, then choose which vision models to test from the dialog (they're listed with VRAM requirements,
+and in CPU-only mode the GPU-only models are greyed out and marked "requires GPU").
 The tool will sequentially process your image through each model and produce a comparison showing each model's description and
 processing time. This helps you balance quality versus speed when selecting a vision model.
 
@@ -757,7 +789,7 @@ beyond traditional multimodal reasoning to tool use, 3D perception, GUI interact
 ### What are the Liquid-VL Vision Models?
 The Liquid-VL vision models are Liquid AI's LFM2-VL family of vision-language models, built on the same efficient LFM2 backbone as
 the LiquidAI chat models. They are designed for fast, low-memory image understanding on consumer hardware and edge devices, and
-this program offers them in 480M, 1.6B, and 3B parameter sizes. Like the other vision models in this program, they generate a text
+this program offers them in 480M, 1.6B, and 3B parameter sizes; in CPU-only mode only the 480M size is offered. Like the other vision models in this program, they generate a text
 description of an image that can then be embedded into a vector database. Because of their small size and speed they are a good
 first choice for users who want to caption a large number of images without a high-end GPU, though as always it is recommended to
 test them in the Tools Tab against the larger vision models to compare quality. They are released under Liquid AI's open LFM

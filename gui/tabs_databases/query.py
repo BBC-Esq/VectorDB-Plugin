@@ -7,7 +7,7 @@ import re
 import html
 
 import yaml
-from PySide6.QtCore import QThread, Signal, QObject, Qt, QUrl
+from PySide6.QtCore import QThread, Signal, QObject, Qt, QUrl, QTimer
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QTextEdit, QPushButton, QCheckBox, QHBoxLayout, QMessageBox,
                                QApplication, QComboBox, QLabel, QTextBrowser)
@@ -277,6 +277,14 @@ class DatabaseQueryTab(QWidget):
                 "Configure model, API key, verbosity, and reasoning effort via File → Chat Backend Settings…",
                 Qt.ToolTipRole,
             )
+
+        if not cuda_usable():
+            cpu_tip = ("No supported NVIDIA GPU: only small local models are offered and they run slowly on the CPU. "
+                       "LM Studio is recommended for larger or faster models.")
+            for name in ("Local Model", "LM Studio"):
+                idx = self.model_source_combo.findText(name)
+                if idx >= 0:
+                    self.model_source_combo.setItemData(idx, cpu_tip, Qt.ToolTipRole)
 
         self.model_source_combo.setCurrentText("Local Model")
         self.model_source_combo.currentTextChanged.connect(self.on_model_source_changed)
@@ -556,6 +564,23 @@ class DatabaseQueryTab(QWidget):
     def run_tts_module(self):
         process = multiprocessing.Process(target=run_tts_in_process, args=(str(self.config_path), input_text_file))
         process.start()
+        timer = QTimer(self)
+        timer.timeout.connect(lambda: self._check_tts_process(process, timer))
+        timer.start(500)
+
+    def _check_tts_process(self, process, timer):
+        if process.is_alive():
+            return
+        timer.stop()
+        timer.deleteLater()
+        exit_code = process.exitcode
+        if exit_code:
+            QMessageBox.warning(
+                self,
+                "Text to Speech Failed",
+                f"Text to speech stopped with an error (exit code {exit_code}).\n\n"
+                "See the command prompt window for details."
+            )
 
     def toggle_recording(self):
         if self.is_recording:
