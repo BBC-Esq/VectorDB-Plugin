@@ -136,6 +136,47 @@ def _load_html(file_path: Path) -> Optional[str]:
     return None
 
 
+def _eml_part_text(part) -> str:
+    try:
+        content = part.get_content()
+        if isinstance(content, str):
+            return content
+    except Exception:
+        pass
+    data = part.get_payload(decode=True) or b""
+    for enc in filter(None, (part.get_content_charset(), "utf-8", "cp1252")):
+        try:
+            return data.decode(enc)
+        except (LookupError, UnicodeDecodeError):
+            continue
+    return data.decode("latin-1", errors="replace")
+
+
+def _collect_eml_text(part, parts):
+    if part.get_content_maintype() == "message":
+        payload = part.get_payload()
+        for inner in payload if isinstance(payload, list) else []:
+            _collect_eml_text(inner, parts)
+        return
+    if part.is_multipart():
+        if part.get_content_subtype() == "alternative":
+            body = part.get_body(preferencelist=("plain", "html"))
+            if body is not None and body is not part:
+                _collect_eml_text(body, parts)
+            return
+        for child in part.iter_parts():
+            _collect_eml_text(child, parts)
+        return
+    content_type = part.get_content_type()
+    if content_type not in ("text/plain", "text/html"):
+        return
+    text = _eml_part_text(part)
+    if content_type == "text/html":
+        text = BeautifulSoup(text, "lxml").get_text(separator=" ")
+    if text.strip():
+        parts.append(text)
+
+
 def _load_eml(file_path: Path) -> Optional[str]:
     import email
     from email import policy
@@ -148,24 +189,7 @@ def _load_eml(file_path: Path) -> Optional[str]:
     if subject:
         parts.append(f"Subject: {subject}")
 
-    if msg.is_multipart():
-        for part in msg.walk():
-            content_type = part.get_content_type()
-            if content_type == "text/plain":
-                payload = part.get_content()
-                if isinstance(payload, str) and payload.strip():
-                    parts.append(payload)
-            elif content_type == "text/html":
-                payload = part.get_content()
-                if isinstance(payload, str):
-                    soup = BeautifulSoup(payload, "lxml")
-                    text = soup.get_text(separator=" ")
-                    if text.strip():
-                        parts.append(text)
-    else:
-        payload = msg.get_content()
-        if isinstance(payload, str) and payload.strip():
-            parts.append(payload)
+    _collect_eml_text(msg, parts)
 
     return "\n".join(parts) if parts else None
 
