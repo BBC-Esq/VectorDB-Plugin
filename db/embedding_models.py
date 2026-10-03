@@ -371,6 +371,7 @@ class DirectEmbeddingModel:
 
         tokenizer_kwargs = {
             "model_max_length": self.max_seq_length,
+            "split_special_tokens": True,
         }
 
         padding_side = self._resolve_padding_side(family)
