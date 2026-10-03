@@ -47,7 +47,7 @@ class VectorDBWorker(QThread):
                 f"create_vector_db_in_process({self.database_name!r})"
             ]
 
-            env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+            env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"}
 
             self.progress.emit("Initializing database creation...")
 
@@ -56,6 +56,8 @@ class VectorDBWorker(QThread):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 bufsize=1,
                 cwd=str(PROJECT_ROOT),
                 env=env,
@@ -70,7 +72,10 @@ class VectorDBWorker(QThread):
                         pass
                     continue
                 if line.strip():
-                    print(f"  [DB Creation] {line}", flush=True)
+                    try:
+                        print(f"  [DB Creation] {line}", flush=True)
+                    except UnicodeEncodeError:
+                        print(f"  [DB Creation] {line}".encode("ascii", "replace").decode("ascii"), flush=True)
                     self.progress.emit(line)
 
             self._process.wait()

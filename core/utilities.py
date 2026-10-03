@@ -777,6 +777,12 @@ def delete_file(file_path):
         QMessageBox.warning(None, "Delete Failed", "Unable to delete file(s), please delete manually.")
 
 def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=False):
+    if not str(script_dir).isascii():
+        return False, ("The program's folder path contains accented or other non-English characters:\n\n"
+                       f"{script_dir}\n\nThe vector database library cannot create or open databases in such a "
+                       "folder. Move the VectorDB-Plugin folder to a path that uses only English letters and "
+                       "numbers (for example C:\\VectorDB-Plugin) and try again.")
+
     if not database_name or len(database_name) < 3 or database_name.lower() in ["null", "none"]:
         return False, "Name must be at least 3 characters long and not be 'null' or 'none.'"
 

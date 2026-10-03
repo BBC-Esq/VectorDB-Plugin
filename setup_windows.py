@@ -112,6 +112,17 @@ def manual_installation_confirmation():
 if not check_python_version_and_confirm():
     sys.exit(1)
 
+install_dir = os.path.dirname(os.path.abspath(__file__))
+if not install_dir.isascii() and not tkinter_message_box(
+    "Install Location",
+    f"This folder's path contains accented or other non-English characters:\n\n{install_dir}\n\n"
+    "The vector database library this program uses cannot create or open databases in such a folder. "
+    "Move the program to a folder whose path uses only English letters and numbers (for example "
+    "C:\\VectorDB-Plugin) and run setup again.\n\nClick YES to install here anyway or NO to exit.",
+    yes_no=True,
+):
+    sys.exit(1)
+
 if hardware_type == "GPU":
     message = "A supported NVIDIA GPU has been detected. The GPU version will be installed.\n\nDo you want to proceed with the installation?"
 else:
