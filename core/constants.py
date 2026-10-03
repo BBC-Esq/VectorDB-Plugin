@@ -1912,7 +1912,7 @@ TOOLTIPS = {
     "RESTORE_DATABASE": "Restores backed-up databases. Use with caution.",
     "SEARCH_TERM_FILTER": "Removes chunks that do not contain this term as a case-insensitive substring.",
     "SELECT_VECTOR_MODEL": "Choose the vector model for text embedding.",
-    "SIMILARITY": "Relevance threshold for chunks. 0-1, higher returns more. Don't use 1.",
+    "SIMILARITY": "Minimum relevance (0-1) a chunk needs to be returned. Higher returns fewer, more relevant chunks; lower returns more. Don't use 1.",
     "SPEAK_RESPONSE": "Speak the response from the large language model using text-to-speech.",
     "SHOW_THINKING_CHECKBOX": "If checked, show the model's internal thought process.  Only applies to 'Thinking' / reasoning models and it will be disregarded if not applicable.",
     "TRANSCRIBE_BUTTON": "Start transcription.",

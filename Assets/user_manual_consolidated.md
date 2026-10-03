@@ -357,9 +357,9 @@ the machine for anything else.
 
 ### What are the database query settings?
 Within the Settings Tab you can adjust several settings when searching a vector database.  The Device setting allows you to choose
-between CPU and CUDA.  In contrast to creating a vector database, it is recommended to always use CPU.  The Similarity setting sets
-a threshhold of relevance for a chunk of text before it will be returned as a result.  You can set a value between zero and 1.  A
-higher value will result in more chunks being returned but you should never use 1.  The Contexts setting determines the maximum
+between CPU and CUDA.  In contrast to creating a vector database, it is recommended to always use CPU.  The Similarity setting is the
+minimum relevance, from 0 to 1, that a chunk of text must have before it will be returned as a result.  A higher value returns fewer,
+more relevant chunks and a lower value returns more; you should never use 1, which would return almost nothing.  The Contexts setting determines the maximum
 number of chunks that will be returned, again, subject to the Similarity setting.  The Search Term Filter will require that any chunks
 returned include the specified term.  The File Type setting allows you to only search for chunks of text that originated from a
 particular file type.
@@ -374,8 +374,9 @@ Within the Settings Tab the Similarity setting controls the requisite relevance 
 possibly be returned.  I say "possibly" because even though a chunk might meet the Similarity setting it might not be returned if, for
 example, your Contexts setting limits the numbe of chunks that will be returned.  By defaut, this program will return chunks in order
 from highest relevance to lowest.  It will return the most relevant chunks that meet the Similarity setting up to the maximum
-number of chunks specified in the Contexts setting.  A higher Similarity setting means that more chunks will possibly be returned.
-A good default value is .8, but do not go above 1.
+number of chunks specified in the Contexts setting.  The Similarity setting is a minimum, so a higher value means fewer chunks will be
+returned, because each one must be more similar to your question, and a lower value means more chunks will be returned.  The program
+ships with 0.8; if you get few or no chunks, lower it (for example to 0.5).  Do not use 1, which would return almost nothing.
 
 ### What is the search term filter setting?
 Within the Settings Tab the Search Term Filter setting allows you to require that any chunks returned contain the specified search term.
@@ -384,8 +385,8 @@ include the term "child" somewhere in it.  This would not include chunks that ha
 requires a verbatim match.  With that said, since it is not case-sensitive it would also include chunks with "Child" in them.  This
 setting is especially useful when you know that a relevant chunk has a certain key word in it; otherwise, it is best to leave this blank.
 Click the Clear Filter button to clear any filters.  Lastly, it is important to understand that this setting only applies after both
-the Similarity and Contexts settings.  Therefore, if you set those settings too low you might not receive any chunks with your specified
-search term.
+the Similarity and Contexts settings.  Therefore, if the Similarity setting is too high or the Contexts setting is too low you might not
+receive any chunks with your specified search term.
 
 ### What is the File Type setting?
 Within the Settings Tabe the File Type setting allows you to limit the chunks that are returned based on whether they originated from
