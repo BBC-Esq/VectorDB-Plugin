@@ -97,6 +97,49 @@ class OCRProcessor(ABC):
     def get_optimal_threads() -> int:
         return max(4, psutil.cpu_count(logical=True) - 3)
 
+    @staticmethod
+    def restore_navigation(original_pdf_path: Path, ocr_doc) -> None:
+        try:
+            src = fitz.open(str(original_pdf_path))
+        except Exception:
+            return
+        with src:
+            try:
+                labels = src.get_page_labels()
+                if labels:
+                    ocr_doc.set_page_labels(labels)
+            except Exception:
+                pass
+            for pno in range(min(len(src), len(ocr_doc))):
+                try:
+                    links = src[pno].get_links()
+                    if not links:
+                        continue
+                    out_page = ocr_doc[pno]
+                    for link in out_page.get_links():
+                        out_page.delete_link(link)
+                except Exception:
+                    continue
+                for link in links:
+                    if link["kind"] in (fitz.LINK_GOTO, fitz.LINK_NAMED):
+                        if not 0 <= link.get("page", -1) < len(ocr_doc):
+                            continue
+                        link = {"kind": fitz.LINK_GOTO, "from": link["from"], "page": link["page"],
+                                "to": link.get("to") or fitz.Point(0, 0), "zoom": link.get("zoom", 0)}
+                    try:
+                        out_page.insert_link(link)
+                    except Exception:
+                        pass
+            try:
+                toc = src.get_toc(simple=False)
+                for item in toc:
+                    if len(item) > 3 and isinstance(item[3], dict) and item[3].get("kind") == fitz.LINK_NAMED:
+                        item[3]["kind"] = fitz.LINK_GOTO
+                if toc:
+                    ocr_doc.set_toc(toc)
+            except Exception:
+                pass
+
 class TesseractOCR(OCRProcessor):
     def __init__(self, zoom: int = 2, progress_queue: Queue = None):
         super().__init__(zoom, progress_queue)
@@ -228,6 +271,7 @@ class TesseractOCR(OCRProcessor):
                                 page.set_cropbox(cropbox)
                         except ValueError:
                             pass
+            self.restore_navigation(original_pdf_path, ocr_doc)
             try:
                 ocr_doc.set_metadata({'producer': f'{OCR_PRODUCER_PREFIX} Tesseract'})
             except Exception:
@@ -663,6 +707,7 @@ class RapidOCRBackend(OCRProcessor):
                                     page.set_cropbox(cropbox)
                             except ValueError:
                                 pass
+            self.restore_navigation(original_pdf_path, ocr_doc)
             meta = {k: v for k, v in src_meta.items()
                     if v and k in ('title', 'author', 'subject', 'keywords', 'creator',
                                    'creationDate', 'trapped')}
