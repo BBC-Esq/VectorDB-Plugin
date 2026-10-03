@@ -72,7 +72,7 @@ def _get_tokenize_parallel_workers():
 
 
 def _get_model_family(model_path: str) -> str:
-    model_path_lower = model_path.lower()
+    model_path_lower = os.path.basename(str(model_path).rstrip("/\\")).lower()
     if "harrier" in model_path_lower:
         return "harrier"
     if "qwen" in model_path_lower or "qwen3-embedding" in model_path_lower or "octen" in model_path_lower:
