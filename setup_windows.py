@@ -174,7 +174,7 @@ def pip_install(library, with_deps=False, max_retries=5, delay=3):
     for attempt in range(max_retries):
         try:
             print(f"\nAttempt {attempt + 1} of {max_retries}: Installing {library}{' with dependencies' if with_deps else ''}")
-            subprocess.run(pip_args, check=True, capture_output=True, text=True, timeout=600)
+            subprocess.run(pip_args, check=True, capture_output=True, text=True)
             print(f"\033[92mSuccessfully installed {library}{' with dependencies' if with_deps else ''}\033[0m")
             return attempt + 1
         except subprocess.CalledProcessError as e:
