@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 import modules.process_images as module_process_images
 from modules.process_images import choose_image_loader
 from core.constants import VISION_MODELS
+from core.utilities import runs_on_this_hardware, fallback_if_unavailable
 
 CONFIG_FILE = 'config.yaml'
 
@@ -118,8 +119,10 @@ class ModelSelectionDialog(QDialog):
         self.checkboxes = {}
         for model_name, info in models.items():
             vram_text = info.get('vram', '—')
-            checkbox = QCheckBox(f"{model_name} (VRAM: {vram_text})")
-            checkbox.setChecked(True)
+            available = runs_on_this_hardware(info)
+            checkbox = QCheckBox(f"{model_name} (VRAM: {vram_text})" if available else f"{model_name} (requires GPU)")
+            checkbox.setChecked(available)
+            checkbox.setEnabled(available)
             self.checkboxes[model_name] = checkbox
             layout.addWidget(checkbox)
 
@@ -145,8 +148,8 @@ class ImageProcessorThread(QThread):
     def run(self):
         try:
             cfg = _load_cfg()
-            chosen_model = ((cfg.get('vision') or {}).get('chosen_model')
-                            or next(iter(VISION_MODELS.keys())))
+            chosen_model = fallback_if_unavailable((cfg.get('vision') or {}).get('chosen_model'),
+                                                   VISION_MODELS, next(iter(VISION_MODELS.keys())))
             print(f"[Tools] Using chosen_model from config: {chosen_model}")
 
             documents = None

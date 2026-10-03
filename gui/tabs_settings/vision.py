@@ -1,10 +1,11 @@
 import yaml
 from pathlib import Path
-import torch
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QGridLayout, QVBoxLayout, QComboBox, QWidget
 from core.constants import VISION_MODELS
-from core.utilities import save_config_atomically
+from core.utilities import save_config_atomically, runs_on_this_hardware, fallback_if_unavailable
+
+DEFAULT_VISION_MODEL = "Liquid-VL - 480M"
 
 CONFIG_FILE = "config.yaml"
 
@@ -22,16 +23,6 @@ def _read_cfg() -> dict:
 
 def _write_cfg(cfg: dict) -> None:
     save_config_atomically(cfg, CONFIG_FILE, sort_keys=True)
-
-
-def is_cuda_available():
-    return torch.cuda.is_available()
-
-
-def get_cuda_capability():
-    if is_cuda_available():
-        return torch.cuda.get_device_capability(0)
-    return (0, 0)
 
 
 class VisionSettingsTab(QWidget):
@@ -79,9 +70,8 @@ class VisionSettingsTab(QWidget):
         gridLayout.addWidget(self.avgLenLabel, 1, 5)
 
         cfg = _read_cfg()
-        saved = (cfg.get("vision") or {}).get("chosen_model")
-        if saved and saved in VISION_MODELS:
-            self.modelComboBox.setCurrentText(saved)
+        saved = fallback_if_unavailable((cfg.get("vision") or {}).get("chosen_model"), VISION_MODELS, DEFAULT_VISION_MODEL)
+        self.modelComboBox.setCurrentText(saved)
 
         self.modelComboBox.currentTextChanged.connect(self._apply_model_to_labels)
 
@@ -89,7 +79,7 @@ class VisionSettingsTab(QWidget):
 
     def populate_model_combobox(self):
         self.modelComboBox.clear()
-        self.modelComboBox.addItems(VISION_MODELS.keys())
+        self.modelComboBox.addItems([name for name, info in VISION_MODELS.items() if runs_on_this_hardware(info)])
 
     def _apply_model_to_labels(self, model_name: str):
         info = VISION_MODELS.get(model_name, {}) or {}

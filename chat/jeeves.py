@@ -25,13 +25,14 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QThread, Signal, Qt, QObject, QUrl
 from PySide6.QtGui import QTextCursor, QPixmap, QDesktopServices
 from core.constants import (
+    CHAT_MODELS,
     CustomButtonStyles,
     JEEVES_MODELS,
     PROJECT_ROOT,
 )
 from db.database_interactions import get_query_db
 from modules.kokoro import KokoroTTS
-from core.utilities import normalize_chat_text
+from core.utilities import normalize_chat_text, runs_on_this_hardware
 
 
 JEEVES_RAG_INSTRUCTION = (
@@ -149,7 +150,10 @@ class ChatWindow(QMainWindow):
         self.model_selector.setFixedHeight(30)
         self.model_selector.addItem("Please choose a model...")
 
-        self.model_selector.addItems(JEEVES_MODELS)
+        available_models = [m for m in JEEVES_MODELS if runs_on_this_hardware(CHAT_MODELS.get(m))]
+        self.model_selector.addItems(available_models)
+        if not available_models:
+            self.model_selector.setItemText(0, "No chat models are available on this computer")
         self.model_selector.currentIndexChanged.connect(self.on_model_selected)
         model_layout.addWidget(self.model_selector)
 

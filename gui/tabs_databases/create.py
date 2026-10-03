@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QM
 
 from db.database_interactions import create_vector_db_in_process
 from db.choose_documents import choose_documents_directory
-from core.utilities import check_preconditions_for_db_creation, open_file, delete_file, backup_database, my_cprint, save_config_atomically
+from core.utilities import check_preconditions_for_db_creation, open_file, delete_file, backup_database, my_cprint, save_config_atomically, runs_on_this_hardware
 from gui.download_model import model_downloaded_signal
 from core.constants import TOOLTIPS, PROJECT_ROOT
 
@@ -230,8 +230,11 @@ class DatabasesTab(QWidget):
             vector_dir = script_dir / "Models" / "vector"
             if not vector_dir.exists():
                 return
+            from core.constants import VECTOR_MODELS
+            gpu_only = {m.get("cache_dir") for models in VECTOR_MODELS.values() for m in models
+                        if not runs_on_this_hardware(m)}
             for folder in vector_dir.iterdir():
-                if folder.is_dir():
+                if folder.is_dir() and folder.name not in gpu_only:
                     display_name = folder.name
                     full_path = str(folder)
                     self.model_combobox.addItem(display_name, full_path)

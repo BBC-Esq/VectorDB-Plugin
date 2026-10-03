@@ -795,6 +795,13 @@ def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=Fals
     if not embedding_model_name:
         return False, "You must first download an embedding model, select it, and choose documents before proceeding."
 
+    from core.constants import VECTOR_MODELS
+    embedding_info = next((m for models in VECTOR_MODELS.values() for m in models
+                           if m.get('cache_dir') == Path(embedding_model_name).name), None)
+    if embedding_info and not runs_on_this_hardware(embedding_info):
+        return False, (f"The selected embedding model ({embedding_info['name']}) requires a supported NVIDIA GPU. "
+                       "Choose a different embedding model on the Create Database tab.")
+
     if not any(file.is_file() for file in documents_dir.iterdir()):
         return False, "No documents are yet added to be processed."
 

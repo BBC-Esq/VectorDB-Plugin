@@ -910,6 +910,7 @@ KOKORO_SPEEDS = {
 CHAT_MODELS = {
     'LiquidAI - .35b': {
         'model': 'LiquidAI - .35b',
+        'requires_cuda': False,
         'repo_id': 'LiquidAI/LFM2-350M',
         'cache_dir': 'LiquidAI--LFM2-350M',
         'cps': 251.69,
@@ -922,6 +923,7 @@ CHAT_MODELS = {
     },
     'Qwen 3 - 0.6b': {
         'model': 'Qwen 3 - 0.6b',
+        'requires_cuda': False,
         'repo_id': 'Qwen/Qwen3-0.6B',
         'cache_dir': 'Qwen--Qwen3-0.6B',
         'cps': 203.25,
@@ -934,6 +936,7 @@ CHAT_MODELS = {
     },
     'LiquidAI - .7b': {
         'model': 'LiquidAI - .7b',
+        'requires_cuda': False,
         'repo_id': 'LiquidAI/LFM2-700M',
         'cache_dir': 'LiquidAI--LFM2-700M',
         'cps': 328.76,
@@ -946,6 +949,7 @@ CHAT_MODELS = {
     },
     'LiquidAI - 1.2b': {
         'model': 'LiquidAI - 1.2b',
+        'requires_cuda': False,
         'repo_id': 'LiquidAI/LFM2.5-1.2B-Instruct',
         'cache_dir': 'LiquidAI--LFM2.5-1.2B-Instruct',
         'cps': 278.5,
@@ -958,6 +962,7 @@ CHAT_MODELS = {
     },
     'Qwen 3 - 1.7b': {
         'model': 'Qwen 3 - 1.7b',
+        'requires_cuda': False,
         'repo_id': 'Qwen/Qwen3-1.7B',
         'cache_dir': 'Qwen--Qwen3-1.7B',
         'cps': 200.81,
@@ -970,6 +975,7 @@ CHAT_MODELS = {
     },
     'Granite - 3b': {
         'model': 'Granite - 3b',
+        'requires_cuda': False,
         'repo_id': 'ibm-granite/granite-4.1-3b',
         'cache_dir': 'ibm-granite--granite-4.1-3b',
         'cps': 155.22,
@@ -982,6 +988,7 @@ CHAT_MODELS = {
     },
     'Qwen 3 - 4b': {
         'model': 'Qwen 3 - 4b',
+        'requires_cuda': False,
         'repo_id': 'Qwen/Qwen3-4B-Instruct-2507',
         'cache_dir': 'Qwen--Qwen3-4B-Instruct-2507',
         'cps': 153.87,
@@ -994,6 +1001,7 @@ CHAT_MODELS = {
     },
     'Qwen 3 - 8b': {
         'model': 'Qwen 3 - 8b',
+        'requires_cuda': True,
         'repo_id': 'Qwen/Qwen3-8B',
         'cache_dir': 'Qwen--Qwen3-8B',
         'cps': 152.61,
@@ -1006,6 +1014,7 @@ CHAT_MODELS = {
     },
     'Granite - 8b': {
         'model': 'Granite - 8b',
+        'requires_cuda': True,
         'repo_id': 'ibm-granite/granite-4.1-8b',
         'cache_dir': 'ibm-granite--granite-4.1-8b',
         'cps': 173.62,
@@ -1018,6 +1027,7 @@ CHAT_MODELS = {
     },
     'Qwen 3 - 14b': {
         'model': 'Qwen 3 - 14b',
+        'requires_cuda': True,
         'repo_id': 'Qwen/Qwen3-14B',
         'cache_dir': 'Qwen--Qwen3-14B',
         'cps': 140.79,
@@ -1030,6 +1040,7 @@ CHAT_MODELS = {
     },
     'Phi 4 - 14b': {
         'model': 'Phi 4 - 14b',
+        'requires_cuda': True,
         'repo_id': 'microsoft/phi-4',
         'cache_dir': 'microsoft--phi-4',
         'cps': 140.0,
@@ -1042,6 +1053,7 @@ CHAT_MODELS = {
     },
     'Gemma 3 - 4b': {
         'model': 'Gemma 3 - 4b',
+        'requires_cuda': False,
         'repo_id': 'google/gemma-3-4b-it',
         'cache_dir': 'google--gemma-3-4b-it',
         'cps': 180.0,
@@ -1054,6 +1066,7 @@ CHAT_MODELS = {
     },
     'Gemma 3 - 12b': {
         'model': 'Gemma 3 - 12b',
+        'requires_cuda': True,
         'repo_id': 'google/gemma-3-12b-it',
         'cache_dir': 'google--gemma-3-12b-it',
         'cps': 130.0,
@@ -1066,6 +1079,7 @@ CHAT_MODELS = {
     },
     'Mistral Small 3 - 24b': {
         'model': 'Mistral Small 3 - 24b',
+        'requires_cuda': True,
         'repo_id': 'mistralai/Mistral-Small-24B-Instruct-2501',
         'cache_dir': 'mistralai--Mistral-Small-24B-Instruct-2501',
         'cps': 134.32,
@@ -1220,6 +1234,7 @@ VECTOR_MODELS = {
         },
         {
             'name': 'Qwen3-Embedding-4B',
+            'requires_cuda': True,
             'dimensions': 2560,
             'max_sequence':8192,
             'size_mb': 4970,
@@ -1233,6 +1248,7 @@ VECTOR_MODELS = {
         },
         {
             'name': 'Qwen3-Embedding-8B',
+            'requires_cuda': True,
             'dimensions': 4096,
             'max_sequence':8192,
             'size_mb': 15136,
@@ -1261,6 +1277,7 @@ VECTOR_MODELS = {
         },
         {
             'name': 'Octen-Embedding-4B',
+            'requires_cuda': True,
             'dimensions': 2560,
             'max_sequence': 8192,
             'size_mb': 8040,
@@ -1274,6 +1291,7 @@ VECTOR_MODELS = {
         },
         {
             'name': 'Octen-Embedding-8B',
+            'requires_cuda': True,
             'dimensions': 4096,
             'max_sequence': 8192,
             'size_mb': 15130,
@@ -1338,7 +1356,7 @@ VISION_MODELS = {
         'size': '1.6b',
         'repo_id': 'LiquidAI/LFM2-VL-1.6B',
         'cache_dir': 'LiquidAI--LFM2-VL-1.6B',
-        'requires_cuda': False,
+        'requires_cuda': True,
         'vram': '1.4 GB',
         'avg_length': 936,
         'characters_per_second': 366.2,
@@ -1353,7 +1371,7 @@ VISION_MODELS = {
         'size': '1b',
         'repo_id': 'OpenGVLab/InternVL3-1B-HF',
         'cache_dir': 'OpenGVLab--InternVL3-1B-HF',
-        'requires_cuda': False,
+        'requires_cuda': True,
         'vram': '2.4 GB',
         'avg_length': 641,
         'characters_per_second': 149.8,
@@ -1368,7 +1386,7 @@ VISION_MODELS = {
         'size': '2b',
         'repo_id': 'OpenGVLab/InternVL3-2B-HF',
         'cache_dir': 'OpenGVLab--InternVL3-2B-HF',
-        'requires_cuda': False,
+        'requires_cuda': True,
         'vram': '3.2 GB',
         'avg_length': 613,
         'characters_per_second': 144.1,
@@ -1383,7 +1401,7 @@ VISION_MODELS = {
         'size': '2b',
         'repo_id': 'ibm-granite/granite-vision-3.2-2b',
         'cache_dir': 'ibm-granite--granite-vision-3.2-2b',
-        'requires_cuda': False,
+        'requires_cuda': True,
         'vram': '4.1 gb+',
         'avg_length': 922,
         'characters_per_second': 126.4,
@@ -1409,7 +1427,7 @@ VISION_MODELS = {
     },
     'Liquid-VL - 3B': {
         'precision': 'bfloat16',
-        'quant': '4-bit',
+        'quant': 'n/a',
         'size': '3b',
         'repo_id': 'LiquidAI/LFM2-VL-3B',
         'cache_dir': 'LiquidAI--LFM2-VL-3B',

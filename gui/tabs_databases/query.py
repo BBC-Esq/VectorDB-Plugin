@@ -6,7 +6,6 @@ import multiprocessing
 import re
 import html
 
-import torch
 import yaml
 from PySide6.QtCore import QThread, Signal, QObject, Qt, QUrl
 from PySide6.QtGui import QDesktopServices
@@ -21,7 +20,7 @@ from chat.minimax import MiniMaxThread
 from chat.kobold import KoboldThread
 from core.constants import CHAT_MODELS, CustomButtonStyles
 from modules.voice_recorder import VoiceRecorder
-from core.utilities import my_cprint, normalize_chat_text
+from core.utilities import my_cprint, normalize_chat_text, cuda_usable, runs_on_this_hardware
 from core.constants import TOOLTIPS, PROJECT_ROOT
 from db.database_interactions import process_chunks_only_query
 from db.process_manager import get_process_manager
@@ -285,22 +284,17 @@ class DatabaseQueryTab(QWidget):
 
         self.model_combo_box = QComboBox()
         self.model_combo_box.setToolTip(TOOLTIPS["LOCAL_MODEL_SELECT"])
-        if torch.cuda.is_available():
-            for model_info in CHAT_MODELS.values():
-                idx = self.model_combo_box.count()
-                self.model_combo_box.addItem(model_info["model"])
+        gpu = cuda_usable()
+        for model_info in CHAT_MODELS.values():
+            if not runs_on_this_hardware(model_info):
+                continue
+            idx = self.model_combo_box.count()
+            self.model_combo_box.addItem(model_info["model"])
+            if gpu:
                 gb = round(model_info["vram"] / 1024, 1)
                 self.model_combo_box.setItemData(idx, f"Uses ~{gb} GB memory", Qt.ToolTipRole)
-            self.model_combo_box.setEnabled(True)
-        else:
-            for key in [
-                "LiquidAI - .35b",
-                "LiquidAI - .7b",
-                "LiquidAI - 1.2b",
-                "Qwen 3 - 0.6b",
-                "Qwen 3 - 1.7b",
-            ]:
-                self.model_combo_box.addItem(CHAT_MODELS[key]["model"])
+        self.model_combo_box.setEnabled(True)
+        if not gpu:
             self.model_combo_box.setToolTip("Choose a local model. It will be downloaded.")
         if self.model_combo_box.count() > 0:
             self.model_combo_box.setCurrentIndex(0)
@@ -495,7 +489,6 @@ class DatabaseQueryTab(QWidget):
         tts_model = tts_config.get('model', '').lower()
 
         from core.constants import TTS_BACKENDS
-        from core.utilities import runs_on_this_hardware
         if not runs_on_this_hardware(TTS_BACKENDS.get(tts_model, {"requires_cuda": True})):
             QMessageBox.warning(self, "Error", "The Text to Speech backend you selected requires GPU-acceleration.")
             return

@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.constants import VECTOR_MODELS, TOOLTIPS
+from core.utilities import runs_on_this_hardware
 from gui.download_model import ModelDownloader, model_downloaded_signal
 
 class VectorModelsTab(QWidget):
@@ -51,6 +52,9 @@ class VectorModelsTab(QWidget):
 
        row_counter = 1
        for vendor, models in VECTOR_MODELS.items():
+           models = [m for m in models if runs_on_this_hardware(m)]
+           if not models:
+               continue
            group_box = QGroupBox(vendor)
 
            group_box.setStyleSheet("""
