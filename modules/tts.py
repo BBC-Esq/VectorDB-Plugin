@@ -604,7 +604,7 @@ class KyutaiAudio(BaseAudio):
                 repo_id=hf_repo, filename="config.json",
                 cache_dir=CACHE_DIR, token=False,
             )
-            with open(config_path, 'r') as f:
+            with open(config_path, 'r', encoding='utf-8') as f:
                 raw_config = json.load(f)
 
             weight_files = {

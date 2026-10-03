@@ -200,7 +200,7 @@ def check_embedding_model_dimensions():
         return
 
     try:
-        with open(config_path, 'r') as file:
+        with open(config_path, 'r', encoding='utf-8') as file:
             config = yaml.safe_load(file)
 
         if config is None:
@@ -208,7 +208,7 @@ def check_embedding_model_dimensions():
 
         if 'EMBEDDING_MODEL_DIMENSIONS' not in config:
             config['EMBEDDING_MODEL_DIMENSIONS'] = None
-            with open(config_path, 'w') as file:
+            with open(config_path, 'w', encoding='utf-8') as file:
                 yaml.dump(config, file, default_flow_style=False)
             updater.print_status("SUCCESS", "Added EMBEDDING_MODEL_DIMENSIONS: null to config.yaml")
         else:

@@ -151,7 +151,7 @@ bnb_float16_settings = make_bnb_settings(torch.float16)
 def get_hf_token():
     config_path = Path("config.yaml")
     if config_path.exists():
-        with open(config_path, 'r') as config_file:
+        with open(config_path, 'r', encoding='utf-8') as config_file:
             config = yaml.safe_load(config_file)
             return config.get('hf_access_token')
     return None

@@ -309,7 +309,7 @@ def check_pdfs_for_ocr(script_dir):
         msg_box.exec()
 
         if msg_box.clickedButton() == view_report_button:
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tmp:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as tmp:
                 tmp.write("PDFs that need OCR:\n\n")
                 for pdf_path in non_ocr_pdfs:
                     tmp.write(f"{pdf_path}\n")
@@ -791,7 +791,7 @@ def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=Fals
     if not config_path.exists():
         return False, "The configuration file (config.yaml) is missing."
 
-    with open(config_path, 'r') as file:
+    with open(config_path, 'r', encoding='utf-8') as file:
         config = yaml.safe_load(file)
 
     image_extensions = ['.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff']
