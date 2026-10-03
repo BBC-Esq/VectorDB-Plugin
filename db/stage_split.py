@@ -202,7 +202,9 @@ def run_worker_with_retries(worker_id: int, total_workers: int,
     except Exception:
         pass
 
-    if not worker_success:
+    if worker_success:
+        failed_files = [e.get("file_name", "unknown") for e in errors]
+    else:
         logger.error(f"  Worker {worker_id} FAILED after {max_retries} retries, "
                     f"skipping {num_docs} documents")
         errors.append({
@@ -210,6 +212,7 @@ def run_worker_with_retries(worker_id: int, total_workers: int,
             "file_name": "BATCH_FAILURE",
             "error": f"Worker crashed {max_retries} times",
         })
+        failed_files = _doc_names(chunk_docs)
 
     worker_elapsed = time.time() - worker_t0
     return {
@@ -219,9 +222,15 @@ def run_worker_with_retries(worker_id: int, total_workers: int,
         "texts": texts,
         "chunks": chunks,
         "errors": errors,
+        "failed_files": failed_files,
         "skipped": skipped,
         "elapsed": worker_elapsed,
     }
+
+
+def _doc_names(chunk_docs):
+    return [metadata.get("file_name", "unknown") if isinstance(metadata, dict) else "unknown"
+            for _, metadata in chunk_docs]
 
 
 def main():
@@ -282,7 +291,7 @@ def main():
     if total_docs == 0:
         logger.info("No documents to process")
         with open(args.output_pickle, "wb") as f:
-            pickle.dump({"texts": [], "chunks": []}, f, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump({"texts": [], "chunks": [], "failed_files": []}, f, protocol=pickle.HIGHEST_PROTOCOL)
         return
 
     worker_batch_size = args.worker_batch_size
@@ -302,6 +311,7 @@ def main():
     all_texts = []
     all_chunks = []
     all_errors = []
+    all_failed_files = []
     total_skipped = 0
 
     if effective_parallel <= 1:
@@ -315,6 +325,7 @@ def main():
             all_texts.extend(result["texts"])
             all_chunks.extend(result.get("chunks", []))
             all_errors.extend(result["errors"])
+            all_failed_files.extend(result.get("failed_files", []))
             total_skipped += result["skipped"]
 
             gc.collect()
@@ -354,6 +365,7 @@ def main():
                 all_texts.extend(result["texts"])
                 all_chunks.extend(result.get("chunks", []))
                 all_errors.extend(result["errors"])
+                all_failed_files.extend(result.get("failed_files", _doc_names(chunk_docs)))
                 total_skipped += result.get("skipped", 0)
 
             gc.collect()
@@ -362,7 +374,7 @@ def main():
     logger.info(f"Split {total_docs} documents into {len(all_texts)} chunks in {elapsed:.1f}s "
                 f"({len(all_errors)} errors, {total_skipped} skipped)")
 
-    output_data = {"texts": all_texts, "chunks": all_chunks}
+    output_data = {"texts": all_texts, "chunks": all_chunks, "failed_files": list(dict.fromkeys(all_failed_files))}
     with open(args.output_pickle, "wb") as f:
         pickle.dump(output_data, f, protocol=pickle.HIGHEST_PROTOCOL)
 

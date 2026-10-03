@@ -99,6 +99,19 @@ from core.utilities import my_cprint, set_cuda_paths, configure_logging
 
 logger = logging.getLogger(__name__)
 
+NOT_ADDED_MARKER = "VECTORDB_NOT_ADDED "
+IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff')
+
+
+def _print_safe(message, color=None):
+    try:
+        if color:
+            my_cprint(message, color)
+        else:
+            print(message, flush=True)
+    except UnicodeEncodeError:
+        _print_safe(message.encode("ascii", "replace").decode("ascii"), color)
+
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 os.environ.setdefault("RUST_BACKTRACE", "1")
 
@@ -540,6 +553,13 @@ class CreateVectorDB:
                 doc_data = pickle.load(f)
             logger.info(f"Extracted {len(doc_data)} documents")
 
+            not_added = []
+            try:
+                with open(extracted_pkl.with_name(extracted_pkl.stem + "_not_extracted.json"), "r", encoding="utf-8") as f:
+                    not_added.extend(f"{name} (no text could be extracted)" for name in json.load(f))
+            except (OSError, ValueError):
+                pass
+
             json_docs_to_save = []
             for content, metadata in doc_data:
                 json_docs_to_save.append(Document(page_content=content, metadata=metadata))
@@ -552,6 +572,12 @@ class CreateVectorDB:
                     json_docs_to_save.append(doc)
 
             print("Processing any images...")
+            staged_images = {}
+            for entry in self.SOURCE_DIRECTORY.iterdir():
+                if entry.suffix.lower() in IMAGE_EXTENSIONS:
+                    real_path = os.path.realpath(entry)
+                    staged_images[os.path.normcase(real_path)] = os.path.basename(real_path)
+            processed_images = set()
             try:
                 from modules.process_images import choose_image_loader
                 image_documents = choose_image_loader()
@@ -561,8 +587,11 @@ class CreateVectorDB:
                         metadata = doc.metadata if hasattr(doc, 'metadata') else {}
                         doc_data.append((content, metadata))
                         json_docs_to_save.append(Document(page_content=content, metadata=metadata))
+                        processed_images.add(os.path.normcase(str(metadata.get('file_path', ''))))
             except Exception as e:
                 logger.warning(f"Image processing skipped: {e}")
+            not_added.extend(f"{name} (image could not be processed)"
+                             for key, name in staged_images.items() if key not in processed_images)
 
             if not doc_data:
                 my_cprint("No documents, audio transcripts, or images found to process.", "red")
@@ -592,6 +621,8 @@ class CreateVectorDB:
             if isinstance(split_output, dict):
                 chunk_texts = split_output["texts"]
                 chunks_with_meta = split_output.get("chunks", [])
+                not_added.extend(f"{name} (could not be split into chunks)"
+                                 for name in split_output.get("failed_files", []))
                 del split_output
             else:
                 chunk_texts = split_output
@@ -640,8 +671,29 @@ class CreateVectorDB:
             if len(surviving_indices) != len(chunk_texts):
                 dropped = len(chunk_texts) - len(surviving_indices)
                 my_cprint(f"Warning: {dropped} chunk(s) failed tokenization and were skipped.", "red")
+                surviving_set = {int(i) for i in surviving_indices}
+                kept_files = set()
+                dropped_files = set()
+                for i, meta in enumerate(all_metadatas):
+                    (kept_files if i in surviving_set else dropped_files).add(meta.get('file_name', 'unknown'))
+                for name in sorted(dropped_files):
+                    reason = "some text could not be embedded" if name in kept_files else "text could not be embedded"
+                    not_added.append(f"{name} ({reason})")
                 chunk_texts = [chunk_texts[i] for i in surviving_indices]
                 all_metadatas = [all_metadatas[i] for i in surviving_indices]
+
+            embedded_hashes = {meta.get('hash') for meta in all_metadatas}
+            reported = {entry.rsplit(" (", 1)[0] for entry in not_added}
+            kept_docs = []
+            for doc in json_docs_to_save:
+                if doc.metadata.get('hash') in embedded_hashes:
+                    kept_docs.append(doc)
+                else:
+                    name = doc.metadata.get('file_name', 'unknown')
+                    if name not in reported:
+                        not_added.append(f"{name} (no searchable text)")
+                        reported.add(name)
+            json_docs_to_save = kept_docs
 
             embed_elapsed = time.time() - embed_t0
             my_cprint(f"Embedding computation completed in {embed_elapsed:.2f} seconds.", "cyan")
@@ -716,6 +768,12 @@ class CreateVectorDB:
                 raise
             del json_docs_to_save, hash_id_mappings
             gc.collect()
+
+            if not_added:
+                _print_safe(f"Warning: {len(not_added)} file(s) were not fully added to the database:", "red")
+                for entry in not_added:
+                    _print_safe(f"  - {entry}", "red")
+                print(NOT_ADDED_MARKER + json.dumps(not_added), flush=True)
 
             self.clear_docs_for_db_folder()
 

@@ -11,7 +11,7 @@ from PySide6.QtCore import QAbstractListModel, QModelIndex, QRegularExpression, 
 from PySide6.QtGui import QAction, QRegularExpressionValidator
 from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QListView, QMenu, QGroupBox, QLabel, QLineEdit, QGridLayout, QSizePolicy, QComboBox
 
-from db.database_interactions import create_vector_db_in_process
+from db.database_interactions import create_vector_db_in_process, NOT_ADDED_MARKER
 from db.choose_documents import choose_documents_directory
 from core.utilities import check_preconditions_for_db_creation, open_file, delete_file, backup_database, my_cprint, save_config_atomically, runs_on_this_hardware
 from gui.download_model import model_downloaded_signal
@@ -37,6 +37,7 @@ class VectorDBWorker(QThread):
         self.database_name = database_name
         self._process = None
         self._cancelled = False
+        self.not_added = []
 
     def run(self):
         try:
@@ -62,6 +63,12 @@ class VectorDBWorker(QThread):
 
             for line in self._process.stdout:
                 line = line.rstrip("\n")
+                if line.startswith(NOT_ADDED_MARKER):
+                    try:
+                        self.not_added = json.loads(line[len(NOT_ADDED_MARKER):])
+                    except ValueError:
+                        pass
+                    continue
                 if line.strip():
                     print(f"  [DB Creation] {line}", flush=True)
                     self.progress.emit(line)
@@ -508,7 +515,18 @@ class DatabasesTab(QWidget):
                 my_cprint(f"{self.current_model_name} removed from memory.", "red")
                 self.update_config_with_database_name()
                 backup_database(self.current_database_name)
-                QMessageBox.information(self, "Success", message)
+                not_added = self.db_worker.not_added if self.db_worker is not None else []
+                if not_added:
+                    shown = "\n".join(f"- {entry}" for entry in not_added[:25])
+                    if len(not_added) > 25:
+                        shown += f"\n...and {len(not_added) - 25} more (listed in the console)."
+                    QMessageBox.warning(
+                        self,
+                        "Database Created With Warnings",
+                        f"The database was created, but {len(not_added)} file(s) were not fully added:\n\n{shown}"
+                    )
+                else:
+                    QMessageBox.information(self, "Success", message)
             else:
                 QMessageBox.critical(self, "Error", message)
         except Exception as e:
