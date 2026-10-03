@@ -425,7 +425,8 @@ class RapidOCRBackend(OCRProcessor):
     def _ocr_oriented(self, img, w: int, h: int):
         r0 = self.engine(img, use_cls=False)
         if self._mean_conf(r0) >= self._ORIENT_ACCEPT_CONF:
-            return self._unpack(r0) + ('none',)
+            txts, boxes, scores = self._unpack(r0)
+            return txts, boxes, scores, 'none', boxes
         base_mass = self._text_mass(r0)
         variants = (
             ('rot90', np.ascontiguousarray(np.rot90(img, 1)), self._remap_k1),
@@ -441,11 +442,13 @@ class RapidOCRBackend(OCRProcessor):
         _, name, vimg, remap = ranked[0]
         r_win = self.engine(vimg, use_cls=False)
         if self._text_mass(r_win) > base_mass * self._ORIENT_MARGIN:
-            txts, boxes, scores = self._unpack(r_win)
+            txts, upright_boxes, scores = self._unpack(r_win)
+            boxes = upright_boxes
             if remap is not None:
-                boxes = [remap(np.asarray(p), w, h) for p in boxes]
-            return txts, boxes, scores, name
-        return self._unpack(r0) + ('none',)
+                boxes = [remap(np.asarray(p), w, h) for p in upright_boxes]
+            return txts, boxes, scores, name, upright_boxes
+        txts, boxes, scores = self._unpack(r0)
+        return txts, boxes, scores, 'none', boxes
 
     def process_page(self, page_num: int, pdf_path: str) -> Tuple[int, str]:
         fd, temp_pdf_path = tempfile.mkstemp(suffix=".pdf", dir=self.temp_dir)
@@ -466,7 +469,7 @@ class RapidOCRBackend(OCRProcessor):
                 pix = page.get_pixmap(matrix=fitz.Matrix(z, z))
                 img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
                     pix.height, pix.width, pix.n)[:, :, :3][:, :, ::-1].copy()
-                txts, boxes, scores, orient = self._ocr_oriented(img, pix.width, pix.height)
+                txts, boxes, scores, orient, upright_boxes = self._ocr_oriented(img, pix.width, pix.height)
                 if orient != 'none':
                     self._signal('oriented',
                                  f"page {page_num + 1}: auto-corrected orientation ({orient})",
@@ -481,8 +484,9 @@ class RapidOCRBackend(OCRProcessor):
                             {'page': page_num + 1, 'texts': len(txts),
                              'boxes': len(boxes), 'scores': len(scores)})
                         txts, boxes, scores = txts[:n], boxes[:n], scores[:n]
+                        upright_boxes = upright_boxes[:n]
                     try:
-                        perm = column_reading_order(boxes)
+                        perm = column_reading_order(upright_boxes)
                         if perm is not None:
                             txts = [txts[i] for i in perm]
                             boxes = [boxes[i] for i in perm]

@@ -168,6 +168,6 @@ def column_reading_order(polys):
     angle = _page_angle(polys)
     if _MIN_ANGLE <= abs(angle) < _MAX_ANGLE:
         boxes = _to_boxes(_deskew(polys, angle))
-    if _structure(boxes) == 'ambiguous':
+    if _structure(boxes) != 'columns':
         return None
     return _topological_order(boxes)
