@@ -1,5 +1,7 @@
 import os
+import io
 import csv
+import codecs
 import logging
 import warnings
 import datetime
@@ -96,44 +98,68 @@ def _load_docx(file_path: Path) -> Optional[str]:
     return text if text and text.strip() else None
 
 
+_BOMS = (
+    (codecs.BOM_UTF32_LE, "utf-32-le"),
+    (codecs.BOM_UTF32_BE, "utf-32-be"),
+    (codecs.BOM_UTF8, "utf-8"),
+    (codecs.BOM_UTF16_LE, "utf-16-le"),
+    (codecs.BOM_UTF16_BE, "utf-16-be"),
+)
+
+
+def _decode_text(data: bytes, declared: Optional[str] = None, translate_newlines: bool = True) -> str:
+    text = None
+    for bom, enc in _BOMS:
+        if data.startswith(bom):
+            text = data[len(bom):].decode(enc, errors="replace")
+            break
+    if text is None and b"\x00" in data[:4096]:
+        sample = data[:4096]
+        even, odd = sample[0::2], sample[1::2]
+        if odd and odd.count(0) > 0.3 * len(odd) and even.count(0) < 0.05 * len(even):
+            text = data.decode("utf-16-le", errors="replace")
+        elif even and even.count(0) > 0.3 * len(even) and odd.count(0) < 0.05 * len(odd):
+            text = data.decode("utf-16-be", errors="replace")
+    if text is None:
+        candidates = ["utf-8"]
+        if declared:
+            try:
+                name = codecs.lookup(declared).name
+            except LookupError:
+                name = None
+            if name and name not in ("iso8859-1", "ascii"):
+                candidates.append(name)
+        candidates.append("cp1252")
+        for enc in candidates:
+            try:
+                text = data.decode(enc)
+                break
+            except UnicodeDecodeError:
+                continue
+        else:
+            text = data.decode("latin-1")
+    if translate_newlines:
+        text = text.replace("\r\n", "\n").replace("\r", "\n")
+    return text
+
+
 def _load_txt(file_path: Path) -> Optional[str]:
-    encodings = ["utf-8", "utf-8-sig", "cp1252", "latin-1"]
-    for enc in encodings:
-        try:
-            with open(file_path, "r", encoding=enc) as f:
-                text = f.read()
-            return text if text and text.strip() else None
-        except UnicodeDecodeError:
-            continue
-    return None
+    text = _decode_text(Path(file_path).read_bytes())
+    return text if text and text.strip() else None
 
 
 def _load_csv(file_path: Path) -> Optional[str]:
-    encodings = ["utf-8", "utf-8-sig", "cp1252", "latin-1"]
-    for enc in encodings:
-        rows = []
-        try:
-            with open(file_path, "r", encoding=enc, newline="") as f:
-                reader = csv.reader(f)
-                for row in reader:
-                    rows.append(" ".join(row))
-            return "\n".join(rows) if rows else None
-        except UnicodeDecodeError:
-            continue
-    return None
+    text = _decode_text(Path(file_path).read_bytes(), translate_newlines=False)
+    rows = [" ".join(row) for row in csv.reader(io.StringIO(text, newline=""))]
+    return "\n".join(rows) if rows else None
 
 
 def _load_html(file_path: Path) -> Optional[str]:
-    encodings = ["utf-8", "utf-8-sig", "cp1252", "latin-1"]
-    for enc in encodings:
-        try:
-            with open(file_path, "r", encoding=enc) as f:
-                soup = BeautifulSoup(f, "lxml")
-            text = soup.get_text(separator=" ")
-            return text if text and text.strip() else None
-        except UnicodeDecodeError:
-            continue
-    return None
+    from bs4.dammit import EncodingDetector
+    data = Path(file_path).read_bytes()
+    markup = _decode_text(data, EncodingDetector.find_declared_encoding(data, is_html=True))
+    text = BeautifulSoup(markup, "lxml").get_text(separator=" ")
+    return text if text and text.strip() else None
 
 
 def _eml_part_text(part) -> str:
@@ -258,15 +284,8 @@ def _load_rtf(file_path: Path) -> Optional[str]:
 
 
 def _load_md(file_path: Path) -> Optional[str]:
-    encodings = ["utf-8", "utf-8-sig", "cp1252", "latin-1"]
-    for enc in encodings:
-        try:
-            with open(file_path, "r", encoding=enc) as f:
-                text = f.read()
-            return text if text and text.strip() else None
-        except UnicodeDecodeError:
-            continue
-    return None
+    text = _decode_text(Path(file_path).read_bytes())
+    return text if text and text.strip() else None
 
 
 LOADER_MAP = {
