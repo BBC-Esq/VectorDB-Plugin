@@ -58,6 +58,13 @@ class GuiSettingsTab(QWidget):
         for group, factor in self.groups.items():
             self.layout.setStretchFactor(group, factor if group.isChecked() else 0)
 
+    def busy_message(self):
+        for sub in self._subtabs:
+            message = sub.busy_message() if hasattr(sub, 'busy_message') else None
+            if message:
+                return message
+        return None
+
     def cleanup(self):
         for sub in self._subtabs:
             if hasattr(sub, 'cleanup') and callable(sub.cleanup):

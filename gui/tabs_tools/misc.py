@@ -76,6 +76,12 @@ class MiscTab(QWidget):
        self.backup_thread = None
        self.restore_thread = None
 
+   def busy_message(self):
+       for thread, task in ((self.backup_thread, "backup"), (self.restore_thread, "restore")):
+           if thread is not None and thread.isRunning():
+               return f"A database {task} is still running. Please wait for it to finish before closing the program."
+       return None
+
    def set_buttons_enabled(self, enabled, buttons):
        for button in buttons:
            button.setEnabled(enabled)

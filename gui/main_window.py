@@ -159,6 +159,14 @@ class DocQA_GUI(QWidget):
         self.jeeves_process.start()
 
     def closeEvent(self, event):
+        for i in range(self.tab_widget.count()):
+            tab = self.tab_widget.widget(i)
+            message = tab.busy_message() if hasattr(tab, 'busy_message') else None
+            if message:
+                QMessageBox.warning(self, "Please Wait", message)
+                event.ignore()
+                return
+
         if self.jeeves_process and self.jeeves_process.is_alive():
             self.jeeves_process.terminate()
             self.jeeves_process.join(timeout=3)
