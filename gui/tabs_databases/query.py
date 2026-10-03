@@ -1,6 +1,7 @@
 import logging
 import queue
 import threading
+import time
 from pathlib import Path
 import multiprocessing
 import re
@@ -101,6 +102,24 @@ class ChunksOnlyThread(QThread):
         self.database_name = database_name
         self.process = None
         self.process_lock = threading.Lock()
+        self._stop_requested = False
+
+    def _wait_for_result(self, result_queue, process, timeout=120):
+        deadline = time.monotonic() + timeout
+        while not self._stop_requested:
+            try:
+                return result_queue.get(timeout=0.5)
+            except queue.Empty:
+                if not process.is_alive():
+                    try:
+                        return result_queue.get(timeout=1)
+                    except queue.Empty:
+                        return "Error: The database query stopped unexpectedly. Check the command prompt window for details."
+                if time.monotonic() >= deadline:
+                    logger.error("Query timed out after 120 seconds")
+                    return ("Error: Query timed out after 120 seconds. "
+                            "Please try a simpler query or check your database.")
+        return None
 
     def run(self):
         ctx = multiprocessing.get_context('spawn')
@@ -108,22 +127,20 @@ class ChunksOnlyThread(QThread):
 
         try:
             with self.process_lock:
+                if self._stop_requested:
+                    return
                 self.process = ctx.Process(
                     target=process_chunks_only_query,
                     args=(self.database_name, self.query, result_queue)
                 )
                 get_process_manager().register(self.process)
                 self.process.start()
+                process = self.process
 
             try:
-                result = result_queue.get(timeout=120)
-                self.chunks_ready.emit(result)
-            except queue.Empty:
-                logger.error("Query timed out after 120 seconds")
-                self.chunks_ready.emit(
-                    "Error: Query timed out after 120 seconds. "
-                    "Please try a simpler query or check your database."
-                )
+                result = self._wait_for_result(result_queue, process)
+                if result is not None:
+                    self.chunks_ready.emit(result)
             except Exception as e:
                 logger.error(f"Error getting result from queue: {e}")
                 self.chunks_ready.emit(f"Error: Failed to retrieve database response - {e}")
@@ -164,6 +181,7 @@ class ChunksOnlyThread(QThread):
                         self.process = None
 
     def stop(self):
+        self._stop_requested = True
         with self.process_lock:
             if self.process:
                 try:
