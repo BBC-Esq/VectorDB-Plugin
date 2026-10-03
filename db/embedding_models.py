@@ -608,6 +608,8 @@ def create_embedding_model(
         max_seq_length = 8192
     elif family == "modernbert":
         max_seq_length = 8192 if "8192" in model_name else 512
+    elif "embeddinggemma" in model_name.lower():
+        max_seq_length = 2048
     else:
         max_seq_length = 512
 
