@@ -319,6 +319,7 @@ def _load_rtf(file_path: Path) -> Optional[str]:
             note_texts = [t.strip() for t in (rtf_to_text("{\\rtf1 " + n + "}") for n in notes) if t.strip()]
             if note_texts:
                 text = text.rstrip() + "\n\nFootnotes:\n" + "\n".join(note_texts)
+            text = text.encode("utf-16", "surrogatepass").decode("utf-16", "replace")
             return text if text and text.strip() else None
         except UnicodeDecodeError:
             continue
