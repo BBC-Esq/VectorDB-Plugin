@@ -459,6 +459,7 @@ class DatabaseQueryTab(QWidget):
             finally:
                 self.eject_button.setEnabled(False)
                 self.model_combo_box.setEnabled(True)
+                self.on_submission_finished()
         else:
             logging.warning("No model is currently loaded.")
 

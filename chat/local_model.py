@@ -1,12 +1,12 @@
 import time
 import logging
+import threading
 from enum import Enum, auto
 from typing import Any, Optional
 from dataclasses import dataclass
 
 import torch
 from multiprocessing import Process, Pipe
-from multiprocessing.connection import PipeConnection
 from PySide6.QtCore import QObject, Signal
 
 import chat.base as module_chat
@@ -62,6 +62,7 @@ class LocalModelChat:
             logging.warning(f"Model {model_name} is already loaded")
 
     def terminate_current_process(self):
+        self._stop_listener()
         if self.model_process is not None:
             try:
                 if self.model_pipe:
@@ -109,29 +110,29 @@ class LocalModelChat:
     def eject_model(self):
         self.terminate_current_process()
 
+    def _stop_listener(self):
+        stop_event = getattr(self, "_stop_listener_event", None)
+        if stop_event is not None:
+            stop_event.set()
+        listener = getattr(self, "listener_thread", None)
+        if listener is not None and listener.is_alive() and listener is not threading.current_thread():
+            listener.join(timeout=5)
+
     def _start_listening_thread(self):
-        import threading
-
-        if hasattr(self, "_stop_listener_event"):
-            self._stop_listener_event.set()
-            if getattr(self, "listener_thread", None) and self.listener_thread.is_alive():
-                self.listener_thread.join()
-
+        self._stop_listener()
         self._stop_listener_event = threading.Event()
         self.listener_thread = threading.Thread(
             target=self._listen_for_response,
-            args=(self._stop_listener_event,),
+            args=(self._stop_listener_event, self.model_pipe),
             daemon=True,
         )
         self.listener_thread.start()
 
-    def _listen_for_response(self, stop_event):
+    def _listen_for_response(self, stop_event, pipe):
         while not stop_event.is_set():
-            if not self.model_pipe or not isinstance(self.model_pipe, PipeConnection):
-                break
             try:
-                if self.model_pipe.poll(timeout=1):
-                    message = self.model_pipe.recv()
+                if pipe.poll(timeout=1):
+                    message = pipe.recv()
                     if message.type in [MessageType.RESPONSE, MessageType.PARTIAL_RESPONSE]:
                         self.signals.response_signal.emit(message.payload)
                     elif message.type == MessageType.CITATIONS:
@@ -147,15 +148,20 @@ class LocalModelChat:
                 else:
                     time.sleep(0.1)
             except (BrokenPipeError, EOFError, OSError):
-                self.signals.finished_signal.emit()
+                if not stop_event.is_set():
+                    self.signals.finished_signal.emit()
                 break
             except Exception as e:
                 logging.warning(f"Unexpected error in _listen_for_response: {str(e)}")
-                self.signals.finished_signal.emit()
+                if not stop_event.is_set():
+                    self.signals.finished_signal.emit()
                 break
-        self.cleanup_listener_resources()
+        if not stop_event.is_set():
+            self.cleanup_listener_resources(pipe)
 
-    def cleanup_listener_resources(self):
+    def cleanup_listener_resources(self, pipe=None):
+        if pipe is not None and self.model_pipe is not pipe:
+            return
         self.model_pipe = None
         self.model_process = None
         self.current_model = None
