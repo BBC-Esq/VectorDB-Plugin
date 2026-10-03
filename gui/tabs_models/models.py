@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
 
 from core.constants import VECTOR_MODELS, TOOLTIPS
 from core.utilities import cuda_usable, runs_on_this_hardware
-from gui.download_model import ModelDownloader, model_downloaded_signal
+from gui.download_model import ModelDownloader, model_downloaded_signal, is_complete_download
 
 class VectorModelsTab(QWidget):
     DOWNLOAD_BUTTON_LABEL = "Download Selected Model"
@@ -42,7 +42,7 @@ class VectorModelsTab(QWidget):
        if not vector_models_dir.exists():
            vector_models_dir.mkdir(parents=True)
 
-       existing_vector_directories = {d.name for d in vector_models_dir.iterdir() if d.is_dir()}
+       existing_vector_directories = {d.name for d in vector_models_dir.iterdir() if is_complete_download(d)}
 
        headers = ["Select", "Model Name", "Original Precision", "Parameters", "Dimensions", "Max Sequence", "Size (MB)", "Downloaded"]
        column_stretch_factors = [1, 2, 2, 1, 1, 1, 1, 1]

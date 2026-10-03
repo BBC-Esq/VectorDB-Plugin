@@ -14,6 +14,13 @@ class ModelDownloadedSignal(QObject):
 
 model_downloaded_signal = ModelDownloadedSignal()
 
+INCOMPLETE_MARKER = ".download_incomplete"
+
+
+def is_complete_download(folder):
+    folder = Path(folder)
+    return folder.is_dir() and not (folder / INCOMPLETE_MARKER).exists()
+
 MODEL_DIRECTORIES = {
     "vector": "vector",
     "chat": "chat",
@@ -48,10 +55,21 @@ class ModelDownloader(QObject):
 
     def cleanup_incomplete_download(self):
         try:
-            if hasattr(self, "local_dir") and self.local_dir and self.local_dir.exists():
-                if not any(self.local_dir.iterdir()):
-                    import shutil
-                    shutil.rmtree(self.local_dir)
+            local_dir = getattr(self, "local_dir", None)
+            if not local_dir or not local_dir.exists() or getattr(self, "_had_existing_download", False):
+                return
+            if not (local_dir / INCOMPLETE_MARKER).exists():
+                return
+            import shutil
+            for child in local_dir.iterdir():
+                if child.name == INCOMPLETE_MARKER:
+                    continue
+                if child.is_dir():
+                    shutil.rmtree(child, ignore_errors=True)
+                else:
+                    child.unlink(missing_ok=True)
+            if not any(child.name != INCOMPLETE_MARKER for child in local_dir.iterdir()):
+                shutil.rmtree(local_dir, ignore_errors=True)
         except Exception:
             pass
 
@@ -190,8 +208,11 @@ class ModelDownloader(QObject):
             model_downloaded_signal.failed.emit(msg)
             return
         local_dir = self.get_model_directory()
-        had_existing_download = local_dir.exists() and any(local_dir.iterdir())
+        marker = local_dir / INCOMPLETE_MARKER
+        had_existing_download = local_dir.exists() and any(local_dir.iterdir()) and not marker.exists()
+        self._had_existing_download = had_existing_download
         local_dir.mkdir(parents=True, exist_ok=True)
+        marker.touch()
         atexit.register(self.cleanup_incomplete_download)
         try:
             repo_files = self._list_repo_files(repo_id, use_token=(repo_type == "gated"))
@@ -217,6 +238,7 @@ class ModelDownloader(QObject):
             else:
                 download_kwargs["token"] = False
             snapshot_download(**download_kwargs)
+            marker.unlink(missing_ok=True)
             print("\033[92mModel downloaded and ready to use.\033[0m")
             atexit.unregister(self.cleanup_incomplete_download)
             model_downloaded_signal.downloaded.emit(self.get_model_directory_name(), self.model_type)
