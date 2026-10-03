@@ -83,29 +83,43 @@ def check_for_necessary_folders():
 def restore_vector_db_backup():
     backup_folder = Path('Vector_DB_Backup')
     destination_folder = Path('Vector_DB')
+    staging_folder = Path('Vector_DB_restore_tmp')
+    previous_folder = Path('Vector_DB_previous_tmp')
 
-    if not backup_folder.exists():
-        logging.error("Backup folder 'Vector_DB_Backup' does not exist.")
-        return
+    if previous_folder.exists():
+        if destination_folder.exists():
+            shutil.rmtree(previous_folder)
+        else:
+            previous_folder.rename(destination_folder)
+    if staging_folder.exists():
+        shutil.rmtree(staging_folder)
+
+    if not backup_folder.is_dir() or not any(backup_folder.iterdir()):
+        raise FileNotFoundError("There is no backup to restore: the Vector_DB_Backup folder is missing or empty.")
 
     try:
-        if destination_folder.exists():
-            shutil.rmtree(destination_folder)
-            logging.info("Deleted existing 'Vector_DB' folder.")
-        destination_folder.mkdir()
-        logging.info("Created 'Vector_DB' folder.")
+        shutil.copytree(backup_folder, staging_folder)
+    except Exception:
+        shutil.rmtree(staging_folder, ignore_errors=True)
+        raise
 
-        for item in backup_folder.iterdir():
-            dest_path = destination_folder / item.name
-            if item.is_dir():
-                shutil.copytree(item, dest_path)
-                logging.info(f"Copied directory: {item.name}")
-            else:
-                shutil.copy2(item, dest_path)
-                logging.info(f"Copied file: {item.name}")
-        logging.info("Successfully restored Vector DB backup.")
-    except Exception as e:
-        logging.error(f"Error restoring Vector DB backup: {e}")
+    if destination_folder.exists():
+        try:
+            destination_folder.rename(previous_folder)
+        except Exception:
+            shutil.rmtree(staging_folder, ignore_errors=True)
+            raise
+
+    try:
+        staging_folder.rename(destination_folder)
+    except Exception:
+        if previous_folder.exists():
+            previous_folder.rename(destination_folder)
+        shutil.rmtree(staging_folder, ignore_errors=True)
+        raise
+
+    shutil.rmtree(previous_folder, ignore_errors=True)
+    logging.info("Successfully restored Vector DB backup.")
 
 
 def delete_chat_history():

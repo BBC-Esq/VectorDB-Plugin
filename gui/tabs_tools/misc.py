@@ -6,7 +6,7 @@ from core.utilities import backup_database
 from core.constants import CustomButtonStyles
 
 class WorkerThread(QThread):
-   finished = Signal(bool)
+   finished = Signal(bool, str)
 
    def __init__(self, function, *args, **kwargs):
        super().__init__()
@@ -17,10 +17,10 @@ class WorkerThread(QThread):
    def run(self):
        try:
            self.function(*self.args, **self.kwargs)
-           self.finished.emit(True)
+           self.finished.emit(True, "")
        except Exception as e:
            print(f"Error during {self.function.__name__}: {e}")
-           self.finished.emit(False)
+           self.finished.emit(False, str(e))
 
 class MiscTab(QWidget):
    def __init__(self):
@@ -102,13 +102,13 @@ class MiscTab(QWidget):
        else:
            pass
 
-   def on_backup_finished(self, success):
+   def on_backup_finished(self, success, message=""):
        self.set_buttons_enabled(True, [self.backup_all_button, self.restore_backup_button])
        self.set_button_text(self.backup_all_button, "Backup Databases")
        if success:
            QMessageBox.information(self, "Backup Complete", "All databases have been successfully backed up.")
        else:
-           QMessageBox.critical(self, "Backup Failed", "Failed to backup the databases. Check the console for error details.")
+           QMessageBox.critical(self, "Backup Failed", f"Failed to backup the databases.\n\n{message}")
 
    def restore_backup(self):
        confirm = QMessageBox.question(
@@ -129,13 +129,14 @@ class MiscTab(QWidget):
        else:
            pass
 
-   def on_restore_finished(self, success):
+   def on_restore_finished(self, success, message=""):
        self.set_buttons_enabled(True, [self.restore_backup_button, self.backup_all_button])
        self.set_button_text(self.restore_backup_button, "Restore Databases")
        if success:
            QMessageBox.information(self, "Restoration Complete", "The databases have been successfully restored from the backup.")
        else:
-           QMessageBox.critical(self, "Restoration Failed", "Failed to restore the database backup. Check the console for error details.")
+           QMessageBox.critical(self, "Restoration Failed",
+                                f"The databases were not restored and are unchanged.\n\n{message}")
 
    def chart_gpus(self):
        import matplotlib
