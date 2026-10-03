@@ -8,7 +8,6 @@ import platform
 import shutil
 import sys
 from pathlib import Path
-import psutil
 import subprocess
 import re
 from string import Template
