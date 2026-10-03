@@ -7,6 +7,7 @@ import warnings
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
+import numpy as np
 import torch
 import yaml
 from PIL import Image
@@ -45,6 +46,20 @@ IMAGE_PROMPT = (
 
 def get_best_device():
     return 'cuda' if torch.cuda.is_available() else 'cpu'
+
+def to_rgb(image):
+    if image.mode in ("I;16", "I;16B", "I;16L", "I;16N", "I", "F"):
+        arr = np.asarray(image, dtype=np.float64)
+        peak = arr.max() if arr.size else 0.0
+        if peak > 255:
+            arr = arr * (255.0 / peak)
+        elif image.mode == "F" and peak <= 1.0:
+            arr = arr * 255.0
+        image = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "L")
+    if image.mode in ("RGBA", "LA", "PA", "RGBa", "La") or "transparency" in image.info:
+        image = image.convert("RGBA")
+        image = Image.alpha_composite(Image.new("RGBA", image.size, (255, 255, 255, 255)), image)
+    return image if image.mode == "RGB" else image.convert("RGB")
 
 def check_for_images(image_dir: Path) -> bool:
     try:
@@ -209,8 +224,7 @@ class loader_internvl(BaseLoader):
 
     @torch.inference_mode()
     def process_single_image(self, raw_image):
-        if raw_image.mode != "RGB":
-            raw_image = raw_image.convert("RGB")
+        raw_image = to_rgb(raw_image)
 
         messages = [
             {
@@ -368,8 +382,7 @@ class loader_granite(BaseLoader):
 
     @torch.inference_mode()
     def process_single_image(self, raw_image):
-        if raw_image.mode != "RGB":
-            raw_image = raw_image.convert("RGB")
+        raw_image = to_rgb(raw_image)
 
         prompt = f"<|user|>\n<image>\n{IMAGE_PROMPT}\n<|assistant|>\n"
 
@@ -460,6 +473,7 @@ class loader_qwenvl(BaseLoader):
 
     @torch.inference_mode()
     def process_single_image(self, raw_image):
+        raw_image = to_rgb(raw_image)
 
         # Prompt is hand-built as ChatML. A more robust alternative is to build it via
         # self.processor.apply_chat_template(messages, ...) (like the sibling loaders),
@@ -565,8 +579,7 @@ class loader_liquidvl(BaseLoader):
 
     @torch.inference_mode()
     def process_single_image(self, raw_image):
-        if raw_image.mode != "RGB":
-            raw_image = raw_image.convert("RGB")
+        raw_image = to_rgb(raw_image)
 
         system_text = "You are a helpful multimodal assistant."
 
