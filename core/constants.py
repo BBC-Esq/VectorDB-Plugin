@@ -515,7 +515,7 @@ priority_libs = {
         "GPU": [
             "https://github.com/kingbri1/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu128torch2.8.0cxx11abiFALSE-cp311-cp311-win_amd64.whl",
             "https://download.pytorch.org/whl/cu128/torch-2.9.0%2Bcu128-cp311-cp311-win_amd64.whl#sha256=dc6f6c6e7d7eed20c687fc189754a6ea6bf2da9c64eff59fd6753b80ed4bca05",
-            "https://download.pytorch.org/whl/cu128/torchvision-0.23.0%2Bcu128-cp311-cp311-win_amd64.whl#sha256=70b3d8bfe04438006ec880c162b0e3aaac90c48b759aa41638dd714c732b182c",
+            "https://download.pytorch.org/whl/cu128/torchvision-0.24.0%2Bcu128-cp311-cp311-win_amd64.whl#sha256=0783b511e3e5a7821480254768fc3a1193726f9cc0373aac41c28cf934ef63f0",
             "https://download.pytorch.org/whl/cu128/torchaudio-2.9.0%2Bcu128-cp311-cp311-win_amd64.whl#sha256=daa01250079ef024987622429f379723d306e92fad42290868041a60d4fef2e6",
             "triton-windows==3.5.1.post24",
             "xformers==0.0.33.post1",
@@ -529,7 +529,7 @@ priority_libs = {
         ],
         "CPU": [
             "https://download.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=389e1e0b8083fd355f7caf5ba82356b5e01c318998bd575dbf2285a0d8137089",
-            "https://download.pytorch.org/whl/cpu/torchvision-0.23.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=51603eb071d0681abc4db98b10ff394ace31f425852e8de249b91c09c60eb19a",
+            "https://download.pytorch.org/whl/cpu/torchvision-0.24.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=bb035ec26121238dbaa888e5efbf04c7d45f113a7c34d1cf849c4031e7cac4b8",
             "https://download.pytorch.org/whl/cpu/torchaudio-2.9.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=cfd6e9d9bb2215bf301e81a91018e1a2af9ed67fe778a2162cfbb6f8d7394fbd",
         ],
         "COMMON": [
