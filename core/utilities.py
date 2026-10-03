@@ -953,8 +953,17 @@ def get_embedding_dtype_and_batch(
     is_query: bool,
 ):
     dtype = get_appropriate_dtype(compute_device, use_half, model_native_precision)
+    if dtype == torch.float16 and _is_fp16_unsafe(model_name):
+        dtype = torch.float32
     batch = 1 if is_query else get_embedding_batch_size(model_name, compute_device)
     return dtype, batch
+
+
+def _is_fp16_unsafe(embedding_model_name):
+    from core.constants import VECTOR_MODELS
+    repo_style_name = os.path.basename(embedding_model_name).replace('--', '/')
+    return any(model.get('fp16_unsafe') for group_models in VECTOR_MODELS.values()
+               for model in group_models if model['repo_id'] == repo_style_name)
 
 
 def configure_logging(level: str = "INFO"):

@@ -1147,6 +1147,7 @@ VECTOR_MODELS = {
             'precision': 'float32',
             'rank': 4,
             'license': 'gemma - commercial ok',
+            'fp16_unsafe': True,
         },
     ],
     'Microsoft': [
@@ -1162,6 +1163,7 @@ VECTOR_MODELS = {
             'precision': 'bfloat16',
             'rank': 6,
             'license': 'mit',
+            'fp16_unsafe': True,
         },
         {
             'name': 'harrier-oss-v1-0.6b',
