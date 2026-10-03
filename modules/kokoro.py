@@ -2,6 +2,7 @@ import sys
 import os
 from pathlib import Path
 import queue
+import subprocess
 import threading
 import re
 import torch
@@ -12,6 +13,31 @@ from typing import Optional, Union
 
 from core.constants import KOKORO_VOICES
 
+_BULLET_PREFIX = re.compile(r'^[\s\-–—•·*>#+]+')
+
+
+def _make_direct_espeak(repo_path: Path):
+    espeak_path = str(repo_path / 'espeak-ng.exe')
+
+    def direct_espeak(text, lang='en-us'):
+        try:
+            result = subprocess.run(
+                [espeak_path, '-q', '--ipa', '-v', lang, '--', text],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+            )
+        except Exception as e:
+            print(f"Error running espeak: {e}")
+            return ''
+        if result.returncode != 0:
+            print(f"Espeak error: {result.stderr}")
+            return ''
+        return result.stdout.strip()
+
+    return direct_espeak
+
+
 class KokoroTTS:
     VOICES = KOKORO_VOICES
 
@@ -21,6 +47,7 @@ class KokoroTTS:
 
         from models import build_model
         from kokoro import generate, generate_full, phonemize
+        sys.modules['kokoro'].direct_espeak = _make_direct_espeak(self.REPO_PATH)
         self.generate = generate
         self.generate_full = generate_full
         self.phonemize = phonemize
@@ -164,8 +191,17 @@ class KokoroTTS:
                     print(f"Audio queue error: {e}")
                 break
 
-    def speak(self, 
-             text: str, 
+    @staticmethod
+    def split_sentences(text: str) -> list:
+        sentences = []
+        for part in re.split(r'[.!?;]+\s*|\n+', text):
+            part = re.sub(r'\s+', ' ', _BULLET_PREFIX.sub('', part)).strip()
+            if re.search(r'\w', part):
+                sentences.append(part)
+        return sentences
+
+    def speak(self,
+             text: str,
              voice: str = 'bm_george',
              speed: float = 1.3,
              force_accent: Optional[str] = None) -> None:
@@ -184,7 +220,7 @@ class KokoroTTS:
 
         self._load_model_and_voice(voice)
 
-        sentences = [s.strip() for s in re.split(r'[.!?;]+\s*', text) if s.strip()]
+        sentences = self.split_sentences(text)
 
         process_thread = threading.Thread(
             target=self._process_sentences,
