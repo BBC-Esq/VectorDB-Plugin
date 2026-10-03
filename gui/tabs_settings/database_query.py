@@ -68,7 +68,7 @@ class DatabaseSettingsTab(QWidget):
         contexts_value = self.database_config.get("contexts", "")
         self.contexts_edit = QLineEdit()
         self.contexts_edit.setPlaceholderText("# Contexts to return...")
-        self.contexts_edit.setValidator(QIntValidator(1, 1000000))
+        self.contexts_edit.setValidator(QIntValidator(1, 1000))
         self.contexts_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.contexts_edit.setToolTip(TOOLTIPS["CONTEXTS"])
         self.contexts_label = QLabel(f"Contexts: {contexts_value}")
@@ -171,10 +171,10 @@ class DatabaseSettingsTab(QWidget):
         if new_contexts_text:
             try:
                 new_contexts = int(new_contexts_text.replace(QLocale().groupSeparator(), ""))
-                if new_contexts < 1:
-                    raise ValueError("Contexts must be a positive integer.")
+                if not 1 <= new_contexts <= 1000:
+                    raise ValueError
             except ValueError:
-                errors.append("Contexts must be a positive integer.")
+                errors.append("Contexts must be a whole number from 1 to 1,000.")
         else:
             new_contexts = self.database_config.get("contexts", 1)
 

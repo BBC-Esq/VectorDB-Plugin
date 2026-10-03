@@ -66,7 +66,7 @@ class ChunkSettingsTab(QWidget):
         self.current_size_label.setToolTip(TOOLTIPS["CHUNK_SIZE"])
         self.chunk_size_edit = QLineEdit()
         self.chunk_size_edit.setPlaceholderText("Enter new chunk_size...")
-        self.chunk_size_edit.setValidator(QIntValidator(1, 1000000))
+        self.chunk_size_edit.setValidator(QIntValidator(1, 100000))
         self.chunk_size_edit.setToolTip(TOOLTIPS["CHUNK_SIZE"])
 
         self.chunk_overlap_label = QLabel("Chunk Overlap (# characters):")
@@ -75,7 +75,7 @@ class ChunkSettingsTab(QWidget):
         self.current_overlap_label.setToolTip(TOOLTIPS["CHUNK_OVERLAP"])
         self.chunk_overlap_edit = QLineEdit()
         self.chunk_overlap_edit.setPlaceholderText("Enter new chunk_overlap...")
-        self.chunk_overlap_edit.setValidator(QIntValidator(0, 1000000))
+        self.chunk_overlap_edit.setValidator(QIntValidator(0, 99999))
         self.chunk_overlap_edit.setToolTip(TOOLTIPS["CHUNK_OVERLAP"])
 
         def labeled(label, current, editor, editor_stretch=1):
@@ -135,10 +135,10 @@ class ChunkSettingsTab(QWidget):
         if new_chunk_size_text:
             try:
                 new_chunk_size = int(new_chunk_size_text.replace(QLocale().groupSeparator(), ""))
-                if new_chunk_size <= 0:
-                    raise ValueError("Chunk size must be a positive integer.")
-            except ValueError as ve:
-                errors.append(f"Chunk size must be a positive integer: {str(ve)}")
+                if not 0 < new_chunk_size <= 100000:
+                    raise ValueError
+            except ValueError:
+                errors.append("Chunk size must be a whole number from 1 to 100,000.")
         else:
             new_chunk_size = self.database_config.get("chunk_size", 0)
 
@@ -146,12 +146,10 @@ class ChunkSettingsTab(QWidget):
         if new_chunk_overlap_text:
             try:
                 new_chunk_overlap = int(new_chunk_overlap_text.replace(QLocale().groupSeparator(), ""))
-                if new_chunk_overlap < 0:
-                    raise ValueError("Chunk overlap cannot be negative.")
-            except ValueError as ve:
-                errors.append(
-                    f"Chunk overlap must be a non-negative integer: {str(ve)}"
-                )
+                if not 0 <= new_chunk_overlap < 100000:
+                    raise ValueError
+            except ValueError:
+                errors.append("Chunk overlap must be a whole number from 0 to 99,999.")
         else:
             new_chunk_overlap = self.database_config.get("chunk_overlap", 0)
 

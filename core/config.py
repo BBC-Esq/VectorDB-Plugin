@@ -179,9 +179,29 @@ class AppConfig(BaseSettings):
                     try:
                         setattr(instance, field_name, value)
                     except Exception as fe:
-                        print(f"  Ignoring invalid config field '{field_name}': {fe}")
+                        section = getattr(instance, field_name, None)
+                        if isinstance(section, BaseModel) and isinstance(value, dict):
+                            cls._assign_valid_values(section, field_name, value)
+                        else:
+                            print(f"  Ignoring invalid config field '{field_name}': {fe}")
         instance._config_path = config_path
         return instance
+
+    @staticmethod
+    def _assign_valid_values(section, section_name, values):
+        pending = dict(values)
+        for _ in range(2):
+            failed = {}
+            for key, value in pending.items():
+                try:
+                    setattr(section, key, value)
+                except Exception as e:
+                    failed[key] = (value, e)
+            pending = {key: value for key, (value, _) in failed.items()}
+            if not pending:
+                return
+        for key, (_, error) in failed.items():
+            print(f"  Ignoring invalid config value '{section_name}.{key}': {error}")
 
     def save(self, path: Optional[Path] = None) -> None:
         save_path = path or self._config_path
