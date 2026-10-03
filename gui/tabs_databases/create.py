@@ -5,13 +5,14 @@ import gc
 import json
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 import yaml
 from PySide6.QtCore import QAbstractListModel, QModelIndex, QRegularExpression, QThread, QTimer, Qt, Signal
 from PySide6.QtGui import QAction, QRegularExpressionValidator
 from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QListView, QMenu, QGroupBox, QLabel, QLineEdit, QGridLayout, QSizePolicy, QComboBox
 
-from db.database_interactions import create_vector_db_in_process, NOT_ADDED_MARKER
+from db.database_interactions import create_vector_db_in_process, NOT_ADDED_MARKER, DB_FOLDER_CREATED_MARKER, BUILD_COMPLETE_MARKER
 from db.choose_documents import choose_documents_directory
 from core.utilities import check_preconditions_for_db_creation, open_file, delete_file, backup_database, my_cprint, save_config_atomically, runs_on_this_hardware, max_database_name_length
 from gui.download_model import model_downloaded_signal, is_complete_download
@@ -38,16 +39,20 @@ class VectorDBWorker(QThread):
         self._process = None
         self._cancelled = False
         self.not_added = []
+        self.created_folder = False
+        self.completed = False
 
     def run(self):
+        temp_root = None
         try:
+            temp_root = tempfile.mkdtemp(prefix="vectordb_build_")
             cmd = [
                 sys.executable, "-c",
                 "from db.database_interactions import create_vector_db_in_process; "
                 f"create_vector_db_in_process({self.database_name!r})"
             ]
 
-            env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"}
+            env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8", "TMPDIR": temp_root}
 
             self.progress.emit("Initializing database creation...")
 
@@ -71,6 +76,12 @@ class VectorDBWorker(QThread):
                     except ValueError:
                         pass
                     continue
+                if line == DB_FOLDER_CREATED_MARKER:
+                    self.created_folder = True
+                    continue
+                if line == BUILD_COMPLETE_MARKER:
+                    self.completed = True
+                    continue
                 if line.strip():
                     try:
                         print(f"  [DB Creation] {line}", flush=True)
@@ -82,11 +93,11 @@ class VectorDBWorker(QThread):
             exit_code = self._process.returncode
 
             if self._cancelled:
-                self.finished.emit(False, exit_code, "Cancelled by user.")
-            elif exit_code == 0:
-                self.finished.emit(True, exit_code, "Database created successfully!")
+                result = (False, exit_code, "Cancelled by user.")
+            elif exit_code == 0 or self.completed:
+                result = (True, exit_code, "Database created successfully!")
             else:
-                self.finished.emit(
+                result = (
                     False, exit_code,
                     f"Database build failed (exit code {exit_code}). "
                     "Check the log window for details."
@@ -95,7 +106,26 @@ class VectorDBWorker(QThread):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            self.finished.emit(False, -1, f"Database creation failed: {e}")
+            result = (False, -1, f"Database creation failed: {e}")
+        finally:
+            proc = self._process
+            if proc and proc.poll() is None:
+                try:
+                    self._terminate_process_tree(proc.pid)
+                except Exception:
+                    pass
+            if temp_root:
+                self._remove_temp_root(temp_root)
+
+        self.finished.emit(*result)
+
+    @staticmethod
+    def _remove_temp_root(path):
+        for _ in range(8):
+            shutil.rmtree(path, ignore_errors=True)
+            if not os.path.exists(path):
+                return
+            time.sleep(0.25)
 
     def cancel(self):
         self._cancelled = True
@@ -560,6 +590,10 @@ class DatabasesTab(QWidget):
                 else:
                     QMessageBox.information(self, "Success", message)
             else:
+                if self.current_database_name and self.db_worker is not None and self.db_worker.created_folder:
+                    partial_dir = PROJECT_ROOT / "Vector_DB" / self.current_database_name
+                    if partial_dir.exists():
+                        shutil.rmtree(partial_dir, ignore_errors=True)
                 QMessageBox.critical(self, "Error", message)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error handling completion: {e}")

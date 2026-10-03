@@ -100,6 +100,8 @@ from core.utilities import my_cprint, set_cuda_paths, configure_logging
 logger = logging.getLogger(__name__)
 
 NOT_ADDED_MARKER = "VECTORDB_NOT_ADDED "
+DB_FOLDER_CREATED_MARKER = "VECTORDB_FOLDER_CREATED"
+BUILD_COMPLETE_MARKER = "VECTORDB_BUILD_COMPLETE"
 IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff')
 
 
@@ -296,6 +298,7 @@ def create_vector_db_in_process(database_name):
     try:
         create_vector_db = CreateVectorDB(database_name=database_name)
         create_vector_db.run()
+        print(BUILD_COMPLETE_MARKER, flush=True)
     except Exception:
         traceback.print_exc()
         raise
@@ -658,6 +661,7 @@ class CreateVectorDB:
             try:
                 self.PERSIST_DIRECTORY.mkdir(parents=True, exist_ok=False)
                 created_persist_dir = True
+                print(DB_FOLDER_CREATED_MARKER, flush=True)
                 my_cprint(f"Created directory: {self.PERSIST_DIRECTORY}", "green")
             except FileExistsError:
                 raise FileExistsError(
