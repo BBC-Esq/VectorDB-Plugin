@@ -348,10 +348,19 @@ class DownloadRunnable(QRunnable):
             self.signals.finished.emit(False, str(e))
 
 
+_active_downloads = set()
+
+
 def download_with_threadpool(download_func, *args, callback=None):
     runnable = DownloadRunnable(download_func, *args)
-    if callback:
-        runnable.signals.finished.connect(callback)
+    _active_downloads.add(runnable)
+
+    def _finished(success, message):
+        _active_downloads.discard(runnable)
+        if callback:
+            callback(success, message)
+
+    runnable.signals.finished.connect(_finished)
     QThreadPool.globalInstance().start(runnable)
 
 
