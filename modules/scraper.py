@@ -454,6 +454,7 @@ class ScraperWorker(QObject):
     scraping_finished = Signal(str, bool, bool)
 
     RATE_LIMIT_THRESHOLD = 5
+    MAX_WIN_PATH = 250
 
     def __init__(self, url, folder, scraper_class=BaseScraper, name="", resume=False):
         super().__init__()
@@ -520,6 +521,15 @@ class ScraperWorker(QObject):
         if hasattr(self.scraper, "canonical_url"):
             return self.scraper.canonical_url(url)
         return url
+
+    def _html_path(self, url):
+        name = self.sanitize_filename(self._filename_key(url))
+        path = os.path.join(self.save_dir, name + ".html")
+        if os.path.exists(path) and os.path.basename(os.path.realpath(path)) != name + ".html":
+            suffix = "_" + hashlib.md5(name.encode()).hexdigest()[:8]
+            allowed = max(1, self.MAX_WIN_PATH - len(self.save_dir) - len(os.sep) - len(".html") - len(suffix))
+            path = os.path.join(self.save_dir, name[:allowed] + suffix + ".html")
+        return path
 
     async def crawl_domain(
         self,
@@ -647,8 +657,7 @@ class ScraperWorker(QObject):
         acceptable_domain_extension,
         retries: int = 3,
     ):
-        filename = os.path.join(save_dir, self.sanitize_filename(self._filename_key(url)) + ".html")
-        if os.path.exists(filename):
+        if os.path.exists(self._html_path(url)):
             return set()
 
         fetch_url = (
@@ -720,7 +729,7 @@ class ScraperWorker(QObject):
         return set()
 
     async def save_html(self, content, url, save_dir, links=None):
-        filename = os.path.join(save_dir, self.sanitize_filename(self._filename_key(url)) + ".html")
+        filename = self._html_path(url)
         soup = BeautifulSoup(content, "lxml")
         processed_soup = self.scraper.process_html(soup)
 
@@ -741,12 +750,16 @@ class ScraperWorker(QObject):
             processed_soup.insert(0, new_html)
 
         created = False
-        try:
-            async with aiofiles.open(filename, "x", encoding="utf-8") as f:
-                await f.write(str(processed_soup))
-            created = True
-        except FileExistsError:
-            pass
+        while not created:
+            try:
+                async with aiofiles.open(filename, "x", encoding="utf-8") as f:
+                    await f.write(str(processed_soup))
+                created = True
+            except FileExistsError:
+                retry = self._html_path(url)
+                if retry == filename:
+                    break
+                filename = retry
 
         if links:
             sidecar = filename[:-5] + ".links.json"
@@ -791,10 +804,9 @@ class ScraperWorker(QObject):
 
         need_hash = ("?" in original_url or "#" in original_url)
 
-        MAX_WIN_PATH = 250
         full_path = os.path.join(self.save_dir, filename + ".html")
-        if need_hash or len(full_path) > MAX_WIN_PATH:
-            allowed = MAX_WIN_PATH - len(self.save_dir) - len(os.sep) - len(".html") - 9
+        if need_hash or len(full_path) > self.MAX_WIN_PATH:
+            allowed = self.MAX_WIN_PATH - len(self.save_dir) - len(os.sep) - len(".html") - 9
             allowed = max(1, allowed)
             filename = (
                 filename[:allowed]
