@@ -10,7 +10,7 @@ from pathlib import Path
 from io import BytesIO
 from abc import ABC, abstractmethod
 from core.constants import PROJECT_ROOT
-from core.pdf_ocr_gate import page_needs_ocr
+from core.pdf_ocr_gate import page_needs_ocr, OCR_PRODUCER_PREFIX
 from core.text_order import column_reading_order
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from multiprocessing import Process, Queue
@@ -228,6 +228,10 @@ class TesseractOCR(OCRProcessor):
                                 page.set_cropbox(cropbox)
                         except ValueError:
                             pass
+            try:
+                ocr_doc.set_metadata({'producer': f'{OCR_PRODUCER_PREFIX} Tesseract'})
+            except Exception:
+                pass
             ocr_doc.save(temp_path, garbage=4, deflate=True, clean=True)
         os.replace(temp_path, ocr_pdf_path)
 
@@ -662,7 +666,7 @@ class RapidOCRBackend(OCRProcessor):
             meta = {k: v for k, v in src_meta.items()
                     if v and k in ('title', 'author', 'subject', 'keywords', 'creator',
                                    'creationDate', 'trapped')}
-            meta['producer'] = 'VectorDB-Plugin RapidOCR (PP-OCRv6)'
+            meta['producer'] = f'{OCR_PRODUCER_PREFIX} RapidOCR (PP-OCRv6)'
             meta['modDate'] = fitz.get_pdf_now()
             try:
                 ocr_doc.set_metadata(meta)

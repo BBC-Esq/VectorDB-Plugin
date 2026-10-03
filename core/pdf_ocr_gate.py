@@ -7,6 +7,7 @@ _IMAGE_COVER_FRAC = 0.5
 _IMAGE_COVER_FRAC_NOTEXT = 0.05
 _MIN_DRAWINGS = 20
 _CID_RE = re.compile(r'\(cid:\d+\)')
+OCR_PRODUCER_PREFIX = "VectorDB-Plugin"
 
 
 def corrupt_fraction(text):
@@ -68,10 +69,19 @@ def page_needs_ocr(page):
     return has_visible_content(page, frac)
 
 
+def has_ocr_layer(page):
+    try:
+        return any(span.get("type") == 3 for span in page.get_texttrace())
+    except Exception:
+        return False
+
+
 def document_needs_ocr(doc):
     if getattr(doc, 'needs_pass', False):
         return True
+    if str((doc.metadata or {}).get('producer') or '').startswith(OCR_PRODUCER_PREFIX):
+        return False
     for page in doc:
-        if page_needs_ocr(page):
+        if page_needs_ocr(page) and not has_ocr_layer(page):
             return True
     return False
