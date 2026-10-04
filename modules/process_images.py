@@ -190,7 +190,7 @@ class loader_internvl(BaseLoader):
                 bnb_4bit_quant_type="nf4",
                 bnb_4bit_compute_dtype=dtype,
                 bnb_4bit_use_double_quant=True,
-                llm_int8_skip_modules=["vision_tower", "multi_modal_projector", "lm_head"],
+                llm_int8_skip_modules=["model.vision_tower", "model.multi_modal_projector", "lm_head"],
             )
             model = AutoModelForImageTextToText.from_pretrained(
                 model_id,
@@ -331,10 +331,10 @@ class loader_granite(BaseLoader):
                 bnb_4bit_compute_dtype=dtype,
                 bnb_4bit_quant_type="nf4",
                 llm_int8_skip_modules=[
-                    "vision_tower",
-                    "multi_modal_projector",
-                    "language_model.embed_tokens",
-                    "language_model.norm",
+                    "model.vision_tower",
+                    "model.multi_modal_projector",
+                    "model.language_model.embed_tokens",
+                    "model.language_model.norm",
                     "lm_head"
                 ]
             )
@@ -416,30 +416,8 @@ class loader_qwenvl(BaseLoader):
             bnb_4bit_use_double_quant=True,
             llm_int8_threshold=6.0,
             llm_int8_skip_modules=[
-                "lm_head",
-                "merger",
-                "visual.blocks.0.attn",
-                "visual.blocks.0.mlp",
-                "visual.blocks.1.attn",
-                "visual.blocks.1.mlp",
-                "visual.blocks.2.attn",
-                "visual.blocks.2.mlp",
-                "visual.blocks.3.attn",
-                "visual.blocks.3.mlp",
-                "visual.blocks.4.attn",
-                "visual.blocks.5.mlp",
-                "visual.blocks.7.attn",
-                "visual.blocks.7.mlp",
-                "visual.blocks.8.mlp",
-                "visual.blocks.10.mlp",
-                "visual.blocks.12.mlp",
-                "visual.blocks.13.mlp",
-                "visual.blocks.14.attn",
-                "visual.blocks.14.mlp",
-                "visual.blocks.15.attn",
-                "visual.blocks.15.mlp",
-                "visual.blocks.17.mlp",
-                "visual.blocks.31.mlp.down_proj"
+                "model.visual",
+                "lm_head"
             ]
         )
 
