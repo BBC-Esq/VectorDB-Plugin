@@ -120,7 +120,7 @@ class SymlinkWorker(QThread):
         self.finished.emit(made, errors)
 
 
-def choose_documents_directory():
+def choose_documents_directory(databases_tab=None):
     existing_worker = getattr(choose_documents_directory, "_symlink_thread", None)
     if existing_worker is not None and existing_worker.isRunning():
         QMessageBox.information(
@@ -150,7 +150,7 @@ def choose_documents_directory():
     file_dialog = QFileDialog()
 
     def start_worker(source):
-        main_window = _get_main_window()
+        main_window = databases_tab.window() if databases_tab is not None else _get_main_window()
         progress = QProgressDialog(
             "Creating symlinks...", "Cancel", 0, 0, main_window
         )
@@ -169,10 +169,9 @@ def choose_documents_directory():
         worker.progress.connect(update_progress)
 
         def _done(count, errs):
-            if main_window and hasattr(main_window, "databases_tab"):
-                db_tab = main_window.databases_tab
-                if hasattr(db_tab, "refresh_staged_files"):
-                    db_tab.refresh_staged_files()
+            db_tab = databases_tab if databases_tab is not None else getattr(main_window, "databases_tab", None)
+            if db_tab is not None and hasattr(db_tab, "refresh_staged_files"):
+                db_tab.refresh_staged_files()
 
             progress.reset()
             progress.deleteLater()

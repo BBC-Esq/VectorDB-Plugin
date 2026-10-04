@@ -204,7 +204,7 @@ class DatabasesTab(QWidget):
         grid_layout_top_buttons = QGridLayout()
         self.choose_docs_button = QPushButton("Choose Files")
         self.choose_docs_button.setToolTip(TOOLTIPS["CHOOSE_FILES"])
-        self.choose_docs_button.clicked.connect(choose_documents_directory)
+        self.choose_docs_button.clicked.connect(lambda: choose_documents_directory(self))
         self.model_combobox = QComboBox()
         self.model_combobox.setToolTip(TOOLTIPS["SELECT_VECTOR_MODEL"])
         self.populate_model_combobox()
