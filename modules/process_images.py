@@ -21,7 +21,6 @@ from transformers import (
     Qwen2_5_VLForConditionalGeneration,
     GenerationConfig,
     AutoConfig,
-    AutoModelForVision2Seq,
     AutoModelForImageTextToText
 )
 from db.document_processor import Document
@@ -340,7 +339,7 @@ class loader_granite(BaseLoader):
                 ]
             )
 
-            model = AutoModelForVision2Seq.from_pretrained(
+            model = AutoModelForImageTextToText.from_pretrained(
                 model_id,
                 quantization_config=quant_cfg,
                 torch_dtype=dtype,
@@ -352,7 +351,7 @@ class loader_granite(BaseLoader):
             my_cprint(f"{chosen_model} loaded into memory on CUDA ({precision_str})", "green")
 
         else:
-            model = AutoModelForVision2Seq.from_pretrained(
+            model = AutoModelForImageTextToText.from_pretrained(
                 model_id,
                 torch_dtype=torch.float32,
                 low_cpu_mem_usage=True,
