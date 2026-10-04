@@ -42,10 +42,7 @@ def _model_supports_flash(model_path: str) -> bool:
         if not model_type or model_type not in CONFIG_MAPPING:
             return False
         model_cls = MODEL_MAPPING[CONFIG_MAPPING[model_type]]
-        flag = getattr(model_cls, "_supports_flash_attn", None)
-        if flag is None:
-            flag = getattr(model_cls, "_supports_flash_attn_2", False)
-        return bool(flag)
+        return bool(getattr(model_cls, "_supports_flash_attn", False))
     except Exception:
         return False
 
@@ -351,7 +348,7 @@ class DirectEmbeddingModel:
         family = _get_model_family(self.model_path)
 
         model_kwargs = {
-            "torch_dtype": self.dtype if self.dtype else torch.float32,
+            "dtype": self.dtype if self.dtype else torch.float32,
         }
 
         is_cuda = self.device.lower().startswith("cuda")

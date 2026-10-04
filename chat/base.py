@@ -96,15 +96,14 @@ def _configure_device_settings(settings, model_info):
             dtype = torch.bfloat16 if has_bfloat16_support() else torch.float16
         else:
             dtype = torch.float16
-        settings['tokenizer_settings']['torch_dtype'] = dtype
-        settings['model_settings']['torch_dtype'] = dtype
+        settings['model_settings']['dtype'] = dtype
         qc = settings['model_settings'].get("quantization_config")
         if qc is not None:
             qc.bnb_4bit_compute_dtype = dtype
     else:
         settings['model_settings'].pop('quantization_config', None)
         settings['model_settings']['device_map'] = "cpu"
-        settings['model_settings'].setdefault('torch_dtype', torch.float32)
+        settings['model_settings'].setdefault('dtype', torch.float32)
 
     return device
 
@@ -132,16 +131,15 @@ def get_generation_settings(max_length, max_new_tokens):
 
 def make_bnb_settings(dtype):
     return {
-        'tokenizer_settings': {'torch_dtype': dtype},
+        'tokenizer_settings': {},
         'model_settings': {
-            'torch_dtype': dtype,
+            'dtype': dtype,
             'quantization_config': BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=dtype,
                 bnb_4bit_quant_type="nf4",
                 bnb_4bit_use_double_quant=True,
             ),
-            'low_cpu_mem_usage': True,
         }
     }
 
@@ -296,11 +294,9 @@ class LiquidAI(BaseModel):
             settings['model_settings']['attn_implementation'] = "sdpa"
         else:
             settings = {
-                'tokenizer_settings': {
-                    'torch_dtype': torch.float32,
-                },
+                'tokenizer_settings': {},
                 'model_settings': {
-                    'torch_dtype': torch.float32,
+                    'dtype': torch.float32,
                     'device_map': 'cpu',
                 }
             }

@@ -195,8 +195,7 @@ class loader_internvl(BaseLoader):
             model = AutoModelForImageTextToText.from_pretrained(
                 model_id,
                 quantization_config=quantization_config,
-                torch_dtype=dtype,
-                low_cpu_mem_usage=True,
+                dtype=dtype,
                 cache_dir=cache_dir,
                 token=False,
                 device_map="auto",
@@ -207,8 +206,7 @@ class loader_internvl(BaseLoader):
             precision_str = "float32"
             model = AutoModelForImageTextToText.from_pretrained(
                 model_id,
-                torch_dtype=dtype,
-                low_cpu_mem_usage=True,
+                dtype=dtype,
                 cache_dir=cache_dir,
                 token=False,
                 device_map={"": "cpu"},
@@ -342,8 +340,7 @@ class loader_granite(BaseLoader):
             model = AutoModelForImageTextToText.from_pretrained(
                 model_id,
                 quantization_config=quant_cfg,
-                torch_dtype=dtype,
-                low_cpu_mem_usage=True,
+                dtype=dtype,
                 cache_dir=cache_dir,
                 token=False,
                 device_map="auto"
@@ -353,8 +350,7 @@ class loader_granite(BaseLoader):
         else:
             model = AutoModelForImageTextToText.from_pretrained(
                 model_id,
-                torch_dtype=torch.float32,
-                low_cpu_mem_usage=True,
+                dtype=torch.float32,
                 cache_dir=cache_dir,
                 token=False,
                 device_map={"": "cpu"}
@@ -433,8 +429,7 @@ class loader_qwenvl(BaseLoader):
         model = AutoModelForImageTextToText.from_pretrained(
             model_id,
             quantization_config=quantization_config,
-            torch_dtype=dtype,
-            low_cpu_mem_usage=True,
+            dtype=dtype,
             cache_dir=cache_dir,
             token=False,
             device_map="auto",
@@ -533,7 +528,7 @@ class loader_liquidvl(BaseLoader):
 
         model = AutoModelForImageTextToText.from_pretrained(
             source,
-            torch_dtype=dtype,
+            dtype=dtype,
             cache_dir=cache_dir,
             device_map=device_map,
         ).eval()

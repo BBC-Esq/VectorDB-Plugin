@@ -235,7 +235,7 @@ class BarkAudio(BaseAudio):
         
         self.model = BarkModel.from_pretrained(
             repository_id,
-            torch_dtype=torch.float16,
+            dtype=torch.float16,
             cache_dir=CACHE_DIR,
             token=False
         ).to(self.device)

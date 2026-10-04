@@ -228,7 +228,6 @@ class ModelDownloader(QObject):
                 "repo_id": repo_id,
                 "local_dir": str(local_dir),
                 "max_workers": 8,
-                "local_dir_use_symlinks": False,
                 "ignore_patterns": final_ignore_patterns,
                 "allow_patterns": allow_patterns,
                 "etag_timeout": 60
