@@ -150,14 +150,14 @@ def choose_documents_directory():
     file_dialog = QFileDialog()
 
     def start_worker(source):
+        main_window = _get_main_window()
         progress = QProgressDialog(
-            "Creating symlinks...", "Cancel", 0, 0
+            "Creating symlinks...", "Cancel", 0, 0, main_window
         )
         progress.setWindowModality(Qt.WindowModal)
         progress.setMinimumDuration(0)
 
         worker = SymlinkWorker(source, target_dir)
-        main_window = _get_main_window()
 
         progress.canceled.connect(worker.requestInterruption)
 
@@ -175,6 +175,7 @@ def choose_documents_directory():
                     db_tab.refresh_staged_files()
 
             progress.reset()
+            progress.deleteLater()
             msg = f"Created {count} symlinks"
             if errs:
                 msg += f" – {len(errs)} errors (see console)"

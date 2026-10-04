@@ -496,6 +496,13 @@ class DatabasesTab(QWidget):
         self.refresh_staged_files()
 
     def on_create_db_clicked(self):
+        staging = getattr(choose_documents_directory, "_symlink_thread", None)
+        if staging is not None and staging.isRunning():
+            QMessageBox.warning(self, "Staging In Progress",
+                                "Files are still being staged. Create the database after staging finishes "
+                                "so every file is included.")
+            return
+
         if self.model_combobox.currentIndex() == 0:
             QMessageBox.warning(self, "No Model Selected", "Please select a model before creating a database.")
             return
