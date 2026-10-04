@@ -56,6 +56,10 @@ class VectorDBWorker(QThread):
 
             self.progress.emit("Initializing database creation...")
 
+            if self._cancelled:
+                self.finished.emit(False, -1, "Cancelled by user.")
+                return
+
             self._process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -67,6 +71,8 @@ class VectorDBWorker(QThread):
                 cwd=str(PROJECT_ROOT),
                 env=env,
             )
+            if self._cancelled:
+                self._terminate_process_tree(self._process.pid)
 
             for line in self._process.stdout:
                 line = line.rstrip("\n")
@@ -92,10 +98,11 @@ class VectorDBWorker(QThread):
             self._process.wait()
             exit_code = self._process.returncode
 
-            if self._cancelled:
+            if exit_code == 0 or self.completed:
+                result = (True, exit_code, "The database finished before the cancel took effect, so it was kept."
+                          if self._cancelled else "Database created successfully!")
+            elif self._cancelled:
                 result = (False, exit_code, "Cancelled by user.")
-            elif exit_code == 0 or self.completed:
-                result = (True, exit_code, "Database created successfully!")
             else:
                 result = (
                     False, exit_code,
@@ -639,9 +646,12 @@ class DatabasesTab(QWidget):
             self.db_worker.cancel()
             self.db_worker.wait(5000)
             if self.current_database_name:
-                partial_dir = PROJECT_ROOT / "Vector_DB" / self.current_database_name
-                if partial_dir.exists():
-                    shutil.rmtree(partial_dir, ignore_errors=True)
+                if self.db_worker.completed:
+                    self.update_config_with_database_name()
+                else:
+                    partial_dir = PROJECT_ROOT / "Vector_DB" / self.current_database_name
+                    if partial_dir.exists():
+                        shutil.rmtree(partial_dir, ignore_errors=True)
 
     def toggle_group_box(self, group_box, checked):
         self.groups[group_box] = 1 if checked else 0
