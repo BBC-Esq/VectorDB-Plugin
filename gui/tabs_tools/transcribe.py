@@ -2,7 +2,8 @@ from pathlib import Path
 import torch
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
-    QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QPushButton, QFileDialog, QLabel, QComboBox, QSlider, QSizePolicy
+    QApplication, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QPushButton, QFileDialog, QLabel, QComboBox,
+    QSlider, QSizePolicy, QMessageBox
 )
 from modules.transcribe import WhisperTranscriber
 from core.utilities import my_cprint, has_bfloat16_support
@@ -127,9 +128,19 @@ class TranscriberToolSettingsTab(QWidget):
             self.file_path_label.setToolTip(str(file_path.absolute()))
             self.selected_audio_file = file_name
 
+    def transcription_running(self):
+        return self.worker_thread is not None and self.worker_thread.isRunning()
+
     def start_transcription(self):
         if not self.selected_audio_file:
             print("Please select an audio file.")
+            return
+
+        if any(callable(getattr(w, "database_build_running", None)) and w.database_build_running()
+               for w in QApplication.allWidgets()):
+            QMessageBox.warning(self, "Database Being Created",
+                                "A vector database is being created. Transcribe after it finishes, because a "
+                                "transcript saved during a build would be removed when the build ends.")
             return
 
         selected_model_key = self.model_combo.currentText()

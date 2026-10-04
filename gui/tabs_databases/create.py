@@ -10,7 +10,7 @@ from pathlib import Path
 import yaml
 from PySide6.QtCore import QAbstractListModel, QModelIndex, QRegularExpression, QThread, QTimer, Qt, Signal
 from PySide6.QtGui import QAction, QRegularExpressionValidator
-from PySide6.QtWidgets import QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QListView, QMenu, QGroupBox, QLabel, QLineEdit, QGridLayout, QSizePolicy, QComboBox
+from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QListView, QMenu, QGroupBox, QLabel, QLineEdit, QGridLayout, QSizePolicy, QComboBox
 
 from db.database_interactions import create_vector_db_in_process, NOT_ADDED_MARKER, DB_FOLDER_CREATED_MARKER, BUILD_COMPLETE_MARKER
 from db.choose_documents import choose_documents_directory
@@ -503,6 +503,13 @@ class DatabasesTab(QWidget):
                                 "so every file is included.")
             return
 
+        if any(callable(getattr(w, "transcription_running", None)) and w.transcription_running()
+               for w in QApplication.allWidgets()):
+            QMessageBox.warning(self, "Transcription In Progress",
+                                "An audio transcription is still running. Create the database after it finishes "
+                                "so the transcript is included.")
+            return
+
         if self.model_combobox.currentIndex() == 0:
             QMessageBox.warning(self, "No Model Selected", "Please select a model before creating a database.")
             return
@@ -566,6 +573,9 @@ class DatabasesTab(QWidget):
 
         except Exception as e:
             self._validation_failed(f"Failed to start database creation: {str(e)}")
+
+    def database_build_running(self):
+        return self.db_worker is not None and self.db_worker.isRunning()
 
     def on_cancel_db_clicked(self):
         if self.db_worker is None or not self.db_worker.isRunning():
