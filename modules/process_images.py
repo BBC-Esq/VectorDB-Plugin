@@ -1,5 +1,6 @@
 import os
 import traceback
+import functools
 import inspect
 import time
 import types
@@ -368,11 +369,28 @@ class loader_granite(BaseLoader):
                 pass
 
         model.eval()
+        self._drop_unused_vision_hidden_states(model)
 
         self.model = model
         self.processor = processor
 
         return model, None, processor
+
+    def _drop_unused_vision_hidden_states(self, model):
+        try:
+            base_model = model.base_model
+            get_image_features = base_model.get_image_features
+
+            @functools.wraps(get_image_features)
+            def get_image_features_without_hidden_states(*args, **kwargs):
+                outputs = get_image_features(*args, **kwargs)
+                if getattr(outputs, "hidden_states", None) is not None:
+                    outputs = type(outputs)(**{key: value for key, value in outputs.items() if key != "hidden_states"})
+                return outputs
+
+            base_model.get_image_features = get_image_features_without_hidden_states
+        except Exception as exc:
+            my_cprint(f"Granite Vision memory optimization skipped: {exc}", "yellow")
 
     @torch.inference_mode()
     def process_single_image(self, raw_image):
