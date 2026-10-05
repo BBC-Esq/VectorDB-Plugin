@@ -970,6 +970,17 @@ def get_embedding_batch_size(model_name: str, compute_device: str) -> int:
     return 8
 
 
+def quiet_transformers_loading_bars():
+    from transformers.utils import logging as transformers_logging
+
+    def _hook(factory, args, kwargs):
+        if kwargs.get("desc") == "Loading weights":
+            kwargs = {**kwargs, "disable": True}
+        return factory(*args, **kwargs)
+
+    transformers_logging.set_tqdm_hook(_hook)
+
+
 def get_embedding_dtype_and_batch(
     compute_device: str,
     use_half: bool,

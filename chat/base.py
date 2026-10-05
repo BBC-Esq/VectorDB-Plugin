@@ -20,9 +20,10 @@ from huggingface_hub import HfApi
 from PySide6.QtCore import Signal, QObject
 
 from core.constants import CHAT_MODELS, system_message, rag_string, PROJECT_ROOT
-from core.utilities import my_cprint, has_bfloat16_support, format_citations
+from core.utilities import my_cprint, has_bfloat16_support, format_citations, quiet_transformers_loading_bars
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
+quiet_transformers_loading_bars()
 
 metadata_output_file_path = PROJECT_ROOT / "metadata.txt"
 

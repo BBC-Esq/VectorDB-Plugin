@@ -589,12 +589,13 @@ priority_libs = {
 }
 
 libs = [
-    "accelerate==1.13.0",
+    "accelerate==1.15.0",
     "aiofiles==25.1.0",
     "aiohappyeyeballs==2.6.2",
     "aiohttp==3.14.0",
     "aiosignal==1.4.0",
     "anndata==0.12.5",
+    "annotated-doc==0.0.5",
     "annotated-types==0.7.0",
     "anyio==4.13.0",
     "array_api_compat==1.14.0",
@@ -607,7 +608,7 @@ libs = [
     # contrary evidence (msg-extractor#469: open, no maintainer reply, no reports of newer bs4 breaking .msg); bs4 was
     # already >4.14 pre-sweep. Verify .msg ingestion if in doubt.
     "beautifulsoup4==4.14.3",
-    "bitsandbytes==0.49.2",  # 0.48->0.49; may fix deferred Qwen-VL 4-bit crash (error 12); TEST quantized vision loading
+    "bitsandbytes==0.50.2",
     "braceexpand==0.1.7",
     "cachebox==5.2.3",  # added for deepdiff 9.x (new mandatory dep)
     "certifi==2026.5.20",
@@ -617,7 +618,7 @@ libs = [
     "charset-normalizer==3.4.7",
     "git+https://github.com/BBC-Esq/chatterbox-light",
     "chattts==0.2.5",
-    "click==8.4.1",  # gTTS caps click<8.2 (its gtts-cli only; app uses gTTS programmatically) - already past cap; verify Google TTS
+    "click==8.4.2",
     # "cloudpickle==3.1.2",  # commented out - only needed by tiledb-cloud[tests] + fsspec[test-full] extras (not installed); not imported by app code
     "colorama==0.4.6",
     "colorclass==2.2.2",
@@ -633,7 +634,7 @@ libs = [
     "deepdiff==9.1.0",  # 8->9 added mandatory dep cachebox (added to libs above)
     "Deprecated==1.3.1",
     "deprecation==2.1.0",
-    "diffusers==0.37.1",  # capped below 0.38.0, which requires pre-release safetensors>=0.8.0-rc.0; revisit when safetensors 0.8 is stable
+    "diffusers==0.40.0",
     "dill==0.4.1",  # coupled to datasets: 0.4.1 needs a datasets that caps dill<0.4.2 (datasets 4.8.5 OK; datasets<=4.3 capped dill<0.4.1)
     "distlib==0.4.1",
     "distro==1.9.0",
@@ -661,17 +662,12 @@ libs = [
     "gTTS==2.5.4",
     "h11==0.16.0",
     "h5py==3.16.0",
-    "hf-xet==1.5.0",
+    "hf-xet==1.6.0",
     "html5lib==1.1",
     "httpcore==1.0.9",
     "httpx==0.28.1",
     "httpx-sse==0.4.3",
-    # huggingface-hub capped at 0.36.2 (highest <1.0). transformers 4.57.4 pins huggingface-hub<1.0,
-    # so EVERY hub 1.x is blocked unless transformers is upgraded to 5.x (breaking) and the new hub-1.x
-    # CLI deps are added (typer/typer-slim, shellingham, annotated-doc; httpx/click already in libs).
-    # 0.36.1/0.36.2 add ZERO new deps vs 0.36.0 and satisfy all reverse caps. Revisit hub 1.x only as
-    # part of a deliberate transformers-5 migration (the HF/ML cluster moves together).
-    "huggingface-hub==0.36.2",
+    "huggingface-hub==1.33.0",
     "humanfriendly==10.0",
     "HyperPyYAML==1.2.3",
     "identify==2.6.19",
@@ -728,7 +724,6 @@ libs = [
     "opentelemetry-semantic-conventions==0.63b1",  # pinned to match opentelemetry-api/sdk 1.42.1 (was unpinned and had drifted to a mismatched 0.62b1)
     "opentelemetry-exporter-otlp-proto-common==1.42.1",
     "opentelemetry-proto==1.42.1",
-    "optimum==2.1.0",
     "ordered-set==4.1.0",
     "orderly-set==5.5.0",
     "orjson==3.11.9",
@@ -782,11 +777,12 @@ libs = [
     "ruamel.yaml==0.18.17",  # capped at <0.19.0 by HyperPyYAML 1.2.3 (latest, used by speechbrain); 0.19.x violates it. 0.18.17 is highest <0.19.0
     "ruamel.yaml.clib==0.2.15",
     "s3tokenizer==0.3.0",
-    "safetensors==0.7.0",
+    "safetensors==0.8.0",
     "scikit-learn==1.9.0",  # 1.9.0 added mandatory dep narwhals (added to libs)
     "scipy==1.17.1",
-    "sentence-transformers==5.1.2",  # HOLD: replace_sourcecode.py overwrites this with patched Assets/SentenceTransformer.py (_text_length mod + debugging); any upgrade requires re-basing that patch first
+    "sentence-transformers==6.1.0",
     "sentencepiece==0.2.1",
+    "shellingham==1.5.4",
     "six==1.17.0",
     "sniffio==1.3.1",
     "sounddevice==0.5.5",
@@ -807,14 +803,10 @@ libs = [
     "tiledb==0.36.1",
     "tiledb-cloud==0.14.4",
     "tiledb-vector-search==0.16.0",
-    "timm==1.0.27",
-    "tokenizers==0.22.2",  # capped at 0.22.2: ALL transformers (4.x AND 5.x) cap tokenizers<=0.23.0, and 0.23.0 stable never shipped; 0.23.1 needs a future transformers
+    "tokenizers==0.23.2",
     "tqdm==4.67.3",
-    # transformers capped at 4.57.6 (latest 4.x patch): identical cluster deps to 4.57.4 (pure bug-fix bump, no
-    # companions). Staying on 4.x keeps huggingface-hub<1.0 (held at 0.36.2), tokenizers<=0.23.0 (ceiling 0.22.2),
-    # and safetensors>=0.4.3. The jump to 5.x (5.9.0) requires huggingface-hub>=1.5.0 -> full hub-1.x migration +
-    # new CLI deps (typer/shellingham/annotated-doc) + v5 breaking API changes. Revisit 5.x as a deliberate migration.
-    "transformers==4.57.6",
+    "transformers==5.18.0",
+    "typer==0.27.2",
     "typing-inspection==0.4.2",
     "typing_extensions==4.15.0",
     "unstructured-client==0.44.1",
@@ -2187,9 +2179,9 @@ scrape_documentation = {
         "folder": "httpx",
         "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
-    "Huggingface Hub 0.36.0": {
-        "URL": "https://huggingface.co/docs/huggingface_hub/v0.36.0/en/",
-        "folder": "huggingface_hub_0360",
+    "Huggingface Hub 1.33.0": {
+        "URL": "https://huggingface.co/docs/huggingface_hub/v1.33.0/en/",
+        "folder": "huggingface_hub_1330",
         "scraper_class": "HuggingfaceScraper"
     },
     "humanfriendly": {
@@ -2607,9 +2599,9 @@ scrape_documentation = {
         "folder": "tqdm",
         "scraper_class": "ArticleMdContentInnerMdTypesetScraper"
     },
-    "Transformers 4.57.5": {
-        "URL": "https://huggingface.co/docs/transformers/v4.57.5/en",
-        "folder": "transformers_4575",
+    "Transformers 5.17.0": {
+        "URL": "https://huggingface.co/docs/transformers/v5.17.0/en",
+        "folder": "transformers_5170",
         "scraper_class": "HuggingfaceScraper"
     },
     "typing_extensions": {

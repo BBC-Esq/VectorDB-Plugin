@@ -27,7 +27,6 @@ import time
 import tkinter as tk
 from tkinter import messagebox
 from tools.replace_sourcecode import (
-    replace_sentence_transformer_file,
     replace_chattts_file,
     add_cuda_files,
     setup_vector_db,
@@ -282,7 +281,6 @@ if hardware_type == "GPU":
     from core.utilities import clean_triton_cache
     clean_triton_cache()
 
-replace_sentence_transformer_file()
 replace_chattts_file()
 if hardware_type == "GPU":
     add_cuda_files()

@@ -25,10 +25,11 @@ from transformers import (
 )
 from db.document_processor import Document
 from core.extract_metadata import extract_typed_metadata
-from core.utilities import my_cprint, has_bfloat16_support, set_cuda_paths
+from core.utilities import my_cprint, has_bfloat16_support, set_cuda_paths, quiet_transformers_loading_bars
 from core.constants import VISION_MODELS, PROJECT_ROOT
 
 set_cuda_paths()
+quiet_transformers_loading_bars()
 
 warnings.filterwarnings("ignore", message=".*Torch was not compiled with flash attention.*")
 
@@ -179,7 +180,6 @@ class loader_internvl(BaseLoader):
 
         processor = AutoProcessor.from_pretrained(
             model_id,
-            use_fast=True,
             cache_dir=cache_dir,
             token=False,
         )
@@ -264,7 +264,6 @@ class loader_granite(BaseLoader):
 
         processor = AutoProcessor.from_pretrained(
             model_id,
-            use_fast=True,
             cache_dir=cache_dir,
             token=False
         )
@@ -419,7 +418,6 @@ class loader_qwenvl(BaseLoader):
 
         processor = AutoProcessor.from_pretrained(
             model_id,
-            use_fast=True,
             min_pixels=28*28,
             max_pixels=1280*28*28,
             cache_dir=cache_dir,

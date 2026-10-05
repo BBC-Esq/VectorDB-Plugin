@@ -14,8 +14,10 @@ import soundfile as sf
 from gtts import gTTS
 from gtts.tokenizer import pre_processors, tokenizer_cases
 
-from core.utilities import my_cprint
+from core.utilities import my_cprint, quiet_transformers_loading_bars
 from core.constants import WHISPER_SPEECH_MODELS, PROJECT_ROOT
+
+quiet_transformers_loading_bars()
 
 current_directory = PROJECT_ROOT
 CACHE_DIR = current_directory / "models" / "tts"

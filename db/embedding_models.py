@@ -3,7 +3,6 @@ import gc
 import logging
 import os
 import pickle
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -14,6 +13,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from sentence_transformers import SentenceTransformer
+from sentence_transformers.base.modules.normalize import Normalize
 from sentence_transformers.util import batch_to_device
 
 from core.config import get_config
@@ -21,15 +21,32 @@ from core.utilities import (
     supports_flash_attention,
     get_embedding_dtype_and_batch,
     get_model_native_precision,
+    quiet_transformers_loading_bars,
 )
 
 logger = logging.getLogger(__name__)
 
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
-# torch.compile (ModernBERT's reference_compile) needs MSVC's cl.exe on Windows; detect it silently so
-# compilation is only enabled when it will actually build (otherwise it falls back to eager/sdpa).
-_MSVC_AVAILABLE = shutil.which("cl") is not None
+quiet_transformers_loading_bars()
+
+
+def _load_normalize_with_known_keys(cls, model_name_or_path="", subfolder="", token=None, cache_folder=None,
+                                    revision=None, local_files_only=False, **kwargs):
+    if not model_name_or_path:
+        return cls()
+    config = cls.load_config(
+        model_name_or_path=model_name_or_path,
+        subfolder=subfolder,
+        token=token,
+        cache_folder=cache_folder,
+        revision=revision,
+        local_files_only=local_files_only,
+    )
+    return cls(**{key: value for key, value in config.items() if key in cls.config_keys})
+
+
+Normalize.load = classmethod(_load_normalize_with_known_keys)
 
 
 @functools.lru_cache(maxsize=None)
@@ -353,7 +370,6 @@ class DirectEmbeddingModel:
 
         is_cuda = self.device.lower().startswith("cuda")
         is_half = self.dtype in (torch.float16, torch.bfloat16)
-        config_kwargs = {}
 
         if is_cuda and is_half and supports_flash_attention() and _model_supports_flash(self.model_path):
             model_kwargs["attn_implementation"] = "flash_attention_2"
@@ -362,9 +378,6 @@ class DirectEmbeddingModel:
 
         # Force sdpa for now. flash-attn was NOT the cause of the earlier large-build crashes (that was numpy 2.4.6, now pinned to 2.3.4); this is kept only out of caution. To re-enable adaptive flash-attention-2 selection, delete this line.
         model_kwargs["attn_implementation"] = "sdpa"
-
-        if family == "modernbert":
-            config_kwargs["reference_compile"] = _MSVC_AVAILABLE
 
         tokenizer_kwargs = {
             "model_max_length": self.max_seq_length,
@@ -382,8 +395,7 @@ class DirectEmbeddingModel:
             device=self.device,
             trust_remote_code=True,
             model_kwargs=model_kwargs,
-            tokenizer_kwargs=tokenizer_kwargs,
-            config_kwargs=config_kwargs,
+            processor_kwargs=tokenizer_kwargs,
         )
 
         self.model.max_seq_length = self.max_seq_length
