@@ -49,16 +49,14 @@ def _load_normalize_with_known_keys(cls, model_name_or_path="", subfolder="", to
 
 Normalize.load = classmethod(_load_normalize_with_known_keys)
 
-# TEMPORARY WORKAROUND - remove once PyTorch fixes the bug below (or transformers stops passing stride-0 K/V).
-# PyTorch's memory-efficient SDPA kernel (seen on torch 2.9.0 + CUDA) returns a wrong output for the last query
-# position when K and V are both stride-0 expanded views, an explicit causal mask is passed, and the sequence
-# length is one more than a multiple of its key block (33, 65, 97, ... for head_dim 256; 65, 129, ... for head_dim
-# 64/128). transformers' repeat_kv produces exactly those views for models with a single KV head whenever a
-# padded batch carries an attention mask, so Harrier-270m (last-token pooling) got corrupted vectors for the
-# full-length rows of such batches. Copying K/V to contiguous memory avoids the bug and leaves every other model
-# bit-identical. To check whether it is still needed: compare F.scaled_dot_product_attention with the
-# EFFICIENT_ATTENTION and MATH backends on q (1, 4, 97, 256), k/v torch.randn(1, 1, 97, 256).expand(1, 4, 97, 256)
-# and a tril boolean mask.
+# TEMPORARY WORKAROUND - remove after upgrading torch to 2.14.0 or newer, which fixes the bug below
+# (pytorch/pytorch#191937, fixed by #191984 and #192138; transformers declined to add a workaround of its own).
+# PyTorch's memory-efficient SDPA kernel returns a wrong output for the last query position when K and V are
+# stride-0 expanded views and an explicit causal mask is passed, if the key length is one more than a multiple
+# of its key block (33, 65, 97, ... for head_dim 256; 65, 129, ... for head_dim 64/128). transformers' repeat_kv
+# produces exactly those views for single-KV-head models whenever a padded batch carries an attention mask, so
+# Harrier-270m got corrupted vectors for the full-length rows of such batches. Copying K/V to contiguous memory
+# avoids the bug and leaves every other model bit-identical.
 _stock_repeat_kv = sdpa_attention.repeat_kv
 
 
