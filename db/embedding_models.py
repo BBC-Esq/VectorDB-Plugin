@@ -12,6 +12,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import transformers.integrations.sdpa_attention as sdpa_attention
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.base.modules.normalize import Normalize
 from sentence_transformers.util import batch_to_device
@@ -47,6 +48,16 @@ def _load_normalize_with_known_keys(cls, model_name_or_path="", subfolder="", to
 
 
 Normalize.load = classmethod(_load_normalize_with_known_keys)
+
+_stock_repeat_kv = sdpa_attention.repeat_kv
+
+
+def _repeat_kv_contiguous(hidden_states, n_rep):
+    repeated = _stock_repeat_kv(hidden_states, n_rep)
+    return repeated.contiguous() if n_rep > 1 else repeated
+
+
+sdpa_attention.repeat_kv = _repeat_kv_contiguous
 
 
 @functools.lru_cache(maxsize=None)
