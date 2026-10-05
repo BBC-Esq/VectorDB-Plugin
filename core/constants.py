@@ -625,7 +625,7 @@ libs = [
     "compressed-rtf==1.0.7",
     "contourpy==1.3.3",
     "cryptography==48.0.0",  # major 46->48; only reverse cap (curl_cffi <47) is dev/test extra-gated (inactive); transitive dep
-    "ctranslate2==4.6.2",  # HOLD: whisper-s2t-reborn pins ctranslate2==4.6.2 exactly (4.7.2 exists); relax the WhisperS2T-reborn fork's pin first
+    "ctranslate2==4.8.2",
     "curl_cffi==0.15.0",
     "cycler==0.12.1",
     "dataclasses-json==0.6.7",
@@ -828,7 +828,7 @@ libs = [
     "wcwidth==0.7.0",
     "webdataset==1.0.2",
     "webencodings==0.5.1",
-    "whisper-s2t-reborn>=1.6.0,<2",
+    "whisper-s2t-reborn==1.7.2",
     "whisperspeech2>=1.0.0,<2",
     "win-unicode-console==0.5",
     "wrapt==2.2.1",  # major 1->2; coupled to Deprecated: 2.x needs Deprecated>=1.3.x (caps wrapt<3); Deprecated 1.2.x capped wrapt<2
