@@ -14,6 +14,33 @@ from typing import Optional, Union
 from core.constants import KOKORO_VOICES
 
 _BULLET_PREFIX = re.compile(r'^[\s\-–—•·*>#+]+')
+_LIST_NUMBER = re.compile(r'^\d{1,3}[.)]\s+')
+_SENTENCE_END = re.compile(r'[.!?;]+["\'”’)\]]*(?=\s|$)')
+_DOTTED_ACRONYM = re.compile(r'(?:[a-z]\.)+[a-z]')
+_ABBREVIATIONS = {
+    'mr', 'mrs', 'ms', 'dr', 'prof', 'sr', 'jr', 'st', 'vs', 'v', 'no', 'nos', 'inc', 'ltd', 'co', 'corp',
+    'llc', 'dept', 'fig', 'approx', 'ga', 'app', 'ct', 'cir', 'supp', 'sec', 'art', 'ch', 'para', 'vol',
+    'jan', 'feb', 'mar', 'apr', 'jun', 'jul', 'aug', 'sep', 'sept', 'oct', 'nov', 'dec',
+}
+
+
+def _is_abbreviation(word: str) -> bool:
+    word = word.lower().lstrip('("\'“‘[')
+    return (len(word) == 1 and word.isalpha()) or bool(_DOTTED_ACRONYM.fullmatch(word)) or word in _ABBREVIATIONS
+
+
+def split_sentences(text: str) -> list:
+    sentences = []
+    for line in text.splitlines():
+        line = re.sub(r'\s+', ' ', _LIST_NUMBER.sub('', _BULLET_PREFIX.sub('', line))).strip()
+        start = 0
+        for match in _SENTENCE_END.finditer(line):
+            if match.group().rstrip('"\'”’)]') == '.' and _is_abbreviation(line[start:match.start()].rsplit(' ', 1)[-1]):
+                continue
+            sentences.append(line[start:match.start()])
+            start = match.end()
+        sentences.append(line[start:])
+    return [sentence.strip() for sentence in sentences if re.search(r'\w', sentence)]
 
 
 def _make_direct_espeak(repo_path: Path):
@@ -191,15 +218,6 @@ class KokoroTTS:
                     print(f"Audio queue error: {e}")
                 break
 
-    @staticmethod
-    def split_sentences(text: str) -> list:
-        sentences = []
-        for part in re.split(r'[.!?;]+\s*|\n+', text):
-            part = re.sub(r'\s+', ' ', _BULLET_PREFIX.sub('', part)).strip()
-            if re.search(r'\w', part):
-                sentences.append(part)
-        return sentences
-
     def speak(self,
              text: str,
              voice: str = 'bm_george',
@@ -220,7 +238,7 @@ class KokoroTTS:
 
         self._load_model_and_voice(voice)
 
-        sentences = self.split_sentences(text)
+        sentences = split_sentences(text)
 
         process_thread = threading.Thread(
             target=self._process_sentences,

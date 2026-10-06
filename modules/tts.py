@@ -18,6 +18,7 @@ from gtts.tokenizer import pre_processors, tokenizer_cases
 
 from core.utilities import my_cprint, quiet_transformers_loading_bars
 from core.constants import WHISPER_SPEECH_MODELS, PROJECT_ROOT
+from modules.kokoro import split_sentences
 
 quiet_transformers_loading_bars()
 
@@ -76,7 +77,7 @@ class BaseAudio:
         try:
             with open(input_text_file, 'r', encoding='utf-8') as file:
                 input_text = file.read()
-                sentences = re.split(r'[.!?;]+\s*', input_text)
+                sentences = split_sentences(input_text)
         except Exception as e:
             print(f"Error reading {input_text_file}: {e}")
             return
