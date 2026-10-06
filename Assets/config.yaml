@@ -45,16 +45,6 @@ server:
   api_key: ''
   connection_str: http://localhost:1234/v1
   show_thinking: false
-transcribe_file:
-  device: cpu
-  file: null
-  model: whisper-small-en
-  quant: float32
-  timestamps: true
-transcriber:
-  device: cpu
-  model: whisper-small.en
-  quant: float32
 tts:
   model: googletts
   s2a:
