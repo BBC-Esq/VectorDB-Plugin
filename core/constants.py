@@ -625,7 +625,6 @@ libs = [
     "async-timeout==5.0.1",
     "attrs==26.1.0",
     "av==16.0.1",
-    "backoff==2.2.1",
     # kept at 4.14.3 (NOT lowered): unstructured 0.20.8 requires bs4>=4.14.3 (central doc parser) vs extract-msg's
     # conservative bs4<4.14 cap - mutually exclusive, so we favor unstructured. extract-msg's cap assumed stale until
     # contrary evidence (msg-extractor#469: open, no maintainer reply, no reports of newer bs4 breaking .msg); bs4 was
@@ -633,11 +632,9 @@ libs = [
     "beautifulsoup4==4.14.3",
     "bitsandbytes==0.50.2",
     "braceexpand==0.1.7",
-    "cachebox==5.2.3",  # added for deepdiff 9.x (new mandatory dep)
     "certifi==2026.5.20",
     "cfgv==3.5.0",
     "cffi==2.0.0",
-    "chardet==7.4.3",  # major 5->7, but not imported by app code; only reverse cap (requests <6) is extra-gated & inactive
     "charset-normalizer==3.4.7",
     "git+https://github.com/BBC-Esq/chatterbox-light",
     "chattts==0.2.5",
@@ -652,9 +649,7 @@ libs = [
     "ctranslate2==4.8.2",
     "curl_cffi==0.15.0",
     "cycler==0.12.1",
-    "dataclasses-json==0.6.7",
     "datasets==4.8.5",
-    "deepdiff==9.1.0",  # 8->9 added mandatory dep cachebox (added to libs above)
     "Deprecated==1.3.1",
     "deprecation==2.1.0",
     "diffusers==0.40.0",
@@ -667,14 +662,11 @@ libs = [
     "ebcdic==1.1.1",  # HOLD at <2: extract-msg 0.55.0 (latest, the .msg loader) requires ebcdic<2; 2.x breaks pip check / .msg handling
     "einops==0.8.2",
     "einx==0.3.0",
-    "emoji==2.15.0",
     "encodec==0.1.1",
     "et-xmlfile==2.0.0",
-    "eval-type-backport==0.4.0",
     "extract-msg==0.55.0",
     "fastcore==1.13.2",
     "fastprogress==1.0.5",  # capped at 1.0.5: 1.1.0+ adds mandatory python-fasthtml (drags in a starlette/uvicorn web stack); only whisperspeech2 uses it (accepts any)
-    "filetype==1.2.0",
     "filelock==3.29.0",
     "fonttools==4.63.0",
     "frozendict==2.4.7",
@@ -687,7 +679,6 @@ libs = [
     "h11==0.16.0",
     "h5py==3.16.0",
     "hf-xet==1.6.0",
-    "html5lib==1.1",
     "httpcore==1.0.9",
     "httpx==0.28.1",
     "httpx-sse==0.4.3",
@@ -702,7 +693,6 @@ libs = [
     "jiter==0.15.0",
     "joblib==1.5.3",
     "jsonpatch==1.33",
-    "jsonpath-python==1.1.6",
     "jsonpointer==3.1.1",
     "jsonschema==4.26.0",
     "jsonschema-specifications==2025.9.1",
@@ -713,7 +703,6 @@ libs = [
     "Markdown==3.10.2",
     "markdown-it-py==4.2.0",
     "MarkupSafe==3.0.3",
-    "marshmallow==3.26.2",  # capped at 3.x: dataclasses-json 0.6.7 (already latest) requires marshmallow<4.0.0; 4.x blocked
     "matplotlib==3.10.9",
     "mdurl==0.1.2",
     "ml-dtypes==0.5.4",
@@ -722,13 +711,10 @@ libs = [
     "msoffcrypto-tool==6.0.0",
     "multidict==6.7.1",
     "multiprocess==0.70.19",  # coupled to datasets: needs datasets cap multiprocess<0.70.20 (datasets 4.8.5 OK; datasets<=4.3 capped <0.70.17); pairs with dill 0.4.1
-    "mypy-extensions==1.1.0",
     "narwhals==2.22.0",  # added for scikit-learn 1.9.x (new mandatory dep; zero deps)
     "natsort==8.4.0",
-    "nest-asyncio==1.6.0",
     "networkx==3.6.1",
     "nodeenv==1.10.0",
-    "nltk==3.9.4",
     "num2words==0.5.14",
     "numba==0.65.1",  # locked to llvmlite 0.47.x; caps numpy<2.5 (raised from 0.62.1's <2.4, which unblocks numpy 2.4.6)
     "numpy==2.3.4",  # HOLD at 2.3.4: numpy 2.4.6 possibly corrupts the heap during large TileDB builds (~1.9M chunks), causing an access violation in _create_tiledb_array (confirmed by bisection). Do not bump until that 2.4 regression is fixed upstream. numba 0.65.1 caps numpy<2.5 regardless.
@@ -749,8 +735,6 @@ libs = [
     "opentelemetry-semantic-conventions==0.63b1",  # pinned to match opentelemetry-api/sdk 1.42.1 (was unpinned and had drifted to a mismatched 0.62b1)
     "opentelemetry-exporter-otlp-proto-common==1.42.1",
     "opentelemetry-proto==1.42.1",
-    "ordered-set==4.1.0",
-    "orderly-set==5.5.0",
     "orjson==3.11.9",
     "overrides==7.7.0",
     "packaging==26.2",
@@ -780,22 +764,16 @@ libs = [
     "PyOpenGL-accelerate==3.1.10",
     "pypandoc==1.17",
     "pyparsing==3.3.2",
-    "pypdf==6.12.2",
-    "pypdfium2==5.9.0",  # added for unstructured-client 0.44.x (also needed by ocrmypdf 17 if adopted); terminal, zero deps
     "pyreadline3==3.5.6",
     "python-dateutil==2.9.0.post0",
     "python-docx==1.2.0",
     "python-dotenv==1.2.2",
-    "python-iso639==2026.4.20",
-    "python-magic==0.4.27",
     "pytz==2026.2",
     "PyYAML==6.0.3",
-    "rapidfuzz==3.14.5",
     "red-black-tree-mod==1.22",
     "referencing==0.37.0",
     "regex==2026.5.9",
     "requests==2.34.2",
-    "requests-toolbelt==1.0.0",
     "rpds-py==2026.5.1",  # used internally by jsonschema + referencing (not imported by app code); pinned (was unpinned)
     "rich==15.0.0",
     "RTFDE==0.1.2.2",
@@ -834,7 +812,6 @@ libs = [
     "typer==0.27.2",
     "typing-inspection==0.4.2",
     "typing_extensions==4.15.0",
-    "unstructured-client==0.44.1",
     "virtualenv==20.35.3",  # held at 20.x: 21.x is a major bump needing new dep python-discovery; dev-only tool (pre-commit hooks), not app runtime - low value
     "tzdata==2026.2",
     "tzlocal==5.3.1",
@@ -844,7 +821,6 @@ libs = [
     "watchdog==6.0.0",
     "wcwidth==0.7.0",
     "webdataset==1.0.2",
-    "webencodings==0.5.1",
     "whisper-s2t-reborn==1.7.2",
     "whisperspeech2>=1.0.0,<2",
     "win-unicode-console==0.5",
@@ -868,7 +844,6 @@ libs = [
 full_install_libs = [
     "PySide6==6.11.1",
     "pymupdf==1.27.2.3",
-    "unstructured==0.20.8",  # capped at 0.20.8 (highest pre-spaCy): 0.21.0+ makes spacy mandatory -> drags in ~19 pkgs (spacy/thinc/blis/cymem/srsly/typer/smart_open/etc.) + wrapt 2.x; app only does text extraction, not NLP
 ]
 
 BACKEND_DEPENDENCIES = {
@@ -2040,24 +2015,6 @@ WHISPER_MODELS = {
         'optimal_batch_size': 31,
         'vram': '0.55 GB'
     },
-}
-
-DOCUMENT_LOADERS = {
-    ".pdf": "CustomPyMuPDFLoader",
-    ".docx": "Docx2txtLoader",
-    ".txt": "TextLoader",
-    ".enex": "EverNoteLoader",
-    ".epub": "UnstructuredEPubLoader",
-    ".eml": "UnstructuredEmailLoader",
-    ".msg": "UnstructuredEmailLoader",
-    ".csv": "CSVLoader",
-    ".xls": "UnstructuredExcelLoader",
-    ".xlsx": "UnstructuredExcelLoader",
-    ".xlsm": "UnstructuredExcelLoader",
-    ".rtf": "UnstructuredRTFLoader",
-    ".odt": "UnstructuredODTLoader",
-    ".md": "UnstructuredMarkdownLoader",
-    ".html": "BSHTMLLoader",
 }
 
 THINKING_TAGS = {

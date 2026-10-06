@@ -856,8 +856,6 @@ def set_logging_level():
         "torchaudio": logging.WARNING,
         "torchvision": logging.WARNING,
         "transformers": logging.WARNING,
-        "unstructured": logging.WARNING,
-        "unstructured-client": logging.WARNING,
         "vector-quantize-pytorch": logging.WARNING,
         "vocos": logging.WARNING
     }
