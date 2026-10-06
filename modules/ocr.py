@@ -5,6 +5,7 @@ import hashlib
 import tempfile
 import threading
 import queue
+import sys
 import time
 from pathlib import Path
 from io import BytesIO
@@ -23,6 +24,13 @@ import tesserocr
 from ocrmypdf.hocrtransform import HocrTransform
 import tqdm
 from typing import Union, List, Tuple
+
+# TEMPORARY WORKAROUND - remove once the tesserocr Windows wheels stop registering their bundled cysignals as the
+# top-level module "cysignals.signals" without a "cysignals" parent package (introduced in tesserocr 2.10.0).
+# When PySide6 formats the error for a Qt call made with a wrong argument type, shiboken re-imports every binary
+# module in sys.modules; the missing parent made that fail, so the whole program aborted instead of raising TypeError.
+if "cysignals" not in sys.modules and "tesserocr.cysignals" in sys.modules:
+    sys.modules["cysignals"] = sys.modules["tesserocr.cysignals"]
 
 thread_local = threading.local()
 
