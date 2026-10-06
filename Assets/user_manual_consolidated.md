@@ -708,6 +708,18 @@ the Harrier family an excellent choice when your documents or questions span mor
 non-English, the Harrier models are among the strongest options in this program; for English-only collections the lighter BGE,
 Intfloat, or ModernBERT models may give you similar quality at a lower compute cost.
 
+### What is the Jasper Token Compression Embedding Model?
+Jasper-Token-Compression-600M is a 0.6-billion parameter embedding model released in November 2025 under the permissive MIT
+license by Dun Zhang, the author of the earlier Stella and Jasper embedding models. It is built on Qwen3-Embedding-0.6B and was
+trained to mimic two much larger embedding models, Qwen3-Embedding-8B and QZhou-Embedding, followed by additional training to
+improve search results. It produces 2048-dimensional embeddings and scores close to the 8-billion parameter Qwen3 model on the
+English and Chinese MTEB benchmarks. Its distinguishing feature is token compression: before a chunk longer than 80 tokens reaches
+the model's attention layers, everything after the first 80 tokens is averaged down to about half as many tokens. This makes it
+noticeably faster than a traditional 0.6-billion parameter model, especially for longer chunks, while using less memory. It
+supports English and Chinese, is offered in CPU-only mode, and, like the Qwen3 models, automatically adds a short instruction to
+your search queries. It was trained on texts of up to roughly 1,000 tokens, so it works best with normal chunk sizes. On older
+NVIDIA GPUs that do not support bfloat16 it runs in full precision even when the "half" checkbox is checked.
+
 ### What are the ModernBERT (Free Law Project) Embedding Models?
 These embedding models were fine-tuned by the Free Law Project, a non-profit focused on legal data, and are built on ModernBERT, a
 modernized successor to the original BERT architecture that offers faster inference and a longer context. This program offers two

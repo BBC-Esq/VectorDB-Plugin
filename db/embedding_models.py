@@ -108,6 +108,8 @@ def _get_model_family(model_path: str) -> str:
     model_path_lower = os.path.basename(str(model_path).rstrip("/\\")).lower()
     if "harrier" in model_path_lower:
         return "harrier"
+    if "jasper" in model_path_lower:
+        return "jasper"
     if "qwen" in model_path_lower or "qwen3-embedding" in model_path_lower or "octen" in model_path_lower:
         return "qwen"
     if "bge" in model_path_lower:
@@ -122,6 +124,8 @@ def _get_prompt_for_family(family: str, is_query: bool = False) -> str:
         return "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:"
     if family == "bge" and is_query:
         return "Represent this sentence for searching relevant passages: "
+    if family == "jasper" and is_query:
+        return "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
     return ""
 
 
@@ -150,6 +154,7 @@ def _normalize_text(text: str) -> str:
 ENCODE_BATCH_SIZE_BY_MODEL = {
     "harrier-oss-v1-270m": 50,
     "harrier-oss-v1-0.6b": 14,
+    "Jasper-Token-Compression-600M": 14,
     "bge-small-en-v1.5": 100,
     "bge-base-en-v1.5": 80,
     "bge-large-en-v1.5": 50,
@@ -373,7 +378,7 @@ class DirectEmbeddingModel:
         self._initialize_model()
 
     def _resolve_padding_side(self, family):
-        if family == "qwen":
+        if family in ("qwen", "jasper"):
             return "left"
         return None
 
@@ -632,7 +637,7 @@ def create_embedding_model(
             is_query=is_query,
         )
 
-    if family == "qwen":
+    if family in ("qwen", "jasper"):
         max_seq_length = 8192
     elif family == "modernbert":
         max_seq_length = 8192 if "8192" in model_name else 512

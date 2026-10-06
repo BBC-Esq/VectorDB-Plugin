@@ -29,6 +29,7 @@ class VectorModelsTab(QWidget):
            'Google': 2,
            'Microsoft': 3,
            'intfloat': 4,
+           'infgrad': 2,
            'Qwen': 4,
            'Octen': 4,
            'FreeLawProject': 3,

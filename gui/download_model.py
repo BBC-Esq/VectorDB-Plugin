@@ -154,6 +154,8 @@ class ModelDownloader(QObject):
             final_ignore.append("*consolidated*")
         if allow_patterns is None:
             allow_patterns = ["*.json", "*.safetensors", "*.bin", "*.model", "tokenizer*", "vocab*", "merges.txt", "config.yaml", "modules.json", "1_Pooling/*", "sentencepiece.*", "spiece.*"]
+            if isinstance(self.model_info, dict) and self.model_info.get("custom_code"):
+                allow_patterns.append("*.py")
         return allow_patterns, final_ignore
 
     def _filter_and_size(self, repo_files, allow_patterns, ignore_patterns):

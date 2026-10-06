@@ -1215,6 +1215,23 @@ VECTOR_MODELS = {
             'license': 'mit',
         },
     ],
+    'infgrad': [
+        {
+            'name': 'Jasper-Token-Compression-600M',
+            'dimensions': 2048,
+            'max_sequence': 8192,
+            'size_mb': 1215,
+            'repo_id': 'infgrad/Jasper-Token-Compression-600M',
+            'cache_dir': 'infgrad--Jasper-Token-Compression-600M',
+            'type': 'vector',
+            'parameters': '607m',
+            'precision': 'bfloat16',
+            'rank': 2,
+            'license': 'mit',
+            'fp16_unsafe': True,
+            'custom_code': True,
+        },
+    ],
     'Qwen': [
         {
             'name': 'Qwen3-Embedding-0.6B',
