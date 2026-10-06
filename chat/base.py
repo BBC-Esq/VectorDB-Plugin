@@ -19,7 +19,6 @@ from huggingface_hub import HfApi
 
 from PySide6.QtCore import Signal, QObject
 
-import core.sdpa_workarounds
 from core.constants import CHAT_MODELS, system_message, rag_string, PROJECT_ROOT
 from core.utilities import my_cprint, has_bfloat16_support, format_citations, quiet_transformers_loading_bars
 

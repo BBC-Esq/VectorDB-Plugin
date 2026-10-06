@@ -15,7 +15,6 @@ from sentence_transformers import SentenceTransformer
 from sentence_transformers.base.modules.normalize import Normalize
 from sentence_transformers.util import batch_to_device
 
-import core.sdpa_workarounds
 from core.config import get_config
 from core.utilities import (
     get_embedding_dtype_and_batch,
