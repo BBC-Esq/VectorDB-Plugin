@@ -1291,6 +1291,25 @@ VECTOR_MODELS = {
             'license': 'apache-2.0',
         },
     ],
+    'codefuse-ai': [
+        {
+            'name': 'F2LLM-v2-1.7B',
+            'dimensions': 2048,
+            'max_sequence': 8192,
+            'size_mb': 3441,
+            'repo_id': 'codefuse-ai/F2LLM-v2-1.7B',
+            'cache_dir': 'codefuse-ai--F2LLM-v2-1.7B',
+            'type': 'vector',
+            'parameters': '1720m',
+            'precision': 'bfloat16',
+            'multilingual_retrieval': 'N/A',
+            'english_retrieval': 'N/A',
+            'rteb_legal': 'N/A',
+            'mteb_code': 78.76,
+            'code_information_retrieval': 78.50,
+            'license': 'apache-2.0',
+        },
+    ],
     'Qwen': [
         {
             'name': 'Qwen3-Embedding-0.6B',
