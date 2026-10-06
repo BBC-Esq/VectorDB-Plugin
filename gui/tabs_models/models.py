@@ -30,6 +30,7 @@ class VectorModelsTab(QWidget):
            'Microsoft': 3,
            'intfloat': 4,
            'infgrad': 2,
+           'IEITYuan': 2,
            'Qwen': 4,
            'Octen': 4,
            'FreeLawProject': 3,

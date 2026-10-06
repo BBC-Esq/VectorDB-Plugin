@@ -1272,6 +1272,25 @@ VECTOR_MODELS = {
             'custom_code': True,
         },
     ],
+    'IEITYuan': [
+        {
+            'name': 'Yuan-embedding-2.0-en',
+            'dimensions': 1024,
+            'max_sequence': 8192,
+            'size_mb': 1192,
+            'repo_id': 'IEITYuan/Yuan-embedding-2.0-en',
+            'cache_dir': 'IEITYuan--Yuan-embedding-2.0-en',
+            'type': 'vector',
+            'parameters': '596m',
+            'precision': 'bfloat16',
+            'multilingual_retrieval': 'N/A',
+            'english_retrieval': 70.69,
+            'rteb_legal': 'N/A',
+            'mteb_code': 'N/A',
+            'code_information_retrieval': 'N/A',
+            'license': 'apache-2.0',
+        },
+    ],
     'Qwen': [
         {
             'name': 'Qwen3-Embedding-0.6B',

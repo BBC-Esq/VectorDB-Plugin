@@ -110,7 +110,7 @@ def _get_model_family(model_path: str) -> str:
         return "harrier"
     if "jasper" in model_path_lower:
         return "jasper"
-    if "qwen" in model_path_lower or "qwen3-embedding" in model_path_lower or "octen" in model_path_lower:
+    if "qwen" in model_path_lower or "qwen3-embedding" in model_path_lower or "octen" in model_path_lower or "yuan" in model_path_lower:
         return "qwen"
     if "bge" in model_path_lower:
         return "bge"
@@ -155,6 +155,7 @@ ENCODE_BATCH_SIZE_BY_MODEL = {
     "harrier-oss-v1-270m": 50,
     "harrier-oss-v1-0.6b": 14,
     "Jasper-Token-Compression-600M": 14,
+    "Yuan-embedding-2.0-en": 14,
     "bge-small-en-v1.5": 100,
     "bge-base-en-v1.5": 80,
     "bge-large-en-v1.5": 50,
