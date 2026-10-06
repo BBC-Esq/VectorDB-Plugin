@@ -8,7 +8,7 @@ chunks from your data and have the chat model incorporate them into its answer.
 
 ### What are the system requirements and prerequisites?
 System Requirements for VectorDB-Plugin include a Windows operating system (Windows 10 or 11) and Python (version 3.11, 3.12, 3.13
-or 3.14, but not a free-threaded build). You should also have Git installed (with Git LFS for handling large model files) and Pandoc (a document converter).
+or 3.14, but not a free-threaded build). You should also have Git installed (with Git LFS for handling large model files).
 If you plan to use GPU acceleration or certain models, you'll need a suitable C++ compiler and possibly Visual Studio build tools
 on Windows. An NVIDIA GPU (a GeForce GTX 16-series or RTX 20-series card or newer) is optional but greatly speeds up embedding and
 model inference. Without one, the program installs in CPU-only mode, which works but is slower and offers fewer models. Make sure

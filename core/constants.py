@@ -762,7 +762,6 @@ libs = [
     "Pygments==2.20.0",
     "PyOpenGL==3.1.10",
     "PyOpenGL-accelerate==3.1.10",
-    "pypandoc==1.17",
     "pyparsing==3.3.2",
     "pyreadline3==3.5.6",
     "python-dateutil==2.9.0.post0",
