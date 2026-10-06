@@ -1328,6 +1328,27 @@ VECTOR_MODELS = {
             'license': 'apache-2.0',
         },
     ],
+    'geevec-ai': [
+        {
+            'name': 'geevec-embeddings-1.0-lite',
+            'dimensions': 4096,
+            'max_sequence': 8192,
+            'size_mb': 732,
+            'repo_id': 'geevec-ai/geevec-embeddings-1.0-lite',
+            'cache_dir': 'geevec-ai--geevec-embeddings-1.0-lite',
+            'type': 'vector',
+            'parameters': '366m',
+            'precision': 'bfloat16',
+            'multilingual_retrieval': 70.91,
+            'english_retrieval': 62.23,
+            'rteb_legal': 'N/A',
+            'mteb_code': 'N/A',
+            'code_information_retrieval': 'N/A',
+            'license': 'apache-2.0',
+            'fp16_unsafe': True,
+            'custom_code': True,
+        },
+    ],
     'Qwen': [
         {
             'name': 'Qwen3-Embedding-0.6B',

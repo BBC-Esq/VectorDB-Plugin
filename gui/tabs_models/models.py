@@ -32,6 +32,7 @@ class VectorModelsTab(QWidget):
            'infgrad': 2,
            'IEITYuan': 2,
            'codefuse-ai': 3,
+           'geevec-ai': 2,
            'Qwen': 4,
            'Octen': 4,
            'FreeLawProject': 3,

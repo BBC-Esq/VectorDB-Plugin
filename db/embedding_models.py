@@ -112,6 +112,8 @@ def _get_model_family(model_path: str) -> str:
         return "jasper"
     if "f2llm" in model_path_lower:
         return "f2llm"
+    if "geevec" in model_path_lower:
+        return "geevec"
     if "qwen" in model_path_lower or "qwen3-embedding" in model_path_lower or "octen" in model_path_lower or "yuan" in model_path_lower:
         return "qwen"
     if "bge" in model_path_lower:
@@ -130,6 +132,8 @@ def _get_prompt_for_family(family: str, is_query: bool = False) -> str:
         return "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
     if family == "f2llm" and is_query:
         return "Instruct: Given a question, retrieve passages that can help answer the question.\nQuery: "
+    if family == "geevec" and is_query:
+        return "Instruct: Given a question, retrieve passages that answer the question.\nQuery: "
     return ""
 
 
@@ -162,6 +166,7 @@ ENCODE_BATCH_SIZE_BY_MODEL = {
     "Yuan-embedding-2.0-en": 14,
     "F2LLM-v2-1.7B": 14,
     "F2LLM-v2-4B": 6,
+    "geevec-embeddings-1.0-lite": 14,
     "bge-small-en-v1.5": 100,
     "bge-base-en-v1.5": 80,
     "bge-large-en-v1.5": 50,
@@ -385,7 +390,7 @@ class DirectEmbeddingModel:
         self._initialize_model()
 
     def _resolve_padding_side(self, family):
-        if family in ("qwen", "jasper", "f2llm"):
+        if family in ("qwen", "jasper", "f2llm", "geevec"):
             return "left"
         return None
 
@@ -409,6 +414,13 @@ class DirectEmbeddingModel:
 
         # Force sdpa for now. flash-attn was NOT the cause of the earlier large-build crashes (that was numpy 2.4.6, now pinned to 2.3.4); this is kept only out of caution. To re-enable adaptive flash-attention-2 selection, delete this line.
         model_kwargs["attn_implementation"] = "sdpa"
+
+        # TEMPORARY WORKAROUND - remove once geevec-embeddings-1.0-lite's custom code supports transformers 5.
+        # Its modeling_qwen3_pseudo_moe.py declares `_tied_weights_keys = []` (the transformers 4 list format) while
+        # its config.json sets tie_word_embeddings=True, so transformers 5 crashes in post_init() expecting a dict.
+        # The model has no output head to tie, so disabling tying loads every weight and leaves the vectors unchanged.
+        if family == "geevec":
+            model_kwargs["tie_word_embeddings"] = False
 
         tokenizer_kwargs = {
             "model_max_length": self.max_seq_length,
@@ -644,7 +656,7 @@ def create_embedding_model(
             is_query=is_query,
         )
 
-    if family in ("qwen", "jasper", "f2llm"):
+    if family in ("qwen", "jasper", "f2llm", "geevec"):
         max_seq_length = 8192
     elif family == "modernbert":
         max_seq_length = 8192 if "8192" in model_name else 512
