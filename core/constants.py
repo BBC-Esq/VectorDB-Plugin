@@ -1826,193 +1826,121 @@ WHISPER_MODELS = {
         'name': 'Distil Whisper large-v3',
         'precision': 'float32',
         'repo_id': 'ctranslate2-4you/distil-whisper-large-v3-ct2-float32',
-        'cps': 160,
-        'optimal_batch_size': 4,
-        'vram': '3.0 GB'
     },
     'Distil Whisper large-v3 - bfloat16': {
         'name': 'Distil Whisper large-v3',
         'precision': 'bfloat16',
         'repo_id': 'ctranslate2-4you/distil-whisper-large-v3-ct2-bfloat16',
-        'cps': 160,
-        'optimal_batch_size': 4,
-        'vram': '3.0 GB'
     },
     'Distil Whisper large-v3 - float16': {
         'name': 'Distil Whisper large-v3',
         'precision': 'float16',
         'repo_id': 'ctranslate2-4you/distil-whisper-large-v3-ct2-float16',
-        'cps': 160,
-        'optimal_batch_size': 4,
-        'vram': '3.0 GB'
     },
     'Whisper large-v3 - float32': {
         'name': 'Whisper large-v3',
         'precision': 'float32',
         'repo_id': 'ctranslate2-4you/whisper-large-v3-ct2-float32',
-        'cps': 85,
-        'optimal_batch_size': 2,
-        'vram': '5.5 GB'
     },
     'Whisper large-v3 - bfloat16': {
         'name': 'Whisper large-v3',
         'precision': 'bfloat16',
         'repo_id': 'ctranslate2-4you/whisper-large-v3-ct2-bfloat16',
-        'cps': 95,
-        'optimal_batch_size': 3,
-        'vram': '3.8 GB'
     },
     'Whisper large-v3 - float16': {
         'name': 'Whisper large-v3',
         'precision': 'float16',
         'repo_id': 'ctranslate2-4you/whisper-large-v3-ct2-float16',
-        'cps': 100,
-        'optimal_batch_size': 3,
-        'vram': '3.3 GB'
     },
     'Distil Whisper medium.en - float32': {
         'name': 'Distil Whisper medium.en',
         'precision': 'float32',
         'repo_id': 'ctranslate2-4you/distil-whisper-medium.en-ct2-float32',
-        'cps': 160,
-        'optimal_batch_size': 4,
-        'vram': '3.0 GB'
     },
     'Distil Whisper medium.en - bfloat16': {
         'name': 'Distil Whisper medium.en',
         'precision': 'bfloat16',
         'repo_id': 'ctranslate2-4you/distil-whisper-medium.en-ct2-bfloat16',
-        'cps': 160,
-        'optimal_batch_size': 4,
-        'vram': '3.0 GB'
     },
     'Distil Whisper medium.en - float16': {
         'name': 'Distil Whisper medium.en',
         'precision': 'float16',
         'repo_id': 'ctranslate2-4you/distil-whisper-medium.en-ct2-float16',
-        'cps': 160,
-        'optimal_batch_size': 4,
-        'vram': '3.0 GB'
     },
     'Whisper medium.en - float32': {
         'name': 'Whisper medium.en',
         'precision': 'float32',
         'repo_id': 'ctranslate2-4you/whisper-medium.en-ct2-float32',
-        'cps': 130,
-        'optimal_batch_size': 6,
-        'vram': '2.5 GB'
     },
     'Whisper medium.en - bfloat16': {
         'name': 'Whisper medium.en',
         'precision': 'bfloat16',
         'repo_id': 'ctranslate2-4you/whisper-medium.en-ct2-bfloat16',
-        'cps': 140,
-        'optimal_batch_size': 7,
-        'vram': '2.0 GB'
     },
     'Whisper medium.en - float16': {
         'name': 'Whisper medium.en',
         'precision': 'float16',
         'repo_id': 'ctranslate2-4you/whisper-medium.en-ct2-float16',
-        'cps': 145,
-        'optimal_batch_size': 7,
-        'vram': '1.8 GB'
     },
     'Distil Whisper small.en - float32': {
         'name': 'Distil Whisper small.en',
         'precision': 'float32',
         'repo_id': 'ctranslate2-4you/distil-whisper-small.en-ct2-float32',
-        'cps': 160,
-        'optimal_batch_size': 4,
-        'vram': '3.0 GB'
     },
     'Distil Whisper small.en - bfloat16': {
         'name': 'Distil Whisper small.en',
         'precision': 'bfloat16',
         'repo_id': 'ctranslate2-4you/distil-whisper-small.en-ct2-bfloat16',
-        'cps': 160,
-        'optimal_batch_size': 4,
-        'vram': '3.0 GB'
     },
     'Distil Whisper small.en - float16': {
         'name': 'Distil Whisper small.en',
         'precision': 'float16',
         'repo_id': 'ctranslate2-4you/distil-whisper-small.en-ct2-float16',
-        'cps': 160,
-        'optimal_batch_size': 4,
-        'vram': '3.0 GB'
     },
     'Whisper small.en - float32': {
         'name': 'Whisper small.en',
         'precision': 'float32',
         'repo_id': 'ctranslate2-4you/whisper-small.en-ct2-float32',
-        'cps': 180,
-        'optimal_batch_size': 14,
-        'vram': '1.5 GB'
     },
     'Whisper small.en - bfloat16': {
         'name': 'Whisper small.en',
         'precision': 'bfloat16',
         'repo_id': 'ctranslate2-4you/whisper-small.en-ct2-bfloat16',
-        'cps': 190,
-        'optimal_batch_size': 15,
-        'vram': '1.2 GB'
     },
     'Whisper small.en - float16': {
         'name': 'Whisper small.en',
         'precision': 'float16',
         'repo_id': 'ctranslate2-4you/whisper-small.en-ct2-float16',
-        'cps': 195,
-        'optimal_batch_size': 15,
-        'vram': '1.1 GB'
     },
     'Whisper base.en - float32': {
         'name': 'Whisper base.en',
         'precision': 'float32',
         'repo_id': 'ctranslate2-4you/whisper-base.en-ct2-float32',
-        'cps': 230,
-        'optimal_batch_size': 22,
-        'vram': '1.0 GB'
     },
     'Whisper base.en - bfloat16': {
         'name': 'Whisper base.en',
         'precision': 'bfloat16',
         'repo_id': 'ctranslate2-4you/whisper-base.en-ct2-bfloat16',
-        'cps': 240,
-        'optimal_batch_size': 23,
-        'vram': '0.85 GB'
     },
     'Whisper base.en - float16': {
         'name': 'Whisper base.en',
         'precision': 'float16',
         'repo_id': 'ctranslate2-4you/whisper-base.en-ct2-float16',
-        'cps': 245,
-        'optimal_batch_size': 23,
-        'vram': '0.8 GB'
     },
     'Whisper tiny.en - float32': {
         'name': 'Whisper tiny.en',
         'precision': 'float32',
         'repo_id': 'ctranslate2-4you/whisper-tiny.en-ct2-float32',
-        'cps': 280,
-        'optimal_batch_size': 30,
-        'vram': '0.7 GB'
     },
     'Whisper tiny.en - bfloat16': {
         'name': 'Whisper tiny.en',
         'precision': 'bfloat16',
         'repo_id': 'ctranslate2-4you/whisper-tiny.en-ct2-bfloat16',
-        'cps': 290,
-        'optimal_batch_size': 31,
-        'vram': '0.6 GB'
     },
     'Whisper tiny.en - float16': {
         'name': 'Whisper tiny.en',
         'precision': 'float16',
         'repo_id': 'ctranslate2-4you/whisper-tiny.en-ct2-float16',
-        'cps': 295,
-        'optimal_batch_size': 31,
-        'vram': '0.55 GB'
     },
 }
 
