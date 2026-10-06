@@ -23,6 +23,7 @@ else:
     print("\nNo Triton cache found to clean.\n")
 
 import subprocess
+import sysconfig
 import time
 import tkinter as tk
 from tkinter import messagebox
@@ -82,7 +83,7 @@ def tkinter_message_box(title, message, type="info", yes_no=False):
 
 def check_python_version_and_confirm():
     major, minor = map(int, sys.version.split()[0].split('.')[:2])
-    if major == 3 and minor in [11, 12, 13]:
+    if major == 3 and minor in [11, 12, 13, 14] and not sysconfig.get_config_var("Py_GIL_DISABLED"):
         return tkinter_message_box(
             "Confirmation",
             f"Python version {sys.version.split()[0]} was detected, which is compatible.\n\nClick YES to proceed or NO to exit.",
@@ -91,7 +92,7 @@ def check_python_version_and_confirm():
     else:
         tkinter_message_box(
             "Python Version Error",
-            "This program requires Python 3.11, 3.12 or 3.13\n\nPython versions prior to 3.11 or after 3.14 are not yet supported.\n\nExiting the installer...",
+            "This program requires Python 3.11, 3.12, 3.13 or 3.14 (the standard build, not the free-threaded one).\n\nPython versions prior to 3.11 or after 3.14 are not yet supported.\n\nExiting the installer...",
             type="error"
         )
         return False

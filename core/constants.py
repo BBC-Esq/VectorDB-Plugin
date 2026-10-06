@@ -534,7 +534,7 @@ priority_libs = {
             "https://download.pytorch.org/whl/cpu/torchaudio-2.11.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=abbff04127caf6e16e3a7c3e1ca2739b68899e14926d7cbec4bd8b40f72375d5",
         ],
         "COMMON": [
-            "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.9.1-tesseract-5.5.1/tesserocr-2.9.1-cp311-cp311-win_amd64.whl",
+            "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.10.0-tesseract-5.5.2/tesserocr-2.10.0-cp311-cp311-win_amd64.whl",
         ],
     },
     "cp312": {
@@ -558,7 +558,7 @@ priority_libs = {
             "https://download.pytorch.org/whl/cpu/torchaudio-2.11.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=95d517bd1a0a28dacd1c37550ced95cab64f3a7a4ef9b8219b41049388a71163",
         ],
         "COMMON": [
-            "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.9.1-tesseract-5.5.1/tesserocr-2.9.1-cp312-cp312-win_amd64.whl",
+            "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.10.0-tesseract-5.5.2/tesserocr-2.10.0-cp312-cp312-win_amd64.whl",
         ],
     },
     "cp313": {
@@ -582,7 +582,31 @@ priority_libs = {
             "https://download.pytorch.org/whl/cpu/torchaudio-2.11.0%2Bcpu-cp313-cp313-win_amd64.whl#sha256=fa0c22f58f60c3537b7d28ed2501e0995acb2a65d9af2708f21edaad67186cd8",
         ],
         "COMMON": [
-            "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.9.1-tesseract-5.5.1/tesserocr-2.9.1-cp313-cp313-win_amd64.whl",
+            "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.10.0-tesseract-5.5.2/tesserocr-2.10.0-cp313-cp313-win_amd64.whl",
+        ],
+    },
+    "cp314": {
+        "GPU": [
+            "https://download.pytorch.org/whl/cu130/torch-2.14.1%2Bcu130-cp314-cp314-win_amd64.whl#sha256=e25757e423be3c107a36d7495fa5aeb021b9ab506457cd7c7e068505f0283ae0",
+            "https://download.pytorch.org/whl/cu130/torchvision-0.29.1%2Bcu130-cp314-cp314-win_amd64.whl#sha256=cfaecff5634e92989938b3da084e3f624d5ce8179446f42abf50c425cadd8a63",
+            "https://download.pytorch.org/whl/cu130/torchaudio-2.11.0%2Bcu130-cp314-cp314-win_amd64.whl#sha256=b345401d76a371031b2fe965bd9579b9621c9d87902ee3e586be665df04c179e",
+            "triton-windows==3.8.0.post29",
+            "nvidia-cuda-runtime==13.2.86",
+            "nvidia-cublas==13.4.1.3",
+            "nvidia-cuda-nvrtc==13.2.86",
+            "nvidia-cuda-nvcc==13.2.86",
+            "nvidia-cufft==12.2.0.57",
+            "nvidia-cudnn-cu13==9.24.0.43",
+            "nvidia-cublas-cu12==12.8.4.1",
+            "nvidia-ml-py==13.610.43",
+        ],
+        "CPU": [
+            "https://download.pytorch.org/whl/cpu/torch-2.14.1%2Bcpu-cp314-cp314-win_amd64.whl#sha256=a93db7947d53caab62c2436205a60ddf9c3150c2e09eb9b24610c1c3f4cbaf99",
+            "https://download.pytorch.org/whl/cpu/torchvision-0.29.1%2Bcpu-cp314-cp314-win_amd64.whl#sha256=502a45b518f801e4b2689e63c4d2085995e257c54002bc5a0e602093db95405d",
+            "https://download.pytorch.org/whl/cpu/torchaudio-2.11.0%2Bcpu-cp314-cp314-win_amd64.whl#sha256=be19f467eb7a173264653369426e7ecc4745e28d15f9c52eea2ad5316ec685eb",
+        ],
+        "COMMON": [
+            "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.10.0-tesseract-5.5.2/tesserocr-2.10.0-cp314-cp314-win_amd64.whl",
         ],
     },
 }
@@ -745,7 +769,7 @@ libs = [
     "protobuf==6.33.6",  # capped at 6.x: opentelemetry-proto (even latest 1.42.1) caps protobuf<7.0; 7.x blocked until opentelemetry raises it (googleapis 1.75.0 + onnx already allow 7)
     "psutil==7.2.2",
     "pyarrow==24.0.0",
-    "pybase16384==0.3.8",
+    "pybase16384==0.3.9",
     "pybase64==1.4.2",
     "pycparser==3.0",  # major 2->3; transitive (cffi dep, not used in app code); cffi accepts any pycparser
     "pydantic==2.13.4",  # locked trio with pydantic_core (exact match) + pydantic-settings; used directly by core/config.py AppConfig - TEST config load manually
@@ -850,7 +874,7 @@ full_install_libs = [
 BACKEND_DEPENDENCIES = {
     "kyutai": {
         "moshi": "0.2.13",
-        "sphn": "0.2.0"
+        "sphn": "0.2.1"
     },
     "kyutaipocket": {
         "pocket_tts": "2.0.0",

@@ -13,7 +13,7 @@
 | Tool                                                                                     | Purpose                                           |
 | ---------------------------------------------------------------------------------------- | ------------------------------------------------- |
 | 🪟 Microsoft Windows                                                                     | **Only** for Windows but open to pull requests |
-| 🐍 [Python 3.11–3.13](https://www.python.org/downloads/)                                 | Run the application                               |
+| 🐍 [Python 3.11–3.14](https://www.python.org/downloads/)                                 | Run the application                               |
 | 🌿 [Git](https://git-scm.com/downloads)                                                  | Clone / manage the repository                     |
 | 🧲 [Git LFS](https://git-lfs.com/)                                                       | Handle large model files                          |
 | 📄 [Pandoc](https://github.com/jgm/pandoc/releases)                                      | Document parsing support                          |
