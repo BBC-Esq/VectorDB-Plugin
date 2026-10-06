@@ -597,13 +597,10 @@ class DirectEmbeddingModel:
                 pass
 
     def embed_query(self, text: str) -> list:
-        if self.prompt:
-            text = self.prompt + text
-
         if not isinstance(text, str):
             text = str(text)
 
-        text = _normalize_text(text)
+        text = self.prompt + _normalize_text(text)
 
         embeddings = self._safe_encode([text])
         return embeddings[0].tolist() if len(embeddings) else []
