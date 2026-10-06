@@ -784,7 +784,8 @@ class KyutaiAudio(BaseAudio):
 
 class KyutaiPocketAudio(BaseAudio):
     REQUIRED_PACKAGES = {
-        "pocket_tts": "2.0.0"
+        "pocket_tts": "2.0.0",
+        "beartype": "0.22.9"
     }
 
     def __init__(self):
