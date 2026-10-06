@@ -638,6 +638,7 @@ libs = [
     "dill==0.4.1",  # coupled to datasets: 0.4.1 needs a datasets that caps dill<0.4.2 (datasets 4.8.5 OK; datasets<=4.3 capped dill<0.4.1)
     "distlib==0.4.1",
     "distro==1.9.0",
+    "docopt==0.6.2",
     "docx2txt==0.9",
     "easygui==0.98.3",
     "ebcdic==1.1.1",  # HOLD at <2: extract-msg 0.55.0 (latest, the .msg loader) requires ebcdic<2; 2.x breaks pip check / .msg handling
@@ -705,6 +706,7 @@ libs = [
     "networkx==3.6.1",
     "nodeenv==1.10.0",
     "nltk==3.9.4",
+    "num2words==0.5.14",
     "numba==0.65.1",  # locked to llvmlite 0.47.x; caps numpy<2.5 (raised from 0.62.1's <2.4, which unblocks numpy 2.4.6)
     "numpy==2.3.4",  # HOLD at 2.3.4: numpy 2.4.6 possibly corrupts the heap during large TileDB builds (~1.9M chunks), causing an access violation in _create_tiledb_array (confirmed by bisection). Do not bump until that 2.4 regression is fixed upstream. numba 0.65.1 caps numpy<2.5 regardless.
     # ocrmypdf capped at 16.13.0 (Option A): gets onto pikepdf 10.x with NO new deps and no pydantic change.

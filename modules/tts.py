@@ -1,6 +1,8 @@
 import queue
 import re
 import threading
+import unicodedata
+from decimal import Decimal
 from pathlib import Path
 
 import io
@@ -346,11 +348,19 @@ class WhisperSpeechAudio(BaseAudio):
 
 
 class ChatTTSAudio(BaseAudio):
+    NUMBER_PATTERN = re.compile(r"(\$)?(\d{1,3}(?:,\d{3})+|\d+)(\.\d+)?(?:(st|nd|rd|th)(?![A-Za-z]))?", re.IGNORECASE)
+    SYMBOL_WORDS = {
+        "%": " percent ", "&": " and ", "§": " section ", "@": " at ", "#": " number ", "+": " plus ",
+        "!": ". ", ";": ", ", ":": ", ", "(": ", ", ")": ", ", "<": ", ", ">": ", ", "-": ", ", "—": ", ", "–": ", ",
+    }
+    UNSUPPORTED_PATTERN = re.compile(r"[^\u4e00-\u9fffA-Za-z\s，。、,.]")
+
     def __init__(self):
         super().__init__()
 
-        global ChatTTS
+        global ChatTTS, num2words
         import ChatTTS
+        from num2words import num2words
 
         print("Initializing ChatTTSAudio...")
 
@@ -372,9 +382,9 @@ class ChatTTSAudio(BaseAudio):
 
         self.params_infer_code = ChatTTS.Chat.InferCodeParams(
             spk_emb=self.rand_spk,
-            temperature=0.7,
-            top_P=1,
-            top_K=40,
+            temperature=0.3,
+            top_P=0.7,
+            top_K=20,
             prompt='[speed_5]'
         )
 
@@ -385,6 +395,42 @@ class ChatTTSAudio(BaseAudio):
             top_K=20
         )
 
+    @staticmethod
+    def _spoken_number(match):
+        dollar, whole, fraction, ordinal = match.groups()
+        value = int(whole.replace(",", ""))
+        if dollar and fraction and len(fraction) <= 3:
+            cents = int(fraction[1:].ljust(2, "0"))
+            parts = []
+            if value or not cents:
+                parts.append(f"{num2words(value)} {'dollar' if value == 1 else 'dollars'}")
+            if cents:
+                parts.append(f"{num2words(cents)} {'cent' if cents == 1 else 'cents'}")
+            words = " and ".join(parts)
+        else:
+            if fraction:
+                words = num2words(Decimal(f"{value}{fraction}"))
+            elif ordinal:
+                words = num2words(value, to="ordinal")
+            elif not dollar and len(whole) == 4 and 1100 <= value <= 2099:
+                words = num2words(value, to="year")
+            else:
+                words = num2words(value)
+            if dollar:
+                words += " dollar" if value == 1 and not fraction else " dollars"
+        return f" {words.replace('-', ' ').replace(',', '')} "
+
+    @classmethod
+    def prepare_text(cls, text):
+        text = "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
+        text = re.sub(r"(?<=\d)-(?=\w)|(?<=\w)-(?=\d)", " ", text)
+        text = cls.NUMBER_PATTERN.sub(cls._spoken_number, text)
+        for symbol, words in cls.SYMBOL_WORDS.items():
+            text = text.replace(symbol, words)
+        text = re.sub(r"['\u2018\u2019]", "", text)
+        text = cls.UNSUPPORTED_PATTERN.sub(" ", text)
+        return re.sub(r"\s+", " ", text).strip()
+
     @torch.inference_mode()
     def process_text_to_audio(self, sentences):
         print(f"Starting text processing... ({len(sentences)} sentences)")
@@ -394,8 +440,11 @@ class ChatTTSAudio(BaseAudio):
 
             print(f"Processing sentence: {sentence}")
             try:
+                text = self.prepare_text(sentence)
+                if not text:
+                    continue
                 wavs = self.chat.infer(
-                    sentence,
+                    text,
                     params_refine_text=self.params_refine_text,
                     params_infer_code=self.params_infer_code,
                     split_text=False
