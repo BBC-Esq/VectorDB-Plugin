@@ -460,21 +460,6 @@ def normalize_chat_text(text):
     return text.strip()
 
 
-def supports_flash_attention():
-    logging.debug("Checking flash attention support")
-    
-    if not torch.cuda.is_available():
-        logging.debug("CUDA not available, flash attention not supported")
-        return False
-        
-    major, minor = torch.cuda.get_device_capability()
-    logging.debug(f"CUDA compute capability: {major}.{minor}")
-    
-    supports = major >= 8
-    logging.debug(f"Flash attention {'supported' if supports else 'not supported'}")
-    return supports
-
-
 def check_cuda_re_triton():
     logging.debug("Starting CUDA files check for Triton")
     venv_base = Path(sys.executable).parent.parent
@@ -897,7 +882,6 @@ def set_logging_level():
         "datasets": logging.WARNING,
         "einops": logging.WARNING,
         "einx": logging.WARNING,
-        "flash_attn": logging.WARNING,
         "huggingface-hub": logging.WARNING,
         "numpy": logging.WARNING,
         "openai": logging.WARNING,
@@ -921,8 +905,7 @@ def set_logging_level():
         "unstructured": logging.WARNING,
         "unstructured-client": logging.WARNING,
         "vector-quantize-pytorch": logging.WARNING,
-        "vocos": logging.WARNING,
-        "xformers": logging.WARNING
+        "vocos": logging.WARNING
     }
 
     for lib, level in library_levels.items():

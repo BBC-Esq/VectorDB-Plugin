@@ -513,12 +513,10 @@ MIN_CUDA_COMPUTE_CAPABILITY = (7, 0)
 priority_libs = {
     "cp311": {
         "GPU": [
-            "https://github.com/kingbri1/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu128torch2.8.0cxx11abiFALSE-cp311-cp311-win_amd64.whl",
             "https://download.pytorch.org/whl/cu128/torch-2.9.0%2Bcu128-cp311-cp311-win_amd64.whl#sha256=dc6f6c6e7d7eed20c687fc189754a6ea6bf2da9c64eff59fd6753b80ed4bca05",
             "https://download.pytorch.org/whl/cu128/torchvision-0.24.0%2Bcu128-cp311-cp311-win_amd64.whl#sha256=0783b511e3e5a7821480254768fc3a1193726f9cc0373aac41c28cf934ef63f0",
             "https://download.pytorch.org/whl/cu128/torchaudio-2.9.0%2Bcu128-cp311-cp311-win_amd64.whl#sha256=daa01250079ef024987622429f379723d306e92fad42290868041a60d4fef2e6",
             "triton-windows==3.5.1.post24",
-            "xformers==0.0.33.post1",
             "nvidia-cuda-runtime-cu12==12.8.90",
             "nvidia-cublas-cu12==12.8.4.1",
             "nvidia-cuda-nvrtc-cu12==12.8.93",
@@ -538,12 +536,10 @@ priority_libs = {
     },
     "cp312": {
         "GPU": [
-            "https://github.com/kingbri1/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu128torch2.8.0cxx11abiFALSE-cp312-cp312-win_amd64.whl",
             "https://download.pytorch.org/whl/cu128/torch-2.9.0%2Bcu128-cp312-cp312-win_amd64.whl#sha256=c97dc47a1f64745d439dd9471a96d216b728d528011029b4f9ae780e985529e0",
             "https://download.pytorch.org/whl/cu128/torchvision-0.24.0%2Bcu128-cp312-cp312-win_amd64.whl#sha256=1aa36ac00106e1381c38348611a1ec0eebe942570ebaf0490f026b061dfc212c",
             "https://download.pytorch.org/whl/cu128/torchaudio-2.9.0%2Bcu128-cp312-cp312-win_amd64.whl#sha256=90cd2b4d7c375c9a5c2d79117985f8f506718f494914ad9b5c5dee5581216898",
             "triton-windows==3.5.1.post24",
-            "xformers==0.0.33.post1",
             "nvidia-cuda-runtime-cu12==12.8.90",
             "nvidia-cublas-cu12==12.8.4.1",
             "nvidia-cuda-nvrtc-cu12==12.8.93",
@@ -563,12 +559,10 @@ priority_libs = {
     },
     "cp313": {
         "GPU": [
-            "https://github.com/kingbri1/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu128torch2.8.0cxx11abiFALSE-cp313-cp313-win_amd64.whl",
             "https://download.pytorch.org/whl/cu128/torch-2.9.0%2Bcu128-cp313-cp313-win_amd64.whl#sha256=9cba9f0fa2e1b70fffdcec1235a1bb727cbff7e7b118ba111b2b7f984b7087e2",
             "https://download.pytorch.org/whl/cu128/torchvision-0.24.0%2Bcu128-cp313-cp313-win_amd64.whl#sha256=f82cd941bc36033ebdb2974c83caa2913cc37e6567fe97cdd69f5a568ff182c8",
             "https://download.pytorch.org/whl/cu128/torchaudio-2.9.0%2Bcu128-cp313-cp313-win_amd64.whl#sha256=76df3fdb5e1194b51e69187e00d53d18bb5c2e0f3904d105e644b5c3aba5c9f4",
             "triton-windows==3.5.1.post24",
-            "xformers==0.0.33.post1",
             "nvidia-cuda-runtime-cu12==12.8.90",
             "nvidia-cublas-cu12==12.8.4.1",
             "nvidia-cuda-nvrtc-cu12==12.8.93",

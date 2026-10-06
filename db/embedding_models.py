@@ -1,4 +1,3 @@
-import functools
 import gc
 import logging
 import os
@@ -19,7 +18,6 @@ from sentence_transformers.util import batch_to_device
 
 from core.config import get_config
 from core.utilities import (
-    supports_flash_attention,
     get_embedding_dtype_and_batch,
     get_model_native_precision,
     quiet_transformers_loading_bars,
@@ -83,21 +81,6 @@ def _use_gqa_in_sdpa(attention_mask, key, value):
 
 
 sdpa_attention.use_gqa_in_sdpa = _use_gqa_in_sdpa
-
-
-@functools.lru_cache(maxsize=None)
-def _model_supports_flash(model_path: str) -> bool:
-    try:
-        import json
-        from transformers.models.auto.configuration_auto import CONFIG_MAPPING
-        from transformers.models.auto.modeling_auto import MODEL_MAPPING
-        model_type = json.loads((Path(model_path) / "config.json").read_text(encoding="utf-8")).get("model_type")
-        if not model_type or model_type not in CONFIG_MAPPING:
-            return False
-        model_cls = MODEL_MAPPING[CONFIG_MAPPING[model_type]]
-        return bool(getattr(model_cls, "_supports_flash_attn", False))
-    except Exception:
-        return False
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -419,18 +402,8 @@ class DirectEmbeddingModel:
 
         model_kwargs = {
             "dtype": self.dtype if self.dtype else torch.float32,
+            "attn_implementation": "sdpa",
         }
-
-        is_cuda = self.device.lower().startswith("cuda")
-        is_half = self.dtype in (torch.float16, torch.bfloat16)
-
-        if is_cuda and is_half and supports_flash_attention() and _model_supports_flash(self.model_path):
-            model_kwargs["attn_implementation"] = "flash_attention_2"
-        else:
-            model_kwargs["attn_implementation"] = "sdpa"
-
-        # Force sdpa for now. flash-attn was NOT the cause of the earlier large-build crashes (that was numpy 2.4.6, now pinned to 2.3.4); this is kept only out of caution. To re-enable adaptive flash-attention-2 selection, delete this line.
-        model_kwargs["attn_implementation"] = "sdpa"
 
         # TEMPORARY WORKAROUND - remove once geevec-embeddings-1.0-lite's custom code supports transformers 5.
         # Its modeling_qwen3_pseudo_moe.py declares `_tied_weights_keys = []` (the transformers 4 list format) while

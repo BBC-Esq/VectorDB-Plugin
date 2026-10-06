@@ -63,5 +63,4 @@ vision:
   chosen_model: Liquid-VL - 480M
   chosen_quant: float16
   chosen_size: 2b
-  flash_attention2: null
   test_image: null
