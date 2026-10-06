@@ -67,6 +67,23 @@ def _repeat_kv_contiguous(hidden_states, n_rep):
 
 sdpa_attention.repeat_kv = _repeat_kv_contiguous
 
+# TEMPORARY WORKAROUND - remove once Windows builds of torch include FlashAttention or torch's memory-efficient SDPA
+# kernel supports grouped-query attention (enable_gqa). For a batch with no padding, and for every single-text query,
+# transformers drops the attention mask and passes enable_gqa=True instead of repeating the key/value heads. Without
+# FlashAttention, SDPA then falls back to its math kernel, which builds the full attention matrix (about 4x slower and
+# 7x the VRAM on 2,048-token chunks). Repeating the key/value heads keeps those batches on the memory-efficient
+# kernel. CPU runs are left as they are because the CPU kernel handles enable_gqa natively.
+_stock_use_gqa_in_sdpa = sdpa_attention.use_gqa_in_sdpa
+
+
+def _use_gqa_in_sdpa(attention_mask, key, value):
+    if key.is_cuda and not torch.backends.cuda.is_flash_attention_available():
+        return False
+    return _stock_use_gqa_in_sdpa(attention_mask, key, value)
+
+
+sdpa_attention.use_gqa_in_sdpa = _use_gqa_in_sdpa
+
 
 @functools.lru_cache(maxsize=None)
 def _model_supports_flash(model_path: str) -> bool:
