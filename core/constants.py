@@ -508,27 +508,30 @@ SUPPORTED_EXTENSIONS = (
     ".xls", ".xlsx", ".xlsm", ".rtf", ".md", ".html", ".htm",
 )
 
-MIN_CUDA_COMPUTE_CAPABILITY = (7, 0)
+MIN_CUDA_COMPUTE_CAPABILITY = (7, 5)
+
+MIN_NVIDIA_DRIVER_VERSION = 580
 
 priority_libs = {
     "cp311": {
         "GPU": [
-            "https://download.pytorch.org/whl/cu128/torch-2.9.0%2Bcu128-cp311-cp311-win_amd64.whl#sha256=dc6f6c6e7d7eed20c687fc189754a6ea6bf2da9c64eff59fd6753b80ed4bca05",
-            "https://download.pytorch.org/whl/cu128/torchvision-0.24.0%2Bcu128-cp311-cp311-win_amd64.whl#sha256=0783b511e3e5a7821480254768fc3a1193726f9cc0373aac41c28cf934ef63f0",
-            "https://download.pytorch.org/whl/cu128/torchaudio-2.9.0%2Bcu128-cp311-cp311-win_amd64.whl#sha256=daa01250079ef024987622429f379723d306e92fad42290868041a60d4fef2e6",
-            "triton-windows==3.5.1.post24",
-            "nvidia-cuda-runtime-cu12==12.8.90",
+            "https://download.pytorch.org/whl/cu130/torch-2.14.1%2Bcu130-cp311-cp311-win_amd64.whl#sha256=e98711737150b5a6451cbbfdb425abd5d1bea77f4a1a5d29c48d5ec41cd54949",
+            "https://download.pytorch.org/whl/cu130/torchvision-0.29.1%2Bcu130-cp311-cp311-win_amd64.whl#sha256=08f02295d26ccb2054cafc8c21feacf9022384d5a0cd006fbbf1d59623af7522",
+            "https://download.pytorch.org/whl/cu130/torchaudio-2.11.0%2Bcu130-cp311-cp311-win_amd64.whl#sha256=04aadf807c27df785c6e3463e70bb1a657ed2d1a16b5578114c9fdf7e8c1ac10",
+            "triton-windows==3.8.0.post29",
+            "nvidia-cuda-runtime==13.2.86",
+            "nvidia-cublas==13.4.1.3",
+            "nvidia-cuda-nvrtc==13.2.86",
+            "nvidia-cuda-nvcc==13.2.86",
+            "nvidia-cufft==12.2.0.57",
+            "nvidia-cudnn-cu13==9.24.0.43",
             "nvidia-cublas-cu12==12.8.4.1",
-            "nvidia-cuda-nvrtc-cu12==12.8.93",
-            "nvidia-cuda-nvcc-cu12==12.8.93",
-            "nvidia-cufft-cu12==11.3.3.83",
-            "nvidia-cudnn-cu12==9.10.2.21",
             "nvidia-ml-py==13.610.43",
         ],
         "CPU": [
-            "https://download.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=389e1e0b8083fd355f7caf5ba82356b5e01c318998bd575dbf2285a0d8137089",
-            "https://download.pytorch.org/whl/cpu/torchvision-0.24.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=bb035ec26121238dbaa888e5efbf04c7d45f113a7c34d1cf849c4031e7cac4b8",
-            "https://download.pytorch.org/whl/cpu/torchaudio-2.9.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=cfd6e9d9bb2215bf301e81a91018e1a2af9ed67fe778a2162cfbb6f8d7394fbd",
+            "https://download.pytorch.org/whl/cpu/torch-2.14.1%2Bcpu-cp311-cp311-win_amd64.whl#sha256=d14b0c8a66345b7ba43adfa86fc20d89087a0a92e440004755d49d2468ddc6e0",
+            "https://download.pytorch.org/whl/cpu/torchvision-0.29.1%2Bcpu-cp311-cp311-win_amd64.whl#sha256=dc630e9aa09a8ee4497e088dfabd60dbfb3b839fa35768a4f3d07e5ebd59a632",
+            "https://download.pytorch.org/whl/cpu/torchaudio-2.11.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=abbff04127caf6e16e3a7c3e1ca2739b68899e14926d7cbec4bd8b40f72375d5",
         ],
         "COMMON": [
             "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.9.1-tesseract-5.5.1/tesserocr-2.9.1-cp311-cp311-win_amd64.whl",
@@ -536,50 +539,52 @@ priority_libs = {
     },
     "cp312": {
         "GPU": [
-            "https://download.pytorch.org/whl/cu128/torch-2.9.0%2Bcu128-cp312-cp312-win_amd64.whl#sha256=c97dc47a1f64745d439dd9471a96d216b728d528011029b4f9ae780e985529e0",
-            "https://download.pytorch.org/whl/cu128/torchvision-0.24.0%2Bcu128-cp312-cp312-win_amd64.whl#sha256=1aa36ac00106e1381c38348611a1ec0eebe942570ebaf0490f026b061dfc212c",
-            "https://download.pytorch.org/whl/cu128/torchaudio-2.9.0%2Bcu128-cp312-cp312-win_amd64.whl#sha256=90cd2b4d7c375c9a5c2d79117985f8f506718f494914ad9b5c5dee5581216898",
-            "triton-windows==3.5.1.post24",
-            "nvidia-cuda-runtime-cu12==12.8.90",
+            "https://download.pytorch.org/whl/cu130/torch-2.14.1%2Bcu130-cp312-cp312-win_amd64.whl#sha256=0a09031e93632d14ef49553acd6211ece3ae9cdc0969a369b8c24e3cc4d15be9",
+            "https://download.pytorch.org/whl/cu130/torchvision-0.29.1%2Bcu130-cp312-cp312-win_amd64.whl#sha256=14d3195e5e657fef46d08de0d3470da03a983fa383d8aa279e36e47e95d991c6",
+            "https://download.pytorch.org/whl/cu130/torchaudio-2.11.0%2Bcu130-cp312-cp312-win_amd64.whl#sha256=f74949f9ace1e4a6cf9468bdb3211b9cfa0af6ea348125471ac71c8621d6c77d",
+            "triton-windows==3.8.0.post29",
+            "nvidia-cuda-runtime==13.2.86",
+            "nvidia-cublas==13.4.1.3",
+            "nvidia-cuda-nvrtc==13.2.86",
+            "nvidia-cuda-nvcc==13.2.86",
+            "nvidia-cufft==12.2.0.57",
+            "nvidia-cudnn-cu13==9.24.0.43",
             "nvidia-cublas-cu12==12.8.4.1",
-            "nvidia-cuda-nvrtc-cu12==12.8.93",
-            "nvidia-cuda-nvcc-cu12==12.8.93",
-            "nvidia-cufft-cu12==11.3.3.83",
-            "nvidia-cudnn-cu12==9.10.2.21",
             "nvidia-ml-py==13.610.43",
         ],
         "CPU": [
-            "https://download.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=e438061b87ec7dd6018fca9f975219889aa0a3f6cdc3ea10dd0ae2bc7f1c47ce",
-            "https://download.pytorch.org/whl/cpu/torchvision-0.24.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=6ec2ebf962e7dca034e06a6eb07dafe388b16e7b01168f1c10b0c299e95946d5",
-            "https://download.pytorch.org/whl/cpu/torchaudio-2.9.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=b93b54b5e01fbb645fd6c753d522a7a489e531f1e54b2a2e49714640ec3f0f43",
+            "https://download.pytorch.org/whl/cpu/torch-2.14.1%2Bcpu-cp312-cp312-win_amd64.whl#sha256=c52adc3bd526ff7fc5bdcc58fc4a76e6214d09951b646ffe5256ebd7ba60cef1",
+            "https://download.pytorch.org/whl/cpu/torchvision-0.29.1%2Bcpu-cp312-cp312-win_amd64.whl#sha256=361f943872f7763807912cc51d621f0172e8d481792f8c6f3fe1f63838a29e0c",
+            "https://download.pytorch.org/whl/cpu/torchaudio-2.11.0%2Bcpu-cp312-cp312-win_amd64.whl#sha256=95d517bd1a0a28dacd1c37550ced95cab64f3a7a4ef9b8219b41049388a71163",
         ],
         "COMMON": [
             "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.9.1-tesseract-5.5.1/tesserocr-2.9.1-cp312-cp312-win_amd64.whl",
-        ]
+        ],
     },
     "cp313": {
         "GPU": [
-            "https://download.pytorch.org/whl/cu128/torch-2.9.0%2Bcu128-cp313-cp313-win_amd64.whl#sha256=9cba9f0fa2e1b70fffdcec1235a1bb727cbff7e7b118ba111b2b7f984b7087e2",
-            "https://download.pytorch.org/whl/cu128/torchvision-0.24.0%2Bcu128-cp313-cp313-win_amd64.whl#sha256=f82cd941bc36033ebdb2974c83caa2913cc37e6567fe97cdd69f5a568ff182c8",
-            "https://download.pytorch.org/whl/cu128/torchaudio-2.9.0%2Bcu128-cp313-cp313-win_amd64.whl#sha256=76df3fdb5e1194b51e69187e00d53d18bb5c2e0f3904d105e644b5c3aba5c9f4",
-            "triton-windows==3.5.1.post24",
-            "nvidia-cuda-runtime-cu12==12.8.90",
+            "https://download.pytorch.org/whl/cu130/torch-2.14.1%2Bcu130-cp313-cp313-win_amd64.whl#sha256=f064c797bb497daf2b2b5e32b6d794abef087e3f24e758e6c6f8010bd2698319",
+            "https://download.pytorch.org/whl/cu130/torchvision-0.29.1%2Bcu130-cp313-cp313-win_amd64.whl#sha256=8c3f9aea88ab9d28be63d8bc09103d49dccfae26965d8a94c99522417b8c8db1",
+            "https://download.pytorch.org/whl/cu130/torchaudio-2.11.0%2Bcu130-cp313-cp313-win_amd64.whl#sha256=ce09a7b144b7982b46c8fe399cf5f91d43dda571e9d6ddba67e928567551f614",
+            "triton-windows==3.8.0.post29",
+            "nvidia-cuda-runtime==13.2.86",
+            "nvidia-cublas==13.4.1.3",
+            "nvidia-cuda-nvrtc==13.2.86",
+            "nvidia-cuda-nvcc==13.2.86",
+            "nvidia-cufft==12.2.0.57",
+            "nvidia-cudnn-cu13==9.24.0.43",
             "nvidia-cublas-cu12==12.8.4.1",
-            "nvidia-cuda-nvrtc-cu12==12.8.93",
-            "nvidia-cuda-nvcc-cu12==12.8.93",
-            "nvidia-cufft-cu12==11.3.3.83",
-            "nvidia-cudnn-cu12==9.10.2.21",
             "nvidia-ml-py==13.610.43",
         ],
         "CPU": [
-            "https://download.pytorch.org/whl/cpu/torch-2.9.0%2Bcpu-cp313-cp313-win_amd64.whl#sha256=728372e3f58c5826445f677746e5311c1935c1a7c59599f73a49ded850e038e8",
-            "https://download.pytorch.org/whl/cpu/torchvision-0.24.0%2Bcpu-cp313-cp313-win_amd64.whl#sha256=24ae40dd443486bd32118a431ee4f38a23455665c477bb42136415e2a1c940e5",
-            "https://download.pytorch.org/whl/cpu/torchaudio-2.9.0%2Bcpu-cp313-cp313-win_amd64.whl#sha256=ec6e2af7e0ab6033def1f3f2a3e3173924dc65d8bbb6fa8b444faeb6eb42644f",
+            "https://download.pytorch.org/whl/cpu/torch-2.14.1%2Bcpu-cp313-cp313-win_amd64.whl#sha256=4eec5a4fadd7a18f9c75b97fdb374fbb579ce4b1604bf66eeb14dc2201d54def",
+            "https://download.pytorch.org/whl/cpu/torchvision-0.29.1%2Bcpu-cp313-cp313-win_amd64.whl#sha256=94590cee2298a7b6cc6512159781b577a322d0813baf1add3cf02db744138b31",
+            "https://download.pytorch.org/whl/cpu/torchaudio-2.11.0%2Bcpu-cp313-cp313-win_amd64.whl#sha256=fa0c22f58f60c3537b7d28ed2501e0995acb2a65d9af2708f21edaad67186cd8",
         ],
         "COMMON": [
             "https://github.com/simonflueckiger/tesserocr-windows_build/releases/download/tesserocr-v2.9.1-tesseract-5.5.1/tesserocr-2.9.1-cp313-cp313-win_amd64.whl",
-        ]
-    }
+        ],
+    },
 }
 
 libs = [

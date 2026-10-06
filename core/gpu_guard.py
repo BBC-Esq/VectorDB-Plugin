@@ -2,7 +2,7 @@ import os
 import subprocess
 import sys
 
-from core.constants import MIN_CUDA_COMPUTE_CAPABILITY
+from core.constants import MIN_CUDA_COMPUTE_CAPABILITY, MIN_NVIDIA_DRIVER_VERSION
 
 _GUARD_ENV = "VECTORDB_GPU_GUARD"
 
@@ -35,6 +35,26 @@ def query_nvidia_gpus():
     return gpus
 
 
+def query_nvidia_driver_version():
+    kwargs = {"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            **kwargs,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    try:
+        return int(result.stdout.splitlines()[0].strip().split(".")[0])
+    except (IndexError, ValueError):
+        return None
+
+
 def is_supported_gpu(gpu):
     return gpu["compute_capability"] >= MIN_CUDA_COMPUTE_CAPABILITY
 
@@ -52,6 +72,12 @@ def hide_unsupported_gpus():
     os.environ[_GUARD_ENV] = "1"
     gpus = query_nvidia_gpus()
     if not gpus:
+        return
+    driver = query_nvidia_driver_version()
+    if driver is not None and driver < MIN_NVIDIA_DRIVER_VERSION:
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+        print(f"\033[93mThis PyTorch build needs NVIDIA driver {MIN_NVIDIA_DRIVER_VERSION} or newer; found {driver}. "
+              f"Running in CPU mode until the driver is updated.\033[0m")
         return
     usable = [g for g in gpus if is_supported_gpu(g)]
     if len(usable) == len(gpus):

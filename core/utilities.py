@@ -26,37 +26,19 @@ def set_cuda_paths():
     import sys
     import os
     from pathlib import Path
-    venv_base = Path(sys.executable).parent.parent
-    nvidia_base_path = venv_base / 'Lib' / 'site-packages' / 'nvidia'
-    cuda_path_runtime = nvidia_base_path / 'cuda_runtime' / 'bin'
-    cuda_path_runtime_lib = nvidia_base_path / 'cuda_runtime' / 'lib' / 'x64'
-    cuda_path_runtime_include = nvidia_base_path / 'cuda_runtime' / 'include'
+    site_packages = Path(sys.executable).parent.parent / 'Lib' / 'site-packages'
+    nvidia_base_path = site_packages / 'nvidia'
     cublas_path = nvidia_base_path / 'cublas' / 'bin'
     cudnn_path = nvidia_base_path / 'cudnn' / 'bin'
-    nvrtc_path = nvidia_base_path / 'cuda_nvrtc' / 'bin'
-    nvcc_path = nvidia_base_path / 'cuda_nvcc' / 'bin'
-    paths_to_add = [
-        str(p) for p in (
-            cuda_path_runtime,
-            cuda_path_runtime_lib,
-            cuda_path_runtime_include,
-            cublas_path,
-            cudnn_path,
-            nvrtc_path,
-            nvcc_path,
-        )
-        if p.is_dir()
-    ]
+    paths_to_add = [str(p) for p in (cublas_path, cudnn_path) if p.is_dir()]
     if paths_to_add:
         current_value = os.environ.get('PATH', '')
         new_value = os.pathsep.join(paths_to_add + ([current_value] if current_value else []))
         os.environ['PATH'] = new_value
 
-    triton_cuda_path = nvidia_base_path / 'cuda_runtime'
+    triton_cuda_path = site_packages / 'triton' / 'backends' / 'nvidia'
     if triton_cuda_path.is_dir():
-        current_cuda_path = os.environ.get('CUDA_PATH', '')
-        new_cuda_path = os.pathsep.join([str(triton_cuda_path)] + ([current_cuda_path] if current_cuda_path else []))
-        os.environ['CUDA_PATH'] = new_cuda_path
+        os.environ['CUDA_PATH'] = str(triton_cuda_path)
 
 
 def check_backend_dependencies(backend_name: str, interactive: bool = True) -> bool:
@@ -458,34 +440,6 @@ def normalize_chat_text(text):
     text = re.sub(r'^[^a-zA-Z0-9]+', '', text)
 
     return text.strip()
-
-
-def check_cuda_re_triton():
-    logging.debug("Starting CUDA files check for Triton")
-    venv_base = Path(sys.executable).parent.parent
-    nvidia_base_path = venv_base / 'Lib' / 'site-packages' / 'nvidia'
-    cuda_runtime = nvidia_base_path / 'cuda_runtime'
-    
-    logging.debug(f"Virtual environment base path: {venv_base}")
-    logging.debug(f"NVIDIA base path: {nvidia_base_path}")
-    logging.debug(f"CUDA runtime path: {cuda_runtime}")
-    
-    files_to_check = [
-        cuda_runtime / "bin" / "cudart64_12.dll",
-        cuda_runtime / "bin" / "ptxas.exe",
-        cuda_runtime / "include" / "cuda.h",
-        cuda_runtime / "lib" / "x64" / "cuda.lib"
-    ]
-    
-    logging.debug("Beginning file existence checks")
-    print("Checking CUDA files:")
-    for file_path in files_to_check:
-        exists = file_path.exists()
-        status = "✓ Found" if exists else "✗ Missing"
-        logging.debug(f"Checking {file_path}: {'exists' if exists else 'missing'}")
-        print(f"{status}: {file_path}")
-    print()
-    logging.debug("CUDA file check completed")
 
 
 def get_model_native_precision(embedding_model_name, vector_models=None):

@@ -28,13 +28,12 @@ import tkinter as tk
 from tkinter import messagebox
 from tools.replace_sourcecode import (
     replace_chattts_file,
-    add_cuda_files,
     setup_vector_db,
     check_embedding_model_dimensions,
 )
 
-from core.constants import priority_libs, libs, full_install_libs, MIN_CUDA_COMPUTE_CAPABILITY
-from core.gpu_guard import query_nvidia_gpus, is_supported_gpu, describe_gpus
+from core.constants import priority_libs, libs, full_install_libs, MIN_CUDA_COMPUTE_CAPABILITY, MIN_NVIDIA_DRIVER_VERSION
+from core.gpu_guard import query_nvidia_gpus, query_nvidia_driver_version, is_supported_gpu, describe_gpus
 
 start_time = time.time()
 
@@ -135,7 +134,13 @@ if name_limit < 25 and not tkinter_message_box(
 ):
     sys.exit(1)
 
-if hardware_type == "GPU":
+driver_version = query_nvidia_driver_version() if hardware_type == "GPU" else None
+if driver_version is not None and driver_version < MIN_NVIDIA_DRIVER_VERSION:
+    message = (f"A supported NVIDIA GPU has been detected, but its driver (version {driver_version}) is older than "
+               f"version {MIN_NVIDIA_DRIVER_VERSION}, which the bundled PyTorch requires. The GPU version will be "
+               "installed, but the program will run in CPU mode until you update the driver from nvidia.com."
+               "\n\nDo you want to proceed with the installation?")
+elif hardware_type == "GPU":
     message = "A supported NVIDIA GPU has been detected. The GPU version will be installed.\n\nDo you want to proceed with the installation?"
 else:
     message = (f"{cpu_reason}\n\nThe CPU-only version will be installed. Large local models and some "
@@ -282,8 +287,6 @@ if hardware_type == "GPU":
     clean_triton_cache()
 
 replace_chattts_file()
-if hardware_type == "GPU":
-    add_cuda_files()
 setup_vector_db()
 check_embedding_model_dimensions()
 

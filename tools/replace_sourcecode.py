@@ -91,50 +91,6 @@ def replace_chattts_file():
     updater = DependencyUpdater()
     updater.update_file_in_dependency("Assets", "core.py", ["ChatTTS"])
 
-def add_cuda_files():
-    updater = DependencyUpdater()
-
-    updater.print_ascii_table("CUDA FILES UPDATE", ["Copying ptxas.exe", "Extracting cudart_lib.zip"])
-
-    source_path = updater.find_dependency_path(["nvidia", "cuda_nvcc", "bin"])
-    if source_path is None:
-        updater.print_status("ERROR", "Source path for ptxas.exe not found.")
-        return
-
-    source_file = source_path / "ptxas.exe"
-    if not source_file.exists():
-        updater.print_status("ERROR", "ptxas.exe not found in the source directory.")
-        return
-
-    target_path = updater.find_dependency_path(["nvidia", "cuda_runtime", "bin"])
-    if target_path is None:
-        updater.print_status("ERROR", "Target path (cuda_runtime) not found.")
-        return
-
-    target_file = target_path / "ptxas.exe"
-    updater.copy_and_overwrite_if_necessary(source_file, target_file)
-
-    zip_path = PROJECT_ROOT / "Assets" / "cudart_lib.zip"
-    if not zip_path.exists():
-        updater.print_status("ERROR", "cudart_lib.zip not found.")
-        return
-
-    cuda_lib_runtime_path = target_path.parent
-    if target_path is None or not target_path.exists():
-        updater.print_status("ERROR", "Parent directory of cuda_runtime/bin not found.")
-        return
-
-    try:
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(cuda_lib_runtime_path)
-            updater.print_status("SUCCESS", f"Extracted cudart_lib.zip to {cuda_lib_runtime_path}")
-    except zipfile.BadZipFile:
-        updater.print_status("ERROR", "cudart_lib.zip is corrupted or not a zip file.")
-    except PermissionError:
-        updater.print_status("ERROR", "Permission denied when extracting cudart_lib.zip.")
-    except Exception as e:
-        updater.print_status("ERROR", f"Unexpected error during extraction: {str(e)}")
-
 def setup_vector_db():
     updater = DependencyUpdater()
 
@@ -218,12 +174,10 @@ def check_embedding_model_dimensions():
 if __name__ == "__main__":
     DependencyUpdater.print_ascii_table("DEPENDENCY UPDATER", [
         "Replace ChatTTS File",
-        "Add CUDA Files",
         "Setup Vector DB",
         "Check Config EMBEDDING_MODEL_DIMENSIONS"
     ])
 
     replace_chattts_file()
-    add_cuda_files()
     setup_vector_db()
     check_embedding_model_dimensions()

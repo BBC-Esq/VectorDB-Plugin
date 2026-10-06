@@ -35,8 +35,9 @@ important to note that this progam is only supported on Windows at this time.  L
 
 ### Can I use this program without an NVIDIA GPU (CPU-only mode)?
 Yes. When you run "python setup_windows.py" the installer checks your hardware. If it does not find a supported NVIDIA GPU (a
-GeForce GTX 16-series or RTX 20-series card or newer, meaning CUDA compute capability 7.0 or higher), it tells you and installs the
-CPU-only version. Older cards such as the GTX 10-series also use CPU-only mode. To force a CPU-only install on a computer that has a
+GeForce GTX 16-series or RTX 20-series card or newer, meaning CUDA compute capability 7.5 or higher), it tells you and installs the
+CPU-only version. Older cards such as the GTX 10-series also use CPU-only mode. The GPU version also needs NVIDIA driver 580 or
+newer; with an older driver the program runs in CPU-only mode until you update it. To force a CPU-only install on a computer that has a
 GPU, run "python setup_windows.py --force-cpu" instead. In CPU-only mode the program hides models that are too large or too slow to
 run on a CPU. You can still use the local chat models LiquidAI .35b, .7b, and 1.2b, Qwen 3 0.6b, 1.7b, and 4b, Granite 3b, and
 Gemma 3 4b; the Liquid-VL 480M vision model; every embedding model except the 4B and 8B versions of Qwen3-Embedding and

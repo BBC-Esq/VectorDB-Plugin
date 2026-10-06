@@ -18,7 +18,7 @@
 | 🧲 [Git LFS](https://git-lfs.com/)                                                       | Handle large model files                          |
 | 📄 [Pandoc](https://github.com/jgm/pandoc/releases)                                      | Document parsing support                          |
 | 🛠️ [Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) | Required for compiling dependencies               |
-| 🎮 NVIDIA GPU (optional)                                                                 | GTX 16-series / RTX 20-series or newer for GPU acceleration; without one the program runs in CPU-only mode |
+| 🎮 NVIDIA GPU (optional)                                                                 | GTX 16-series / RTX 20-series or newer (driver 580+) for GPU acceleration; without one the program runs in CPU-only mode |
 
 <details>
 <summary>Or you can try running these commands in Powershell on Windows:</summary>
