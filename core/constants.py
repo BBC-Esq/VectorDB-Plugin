@@ -1822,6 +1822,21 @@ WHISPER_SPEECH_MODELS = {
 }
 
 WHISPER_MODELS = {
+    'Distil Whisper large-v3.5 - float32': {
+        'name': 'Distil Whisper large-v3.5',
+        'precision': 'float32',
+        'repo_id': 'ctranslate2-4you/whisper-distil-large-v3.5-ct2-float32',
+    },
+    'Distil Whisper large-v3.5 - bfloat16': {
+        'name': 'Distil Whisper large-v3.5',
+        'precision': 'bfloat16',
+        'repo_id': 'ctranslate2-4you/whisper-distil-large-v3.5-ct2-bfloat16',
+    },
+    'Distil Whisper large-v3.5 - float16': {
+        'name': 'Distil Whisper large-v3.5',
+        'precision': 'float16',
+        'repo_id': 'ctranslate2-4you/whisper-distil-large-v3.5-ct2-float16',
+    },
     'Distil Whisper large-v3 - float32': {
         'name': 'Distil Whisper large-v3',
         'precision': 'float32',
@@ -1836,6 +1851,21 @@ WHISPER_MODELS = {
         'name': 'Distil Whisper large-v3',
         'precision': 'float16',
         'repo_id': 'ctranslate2-4you/distil-whisper-large-v3-ct2-float16',
+    },
+    'Whisper large-v3 turbo - float32': {
+        'name': 'Whisper large-v3 turbo',
+        'precision': 'float32',
+        'repo_id': 'ctranslate2-4you/whisper-large-v3-turbo-ct2-float32',
+    },
+    'Whisper large-v3 turbo - bfloat16': {
+        'name': 'Whisper large-v3 turbo',
+        'precision': 'bfloat16',
+        'repo_id': 'ctranslate2-4you/whisper-large-v3-turbo-ct2-bfloat16',
+    },
+    'Whisper large-v3 turbo - float16': {
+        'name': 'Whisper large-v3 turbo',
+        'precision': 'float16',
+        'repo_id': 'ctranslate2-4you/whisper-large-v3-turbo-ct2-float16',
     },
     'Whisper large-v3 - float32': {
         'name': 'Whisper large-v3',
@@ -2048,8 +2078,8 @@ TOOLTIPS = {
     "VECTOR_MODEL_SIZE": "Size on disk.",
     "VISION_MODEL": "Select vision model for image processing. Test before bulk processing.",
     "VOICE_RECORDER": "Click to start recording, speak your question, then click again to stop recording.",
-    "WHISPER_BATCH_SIZE": "Batch size for transcription. See the User Guid for optimal values.",
-    "WHISPER_MODEL_SELECT": "Distil models use ~ 70% VRAM of their non-Distil equivalents with little quality loss."
+    "WHISPER_BATCH_SIZE": "Batch size for transcription. See the User Guide for optimal values.",
+    "WHISPER_MODEL_SELECT": "Distil models use ~ 70% VRAM of their non-Distil equivalents with little quality loss. Whisper large-v3 turbo is much faster than large-v3 with a small quality loss."
 }
 
 scrape_documentation = {

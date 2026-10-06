@@ -272,17 +272,19 @@ VRAM, so care should be taken not to exceed your GPU’s capacity.
 
 ### What are the distil variants of the whisper models when transcribing and audio file?
 Distil variants of Whisper models use approximately 70% of the resources of their full counterparts and are faster with very little
-loss in quality.
+loss in quality.  Distil Whisper large-v3.5 is the newest distilled large model.  It is English-only and uses about the same
+resources as Distil Whisper large-v3.
 
 ### What whisper model should I choose to transcribe a file?
 When transcribing an audio file in order to put it into a vector database it is generally recommended to use as high a quality of
 a whisper model as your hardware will support.  The quality of a whisper model is determined by a few factors.  Firstly, its size
 is the most important factor - e.g. large versus medium versus small.  Secondly, the precision of the model that you use.  This
-program allows you to choose float32 for the highest qualityy or bfloat16 or float16 (i.e. half precision), although only the
+program allows you to choose float32 for the highest quality or bfloat16 or float16 (i.e. half precision), although only the
 float32 models are listed in CPU-only mode because half precision requires a GPU.  In general, using
 half precision results in about 95% of the quality of float32 for half the compute resources needed.  Lastly, some of the whisper
 models come in "distil" variants that have certain layers of the model removed.  Again, this typically gives approximately 95%
-of the non-distil variant for half the compute resources.  It is highly recommended to test the various whisper models on a small
+of the non-distil variant for half the compute resources.  Whisper large-v3 turbo is Whisper large-v3 with its decoder cut from 32
+layers to 4, which makes it much faster with only a small loss in accuracy.  It is highly recommended to test the various whisper models on a small
 audio file first before committing to transcribing a large audio file, which can be done within the Tools Tab.
 
 ### What are floating point formats, precision, and quantization?
