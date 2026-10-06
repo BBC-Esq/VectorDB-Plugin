@@ -58,7 +58,8 @@ class VectorModelsTab(QWidget):
            cpu_note = QLabel(
                "Running on the CPU (no supported NVIDIA GPU). Smaller models create databases much faster. "
                "Approximate time per 10,000 chunks on a 24-core CPU: small models ~5 min, base and 300M models "
-               "~7-16 min, large models ~20-25 min, 0.6B models ~35-40 min. Slower CPUs take longer."
+               "~7-19 min, large models ~20-25 min, 0.6B models ~28-40 min, the 1.7B model ~95 min. "
+               "Slower CPUs take longer."
            )
            cpu_note.setWordWrap(True)
            self.main_layout.addWidget(cpu_note)

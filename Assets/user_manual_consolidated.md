@@ -741,15 +741,15 @@ languages that most embedding models handle poorly. This program offers two size
 8,192-token maximum sequence length. They are especially strong at searching programming code and technical documentation -- the
 4B version scores within a point of the 8-billion parameter Qwen3 model on the code retrieval benchmarks -- while remaining good
 general-purpose models. Like the Qwen3 models, they automatically add a short instruction to your search queries. In CPU-only mode
-only the 1.7B version is offered, and it takes nearly twice as long as the 0.6-billion parameter models.
+only the 1.7B version is offered, and it takes about two and a half times as long as the 0.6-billion parameter models.
 
 ### What is the GeeVec Lite Embedding Model?
 GeeVec-Embeddings-1.0-Lite is a lightweight multilingual embedding model released by GeeVec under the liberal Apache-2.0 license.
 It is built on a Qwen3-style model with only 12 layers and about 366 million parameters, yet as of April 2026 it was the
 top-scoring model under one billion parameters on the multilingual retrieval benchmark (MMTEB), where it matches the 8-billion
 parameter Qwen3 model. It produces 4096-dimensional embeddings, as many as the largest models in this program, so the vectors in
-its databases take about four times the space of a 1024-dimension model's, but it is fast: on a CPU it creates databases in a
-little over half the time of the 0.6-billion parameter models. It is used here with an 8,192-token maximum sequence length and,
+its databases take about four times the space of a 1024-dimension model's, but it is fast: on a CPU it creates databases in
+about half the time of the 0.6-billion parameter models. It is used here with an 8,192-token maximum sequence length and,
 like the Qwen3 models, automatically adds a short instruction to your search queries. The model can also specialize in code or
 reasoning searches, but this program uses its general-purpose mode, which suits most documents. On older NVIDIA GPUs that do not
 support bfloat16 it runs in full precision even when the "half" checkbox is checked.
