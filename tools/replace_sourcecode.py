@@ -37,6 +37,7 @@ class DependencyUpdater:
     @staticmethod
     def copy_and_overwrite_if_necessary(source_path, target_path):
         if not target_path.exists() or DependencyUpdater.hash_file(source_path) != DependencyUpdater.hash_file(target_path):
+            target_path.unlink(missing_ok=True)
             shutil.copy(source_path, target_path)
             DependencyUpdater.print_status("SUCCESS", f"{source_path} has been successfully copied to {target_path}.")
         else:
