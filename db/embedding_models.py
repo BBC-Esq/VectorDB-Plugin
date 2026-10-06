@@ -161,6 +161,7 @@ ENCODE_BATCH_SIZE_BY_MODEL = {
     "Jasper-Token-Compression-600M": 14,
     "Yuan-embedding-2.0-en": 14,
     "F2LLM-v2-1.7B": 14,
+    "F2LLM-v2-4B": 6,
     "bge-small-en-v1.5": 100,
     "bge-base-en-v1.5": 80,
     "bge-large-en-v1.5": 50,

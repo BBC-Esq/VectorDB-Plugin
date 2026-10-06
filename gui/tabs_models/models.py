@@ -31,7 +31,7 @@ class VectorModelsTab(QWidget):
            'intfloat': 4,
            'infgrad': 2,
            'IEITYuan': 2,
-           'codefuse-ai': 2,
+           'codefuse-ai': 3,
            'Qwen': 4,
            'Octen': 4,
            'FreeLawProject': 3,

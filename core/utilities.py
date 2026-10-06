@@ -948,6 +948,7 @@ def get_embedding_batch_size(model_name: str, compute_device: str) -> int:
         'Jasper-Token-Compression-600M': 4,
         'Yuan-embedding-2.0-en': 4,
         'F2LLM-v2-1.7B': 4,
+        'F2LLM-v2-4B': 3,
         'Qwen3-Embedding-8B': 2,
         'Qwen3-Embedding-4B': 3,
         'Qwen3-Embedding-0.6B': 4,
