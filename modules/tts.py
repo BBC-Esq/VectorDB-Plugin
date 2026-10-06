@@ -16,6 +16,7 @@ import soundfile as sf
 from gtts import gTTS
 from gtts.tokenizer import pre_processors, tokenizer_cases
 
+import core.sdpa_workarounds
 from core.utilities import my_cprint, quiet_transformers_loading_bars
 from core.constants import WHISPER_SPEECH_MODELS, PROJECT_ROOT
 from modules.kokoro import split_sentences

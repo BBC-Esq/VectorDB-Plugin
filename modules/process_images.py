@@ -24,6 +24,7 @@ from transformers import (
     AutoConfig,
     AutoModelForImageTextToText
 )
+import core.sdpa_workarounds
 from db.document_processor import Document
 from core.extract_metadata import extract_typed_metadata
 from core.utilities import my_cprint, has_bfloat16_support, set_cuda_paths, quiet_transformers_loading_bars
