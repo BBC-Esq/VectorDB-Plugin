@@ -40,7 +40,8 @@ CPU-only version. Older cards such as the GTX 10-series also use CPU-only mode. 
 GPU, run "python setup_windows.py --force-cpu" instead. In CPU-only mode the program hides models that are too large or too slow to
 run on a CPU. You can still use the local chat models LiquidAI .35b, .7b, and 1.2b, Qwen 3 0.6b, 1.7b, and 4b, Granite 3b, and
 Gemma 3 4b; the Liquid-VL 480M vision model; every embedding model except the 4B and 8B versions of Qwen3-Embedding and
-Octen-Embedding; all float32 whisper models; and the Kokoro, Kyutai Pocket, ChatTTS, and Google TTS text to speech backends. The
+Octen-Embedding and the 4B version of F2LLM; all float32 whisper models; and the Kokoro, Kyutai Pocket, ChatTTS, and Google TTS
+text to speech backends. The
 "half" (half-precision) checkbox in the Settings Tab is greyed out because half precision only helps on a GPU. Everything runs more
 slowly than on a GPU, so smaller models
 are recommended, and for chatting with larger models LM Studio is a good choice because it runs them efficiently on a CPU. Ask
@@ -535,8 +536,9 @@ to scrape to make sure you have a stable Internet connection.
 All of the embedding models that this program uses are listed on the Models Tab.  You can click on a hyperlink for each one to find
 out more information.  The embedding models sometimes change as different versions of this program are released and newer and better
 embedding models are released.  This program vets all embedding models, however, before including them for usage.  Without a
-supported NVIDIA GPU, the 4B and 8B versions of the Qwen3 and Octen embedding models are hidden because they are far too slow on a
-CPU, and a note at the top of the Models Tab gives approximate CPU times for the remaining models.
+supported NVIDIA GPU, the 4B and 8B versions of the Qwen3 and Octen embedding models and the 4B version of the F2LLM embedding
+model are hidden because they are far too slow on a CPU, and a note at the top of the Models Tab gives approximate CPU times for
+the remaining models.
 
 ### What is the manage databaes tab?
 The Manage Databases Tab allows you to see all of the vector databases that you have created thus far and what documents are in them.
@@ -719,6 +721,38 @@ noticeably faster than a traditional 0.6-billion parameter model, especially for
 supports English and Chinese, is offered in CPU-only mode, and, like the Qwen3 models, automatically adds a short instruction to
 your search queries. It was trained on texts of up to roughly 1,000 tokens, so it works best with normal chunk sizes. On older
 NVIDIA GPUs that do not support bfloat16 it runs in full precision even when the "half" checkbox is checked.
+
+### What is the Yuan Embedding Model?
+Yuan-embedding-2.0-en is a 0.6-billion parameter embedding model designed specifically for English text retrieval and released
+under the liberal Apache-2.0 license by IEITYuan, the team behind the Yuan family of language models. It is built on Alibaba's
+Qwen3-Embedding-0.6B and was further trained for search using carefully filtered training examples and questions rewritten by the
+team's own Yuan2 language model. It produces 1024-dimensional embeddings and is used here with an 8,192-token maximum sequence
+length. On the English retrieval benchmark it outscores even the 8-billion parameter Qwen3 model while needing only the compute of
+the 0.6-billion parameter Qwen3 model, which makes it an excellent choice for English-only collections; for other languages the
+multilingual models in this program are better suited. Like the Qwen3 models, it automatically adds a short instruction to your
+search queries, and it is offered in CPU-only mode.
+
+### What are the F2LLM (CodeFuse) Embedding Models?
+F2LLM-v2 is a family of fully open, general-purpose embedding models released by CodeFuse under the liberal Apache-2.0 license;
+besides the models themselves, CodeFuse publishes their training data and training code. They are built on the Qwen3 architecture
+and were trained on about 60 million publicly available examples covering more than 200 languages, with particular emphasis on
+languages that most embedding models handle poorly. This program offers two sizes: a 1.7-billion parameter version that produces
+2048-dimensional embeddings and a 4-billion parameter version that produces 2560-dimensional embeddings, both used here with an
+8,192-token maximum sequence length. They are especially strong at searching programming code and technical documentation -- the
+4B version scores within a point of the 8-billion parameter Qwen3 model on the code retrieval benchmarks -- while remaining good
+general-purpose models. Like the Qwen3 models, they automatically add a short instruction to your search queries. In CPU-only mode
+only the 1.7B version is offered, and it takes nearly twice as long as the 0.6-billion parameter models.
+
+### What is the GeeVec Lite Embedding Model?
+GeeVec-Embeddings-1.0-Lite is a lightweight multilingual embedding model released by GeeVec under the liberal Apache-2.0 license.
+It is built on a Qwen3-style model with only 12 layers and about 366 million parameters, yet as of April 2026 it was the
+top-scoring model under one billion parameters on the multilingual retrieval benchmark (MMTEB), where it matches the 8-billion
+parameter Qwen3 model. It produces 4096-dimensional embeddings, as many as the largest models in this program, so the vectors in
+its databases take about four times the space of a 1024-dimension model's, but it is fast: on a CPU it creates databases in a
+little over half the time of the 0.6-billion parameter models. It is used here with an 8,192-token maximum sequence length and,
+like the Qwen3 models, automatically adds a short instruction to your search queries. The model can also specialize in code or
+reasoning searches, but this program uses its general-purpose mode, which suits most documents. On older NVIDIA GPUs that do not
+support bfloat16 it runs in full precision even when the "half" checkbox is checked.
 
 ### What are the ModernBERT (Free Law Project) Embedding Models?
 These embedding models were fine-tuned by the Free Law Project, a non-profit focused on legal data, and are built on ModernBERT, a
