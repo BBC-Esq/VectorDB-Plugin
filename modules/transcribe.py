@@ -58,9 +58,6 @@ class WhisperTranscriber:
             'model_identifier': self.model_identifier,
         }
 
-        if 'large-v3' in self.model_identifier:
-            self.model_kwargs['n_mels'] = 128
-
         if not torch.cuda.is_available():
             self.model_kwargs['device'] = 'cpu'
             self.model_kwargs['cpu_threads'] = psutil.cpu_count(logical=False) or os.cpu_count() or 4
