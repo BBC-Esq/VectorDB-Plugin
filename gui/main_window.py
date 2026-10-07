@@ -1,3 +1,4 @@
+import os
 import sys
 
 from ctypes import windll, byref, sizeof, c_int
@@ -205,6 +206,10 @@ def main():
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
     QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
+
+    chromium_flags = os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", "")
+    if "--process-per-site" not in chromium_flags:
+        os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = f"{chromium_flags} --process-per-site".strip()
 
     app = QApplication(sys.argv)
 

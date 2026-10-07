@@ -1,21 +1,8 @@
 "use strict";
 
 (function () {
-  const ICONS = {
-    search: '<svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m10.6 10.6 3.4 3.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
-    close: '<svg viewBox="0 0 16 16"><path d="m4.5 4.5 7 7m0-7-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
-    download: '<svg viewBox="0 0 16 16"><path d="M8 2.5v7.6M4.8 7.2 8 10.4l3.2-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 13h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
-    check: '<svg viewBox="0 0 16 16"><path d="m3.5 8.4 3 3 6-6.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    external: '<svg viewBox="0 0 16 16"><path d="M9.5 2.75h3.75V6.5M13 3 7.6 8.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.6v2.65c0 .55-.45 1-1 1H3.75c-.55 0-1-.45-1-1V5c0-.55.45-1 1-1H6.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
-    caret: '<svg viewBox="0 0 16 16"><path d="m4.5 6.25 3.5 3.5 3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    cards: '<svg viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="2" width="5" height="5" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="2" y="9" width="5" height="5" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="9" width="5" height="5" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
-    list: '<svg viewBox="0 0 16 16"><path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
-    info: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.3v3.9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="4.9" r=".95" fill="currentColor"/></svg>',
-    chip: '<svg viewBox="0 0 16 16"><rect x="3.5" y="3.5" width="9" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="6" y="6" width="4" height="4" rx=".6" fill="currentColor"/><path d="M6 1.5v2M10 1.5v2M6 12.5v2M10 12.5v2M1.5 6h2M1.5 10h2M12.5 6h2M12.5 10h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
-    sort: '<svg viewBox="0 0 16 16"><path d="M5 3v10M2.5 10.5 5 13l2.5-2.5M11 13V3M8.5 5.5 11 3l2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  };
+  const { ICONS, esc, fmt, $ } = VDB;
 
-  const PRECISION_SHORT = { float32: "fp32", bfloat16: "bf16", float16: "fp16" };
   const OPS = { ge: "≥", eq: "=", le: "≤" };
   const OP_WORDS = { ge: "At least", eq: "Exactly", le: "At most" };
   const SIZE_STEPS = [500, 1000, 2000, 4000, 8000, 16000];
@@ -50,51 +37,6 @@
     sort: "vendor",
     view: "cards",
   };
-
-  let bridge = null;
-  let openMenu = null;
-  let tipTimer = 0;
-  let tipElement = null;
-
-  const $ = (selector) => document.querySelector(selector);
-
-  function esc(value) {
-    return String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  }
-
-  function trimZeros(text) {
-    return text.includes(".") ? text.replace(/\.?0+$/, "") : text;
-  }
-
-  const fmt = {
-    int: (n) => Number(n).toLocaleString("en-US"),
-    tokens: (n) => (n >= 1024 && n % 1024 === 0 ? `${n / 1024}K` : fmt.int(n)),
-    size: (mb) => (mb >= 1000 ? `${trimZeros((mb / 1000).toFixed(mb >= 10000 ? 1 : 2))} GB` : `${mb} MB`),
-    params: (m) => (m >= 1000 ? `${trimZeros((m / 1000).toFixed(2))}B` : `${trimZeros(m.toFixed(1))}M`),
-    score: (v) => (v == null ? "—" : v.toFixed(1)),
-    precision: (p) => PRECISION_SHORT[p] || p,
-  };
-
-  function connectBridge() {
-    if (window.QWebChannel && window.qt && window.qt.webChannelTransport) {
-      new QWebChannel(window.qt.webChannelTransport, (channel) => {
-        bridge = channel.objects.bridge;
-      });
-    }
-  }
-
-  function applyTheme(theme) {
-    const root = document.documentElement;
-    for (const [key, value] of Object.entries(theme.colors)) {
-      root.style.setProperty(`--${key.replace(/_/g, "-")}`, value);
-    }
-    root.style.setProperty("--accent", theme.accent);
-    root.style.setProperty("--gold", theme.gold);
-    root.style.setProperty("--on-control", theme.on_control);
-    root.style.setProperty("--on-control-hover", theme.on_control_hover);
-    root.dataset.scheme = theme.scheme;
-    root.style.colorScheme = theme.scheme;
-  }
 
   function setData(payload) {
     state.data = payload;
@@ -208,13 +150,14 @@
     renderSortButton();
     renderMain();
     if (scrollTop) $("#main").scrollTop = 0;
-    if (openMenu) positionPopover();
+    VDB.popover.render();
+    VDB.popover.position();
   }
 
   function renderFilters() {
     const pills = FILTERS.map((f) => {
       const value = filterValue(f.key);
-      const classes = ["filter", value ? "active" : "", openMenu === f.key ? "open" : ""].filter(Boolean).join(" ");
+      const classes = ["filter", value ? "active" : "", VDB.popover.isOpen(f.key) ? "open" : ""].filter(Boolean).join(" ");
       const valueHTML = value ? ` <span class="value">${esc(value)}</span>` : "";
       return `<button type="button" class="${classes}" data-filter="${f.key}">${f.label}${valueHTML}${ICONS.caret}</button>`;
     });
@@ -227,7 +170,6 @@
   function renderSortButton() {
     const option = sortOptions().find((o) => o.key === state.sort) || sortOptions()[0];
     $("#sortButton").innerHTML = `${ICONS.sort}<span class="menu-label">Sort:</span>${esc(option.short)}${ICONS.caret}`;
-    $("#sortButton").classList.toggle("open", openMenu === "sort");
   }
 
   function renderHardware() {
@@ -261,7 +203,7 @@
     let body;
     if (!models.length) body = emptyHTML();
     else if (state.view === "list") body = listHTML(models);
-    else body = cardsHTML(models);
+    else body = `<div class="grid">${models.map(cardHTML).join("")}</div>`;
     $("#main").innerHTML = notice + body;
   }
 
@@ -269,10 +211,6 @@
     return `<div class="empty"><div class="empty-title">No models match</div>
       <div>Try removing a filter or changing the search.</div>
       <button type="button" class="btn" id="resetAll">Clear search and filters</button></div>`;
-  }
-
-  function cardsHTML(models) {
-    return `<div class="grid">${models.map(cardHTML).join("")}</div>`;
   }
 
   function cardHTML(m) {
@@ -314,8 +252,8 @@
       `<span class="chip dims" data-tip="dims">${fmt.int(m.dimensions)} dims</span>`,
       `<span class="chip ctx" data-tip="ctx">${fmt.tokens(m.max_sequence)} tokens</span>`,
       precisionChip(m),
-      m.requires_cuda ? `<span class="chip gpu" data-tip="gpu">GPU only</span>` : "",
-      m.custom_code ? `<span class="chip code" data-tip="code">Custom code</span>` : "",
+      m.requires_cuda ? '<span class="chip gpu" data-tip="gpu">GPU only</span>' : "",
+      m.custom_code ? '<span class="chip code" data-tip="code">Custom code</span>' : "",
     ].join("");
   }
 
@@ -402,17 +340,6 @@
     return `<tr class="model" data-id="${esc(m.id)}">${cells}</tr>`;
   }
 
-  function radioOption(attrs, label, selected, count) {
-    const classes = ["opt", selected ? "on" : "", count === 0 ? "zero" : ""].filter(Boolean).join(" ");
-    const countHTML = count == null ? "" : `<span class="n">${count}</span>`;
-    return `<button type="button" class="${classes}" ${attrs}><span class="mark">${selected ? ICONS.check : ""}</span><span class="label">${label}</span>${countHTML}</button>`;
-  }
-
-  function checkOption(attrs, label, selected, count) {
-    const classes = ["opt", selected ? "on" : "", count === 0 ? "zero" : ""].filter(Boolean).join(" ");
-    return `<button type="button" class="${classes}" ${attrs}><span class="box">${ICONS.check}</span><span class="label">${label}</span><span class="n">${count}</span></button>`;
-  }
-
   function numericMenu(key) {
     const field = key === "dims" ? "dimensions" : "max_sequence";
     const title = key === "dims" ? "Embedding dimensions" : "Max sequence (tokens)";
@@ -420,8 +347,8 @@
     const values = [...new Set(state.data.models.map((m) => m[field]))].sort((a, b) => a - b);
     const segment = ["ge", "eq", "le"].map((op) =>
       `<button type="button" class="${current.op === op ? "on" : ""}" data-op="${op}">${OP_WORDS[op]}</button>`).join("");
-    const options = [radioOption('data-value=""', "Any", current.value == null, countWith({ [key]: { op: current.op, value: null } }))]
-      .concat(values.map((v) => radioOption(
+    const options = [VDB.radioOption('data-value=""', "Any", current.value == null, countWith({ [key]: { op: current.op, value: null } }))]
+      .concat(values.map((v) => VDB.radioOption(
         `data-value="${v}"`, `${OPS[current.op]} ${fmt.int(v)}`, current.value === v,
         countWith({ [key]: { op: current.op, value: v } }),
       )));
@@ -429,14 +356,14 @@
   }
 
   function sizeMenu() {
-    const options = [radioOption('data-value=""', "Any size", state.size == null, countWith({ size: null }))]
-      .concat(SIZE_STEPS.map((v) => radioOption(`data-value="${v}"`, `Up to ${fmt.size(v)}`, state.size === v, countWith({ size: v }))));
+    const options = [VDB.radioOption('data-value=""', "Any size", state.size == null, countWith({ size: null }))]
+      .concat(SIZE_STEPS.map((v) => VDB.radioOption(`data-value="${v}"`, `Up to ${fmt.size(v)}`, state.size === v, countWith({ size: v }))));
     return `<div class="pop-title">Download size</div>${options.join("")}`;
   }
 
   function precisionMenu() {
     const natives = [...new Set(state.data.models.map((m) => m.precision.native))];
-    const options = natives.map((p) => checkOption(
+    const options = natives.map((p) => VDB.checkOption(
       `data-value="${esc(p)}"`, `${esc(p)} <span class="n">(${fmt.precision(p)})</span>`, state.precision.has(p),
       countWith({ precision: new Set([p]) }),
     ));
@@ -447,14 +374,14 @@
     const options = state.data.benchmarks.map((b) => {
       const next = new Set(state.scores);
       next.add(b.key);
-      return checkOption(`data-value="${b.key}"`, esc(b.title), state.scores.has(b.key), countWith({ scores: next }));
+      return VDB.checkOption(`data-value="${b.key}"`, esc(b.title), state.scores.has(b.key), countWith({ scores: next }));
     });
     return `<div class="pop-title">Has a benchmark score for</div>${options.join("")}`;
   }
 
   function statusMenu() {
     const options = STATUS.map(([value, label]) =>
-      radioOption(`data-value="${value}"`, label, state.status === value, countWith({ status: value })));
+      VDB.radioOption(`data-value="${value}"`, label, state.status === value, countWith({ status: value })));
     return `<div class="pop-title">Download status</div>${options.join("")}`;
   }
 
@@ -466,71 +393,41 @@
       ["dimensions", "max_sequence", "size_mb", "parameters_m"],
     ];
     const html = sections.map((keys) => keys.map((k) =>
-      radioOption(`data-sort="${k}"`, esc(options.get(k).label), state.sort === k, null)).join(""));
+      VDB.radioOption(`data-sort="${k}"`, esc(options.get(k).label), state.sort === k, null)).join(""));
     return `<div class="pop-title">Sort by</div>${html.join('<div class="pop-sep"></div>')}`;
   }
 
-  function renderPopover() {
-    const builders = {
-      sort: sortMenu, dims: () => numericMenu("dims"), ctx: () => numericMenu("ctx"),
-      size: sizeMenu, precision: precisionMenu, scores: scoresMenu, status: statusMenu,
-    };
-    const popover = $("#popover");
-    popover.innerHTML = builders[openMenu]();
-    popover.classList.add("show");
-  }
-
-  function menuAnchor() {
-    return openMenu === "sort" ? $("#sortButton") : document.querySelector(`[data-filter="${openMenu}"]`);
-  }
-
-  function positionPopover() {
-    const anchor = menuAnchor();
-    const popover = $("#popover");
-    if (!anchor) return;
-    const rect = anchor.getBoundingClientRect();
-    const width = popover.offsetWidth;
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-    popover.style.left = `${left}px`;
-    popover.style.top = `${rect.bottom + 6}px`;
-    popover.style.maxHeight = `${Math.max(160, window.innerHeight - rect.bottom - 16)}px`;
-    popover.style.overflowY = "auto";
-  }
+  const MENUS = {
+    sort: sortMenu,
+    dims: () => numericMenu("dims"),
+    ctx: () => numericMenu("ctx"),
+    size: sizeMenu,
+    precision: precisionMenu,
+    scores: scoresMenu,
+    status: statusMenu,
+  };
 
   function toggleMenu(key) {
-    hideTip();
-    if (openMenu === key) {
-      closeMenu();
-      return;
-    }
-    openMenu = key;
-    renderFilters();
-    renderSortButton();
-    renderPopover();
-    positionPopover();
+    VDB.popover.toggle(key, {
+      anchor: () => (key === "sort" ? $("#sortButton") : document.querySelector(`[data-filter="${key}"]`)),
+      render: MENUS[key],
+      click: (e) => onMenuClick(key, e),
+      onOpen: renderFilters,
+      onClose: renderFilters,
+    });
   }
 
-  function closeMenu() {
-    if (!openMenu) return;
-    openMenu = null;
-    $("#popover").classList.remove("show");
-    renderFilters();
-    renderSortButton();
-  }
-
-  function onPopoverClick(event) {
-    const key = openMenu;
+  function onMenuClick(key, event) {
     const opButton = event.target.closest("[data-op]");
     if (opButton) {
       state[key] = { ...state[key], op: opButton.dataset.op };
       refresh(true);
-      renderPopover();
       return;
     }
     const sortButton = event.target.closest("[data-sort]");
     if (sortButton) {
       state.sort = sortButton.dataset.sort;
-      closeMenu();
+      VDB.popover.close();
       refresh(true);
       return;
     }
@@ -539,13 +436,13 @@
     const raw = option.dataset.value;
     if (key === "dims" || key === "ctx") {
       state[key] = { ...state[key], value: raw === "" ? null : Number(raw) };
-      closeMenu();
+      VDB.popover.close();
     } else if (key === "size") {
       state.size = raw === "" ? null : Number(raw);
-      closeMenu();
+      VDB.popover.close();
     } else if (key === "status") {
       state.status = raw;
-      closeMenu();
+      VDB.popover.close();
     } else {
       const set = new Set(state[key]);
       if (set.has(raw)) set.delete(raw);
@@ -553,7 +450,6 @@
       state[key] = set;
     }
     refresh(true);
-    if (openMenu) renderPopover();
   }
 
   function modelFor(element) {
@@ -575,9 +471,9 @@
     }
     let where;
     if (hw.device === "cuda") {
-      where = `For ${esc(hw.gpu_short || hw.gpu)} (compute ${esc(hw.cc)}). The Half checkbox is in the Settings tab.`;
+      where = `For ${esc(hw.gpu_short || hw.gpu)} (compute ${esc(hw.cc)}). The Half precision switch is in the Settings tab.`;
     } else if (hw.cpu_only) {
-      where = "No supported GPU, so every model runs in float32 and the Half checkbox is unavailable.";
+      where = "No supported GPU, so every model runs in float32 and Half precision is unavailable.";
     } else {
       where = "The Settings tab creates databases on the CPU, so every model runs in float32.";
     }
@@ -611,7 +507,6 @@
   }
 
   function tipContent(element) {
-    if (element.dataset.tipText) return esc(element.dataset.tipText);
     const kind = element.dataset.tip;
     if (kind === "hardware") return hardwareTip();
     const m = modelFor(element);
@@ -652,34 +547,10 @@
     }
   }
 
-  function showTip(element) {
-    const html = tipContent(element);
-    if (!html) return;
-    const tip = $("#tooltip");
-    tip.innerHTML = html;
-    tip.style.left = "0px";
-    tip.style.top = "0px";
-    const rect = element.getBoundingClientRect();
-    const width = tip.offsetWidth;
-    const height = tip.offsetHeight;
-    let top = rect.bottom + 7;
-    if (top + height > window.innerHeight - 6) top = Math.max(6, rect.top - height - 7);
-    const left = Math.max(6, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 6));
-    tip.style.left = `${left}px`;
-    tip.style.top = `${top}px`;
-    tip.classList.add("show");
-  }
-
-  function hideTip() {
-    clearTimeout(tipTimer);
-    tipElement = null;
-    $("#tooltip").classList.remove("show");
-  }
-
   function requestDownload(id) {
-    if (!bridge || state.data.downloading || !state.byId.has(id)) return;
-    hideTip();
-    bridge.requestDownload(id);
+    if (state.data.downloading || !state.byId.has(id)) return;
+    VDB.tooltip.hide();
+    VDB.call("download", { repo_id: id });
   }
 
   function setQuery(text) {
@@ -707,14 +578,13 @@
     $("#filters").addEventListener("click", (e) => {
       if (e.target.closest("#clearFilters")) {
         resetFilters();
-        closeMenu();
+        VDB.popover.close();
         refresh(true);
         return;
       }
       const pill = e.target.closest("[data-filter]");
       if (pill) toggleMenu(pill.dataset.filter);
     });
-    $("#popover").addEventListener("click", onPopoverClick);
     $("#main").addEventListener("click", (e) => {
       const download = e.target.closest("button.dl");
       if (download) {
@@ -732,28 +602,10 @@
         setQuery("");
       }
     });
-    $("#main").addEventListener("scroll", hideTip, { passive: true });
-
-    document.addEventListener("mousedown", (e) => {
-      hideTip();
-      if (!openMenu) return;
-      if (e.target.closest("#popover, [data-filter], #sortButton")) return;
-      closeMenu();
-    });
-    document.addEventListener("mouseover", (e) => {
-      const element = e.target.closest("[data-tip], [data-tip-text]");
-      if (element === tipElement) return;
-      hideTip();
-      if (!element || e.target.closest("#popover")) return;
-      tipElement = element;
-      tipTimer = setTimeout(() => showTip(element), 350);
-    });
-    document.documentElement.addEventListener("mouseleave", hideTip);
     document.addEventListener("keydown", (e) => {
       const query = $("#query");
-      if (e.key === "Escape") {
-        if (openMenu) closeMenu();
-        else if (document.activeElement === query && query.value) setQuery("");
+      if (e.key === "Escape" && !VDB.popover.key && document.activeElement === query && query.value) {
+        setQuery("");
         return;
       }
       if ((e.ctrlKey && e.key.toLowerCase() === "f") || (e.key === "/" && document.activeElement !== query)) {
@@ -762,30 +614,21 @@
         query.select();
       }
     });
-    window.addEventListener("resize", () => {
-      hideTip();
-      if (openMenu) positionPopover();
-    });
   }
 
-  for (const slot of document.querySelectorAll("[data-icon]")) {
-    slot.outerHTML = ICONS[slot.dataset.icon];
-  }
+  VDB.tooltip.provider = tipContent;
   bindEvents();
-  connectBridge();
 
-  window.ModelsTab = {
-    init(payload, theme) {
-      applyTheme(theme);
+  window.TabApp = {
+    init(payload) {
       setData(payload);
     },
-    applyTheme,
-    setData(payload) {
+    setState(payload) {
       const top = $("#main").scrollTop;
-      hideTip();
+      VDB.tooltip.hide();
       setData(payload);
       $("#main").scrollTop = top;
-      if (openMenu) renderPopover();
+      VDB.popover.render();
     },
   };
 })();

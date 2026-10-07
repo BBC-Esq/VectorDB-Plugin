@@ -4,15 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Models</title>
+<link rel="stylesheet" href="../../web_common/web/common.css">
 <link rel="stylesheet" href="models_tab.css">
 <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script src="../../web_common/web/common.js" defer></script>
 <script src="models_tab.js" defer></script>
 </head>
 <body class="view-cards">
 <header class="toolbar">
   <div class="row">
     <label class="search">
-      <span class="search-icon" data-icon="search"></span>
+      <span data-icon="search"></span>
       <input id="query" type="text" placeholder="Search models" autocomplete="off" spellcheck="false">
       <button id="clearQuery" class="clear" type="button" data-tip-text="Clear the search"><span data-icon="close"></span></button>
       <span id="count" class="count"></span>
@@ -29,7 +31,5 @@
   </div>
 </header>
 <main id="main"></main>
-<div id="popover" class="popover" role="dialog"></div>
-<div id="tooltip" class="tooltip" role="tooltip"></div>
 </body>
 </html>
