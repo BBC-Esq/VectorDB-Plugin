@@ -64,15 +64,25 @@ and where you can start or stop the monitoring. Watching the VRAM meter is espec
 contexts fit within your GPU's memory.
 
 ### How do I download or add embedding models?
-The Models Tab lets you browse and download embedding models.  Models are grouped by providers with properties listed for each
-embedding model.  To download a model, click the radio button next to the modle you want to download and then click
-"Download Selected Model".  This will save the necessary model files to the "Models/Vector/" folder if you want to inspect them. The
-Original Precision of an embedding model is the original floating point format that a model was saved to by the creator - e.g. float32,
-float16 etc. The Parameters of an embedding model refers to how many parameters a particular model has - e.g. 109m means 109 million
-parameters. The Dimensions of an embedding model refers to how complex of embeddings that a particular model created.  More complexity
-means the higher quality generally within the same embedding model family.  For example, dimensions such as 768 or 1024. The Max
-Sequence of an embedding model refers to the maximum amount of tokens that an embedding model can process at a given time.  The size
-of a model refers to the size on disk.
+The Models Tab lets you browse and download embedding models.  Each model has a card that shows its name, provider, license,
+number of parameters (e.g. 109M means 109 million), and size on disk, along with colored labels for its dimensions, its maximum
+sequence length in tokens, and its precision.  The precision label shows the format the creator saved the model in (e.g. float32 or
+bfloat16) and, after an arrow, the format it will actually run in on your computer with your current "half" setting.  Hover over any
+label or score for more details.  Each card also lists the model's benchmark scores for English, multilingual, legal, and code
+retrieval, and a star marks the best score in each category.  To download a model, click the "Download" button on its card.  This
+saves the model files to the "Models/vector" folder, and the button changes to "Downloaded" when it finishes.  Only one model
+downloads at a time.  Use the search box and the filters above the cards to show only the models you want, for example models with
+at least 1,024 dimensions or a maximum sequence of 8,192 tokens, and use the Sort menu to rank the models by a benchmark score, size,
+or other property.  The List button switches to a compact table that you can sort by clicking a column heading.  Clicking a model's
+name opens its page on Hugging Face.
+
+### What does the precision label on each model card in the Models Tab mean?
+The precision label shows the floating point format that the model was saved in and, when it differs, an arrow followed by the
+format that the model will actually run in on your computer.  For example, "fp32 → bf16" means a float32 model will run in
+bfloat16.  The format depends on your compute device and the "half" checkbox in the Settings Tab.  On a CPU, every model runs in
+float32.  On an NVIDIA GPU with "half" unchecked, every model also runs in float32.  With "half" checked, models run in bfloat16
+on GPUs that support it (RTX 30-series and newer) or in float16 on older GPUs, except for the few models that do not work
+correctly in float16, which run in float32 instead.  Hover over the label to see every combination for your computer.
 
 ### How do I query the database for answers?
 Select the database you want to query from the dropdown menu. Choose a backend model for answering Local Models built-in AI Kobold
