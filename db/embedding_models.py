@@ -129,6 +129,7 @@ def _normalize_text(text: str) -> str:
 
 ENCODE_BATCH_SIZE_BY_MODEL = {
     "harrier-oss-v1-270m": 32,
+    "embeddinggemma-300m": 32,
     "harrier-oss-v1-0.6b": 14,
     "Jasper-Token-Compression-600M": 14,
     "Yuan-embedding-2.0-en": 14,
