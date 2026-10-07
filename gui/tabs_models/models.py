@@ -45,8 +45,6 @@ class VectorModelsTab(QWidget):
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
         (Path("Models") / "vector").mkdir(parents=True, exist_ok=True)
-        self._view = None
-        self._page = None
         self._ready = False
         self._downloading = None
         self._sent_payload = None
@@ -54,13 +52,11 @@ class VectorModelsTab(QWidget):
         model_downloaded_signal.downloaded.connect(self._on_model_downloaded)
         model_downloaded_signal.failed.connect(self._on_download_failed)
         self.download_finished.connect(self._on_download_finished)
+        self._create_view()
 
     def showEvent(self, event):
         super().showEvent(event)
-        if self._view is None:
-            self._create_view()
-        else:
-            self._push_data()
+        self._push_data()
 
     def _create_view(self):
         self._view = QWebEngineView(self)
@@ -101,8 +97,6 @@ class VectorModelsTab(QWidget):
             self._page.runJavaScript(f"ModelsTab.setData({payload});")
 
     def _apply_theme(self, theme_name):
-        if self._page is None:
-            return
         theme = catalog.theme_payload(theme_name)
         self._page.setBackgroundColor(QColor(theme["colors"]["bg_window"]))
         if self._ready:
