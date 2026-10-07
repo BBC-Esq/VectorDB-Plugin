@@ -1975,18 +1975,14 @@ THINKING_TAGS = {
 }
 
 TOOLTIPS = {
-    "CHOOSE_FILES": "Select documents to add to the database. Remember to transcribe audio files in the Tools tab first.",
     "CHUNKS_ONLY": "Solely query the vector database and get relevant chunks. Very useful to test the chunk size/overlap settings.",
     "COPY_RESPONSE": "Copy the chunks (if chunks only is checked) or model's response to the clipboard.",
-    "CREATE_VECTOR_DB": "Creates a new vector database.",
-    "DATABASE_NAME_INPUT": "Enter a unique database name. Use only lowercase letters, numbers, underscores, and hyphens.",
     "DATABASE_SELECT": "Vector database that will be queried.",
     "EJECT_LOCAL_MODEL": "Unload the current local model from memory.",
     "LOCAL_MODEL_SELECT": "Select a local model for generating responses.",
     "MODEL_BACKEND_SELECT": "Choose the backend for the large language model response.",
     "PORT": "Must match the port used in LM Studio.",
     "QUESTION_INPUT": "Type your question here or use the voice recorder.",
-    "SELECT_VECTOR_MODEL": "Choose the vector model for text embedding.",
     "SPEAK_RESPONSE": "Speak the response from the large language model using text-to-speech.",
     "SHOW_THINKING_CHECKBOX": "If checked, show the model's internal thought process.  Only applies to 'Thinking' / reasoning models and it will be disregarded if not applicable.",
     "VOICE_RECORDER": "Click to start recording, speak your question, then click again to stop recording."
