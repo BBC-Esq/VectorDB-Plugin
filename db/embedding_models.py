@@ -84,6 +84,8 @@ def _get_model_family(model_path: str) -> str:
         return "bge"
     if "modernbert" in model_path_lower:
         return "modernbert"
+    if "embeddinggemma" in model_path_lower:
+        return "embeddinggemma"
     return "generic"
 
 
@@ -98,6 +100,8 @@ def _get_prompt_for_family(family: str, is_query: bool = False) -> str:
         return "Instruct: Given a question, retrieve passages that can help answer the question.\nQuery: "
     if family == "geevec" and is_query:
         return "Instruct: Given a question, retrieve passages that answer the question.\nQuery: "
+    if family == "embeddinggemma":
+        return "task: search result | query: " if is_query else "title: none | text: "
     return ""
 
 
@@ -430,6 +434,9 @@ class DirectEmbeddingModel:
         total = len(texts)
         logger.info(f"Embedding {total} texts via subprocess tokenization pipeline")
 
+        if self.prompt:
+            texts = [self.prompt + text for text in texts]
+
         encode_batch_size = _get_encode_batch_size(self.device, self.model_path)
 
         tmp_dir = tempfile.mkdtemp(prefix="vectordb_embed_")
@@ -611,7 +618,7 @@ def create_embedding_model(
         max_seq_length = 8192
     elif family == "modernbert":
         max_seq_length = 8192 if "8192" in model_name else 512
-    elif "embeddinggemma" in model_name.lower():
+    elif family == "embeddinggemma":
         max_seq_length = 2048
     else:
         max_seq_length = 512
