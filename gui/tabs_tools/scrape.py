@@ -2,24 +2,13 @@ import os
 import platform
 import shutil
 import subprocess
+import time
 
-from PySide6.QtCore import Qt, QThread, QSettings
-from PySide6.QtGui import QColor, QStandardItem, QStandardItemModel
-from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QComboBox,
-    QPushButton,
-    QMessageBox,
-    QListWidget,
-    QListWidgetItem,
-)
+from PySide6.QtCore import QObject, QSettings, QThread, Signal
+from PySide6.QtWidgets import QMessageBox
 
+from core.constants import PROJECT_ROOT, scrape_documentation
 from modules.scraper import ScraperRegistry, ScraperWorker
-from core.constants import scrape_documentation, PROJECT_ROOT
-
 
 MAX_CONCURRENT_SCRAPES = 6
 
@@ -55,192 +44,92 @@ def _clear_rate_limited_persistent(name: str) -> None:
     _save_rate_limited_set(names)
 
 
-class ScrapeRowWidget(QWidget):
-    """One row in the active-scrapes list. Owns the per-scrape Cancel/Open buttons."""
-
-    def __init__(self, doc_name: str, folder_path: str, on_cancel, on_open):
-        super().__init__()
-        self.doc_name = doc_name
-        self.folder_path = folder_path
-        self._on_cancel = on_cancel
-        self._on_open = on_open
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(4, 2, 4, 2)
-        layout.setSpacing(8)
-
-        self.label = QLabel()
-        self.label.setTextFormat(Qt.RichText)
-        self._set_label("Starting...", count=0, color="#FF9800")
-        layout.addWidget(self.label, 1)
-
-        self.cancel_btn = QPushButton("Cancel")
-        self.cancel_btn.clicked.connect(self._cancel_clicked)
-        layout.addWidget(self.cancel_btn)
-
-        self.open_btn = QPushButton("Open")
-        self.open_btn.clicked.connect(self._open_clicked)
-        layout.addWidget(self.open_btn)
-
-    def _set_label(self, status_text: str, count: int, color: str):
-        self.label.setText(
-            f'<span style="color:#4CAF50;"><b>{self.doc_name}</b></span> '
-            f'<span style="color:{color};">{status_text}</span> '
-            f'<span style="color:#4CAF50;">Pages scraped:</span> {count}'
-        )
-
-    def update_count(self, count: int):
-        self._set_label("Scraping...", count=count, color="#FF9800")
-
-    def mark_completed(self, count: int):
-        self._set_label("Completed.", count=count, color="#4CAF50")
-        self.cancel_btn.setEnabled(False)
-
-    def mark_cancelled(self, count: int):
-        self._set_label("Cancelled.", count=count, color="#9E9E9E")
-        self.cancel_btn.setEnabled(False)
-
-    def mark_rate_limited(self, count: int):
-        self._set_label(
-            "Rate-limited - partial state saved. Click 'Scrape' again and choose Resume.",
-            count=count, color="#FFC107",
-        )
-        self.cancel_btn.setEnabled(False)
-
-    def _cancel_clicked(self):
-        self.cancel_btn.setEnabled(False)
-        self._set_label("Cancelling...", count=self._current_count(), color="#9E9E9E")
-        self._on_cancel(self.doc_name)
-
-    def _open_clicked(self):
-        self._on_open(self.folder_path)
-
-    def _current_count(self) -> int:
-        try:
-            if os.path.exists(self.folder_path):
-                return len([f for f in os.listdir(self.folder_path) if f.endswith(".html")])
-        except Exception:
-            pass
-        return 0
+def scraped_root():
+    return os.path.join(str(PROJECT_ROOT), "Scraped_Documentation")
 
 
-class ScrapeDocumentationTab(QWidget):
-    def __init__(self) -> None:
-        super().__init__()
-        self.setToolTip(
-            "Tab for scraping documentation from the selected source."
-        )
-        self.active_workers: dict[str, dict] = {}
-        self.restored_rate_limited_rows: dict[str, QListWidgetItem] = {}
-        self.init_ui()
+def folder_for(doc_name):
+    return os.path.join(scraped_root(), scrape_documentation[doc_name]["folder"])
+
+
+def count_pages(folder_path):
+    try:
+        if os.path.exists(folder_path):
+            return len([f for f in os.listdir(folder_path) if f.endswith(".html")])
+    except Exception:
+        pass
+    return 0
+
+
+class ScrapeTool(QObject):
+    changed = Signal()
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.active: dict[str, dict] = {}
+        self.rows: dict[str, dict] = {}
+        self.scraped: set[str] = set()
+        names = self.doc_names()
+        self.selected = names[0] if names else None
         self._restore_rate_limited_rows()
+        self.refresh()
 
-    def init_ui(self) -> None:
-        main_layout = QVBoxLayout(self)
+    def doc_names(self):
+        return sorted(scrape_documentation.keys(), key=str.lower)
 
-        label = QLabel("Select Documentation:")
-        label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        main_layout.addWidget(label)
+    def refresh(self):
+        root = scraped_root()
+        self.scraped = {
+            name for name in self.doc_names()
+            if os.path.exists(os.path.join(root, scrape_documentation[name]["folder"]))
+        }
 
-        hbox = QHBoxLayout()
-        self.doc_combo = QComboBox()
-        self.populate_combo_box()
-        hbox.addWidget(self.doc_combo)
-
-        self.scrape_button = QPushButton("Scrape")
-        self.scrape_button.clicked.connect(self.start_scraping)
-        hbox.addWidget(self.scrape_button)
-
-        hbox.setStretch(0, 1)
-        hbox.setStretch(1, 1)
-        main_layout.addLayout(hbox)
-
-        self.summary_label = QLabel()
-        self.summary_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self._refresh_summary()
-        main_layout.addWidget(self.summary_label)
-
-        self.scrape_list = QListWidget()
-        self.scrape_list.setSelectionMode(QListWidget.NoSelection)
-        main_layout.addWidget(self.scrape_list, 1)
-
-    def _refresh_summary(self) -> None:
-        n = len(self.active_workers)
-        self.summary_label.setText(
-            f'<span style="color:#2196F3;"><b>Active scrapes:</b></span> '
-            f'{n} / {MAX_CONCURRENT_SCRAPES}'
-        )
-
-    def _restore_rate_limited_rows(self) -> None:
-        persisted = _load_rate_limited_set()
-        if not persisted:
-            return
-        scraped_dir = os.path.join(str(PROJECT_ROOT), "Scraped_Documentation")
-        for doc_name in sorted(persisted):
+    def _restore_rate_limited_rows(self):
+        for doc_name in sorted(_load_rate_limited_set()):
             doc_info = scrape_documentation.get(doc_name)
             if not doc_info or "folder" not in doc_info:
                 _clear_rate_limited_persistent(doc_name)
                 continue
-            folder_path = os.path.join(scraped_dir, doc_info["folder"])
+            folder_path = folder_for(doc_name)
             if not os.path.exists(folder_path):
                 _clear_rate_limited_persistent(doc_name)
                 continue
-            count = 0
-            try:
-                count = len([f for f in os.listdir(folder_path) if f.endswith(".html")])
-            except Exception:
-                pass
-            row = ScrapeRowWidget(
-                doc_name=doc_name,
-                folder_path=folder_path,
-                on_cancel=lambda _n: None,
-                on_open=self.open_folder,
-            )
-            row.mark_rate_limited(count)
-            item = QListWidgetItem(self.scrape_list)
-            item.setSizeHint(row.sizeHint())
-            self.scrape_list.addItem(item)
-            self.scrape_list.setItemWidget(item, row)
-            self.restored_rate_limited_rows[doc_name] = item
+            self.rows[doc_name] = {"status": "rate_limited", "pages": count_pages(folder_path), "folder": folder_path}
 
-    def populate_combo_box(self) -> None:
-        doc_options = sorted(scrape_documentation.keys(), key=str.lower)
-        model = QStandardItemModel()
+    def state(self):
+        docs = [{"name": name, "scraped": name in self.scraped} for name in self.doc_names()]
+        rows = [
+            {"name": name, "status": row["status"], "pages": row["pages"],
+             "running": name in self.active, "started": row.get("started")}
+            for name, row in self.rows.items()
+        ]
+        return {
+            "docs": docs,
+            "selected": self.selected,
+            "active": len(self.active),
+            "limit": MAX_CONCURRENT_SCRAPES,
+            "rows": rows,
+        }
 
-        scraped_dir = os.path.join(
-            str(PROJECT_ROOT),
-            "Scraped_Documentation",
-        )
+    def select(self, name):
+        if name in scrape_documentation:
+            self.selected = name
+            self.changed.emit()
 
-        for doc in doc_options:
-            folder = scrape_documentation[doc]["folder"]
-            folder_path = os.path.join(scraped_dir, folder)
-            item = QStandardItem(doc)
-            if os.path.exists(folder_path):
-                item.setForeground(QColor("#e75959"))
-            item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-            model.appendRow(item)
+    def make_worker(self, url, folder, scraper_class, name, resume):
+        return ScraperWorker(url, folder, scraper_class, name=name, resume=resume)
 
-        self.doc_combo.setModel(model)
-
-    def start_scraping(self) -> None:
-        selected_doc = self.doc_combo.currentText()
-        doc_info = scrape_documentation.get(selected_doc)
+    def start(self, parent_widget, name):
+        doc_info = scrape_documentation.get(name)
         if not doc_info or "URL" not in doc_info or "folder" not in doc_info:
-            self.show_error("Incomplete configuration for the selection.")
+            QMessageBox.critical(parent_widget, "Error", "Incomplete configuration for the selection.")
             return
-
-        if selected_doc in self.active_workers:
-            QMessageBox.information(
-                self,
-                "Already Scraping",
-                f"'{selected_doc}' is already being scraped.",
-            )
+        if name in self.active:
+            QMessageBox.information(parent_widget, "Already Scraping", f"'{name}' is already being scraped.")
             return
-
-        if len(self.active_workers) >= MAX_CONCURRENT_SCRAPES:
+        if len(self.active) >= MAX_CONCURRENT_SCRAPES:
             QMessageBox.warning(
-                self,
+                parent_widget,
                 "Concurrent Scrape Limit Reached",
                 f"You can run at most {MAX_CONCURRENT_SCRAPES} scrapes at the same time. "
                 f"Wait for one to finish (or cancel one) before starting another.",
@@ -249,23 +138,17 @@ class ScrapeDocumentationTab(QWidget):
 
         url = doc_info["URL"]
         folder = doc_info["folder"]
-        scraper_name = doc_info.get("scraper_class", "BaseScraper")
-        scraper_class = ScraperRegistry.get_scraper(scraper_name)
-
-        folder_path = os.path.join(
-            str(PROJECT_ROOT),
-            "Scraped_Documentation",
-            folder,
-        )
+        scraper_class = ScraperRegistry.get_scraper(doc_info.get("scraper_class", "BaseScraper"))
+        folder_path = folder_for(name)
 
         resume = False
         if os.path.exists(folder_path):
             msg_box = QMessageBox(
                 QMessageBox.Warning,
                 "Existing Folder",
-                f"A scrape folder already exists for {selected_doc}.",
+                f"A scrape folder already exists for {name}.",
                 QMessageBox.NoButton,
-                self,
+                parent_widget,
             )
             msg_box.setInformativeText(
                 "Resume: pick up where the last run left off (already-saved pages are skipped; "
@@ -281,9 +164,9 @@ class ScrapeDocumentationTab(QWidget):
             clicked = msg_box.clickedButton()
             if clicked is None or clicked == cancel_btn:
                 return
-            resume = (clicked == resume_btn)
+            resume = clicked == resume_btn
             if not resume:
-                _clear_rate_limited_persistent(selected_doc)
+                _clear_rate_limited_persistent(name)
                 for filename in os.listdir(folder_path):
                     file_path = os.path.join(folder_path, filename)
                     try:
@@ -294,102 +177,93 @@ class ScrapeDocumentationTab(QWidget):
                     except Exception:
                         pass
 
-        if selected_doc in self.restored_rate_limited_rows:
-            old_item = self.restored_rate_limited_rows.pop(selected_doc)
-            old_row = self.scrape_list.row(old_item)
-            if old_row >= 0:
-                self.scrape_list.takeItem(old_row)
+        self.rows.pop(name, None)
+        self.rows[name] = {"status": "starting", "pages": 0, "folder": folder_path, "started": time.time()}
 
-        row = ScrapeRowWidget(
-            doc_name=selected_doc,
-            folder_path=folder_path,
-            on_cancel=self.cancel_scrape,
-            on_open=self.open_folder,
-        )
-        item = QListWidgetItem(self.scrape_list)
-        item.setSizeHint(row.sizeHint())
-        self.scrape_list.addItem(item)
-        self.scrape_list.setItemWidget(item, row)
-
-        worker = ScraperWorker(url, folder, scraper_class, name=selected_doc, resume=resume)
+        worker = self.make_worker(url, folder, scraper_class, name, resume)
+        self.refresh()
         thread = QThread()
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
-        worker.status_updated.connect(self.update_status)
-        # Phase 1: worker emits → update the row UI + ask the thread to quit.
-        # We must NOT drop our Python references to worker/thread here, because
-        # thread.quit() takes a moment to wind down the event loop.
+        worker.status_updated.connect(self._on_status)
         worker.scraping_finished.connect(self._on_worker_finished)
         worker.scraping_finished.connect(thread.quit)
-        # Phase 2: thread truly exited — safe to release references.
-        thread.finished.connect(lambda n=selected_doc: self._on_thread_finished(n))
+        thread.finished.connect(lambda n=name: self._on_thread_finished(n))
         thread.finished.connect(thread.deleteLater)
-
-        self.active_workers[selected_doc] = {
-            "worker": worker,
-            "thread": thread,
-            "row": row,
-            "item": item,
-            "folder_path": folder_path,
-        }
-
+        self.active[name] = {"worker": worker, "thread": thread}
         thread.start()
-        self._refresh_summary()
+        self.changed.emit()
 
-    def update_status(self, doc_name: str, status: str) -> None:
-        entry = self.active_workers.get(doc_name)
-        if not entry:
+    def _on_status(self, doc_name, status):
+        row = self.rows.get(doc_name)
+        if row is None or doc_name not in self.active:
             return
         try:
-            count = int(status)
+            row["pages"] = int(status)
         except ValueError:
-            count = 0
-        entry["row"].update_count(count)
-
-    def _on_worker_finished(self, doc_name: str, was_cancelled: bool, was_rate_limited: bool) -> None:
-        """Phase 1: worker emitted scraping_finished. Update the row UI but do NOT
-        drop Python references — thread.quit() still has to wind down."""
-        entry = self.active_workers.get(doc_name)
-        if not entry:
-            return
-        row = entry["row"]
-        folder_path = entry["folder_path"]
-        count = 0
-        try:
-            if os.path.exists(folder_path):
-                count = len([f for f in os.listdir(folder_path) if f.endswith(".html")])
-        except Exception:
             pass
+        if row["status"] == "starting":
+            row["status"] = "scraping"
+        self.changed.emit()
+
+    def _on_worker_finished(self, doc_name, was_cancelled, was_rate_limited):
+        row = self.rows.get(doc_name)
+        if row is None:
+            return
+        row["pages"] = count_pages(row["folder"])
         if was_cancelled:
-            row.mark_cancelled(count)
+            row["status"] = "cancelled"
         elif was_rate_limited:
-            row.mark_rate_limited(count)
+            row["status"] = "rate_limited"
             _mark_rate_limited_persistent(doc_name)
         else:
-            row.mark_completed(count)
+            row["status"] = "completed"
             _clear_rate_limited_persistent(doc_name)
+        row["finished"] = time.time()
+        self.selected = doc_name
+        self.refresh()
+        self.changed.emit()
 
-        self.populate_combo_box()
-        idx = self.doc_combo.findText(doc_name)
-        if idx >= 0:
-            self.doc_combo.setCurrentIndex(idx)
+    def _on_thread_finished(self, doc_name):
+        self.active.pop(doc_name, None)
+        self.changed.emit()
 
-    def _on_thread_finished(self, doc_name: str) -> None:
-        """Phase 2: thread event loop has exited. Now safe to release refs."""
-        self.active_workers.pop(doc_name, None)
-        self._refresh_summary()
-
-    def cancel_scrape(self, doc_name: str) -> None:
-        entry = self.active_workers.get(doc_name)
+    def cancel(self, name):
+        entry = self.active.get(name)
         if not entry:
             return
+        row = self.rows.get(name)
+        if row is not None and row["status"] in ("starting", "scraping"):
+            row["status"] = "cancelling"
         try:
             entry["worker"].cancel()
         except Exception as e:
-            print(f"Error cancelling {doc_name}: {e}")
+            print(f"Error cancelling {name}: {e}")
+        self.changed.emit()
 
-    def cleanup(self) -> None:
-        for entry in list(self.active_workers.values()):
+    def dismiss(self, name):
+        if name in self.active:
+            return
+        row = self.rows.pop(name, None)
+        if row is not None and row["status"] == "rate_limited":
+            _clear_rate_limited_persistent(name)
+        self.changed.emit()
+
+    def open_folder(self, parent_widget, name):
+        folder_path = self.rows[name]["folder"] if name in self.rows else folder_for(name)
+        if not os.path.exists(folder_path):
+            QMessageBox.information(parent_widget, "Folder Not Found", "The folder hasn't been created yet (no pages scraped).")
+            return
+        system = platform.system()
+        if system == "Windows":
+            os.startfile(folder_path)
+        elif system == "Darwin":
+            subprocess.Popen(["open", folder_path])
+        else:
+            subprocess.Popen(["xdg-open", folder_path])
+
+    def cleanup(self):
+        for entry in list(self.active.values()):
             worker = entry.get("worker")
             thread = entry.get("thread")
             if worker is not None:
@@ -400,21 +274,3 @@ class ScrapeDocumentationTab(QWidget):
             if thread is not None and thread.isRunning():
                 thread.quit()
                 thread.wait(5000)
-
-    def show_error(self, message: str) -> None:
-        QMessageBox.critical(self, "Error", message)
-
-    def open_folder(self, folder_path: str) -> None:
-        if not os.path.exists(folder_path):
-            QMessageBox.information(
-                self, "Folder Not Found",
-                "The folder hasn't been created yet (no pages scraped).",
-            )
-            return
-        system = platform.system()
-        if system == "Windows":
-            os.startfile(folder_path)
-        elif system == "Darwin":
-            subprocess.Popen(["open", folder_path])
-        else:
-            subprocess.Popen(["xdg-open", folder_path])

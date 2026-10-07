@@ -1980,7 +1980,6 @@ THINKING_TAGS = {
 }
 
 TOOLTIPS = {
-    "AUDIO_FILE_SELECT": "Select an audio file. Supports various audio formats.",
     "CHOOSE_FILES": "Select documents to add to the database. Remember to transcribe audio files in the Tools tab first.",
     "CHUNKS_ONLY": "Solely query the vector database and get relevant chunks. Very useful to test the chunk size/overlap settings.",
     "COPY_RESPONSE": "Copy the chunks (if chunks only is checked) or model's response to the clipboard.",
@@ -1992,17 +1991,10 @@ TOOLTIPS = {
     "MODEL_BACKEND_SELECT": "Choose the backend for the large language model response.",
     "PORT": "Must match the port used in LM Studio.",
     "QUESTION_INPUT": "Type your question here or use the voice recorder.",
-    "RESTORE_CONFIG": "Restores original config.yaml. May require manual database cleanup.",
-    "RESTORE_DATABASE": "Restores backed-up databases. Use with caution.",
     "SELECT_VECTOR_MODEL": "Choose the vector model for text embedding.",
     "SPEAK_RESPONSE": "Speak the response from the large language model using text-to-speech.",
     "SHOW_THINKING_CHECKBOX": "If checked, show the model's internal thought process.  Only applies to 'Thinking' / reasoning models and it will be disregarded if not applicable.",
-    "TRANSCRIBE_BUTTON": "Start transcription.",
-    "TTS_MODEL": "Choose TTS model. Bark offers customization, Google requires internet.",
-    "VISION_MODEL": "Select vision model for image processing. Test before bulk processing.",
-    "VOICE_RECORDER": "Click to start recording, speak your question, then click again to stop recording.",
-    "WHISPER_BATCH_SIZE": "Batch size for transcription. See the User Guide for optimal values.",
-    "WHISPER_MODEL_SELECT": "Distil models use ~ 70% VRAM of their non-Distil equivalents with little quality loss. Whisper large-v3 turbo is much faster than large-v3 with a small quality loss."
+    "VOICE_RECORDER": "Click to start recording, speak your question, then click again to stop recording."
 }
 
 scrape_documentation = {

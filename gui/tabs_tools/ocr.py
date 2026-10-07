@@ -1,13 +1,15 @@
-import html
+import os
 import time
 from pathlib import Path
+
 import fitz
-from PySide6.QtWidgets import (
-    QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel,
-    QComboBox, QFileDialog, QMessageBox
-)
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtWidgets import QFileDialog
+
 from modules.ocr import process_documents
+
+ENGINES = [("rapidocr", "RapidOCR"), ("tesseract", "Tesseract")]
+
 
 def get_pdf_page_count(pdf_path):
     try:
@@ -17,26 +19,29 @@ def get_pdf_page_count(pdf_path):
         print(f"Error reading PDF: {e}")
         return 0
 
-def run_ocr_process(pdf_path, backend):
+
+def run_ocr_process(pdf_path, backend, on_progress=None):
     try:
-        events = process_documents(
-            pdf_paths=Path(pdf_path),
-            backend=backend,
-        )
+        events = process_documents(pdf_paths=Path(pdf_path), backend=backend, on_progress=on_progress)
         return True, None, events if isinstance(events, dict) else {}
     except Exception as e:
         return False, str(e), {}
+
 
 def _page_list(pages, limit=10):
     shown = ", ".join(str(p) for p in pages[:limit])
     return shown + ", ..." if len(pages) > limit else shown
 
+
 def summarize_events(events):
     events = events or {}
+
     def entries(key):
         return [e for e in events.get(key, []) if isinstance(e, dict)]
+
     def pages(items):
         return sorted({e.get('page') for e in items if e.get('page')})
+
     warnings, infos = [], []
     lc = pages(entries('lowconf'))
     if lc:
@@ -63,8 +68,15 @@ def summarize_events(events):
         infos.append(f"{len(orp)} page(s) auto-rotated to read: {_page_list(orp)}")
     return warnings, infos
 
+
+def format_seconds(seconds):
+    minutes, seconds = divmod(seconds, 60)
+    return f"{int(minutes)}m {seconds:.1f}s" if minutes > 0 else f"{seconds:.1f}s"
+
+
 class OcrWorkerThread(QThread):
     finished_signal = Signal(bool, str, float, object)
+    progress_signal = Signal(str, int)
 
     def __init__(self, pdf_path, backend, parent=None):
         super().__init__(parent)
@@ -73,167 +85,114 @@ class OcrWorkerThread(QThread):
 
     def run(self):
         start_time = time.time()
-        success, message, events = run_ocr_process(self.pdf_path, self.backend)
+        success, message, events = run_ocr_process(self.pdf_path, self.backend, self.progress_signal.emit)
         elapsed_time = time.time() - start_time
         self.finished_signal.emit(success, message or "", elapsed_time, events)
 
-class OCRToolSettingsTab(QWidget):
-    ENGINE_MAPPING = {
-        "RapidOCR": "rapidocr",
-        "Tesseract": "tesseract"
-    }
 
-    def __init__(self):
-        super().__init__()
-        self.selected_pdf_file = None
-        self.last_events = {}
-        self.create_layout()
-        self.setButtons(True)
-        self.worker_thread = None
+class OcrTool(QObject):
+    changed = Signal()
 
-    def create_layout(self):
-        main_layout = QVBoxLayout()
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.engine = "rapidocr"
+        self.file = None
+        self.pages = 0
+        self.worker = None
+        self.started = None
+        self.progress = None
+        self.result = None
 
-        engine_selection_hbox = QHBoxLayout()
+    def running(self):
+        return self.worker is not None and self.worker.isRunning()
 
-        engine_label = QLabel("OCR Engine")
-        engine_selection_hbox.addWidget(engine_label)
+    def state(self):
+        file_state = None
+        if self.file:
+            path = Path(self.file)
+            file_state = {"name": path.name, "path": str(path.absolute()), "pages": self.pages}
+        return {
+            "engines": [{"value": value, "label": label} for value, label in ENGINES],
+            "engine": self.engine,
+            "file": file_state,
+            "running": self.running(),
+            "started": self.started,
+            "progress": self.progress,
+            "result": self.result,
+        }
 
-        self.engine_combo = QComboBox()
-        self.engine_combo.addItems(["RapidOCR", "Tesseract"])
-        self.engine_combo.setCurrentText("RapidOCR")
-        engine_selection_hbox.addWidget(self.engine_combo)
+    def set_engine(self, value):
+        if value in dict(ENGINES) and not self.running():
+            self.engine = value
+            self.changed.emit()
 
-        self.select_pdf_button = QPushButton("Choose PDF")
-        self.select_pdf_button.clicked.connect(self.select_pdf_file)
-        engine_selection_hbox.addWidget(self.select_pdf_button)
-
-        self.process_button = QPushButton("Process")
-        self.process_button.clicked.connect(self.start_ocr_process)
-        engine_selection_hbox.addWidget(self.process_button)
-
-        engine_selection_hbox.setStretchFactor(engine_label, 1)
-        engine_selection_hbox.setStretchFactor(self.engine_combo, 2)
-        engine_selection_hbox.setStretchFactor(self.select_pdf_button, 1)
-        engine_selection_hbox.setStretchFactor(self.process_button, 1)
-
-        main_layout.addLayout(engine_selection_hbox)
-
-        self.file_path_label = QLabel("No PDF file selected")
-        main_layout.addWidget(self.file_path_label)
-
-        self.status_label = QLabel("")
-        self.status_label.setStyleSheet("color: gray;")
-        main_layout.addWidget(self.status_label)
-
-        self.setLayout(main_layout)
-
-    def setButtons(self, enabled):
-        self.select_pdf_button.setEnabled(enabled)
-        self.process_button.setEnabled(enabled)
-        self.engine_combo.setEnabled(enabled)
-        if enabled:
-            self.status_label.setText("")
-
-    def select_pdf_file(self):
-        current_dir = Path.cwd()
-        file_name, _ = QFileDialog.getOpenFileName(
-            self, 
-            "Select PDF File", 
-            str(current_dir),
-            "PDF Files (*.pdf)"
-        )
+    def choose_pdf(self, parent_widget):
+        if self.running():
+            return
+        file_name, _ = QFileDialog.getOpenFileName(parent_widget, "Select PDF File", str(Path.cwd()), "PDF Files (*.pdf)")
         if file_name:
-            file_path = Path(file_name)
-            short_path = f"...{file_path.parent.name}/{file_path.name}"
-            self.file_path_label.setText(short_path)
-            self.file_path_label.setToolTip(str(file_path.absolute()))
-            self.selected_pdf_file = file_name
-            self.status_label.setText("")
+            self.file = file_name
+            self.pages = get_pdf_page_count(file_name)
+            self.result = None
+            self.changed.emit()
 
-    def show_error_message(self, message):
-        self.status_label.setStyleSheet("color: red;")
-        self.status_label.setText("Error: OCR process failed")
-        QMessageBox.critical(self, "Error", f"OCR process failed:\n{message}")
+    def make_worker(self, pdf_path, backend):
+        return OcrWorkerThread(pdf_path, backend)
 
-    def show_success_message(self):
-        warnings, infos = summarize_events(getattr(self, 'last_events', {}))
-
-        minutes, seconds = divmod(self.elapsed_time, 60)
-        time_str = f"{int(minutes)}m {seconds:.1f}s" if minutes > 0 else f"{seconds:.1f}s"
-        if warnings:
-            self.status_label.setStyleSheet("color: #FF9800;")
-            self.status_label.setText(f"Success with {len(warnings)} warning(s) - {time_str}")
-        else:
-            self.status_label.setStyleSheet("color: #4CAF50;")
-            self.status_label.setText(f"Success! Completed in {time_str}")
-
-        if not self.selected_pdf_file:
+    def start(self):
+        if self.running():
             return
-
-        original_file = Path(self.selected_pdf_file)
-        processed_file = original_file.with_stem(f"{original_file.stem}_OCR").with_suffix(".pdf")
-
-        if processed_file.exists():
-            file_link = f'<a href="file:///{processed_file}" style="color: #4CAF50; text-decoration: none;">Open New File</a>'
-        else:
-            file_link = "The processed file could not be found."
-
-        notes = ""
-        if warnings or infos:
-            bullets = "".join(f'&bull; <span style="color:#FF9800;">{html.escape(w)}</span><br>' for w in warnings)
-            bullets += "".join(f"&bull; {html.escape(i)}<br>" for i in infos)
-            notes = f"<br><b>Quality notes:</b><br>{bullets}"
-
-        QMessageBox.information(
-            self,
-            "Success!",
-            f"""Processing completed in {time_str}!<br><br>
-            A new <b>.pdf</b> ending in <b>'_OCR'</b> has been saved
-            in the same directory as the original file.<br><br>
-
-            {file_link}
-            {notes}
-            """
-        )
-
-    def start_ocr_process(self):
-        if not self.selected_pdf_file:
-            QMessageBox.warning(self, "Warning", "Please select a PDF file first.")
+        if not self.file:
+            self.result = {"ok": False, "message": "Choose a PDF file first."}
+            self.changed.emit()
             return
+        print(f"Starting OCR process for {self.file}")
+        self.result = None
+        self.started = time.time()
+        self.progress = {"done": 0, "total": self.pages or 0}
+        self.worker = self.make_worker(self.file, self.engine)
+        self.worker.progress_signal.connect(self._on_progress)
+        self.worker.finished_signal.connect(self._on_finished)
+        self.worker.start()
+        self.changed.emit()
 
-        selected_engine = self.engine_combo.currentText()
-        backend = self.ENGINE_MAPPING[selected_engine]
+    def _on_progress(self, kind, value):
+        if self.progress is None:
+            return
+        if kind == "total":
+            self.progress = {"done": 0, "total": int(value)}
+        elif kind == "update":
+            self.progress = {"done": self.progress["done"] + int(value), "total": self.progress["total"]}
+        self.changed.emit()
 
-        self.status_label.setStyleSheet("color: #0074D9;")
-        self.status_label.setText(f"Processing with {selected_engine}...")
-        print(f"Starting OCR process for {self.selected_pdf_file}")
+    def output_path(self):
+        if not self.file:
+            return None
+        original = Path(self.file)
+        return original.with_stem(f"{original.stem}_OCR").with_suffix(".pdf")
 
-        self.setButtons(False)
-
-        if self.worker_thread and self.worker_thread.isRunning():
-            self.worker_thread.wait()
-
-        self.worker_thread = OcrWorkerThread(self.selected_pdf_file, backend)
-        self.worker_thread.finished_signal.connect(self.ocr_finished)
-        self.worker_thread.start()
-
-    def ocr_finished(self, success, message, elapsed_time, events):
-        self.setButtons(True)
-
-        self.elapsed_time = elapsed_time
-        self.last_events = events if isinstance(events, dict) else {}
-
-        if self.worker_thread:
-            self.worker_thread.quit()
-            self.worker_thread.wait()
-            self.worker_thread = None
-
-        from PySide6.QtCore import QTimer
-        QTimer.singleShot(1000, lambda: self._show_completion_message(success, message))
-
-    def _show_completion_message(self, success, message):
+    def _on_finished(self, success, message, elapsed_time, events):
+        worker = self.worker
+        if worker is not None:
+            worker.quit()
+            worker.wait()
+            self.worker = None
+        self.progress = None
         if success:
-            self.show_success_message()
+            warnings, infos = summarize_events(events if isinstance(events, dict) else {})
+            output = self.output_path()
+            self.result = {
+                "ok": True,
+                "time": format_seconds(elapsed_time),
+                "warnings": warnings,
+                "infos": infos,
+                "output": str(output) if output and output.exists() else None,
+                "output_name": output.name if output else "",
+            }
         else:
-            self.show_error_message(message)
+            self.result = {"ok": False, "message": f"OCR failed: {message}"}
+        self.changed.emit()
+
+    def open_output(self):
+        if self.result and self.result.get("output") and Path(self.result["output"]).exists():
+            os.startfile(self.result["output"])

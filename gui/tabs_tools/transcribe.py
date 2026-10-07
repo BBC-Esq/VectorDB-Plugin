@@ -1,13 +1,20 @@
+import re
+import time
 from pathlib import Path
-import torch
-from PySide6.QtCore import Qt, QThread, Signal
-from PySide6.QtWidgets import (
-    QApplication, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QPushButton, QFileDialog, QLabel, QComboBox,
-    QSlider, QSizePolicy, QMessageBox
-)
+
+from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtWidgets import QApplication, QFileDialog
+
+from core.constants import PROJECT_ROOT, WHISPER_MODELS
+from core.utilities import cuda_usable, has_bfloat16_support, my_cprint
 from modules.transcribe import WhisperTranscriber
-from core.utilities import my_cprint, has_bfloat16_support
-from core.constants import WHISPER_MODELS, TOOLTIPS
+
+BUILD_RUNNING_MESSAGE = (
+    "A vector database is being created. Transcribe after it finishes, because a "
+    "transcript saved during a build would be removed when the build ends."
+)
+
+PRECISIONS = ["float32", "bfloat16", "float16"]
 
 
 class TranscriptionWorkerThread(QThread):
@@ -31,141 +38,151 @@ class TranscriptionWorkerThread(QThread):
             self.finished_signal.emit(False, str(e))
 
 
-class TranscriberToolSettingsTab(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.selected_audio_file = None
-        self.worker_thread = None
-        self.create_layout()
+def model_table():
+    cuda_available = cuda_usable()
+    bfloat16_supported = cuda_available and has_bfloat16_support()
+    table = {}
+    for model_key, model_info in WHISPER_MODELS.items():
+        precision = model_info['precision']
+        available = (precision == 'float32'
+                     or (precision == 'bfloat16' and bfloat16_supported)
+                     or (precision == 'float16' and cuda_available))
+        table.setdefault(model_info['name'], {})[precision] = {"key": model_key, "available": available}
+    return table
 
-    def set_buttons_enabled(self, enabled):
-        self.transcribe_button.setEnabled(enabled)
-        self.select_file_button.setEnabled(enabled)
 
-    def create_layout(self):
-        main_layout = QVBoxLayout()
+def database_build_running():
+    return any(callable(getattr(w, "database_build_running", None)) and w.database_build_running()
+               for w in QApplication.allWidgets())
 
-        grid = QGridLayout()
-        grid.setColumnStretch(0, 2)
-        grid.setColumnStretch(1, 2)
-        grid.setColumnStretch(2, 1)
 
-        model_row = QHBoxLayout()
-        model_label = QLabel("Model")
-        model_label.setToolTip(TOOLTIPS["WHISPER_MODEL_SELECT"])
-        model_row.addWidget(model_label)
+class TranscribeTool(QObject):
+    changed = Signal()
 
-        self.model_combo = QComboBox()
-        self.populate_model_combo()
-        self.model_combo.setToolTip(TOOLTIPS["WHISPER_MODEL_SELECT"])
-        model_row.addWidget(self.model_combo, 1)
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.table = model_table()
+        self.model = next(iter(self.table), None)
+        self.precision = self._first_precision(self.model)
+        self.batch = 8
+        self.file = None
+        self.worker = None
+        self.started = None
+        self.result = None
 
-        grid.addLayout(model_row, 0, 0)
+    def _first_precision(self, model):
+        for precision in PRECISIONS:
+            entry = self.table.get(model, {}).get(precision)
+            if entry and entry["available"]:
+                return precision
+        return None
 
-        self.select_file_button = QPushButton("Select File")
-        self.select_file_button.clicked.connect(self.select_audio_file)
-        self.select_file_button.setToolTip(TOOLTIPS["AUDIO_FILE_SELECT"])
-        grid.addWidget(self.select_file_button, 0, 1)
+    def model_key(self):
+        entry = self.table.get(self.model, {}).get(self.precision)
+        return entry["key"] if entry else None
 
-        self.transcribe_button = QPushButton("Transcribe")
-        self.transcribe_button.clicked.connect(self.start_transcription)
-        self.transcribe_button.setToolTip(TOOLTIPS["TRANSCRIBE_BUTTON"])
-        self.transcribe_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        grid.addWidget(self.transcribe_button, 0, 2, 2, 1)
+    def running(self):
+        return self.worker is not None and self.worker.isRunning()
 
-        batch_row = QHBoxLayout()
-        batch_label = QLabel("Batch:")
-        batch_label.setToolTip(TOOLTIPS["WHISPER_BATCH_SIZE"])
-        batch_row.addWidget(batch_label)
+    def state(self):
+        file_state = None
+        if self.file:
+            path = Path(self.file)
+            file_state = {"name": path.name, "path": str(path.absolute())}
+        precisions = self.table.get(self.model, {})
+        return {
+            "models": list(self.table),
+            "model": self.model,
+            "precisions": [
+                {"value": p, "available": bool(precisions.get(p, {}).get("available"))}
+                for p in PRECISIONS if p in precisions
+            ],
+            "precision": self.precision,
+            "batch": self.batch,
+            "file": file_state,
+            "running": self.running(),
+            "started": self.started,
+            "result": self.result,
+        }
 
-        self.number_slider = QSlider(Qt.Horizontal)
-        self.number_slider.setMinimum(1)
-        self.number_slider.setMaximum(150)
-        self.number_slider.setValue(8)
-        self.number_slider.valueChanged.connect(self.update_slider_label)
-        self.number_slider.setToolTip(TOOLTIPS["WHISPER_BATCH_SIZE"])
-        batch_row.addWidget(self.number_slider, 1)
+    def set_model(self, value):
+        if value in self.table and not self.running():
+            self.model = value
+            entry = self.table[value].get(self.precision)
+            if not (entry and entry["available"]):
+                self.precision = self._first_precision(value)
+            self.changed.emit()
 
-        self.slider_label = QLabel("8")
-        self.slider_label.setToolTip(TOOLTIPS["WHISPER_BATCH_SIZE"])
-        batch_row.addWidget(self.slider_label)
+    def set_precision(self, value):
+        entry = self.table.get(self.model, {}).get(value)
+        if entry and entry["available"] and not self.running():
+            self.precision = value
+            self.changed.emit()
 
-        grid.addLayout(batch_row, 1, 0, 1, 2)
+    def set_batch(self, value):
+        try:
+            number = int(str(value).strip())
+        except ValueError:
+            return "Batch size must be a whole number from 1 to 150."
+        if not 1 <= number <= 150:
+            return "Batch size must be a whole number from 1 to 150."
+        self.batch = number
+        self.changed.emit()
+        return None
 
-        main_layout.addLayout(grid)
-
-        self.file_path_label = QLabel("No file currently selected")
-        main_layout.addWidget(self.file_path_label)
-
-        self.setLayout(main_layout)
-
-    def populate_model_combo(self):
-        cuda_available = torch.cuda.is_available()
-        bfloat16_supported = has_bfloat16_support()
-
-        filtered_models = []
-        for model_name, model_info in WHISPER_MODELS.items():
-            precision = model_info['precision']
-            if precision == 'float32':
-                filtered_models.append(model_name)
-            elif precision == 'bfloat16' and bfloat16_supported:
-                filtered_models.append(model_name)
-            elif precision == 'float16' and cuda_available:
-                filtered_models.append(model_name)
-
-        self.model_combo.addItems(filtered_models)
-
-    def update_slider_label(self, value):
-        self.slider_label.setText(str(value))
-
-    def select_audio_file(self):
-        current_dir = Path.cwd()
-        file_name, _ = QFileDialog.getOpenFileName(self, "Select Audio File", str(current_dir))
+    def choose_file(self, parent_widget):
+        if self.running():
+            return
+        file_name, _ = QFileDialog.getOpenFileName(parent_widget, "Select Audio File", str(Path.cwd()))
         if file_name:
-            file_path = Path(file_name)
-            short_path = f"...{file_path.parent.name}/{file_path.name}"
-            self.file_path_label.setText(short_path)
-            self.file_path_label.setToolTip(str(file_path.absolute()))
-            self.selected_audio_file = file_name
+            self.file = file_name
+            self.result = None
+            self.changed.emit()
 
-    def transcription_running(self):
-        return self.worker_thread is not None and self.worker_thread.isRunning()
+    def make_worker(self, model_key, batch_size, audio_file):
+        return TranscriptionWorkerThread(model_key, batch_size, audio_file)
 
-    def start_transcription(self):
-        if not self.selected_audio_file:
-            print("Please select an audio file.")
+    def start(self):
+        if self.running():
             return
-
-        if any(callable(getattr(w, "database_build_running", None)) and w.database_build_running()
-               for w in QApplication.allWidgets()):
-            QMessageBox.warning(self, "Database Being Created",
-                                "A vector database is being created. Transcribe after it finishes, because a "
-                                "transcript saved during a build would be removed when the build ends.")
+        if not self.file:
+            self.result = {"ok": False, "message": "Choose an audio file first."}
+            self.changed.emit()
             return
+        if database_build_running():
+            self.result = {"ok": False, "message": BUILD_RUNNING_MESSAGE}
+            self.changed.emit()
+            return
+        self.result = None
+        self.started = time.time()
+        self.worker = self.make_worker(self.model_key(), self.batch, self.file)
+        self.worker.finished_signal.connect(self._on_finished)
+        self.worker.start()
+        self.changed.emit()
 
-        selected_model_key = self.model_combo.currentText()
-        selected_batch_size = int(self.slider_label.text())
+    def _transcript_name(self):
+        pattern = re.compile(rf"{re.escape(Path(self.file).stem)}( \(\d+\))?\.json")
+        try:
+            candidates = [p for p in (PROJECT_ROOT / "Docs_for_DB").iterdir()
+                          if pattern.fullmatch(p.name) and p.stat().st_mtime >= (self.started or 0) - 1]
+        except OSError:
+            return None
+        if not candidates:
+            return None
+        return max(candidates, key=lambda p: p.stat().st_mtime).name
 
-        self.set_buttons_enabled(False)
-
-        if self.worker_thread and self.worker_thread.isRunning():
-            self.worker_thread.wait()
-
-        self.worker_thread = TranscriptionWorkerThread(
-            selected_model_key, selected_batch_size, self.selected_audio_file
-        )
-        self.worker_thread.finished_signal.connect(self.transcription_finished)
-        self.worker_thread.start()
-
-    def transcription_finished(self, success, message):
-        self.set_buttons_enabled(True)
-
-        if self.worker_thread:
-            self.worker_thread.quit()
-            self.worker_thread.wait()
-            self.worker_thread = None
-
+    def _on_finished(self, success, message):
+        worker = self.worker
+        if worker is not None:
+            worker.quit()
+            worker.wait()
+            self.worker = None
         if success:
             my_cprint("Transcription created and ready to be input into vector database.", 'green')
+            name = self._transcript_name()
+            saved = f"The transcript was saved as {name} in the Docs_for_DB folder" if name else "The transcript was saved in the Docs_for_DB folder"
+            self.result = {"ok": True, "message": f"{saved}, so it will be included in the next database you create."}
         else:
             my_cprint(f"Transcription failed: {message}", 'red')
+            self.result = {"ok": False, "message": f"Transcription failed: {message}"}
+        self.changed.emit()

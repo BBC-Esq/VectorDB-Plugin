@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QTabWidget
 from gui.tabs_settings.settings import GuiSettingsTab
-from gui.tabs_tools.tools import GuiSettingsTab as ToolsSettingsTab
+from gui.tabs_tools.tools import ToolsTab
 from gui.tabs_databases.create import DatabasesTab
 from gui.tabs_models.models import VectorModelsTab
 from gui.tabs_databases.query import DatabaseQueryTab
@@ -17,7 +17,7 @@ def create_tabs():
     tabs = [
         (GuiSettingsTab(), 'Settings'),
         (VectorModelsTab(), 'Models'),
-        (ToolsSettingsTab(), 'Tools'),
+        (ToolsTab(), 'Tools'),
         (DatabasesTab(), 'Create Database'),
         (ManageDatabasesTab(), 'Manage Databases'),
         (DatabaseQueryTab(), 'Query Database')

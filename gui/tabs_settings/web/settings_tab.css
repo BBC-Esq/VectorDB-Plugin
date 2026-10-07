@@ -41,9 +41,6 @@ main { display: flex; flex-direction: column; gap: 12px; }
 .field.span-3 { grid-column: span 3; }
 .field.span-4 { grid-column: 1 / -1; }
 
-.seg.full { display: flex; height: 32px; align-items: stretch; }
-.seg.full button { flex: 1 1 0; min-width: 0; height: auto; padding: 0 6px; overflow: hidden; text-overflow: ellipsis; }
-
 .stat-value {
   min-height: 32px;
   display: flex;

@@ -17,7 +17,37 @@
     build: '<svg viewBox="0 0 16 16"><path d="M8 1.8 13.5 4.9v6.2L8 14.2 2.5 11.1V4.9L8 1.8Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M2.7 5 8 8l5.3-3M8 8v6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
     speaker: '<svg viewBox="0 0 16 16"><path d="M2.5 6.1h2.6L8.6 3v10L5.1 9.9H2.5V6.1Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M11 5.6a3.3 3.3 0 0 1 0 4.8M12.8 3.9a5.7 5.7 0 0 1 0 8.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
     eye: '<svg viewBox="0 0 16 16"><path d="M1.6 8s2.4-4.6 6.4-4.6S14.4 8 14.4 8s-2.4 4.6-6.4 4.6S1.6 8 1.6 8Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="8" cy="8" r="2.1" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
+    mic: '<svg viewBox="0 0 16 16"><rect x="5.6" y="1.8" width="4.8" height="8" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3.4 7.6a4.6 4.6 0 0 0 9.2 0M8 12.3v2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    globe: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M1.9 8h12.2M8 1.8c1.8 1.7 2.7 3.8 2.7 6.2S9.8 12.5 8 14.2C6.2 12.5 5.3 10.4 5.3 8S6.2 3.5 8 1.8Z" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
+    scan: '<svg viewBox="0 0 16 16"><path d="M2.2 5V3.2c0-.55.45-1 1-1H5M11 2.2h1.8c.55 0 1 .45 1 1V5M13.8 11v1.8c0 .55-.45 1-1 1H11M5 13.8H3.2c-.55 0-1-.45-1-1V11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 6h6M5 8h6M5 10h3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+    folder: '<svg viewBox="0 0 16 16"><path d="M1.9 4.3c0-.6.5-1.1 1.1-1.1h3l1.4 1.5H13c.6 0 1.1.5 1.1 1.1v6.1c0 .6-.5 1.1-1.1 1.1H3c-.6 0-1.1-.5-1.1-1.1V4.3Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+    file: '<svg viewBox="0 0 16 16"><path d="M4 1.9h5l3.1 3.1v8.1c0 .55-.45 1-1 1H4c-.55 0-1-.45-1-1V2.9c0-.55.45-1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9 1.9V5h3.1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+    image: '<svg viewBox="0 0 16 16"><rect x="2" y="2.6" width="12" height="10.8" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5.7" cy="6" r="1.2" fill="currentColor"/><path d="m2.6 12.2 3.6-3.6 2.4 2.4 1.8-1.8 3 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+    play: '<svg viewBox="0 0 16 16"><path d="M4.6 3.1v9.8L12.6 8 4.6 3.1Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+    stop: '<svg viewBox="0 0 16 16"><rect x="3.6" y="3.6" width="8.8" height="8.8" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+    archive: '<svg viewBox="0 0 16 16"><rect x="1.9" y="2.4" width="12.2" height="3.2" rx=".8" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3 5.6v7c0 .55.45 1 1 1h8c.55 0 1-.45 1-1v-7M6.4 8.4h3.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    restore: '<svg viewBox="0 0 16 16"><path d="M2.6 8a5.4 5.4 0 1 0 1.6-3.8M2.4 2.6v2.8h2.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 5.2V8l2 1.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    warn: '<svg viewBox="0 0 16 16"><path d="M8 2.2 14.3 13H1.7L8 2.2Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 6.4v3.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.4" r=".85" fill="currentColor"/></svg>',
+    error: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="m5.8 5.8 4.4 4.4m0-4.4-4.4 4.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    chart: '<svg viewBox="0 0 16 16"><path d="M2.3 13.7h11.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><rect x="3.3" y="8" width="2.3" height="4.2" rx=".5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="6.9" y="4.6" width="2.3" height="7.6" rx=".5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="10.5" y="2.3" width="2.3" height="9.9" rx=".5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
   };
+
+  function elapsed(seconds) {
+    const total = Math.max(0, Math.floor(seconds));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const secs = String(total % 60).padStart(2, "0");
+    return hours ? `${hours}:${String(minutes).padStart(2, "0")}:${secs}` : `${minutes}:${secs}`;
+  }
+
+  function tickElapsed() {
+    const now = Date.now() / 1000;
+    for (const element of document.querySelectorAll("[data-since]")) {
+      element.textContent = elapsed(now - Number(element.dataset.since));
+    }
+  }
+
+  setInterval(tickElapsed, 1000);
 
   function esc(value) {
     return String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -248,20 +278,39 @@
     return `<button type="button" class="select" data-select="${esc(id)}"${disabled ? " disabled" : ""}><span class="select-text">${label}</span>${note}${ICONS.caret}</button>`;
   }
 
-  function openSelect(id, { title, options, value, onPick }) {
+  function openSelect(id, { title, options, value, onPick, search = false, placeholder = "Type to filter" }) {
     const anchor = () => document.querySelector(`[data-select="${CSS.escape(id)}"]`);
+    let filter = "";
+    const optionsHTML = () => {
+      const terms = filter.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      const shown = options
+        .map((o, i) => ({ o, i }))
+        .filter(({ o }) => terms.every((t) => `${o.label} ${o.note || ""}`.toLowerCase().includes(t)));
+      if (!shown.length) return '<div class="pop-empty">No matches</div>';
+      return shown.map(({ o, i }) => radioOption(
+        `data-index="${i}"`,
+        `${esc(o.label)}${o.note ? ` <span class="n">${esc(o.note)}</span>` : ""}`,
+        o.value === value,
+        null,
+        Boolean(o.disabled),
+      )).join("");
+    };
+    const highlightFirst = () => {
+      const selected = popover.element.querySelector(".opt.on") || popover.element.querySelector(".opt:not(:disabled)");
+      if (selected) {
+        selected.classList.add("kbd");
+        selected.scrollIntoView({ block: "nearest" });
+      }
+    };
     popover.toggle(`select:${id}`, {
       anchor,
       matchWidth: true,
       render: () => {
         const head = title ? `<div class="pop-title">${esc(title)}</div>` : "";
-        return head + options.map((o, i) => radioOption(
-          `data-index="${i}"`,
-          `${esc(o.label)}${o.note ? ` <span class="n">${esc(o.note)}</span>` : ""}`,
-          o.value === value,
-          null,
-          Boolean(o.disabled),
-        )).join("");
+        const box = search
+          ? `<label class="pop-search">${ICONS.search}<input type="text" data-pop-search placeholder="${esc(placeholder)}" autocomplete="off" spellcheck="false"></label>`
+          : "";
+        return `${head}${box}<div class="pop-options">${optionsHTML()}</div>`;
       },
       click: (e) => {
         const button = e.target.closest(".opt[data-index]");
@@ -273,10 +322,16 @@
         onPick(option.value);
       },
       onOpen: () => {
-        const selected = popover.element.querySelector(".opt.on") || popover.element.querySelector(".opt:not(:disabled)");
-        if (selected) {
-          selected.classList.add("kbd");
-          selected.scrollIntoView({ block: "nearest" });
+        highlightFirst();
+        const input = popover.element.querySelector("[data-pop-search]");
+        if (input) {
+          input.focus();
+          input.addEventListener("input", () => {
+            filter = input.value;
+            popover.element.querySelector(".pop-options").innerHTML = optionsHTML();
+            const first = popover.element.querySelector(".opt:not(:disabled)");
+            if (first) first.classList.add("kbd");
+          });
         }
         const target = anchor();
         if (target) target.classList.add("open");
@@ -288,14 +343,55 @@
     });
   }
 
+  const overlay = {
+    element: null,
+    onClose: null,
+    install() {
+      this.element = document.createElement("div");
+      this.element.id = "overlay";
+      this.element.className = "overlay";
+      document.body.appendChild(this.element);
+      this.element.addEventListener("mousedown", (e) => {
+        if (e.target === this.element) this.close();
+      });
+      this.element.addEventListener("click", (e) => {
+        if (e.target.closest("[data-overlay-close]")) this.close();
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && this.isOpen() && !popover.key) this.close();
+      });
+    },
+    isOpen() {
+      return this.element.classList.contains("show");
+    },
+    open(title, bodyHTML, { onClose } = {}) {
+      tooltip.hide();
+      this.onClose = onClose || null;
+      this.element.innerHTML = `<div class="overlay-panel" role="dialog" aria-label="${esc(title)}">`
+        + `<div class="overlay-head"><div class="overlay-title">${esc(title)}</div>`
+        + `<button type="button" class="btn ghost small" data-overlay-close>${ICONS.close}Close</button></div>`
+        + `<div class="overlay-body">${bodyHTML}</div></div>`;
+      this.element.classList.add("show");
+    },
+    close() {
+      if (!this.isOpen()) return;
+      this.element.classList.remove("show");
+      this.element.innerHTML = "";
+      const onClose = this.onClose;
+      this.onClose = null;
+      if (onClose) onClose();
+    },
+  };
+
   window.VDB = {
-    ICONS, esc, fmt, $, applyTheme, call, fillIcons, tooltip, popover,
-    radioOption, checkOption, selectButton, openSelect,
+    ICONS, esc, fmt, $, applyTheme, call, fillIcons, tooltip, popover, overlay,
+    radioOption, checkOption, selectButton, openSelect, elapsed,
   };
 
   document.addEventListener("DOMContentLoaded", () => {
     fillIcons();
     tooltip.install();
     popover.install();
+    overlay.install();
   });
 })();

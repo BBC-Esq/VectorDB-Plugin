@@ -2,7 +2,7 @@ import json
 import logging
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Qt, QUrl, Slot
+from PySide6.QtCore import QObject, Qt, QTimer, QUrl, Slot
 from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineSettings
@@ -48,6 +48,10 @@ class WebTab(QWidget):
         super().__init__(parent)
         self._ready = False
         self._sent_state = None
+        self._push_timer = QTimer(self)
+        self._push_timer.setSingleShot(True)
+        self._push_timer.setInterval(120)
+        self._push_timer.timeout.connect(self.push_state)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self._view = QWebEngineView(self)
@@ -81,6 +85,10 @@ class WebTab(QWidget):
         if state != self._sent_state:
             self._sent_state = state
             self._page.runJavaScript(f"TabApp.setState({state});")
+
+    def schedule_push(self):
+        if not self._push_timer.isActive():
+            self._push_timer.start()
 
     def remember_state(self, state):
         self._sent_state = json.dumps(state)
