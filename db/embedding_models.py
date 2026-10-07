@@ -408,6 +408,10 @@ class DirectEmbeddingModel:
 
         self.model.max_seq_length = self.max_seq_length
 
+        auto_model = getattr(self.model[0], "auto_model", None)
+        if getattr(getattr(auto_model, "config", None), "use_cache", False):
+            auto_model.config.use_cache = False
+
         if hasattr(self.model, "tokenizer") and self.model.tokenizer is not None:
             self.tokenizer = self.model.tokenizer
 
