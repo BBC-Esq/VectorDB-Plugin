@@ -644,11 +644,9 @@ libs = [
     "colorclass==2.2.2",
     "coloredlogs==15.0.1",
     "compressed-rtf==1.0.7",
-    "contourpy==1.3.3",
     "cryptography==48.0.0",  # major 46->48; only reverse cap (curl_cffi <47) is dev/test extra-gated (inactive); transitive dep
     "ctranslate2==4.8.2",
     "curl_cffi==0.15.0",
-    "cycler==0.12.1",
     "datasets==4.8.5",
     "Deprecated==1.3.1",
     "deprecation==2.1.0",
@@ -668,7 +666,6 @@ libs = [
     "fastcore==1.13.2",
     "fastprogress==1.0.5",  # capped at 1.0.5: 1.1.0+ adds mandatory python-fasthtml (drags in a starlette/uvicorn web stack); only whisperspeech2 uses it (accepts any)
     "filelock==3.29.0",
-    "fonttools==4.63.0",
     "frozendict==2.4.7",
     "frozenlist==1.8.0",
     "fsspec[http]==2026.2.0",  # capped at datasets 4.8.5 ceiling (fsspec<=2026.2.0); 2026.3.0+ blocked; coupled to datasets pin
@@ -696,14 +693,12 @@ libs = [
     "jsonpointer==3.1.1",
     "jsonschema==4.26.0",
     "jsonschema-specifications==2025.9.1",
-    "kiwisolver==1.5.0",
     "lark==1.3.1",
     "llvmlite==0.47.0",  # locked to numba 0.65.1 (needs llvmlite 0.47.x; numba 0.62.1 needed llvmlite<0.46)
     "lxml==6.1.1",
     "Markdown==3.10.2",
     "markdown-it-py==4.2.0",
     "MarkupSafe==3.0.3",
-    "matplotlib==3.10.9",
     "mdurl==0.1.2",
     "ml-dtypes==0.5.4",
     "more-itertools==11.1.0",
