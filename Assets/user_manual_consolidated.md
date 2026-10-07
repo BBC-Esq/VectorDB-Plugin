@@ -43,7 +43,7 @@ run on a CPU. You can still use the local chat models LiquidAI .35b, .7b, and 1.
 Gemma 3 4b; the Liquid-VL 480M vision model; every embedding model except the 4B and 8B versions of Qwen3-Embedding and
 Octen-Embedding and the 4B version of F2LLM; all float32 whisper models; and the Kokoro, Kyutai Pocket, ChatTTS, and Google TTS
 text to speech backends. The
-"half" (half-precision) checkbox in the Settings Tab is greyed out because half precision only helps on a GPU. Everything runs more
+Half precision switch in the Settings Tab is greyed out because half precision only helps on a GPU. Everything runs more
 slowly than on a GPU, so smaller models
 are recommended, and for chatting with larger models LM Studio is a good choice because it runs them efficiently on a CPU. Ask
 Jeeves works the same way in either mode.
@@ -67,7 +67,7 @@ contexts fit within your GPU's memory.
 The Models Tab lets you browse and download embedding models.  Each model has a card that shows its name, provider, license,
 number of parameters (e.g. 109M means 109 million), and size on disk, along with colored labels for its dimensions, its maximum
 sequence length in tokens, and its precision.  The precision label shows the format the creator saved the model in (e.g. float32 or
-bfloat16) and, after an arrow, the format it will actually run in on your computer with your current "half" setting.  Hover over any
+bfloat16) and, after an arrow, the format it will actually run in on your computer with your current Half precision setting.  Hover over any
 label or score for more details.  Each card also lists the model's benchmark scores for English, multilingual, legal, and code
 retrieval, and a star marks the best score in each category.  To download a model, click the "Download" button on its card.  This
 saves the model files to the "Models/vector" folder, and the button changes to "Downloaded" when it finishes.  Only one model
@@ -79,8 +79,8 @@ name opens its page on Hugging Face.
 ### What does the precision label on each model card in the Models Tab mean?
 The precision label shows the floating point format that the model was saved in and, when it differs, an arrow followed by the
 format that the model will actually run in on your computer.  For example, "fp32 → bf16" means a float32 model will run in
-bfloat16.  The format depends on your compute device and the "half" checkbox in the Settings Tab.  On a CPU, every model runs in
-float32.  On an NVIDIA GPU with "half" unchecked, every model also runs in float32.  With "half" checked, models run in bfloat16
+bfloat16.  The format depends on your compute device and the Half precision switch in the Settings Tab.  On a CPU, every model runs in
+float32.  On an NVIDIA GPU with Half precision off, every model also runs in float32.  With Half precision on, models run in bfloat16
 on GPUs that support it (RTX 30-series and newer) or in float16 on older GPUs, except for the few models that do not work
 correctly in float16, which run in float32 instead.  Hover over the label to see every combination for your computer.
 
@@ -227,10 +227,10 @@ because the embedding model has 384 dimensions.
 Try to use as high of a quality of an embedding model as your system resources will allow.  Although there are exceptions for newer
 embedding models, embedding models typically do not use as much VRAM as typical chat models, so the real limitation when choosing
 an embedding model is how much compute time you are willing to spend before the vector database is create.  It is highly recommented
-to choose as high a quality of embedding model as possible.  Also, if compute resources are limited make sure and check the "half"
-checkbox within the Settings Tab.  This will run the embedding model in either bfloat16 or float16 (commonly referred to as half
-precision).  Studies show that there is very little loss in quality between full precision and half precision.  The "half"
-checkbox only works with a supported NVIDIA GPU, so it is greyed out in CPU-only mode.  Lastly, always use "cuda" within the
+to choose as high a quality of embedding model as possible.  Also, if compute resources are limited make sure to turn on the Half
+precision switch within the Settings Tab.  This will run the embedding model in either bfloat16 or float16 (commonly referred to as half
+precision).  Studies show that there is very little loss in quality between full precision and half precision.  Half
+precision only works with a supported NVIDIA GPU, so the switch is greyed out in CPU-only mode.  Lastly, always use "cuda" within the
 Settings Tab when creating embeddings if you have a GPU.  On a CPU, smaller embedding models create databases much faster, and the
 Models Tab shows approximate CPU times for each size.
 
@@ -332,32 +332,43 @@ model size reduction smaller data types take up less storage performance increas
 accuracy loss reduced precision may introduce errors though often negligible for many applications
 
 ## What settings are available in this program and how can I adjust them?
-The "Settings" Tab contains most of the settings for LM Studio, querying the database, creating the database, the text to speech
-functionality, and the vision models.  Please ask me a question about the specific setting or group of settings you're interested in?
+The "Settings" Tab has four sections: Database Query, Database Creation, Text to Speech, and Vision Model.  The settings for LM Studio
+and the other chat backends are in the Chat Backend Settings dialog in the File menu.  Please ask me a question about the specific
+setting or group of settings you're interested in.
+
+### How do I change and save a setting on the Settings Tab?
+Every setting on the Settings Tab is saved as soon as you change it, so there is no separate save button.  Buttons, switches, and
+pulldown menus save the moment you click them.  For boxes where you type a value, such as Chunk Size or Similarity, type the new
+value and press Enter or click somewhere else to save it, or press Escape to undo your typing.  A green "Saved" check briefly appears
+next to the setting's name to confirm the change.  If a value is not allowed, for example a Similarity above 1 or a Chunk Overlap that
+is not smaller than the Chunk Size, a red message appears under the box and nothing is saved until you fix it.  Hover over the small
+"i" next to a setting's name for an explanation of what it does.
 
 ### What are the LM Studio Server settings?
-When using LM Studio as the chat model backend you can adjust a few settings from within the Settings Tab.  In general, however,
-the LM Studio program has all the settings that you should adjust.  For purposes of this program you can adjust the port to match
-what you set within LM Studio.  Also, there is a checkbox you can check to see the thinking process if the model you are running
-within LM Studio has chain of thought.
+When using LM Studio as the chat model backend you can adjust a few settings in the Chat Backend Settings dialog, which you open from
+the 'File' menu.  In general, however, the LM Studio program has all the settings that you should adjust.  For purposes of this
+program you can set the port to match what you set within LM Studio, and you can choose whether to show the thinking process if the
+model you are running within LM Studio has chain of thought.
 
 ### What are the database creation settings?
 The Device setting allows you to choose either CPU or CUDA when creating a vector database.  It is always recommended to choose
 CUDA if available.  The Chunk Size setting determines the size of the chunks of text that your documents will be broken into before
 being turned into embeddings.  It is crucial to remember that this setting is in number of characters, not tokens, and that you must
 keep the chunks within the maximum sequence length of the embedding model you are using, as expressed in tokens, and which you can
-see within the Models Tab.  Remember, each tokens is approximately 3-4 characters.  The Overlap setting refers to how many characters
-at the beginning of a chunk are from the preceding chunk.  When a document is processed sometimes it is split in the middle of an
-important concept and this setting ensures that there is an overlap to avoid losing meaning.  A good rule of thumb is to set the
-Overlap setting to 30-49 percent of the Chunk Size setting.  The half-precision setting, if checked, will run the embedding model
-in half precision resulting in a slight reduction in quality but half the compute resources.  It only applies to GPUs, so it is
+see within the Models Tab.  Remember, each token is approximately 3-4 characters.  Below the Chunk Size box the program estimates how
+many tokens your chunks will be and shows the limit of the embedding model selected in the Create Database Tab, turning the estimate
+yellow if your chunks might be too long.  The Chunk Overlap setting refers to how many characters at the beginning of a chunk are
+from the preceding chunk.  When a document is processed sometimes it is split in the middle of an important concept and this setting
+ensures that there is an overlap to avoid losing meaning.  A good rule of thumb is to set the Chunk Overlap to 25-50 percent of the
+Chunk Size, and the current percentage is shown below the box.  The Half precision switch, when turned on, will run the embedding
+model in half precision resulting in a slight reduction in quality but half the compute resources.  It only applies to GPUs, so it is
 greyed out in CPU-only mode.
 
-### What does the half (half-precision) checkbox do and why is it greyed out?
-The "half" checkbox is in the database creation settings within the Settings Tab. When checked, the embedding model runs in half
+### What does the Half precision switch do and why is it greyed out?
+The Half precision switch is in the Database Creation section of the Settings Tab. When it is on, the embedding model runs in half
 precision (bfloat16 or float16) instead of full float32 precision while a vector database is being created. This uses about half
 the memory and compute with very little loss in quality, so it is a good choice when your GPU's VRAM is limited. Half precision only
-helps on a supported NVIDIA GPU, so in CPU-only mode the checkbox is greyed out and unchecked, and databases are always created in
+helps on a supported NVIDIA GPU, so in CPU-only mode the switch is greyed out and turned off, and databases are always created in
 full precision.
 
 ### What is the Pipeline Performance setting?
@@ -398,12 +409,12 @@ It is not case-sensitive, but it does require an exact match.  For example, if y
 include the term "child" somewhere in it.  This would not include chunks that have the word "children" in it, however, since it
 requires a verbatim match.  With that said, since it is not case-sensitive it would also include chunks with "Child" in them.  This
 setting is especially useful when you know that a relevant chunk has a certain key word in it; otherwise, it is best to leave this blank.
-Click the Clear Filter button to clear any filters.  Lastly, it is important to understand that this setting only applies after both
+To turn the filter off, click the X at the right end of the box, or delete the text and press Enter.  Lastly, it is important to understand that this setting only applies after both
 the Similarity and Contexts settings.  Therefore, if the Similarity setting is too high or the Contexts setting is too low you might not
 receive any chunks with your specified search term.
 
 ### What is the File Type setting?
-Within the Settings Tabe the File Type setting allows you to limit the chunks that are returned based on whether they originated from
+Within the Settings Tab the File Type setting allows you to limit the chunks that are returned based on whether they originated from
 a particular type of file.  Current options include images, documents, audio or all files.  It is best to use the all files option
 unless you are sure that the chunks you are looking from originated from a particular type of file.
 
@@ -733,7 +744,7 @@ the model's attention layers, everything after the first 80 tokens is averaged d
 noticeably faster than a traditional 0.6-billion parameter model, especially for longer chunks, while using less memory. It
 supports English and Chinese, is offered in CPU-only mode, and, like the Qwen3 models, automatically adds a short instruction to
 your search queries. It was trained on texts of up to roughly 1,000 tokens, so it works best with normal chunk sizes. On older
-NVIDIA GPUs that do not support bfloat16 it runs in full precision even when the "half" checkbox is checked.
+NVIDIA GPUs that do not support bfloat16 it runs in full precision even when Half precision is turned on.
 
 ### What is the Yuan Embedding Model?
 Yuan-embedding-2.0-en is a 0.6-billion parameter embedding model designed specifically for English text retrieval and released
@@ -765,7 +776,7 @@ its databases take about four times the space of a 1024-dimension model's, but i
 about half the time of the 0.6-billion parameter models. It is used here with an 8,192-token maximum sequence length and,
 like the Qwen3 models, automatically adds a short instruction to your search queries. The model can also specialize in code or
 reasoning searches, but this program uses its general-purpose mode, which suits most documents. On older NVIDIA GPUs that do not
-support bfloat16 it runs in full precision even when the "half" checkbox is checked.
+support bfloat16 it runs in full precision even when Half precision is turned on.
 
 ### What are the ModernBERT (Free Law Project) Embedding Models?
 These embedding models were fine-tuned by the Free Law Project, a non-profit focused on legal data, and are built on ModernBERT, a
