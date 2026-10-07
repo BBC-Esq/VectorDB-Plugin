@@ -273,12 +273,15 @@ To transcribe a spoken question, go to the "Query Database" tab, click the "Voic
 and then speak clearly. Click the button again to stop recording, and the transcribed text will appear in the question box.
 
 ### How can I transcribe an audio file to be put into the vector database?
-To transcribe an audio file, navigate to the Tools tab, select an audio file (most file formats are supported such as .mp3, .wav,
-.m4a, .ogg, .wma, and .flac) and click the Transcribe button. After the transcription is complete you can see it in the
-"Create Database" tab and it will be entered into the vector database when you create it.  The transcribing functionality uses
-the powerful `WhisperS2T` library with the `Ctranslate2` backend.  Make sure to adjust the "Batch" setting when transcribing an
-audio file depending on the size of the whisper model you choose. Increasing the batch size can improve speed but demands more
-VRAM, so care should be taken not to exceed your GPU’s capacity.
+To transcribe an audio file, go to the Transcribe Audio section of the Tools tab, choose a Model and a Precision, click the
+"Choose an audio file" box to pick the file (most file formats are supported such as .mp3, .wav, .m4a, .ogg, .wma, and .flac) and
+click the Transcribe button. The section shows a timer while it works, and when it finishes it names the transcript it saved in
+the Docs_for_DB folder. You can then see the transcript in the "Create Database" tab and it will be entered into the vector
+database when you create it.  The transcribing functionality uses the powerful `WhisperS2T` library with the `Ctranslate2`
+backend.  Make sure to adjust the "Batch size" setting (1 to 150) when transcribing an audio file depending on the size of the
+whisper model you choose. Increasing the batch size can improve speed but demands more VRAM, so care should be taken not to exceed
+your GPU’s capacity.  You cannot transcribe while a database is being created, because a transcript saved during a build would be
+removed when the build ends.
 
 ### What are the distil variants of the whisper models when transcribing and audio file?
 Distil variants of Whisper models use approximately 70% of the resources of their full counterparts and are faster with very little
@@ -289,8 +292,9 @@ resources as Distil Whisper large-v3.
 When transcribing an audio file in order to put it into a vector database it is generally recommended to use as high a quality of
 a whisper model as your hardware will support.  The quality of a whisper model is determined by a few factors.  Firstly, its size
 is the most important factor - e.g. large versus medium versus small.  Secondly, the precision of the model that you use.  This
-program allows you to choose float32 for the highest quality or bfloat16 or float16 (i.e. half precision), although only the
-float32 models are listed in CPU-only mode because half precision requires a GPU.  In general, using
+program allows you to choose float32 for the highest quality or bfloat16 or float16 (i.e. half precision) with the Precision
+switch next to the Model menu.  In CPU-only mode only float32 can be chosen because half precision requires a GPU, and bfloat16
+also needs an NVIDIA GPU with compute capability 8.0 or newer.  In general, using
 half precision results in about 95% of the quality of float32 for half the compute resources needed.  Lastly, some of the whisper
 models come in "distil" variants that have certain layers of the model removed.  Again, this typically gives approximately 95%
 of the non-distil variant for half the compute resources.  Whisper large-v3 turbo is Whisper large-v3 with its decoder cut from 32
@@ -498,8 +502,11 @@ do not have a powerful GPU. Kyutai (GPU) offers expressive named voices if you h
 quality but requires an Internet connection because it uses an online service rather than running locally.
 
 ### Can I back up or restore my databases and are they backed up automatically
-When you create a vector database it is automatically backed up.  However, if you want to manually backup all databases you can go
-to the "Tools" tab and click the Backup All Databases button.  Likewise, you can restore all backed up databases within the Tools Tab.
+When you create a vector database it is automatically backed up.  However, if you want to manually back up all databases you can go
+to the Database Backup section of the "Tools" tab and click the Back Up button, which replaces the previous backup with a copy of
+every current database.  Likewise, the Restore button replaces your current databases with the ones in the backup.  Both ask for
+confirmation first.  The section also shows how many databases you have and names any that are not in the backup yet.  Back Up is
+greyed out when there are no databases, and Restore is greyed out when there is no backup.
 
 ### What happens if I lose a configuration file and can I restore it?
 This program cannot function without the config.yaml file if you lose it accidentally or it gets corrupted for some reason you can
@@ -552,7 +559,7 @@ vector or embedding model you choose and the maximum context or chunks you retri
 length should stay within the chat model's context length limit.  And make sure to leave enough context for a response.
 
 ### What is the scrape documentaton feature?
-Within the Tools tab you can select multiple python libraries and scrape their documentation.  Multiple .html files will be downloaded
+Within the Tools tab you can select python libraries and scrape their documentation, up to six at the same time.  Multiple .html files will be downloaded
 and you can subsequently create a vector database out of them.  Larger more complex libraries can take a significant amount of time
 to scrape to make sure you have a stable Internet connection.
 
@@ -618,7 +625,7 @@ model creates a text description of each image, which is then embedded like a re
 described as “A line graph showing revenue over time with an upward trend.” You can then search with queries like “What does the
 revenue trend look like?” and retrieve the image. Make sure you choose a vision model in the Settings Tab first and use the Test
 Vision Models tool within the Tools Tab ot preview captions before using a particular model. Audio: You can't add audio files directly,
-but you can use the Transcribe File tool (powered by OpenAI’s Whisper model) to convert audio to text. This transcript can then be
+but you can use the Transcribe Audio tool (powered by OpenAI’s Whisper model) to convert audio to text. This transcript can then be
 added like any other document during database creation. If you try to upload audio directly, the program will prompt you to transcribe
 it first. By converting images and audio to text, the system supports rich, multi-modal queries — as long as content is processed
 correctly.
@@ -788,23 +795,27 @@ released into the public domain under the CC0 license.
 
 ### What is the Scrape Documentation tool?
 Scrape Documentation automatically downloads documentation from online sources to build vector databases without manual copy-pasting.
-Located in the Tools tab, simply select a documentation source from the dropdown menu (many common libraries are pre-configured) and
-click "Scrape." The program will fetch all relevant pages, showing progress as it works. Scraped content is stored in
-src/Scraped_Documentation/<NameOfDoc>/. Once complete, you'll need to add these files to a vector database through the Create Database
-tab - the scraper only retrieves and saves the docs but doesn't vectorize them.  If documentation has been previously scraped, the
-entry appears in red, and you'll be warned before overwriting existing data. This feature is particularly useful for creating
-searchable knowledge bases from official documentation for technical Q&A using the VectorDB-Plugin.
+In the Scrape Documentation section of the Tools tab, select a documentation source from the dropdown menu (many common libraries
+are pre-configured; type in the menu's search box to find one quickly) and click "Scrape." Each running scrape gets its own row
+showing how many pages it has saved and how long it has been running, with buttons to cancel it or open its folder, and up to six
+scrapes can run at the same time. Scraped content is stored in the Scraped_Documentation folder, one subfolder per source. Once
+complete, you'll need to add these files to a vector database through the Create Database tab - the scraper only retrieves and
+saves the docs but doesn't vectorize them.  Sources you have already scraped are marked "scraped" in the menu, and scraping one again
+asks whether to Resume (skip the pages already saved), Start Fresh (delete them and start over), or Cancel. If a website starts
+limiting requests, the row says so and keeps the pages saved so far; scrape it again and choose Resume to continue. This feature is
+particularly useful for creating searchable knowledge bases from official documentation for technical Q&A using the VectorDB-Plugin.
 
 ### How do I test vision models on images?
-The Test Vision Models tool in the Tools tab lets you preview how vision models describe your images before adding them to a database.
-It offers two main options: (1) Multiple Files + One Vision Model, which tests one vision model on multiple images. First, select
-image files in the Create Database tab, then choose your vision model in Settings. Return to Tools and click "Multiple Files + One
-Vision Model – Process." The tool generates descriptions for all images without creating a database, showing average description
-length to help you evaluate the model's performance.  Single Image + All Vision Models: Compare multiple vision models on one image.
-Click this option, select an image, then choose which vision models to test from the dialog (they're listed with VRAM requirements,
-and in CPU-only mode the GPU-only models are greyed out and marked "requires GPU").
-The tool will sequentially process your image through each model and produce a comparison showing each model's description and
-processing time. This helps you balance quality versus speed when selecting a vision model.
+The Test Vision Models section of the Tools tab lets you preview how vision models describe your images before adding them to a
+database. It offers two tests. (1) Your images and chosen model: add image files in the Create Database tab and choose your vision
+model in Settings; the section shows how many images you added and which model is chosen. Click "Describe" to have that model
+describe every image without creating a database. When it finishes it reports the average and longest description length and opens
+a text file with every description. Keep your chunk size above the longest description so each description fits in one chunk.
+(2) One image, several models: click the "Choose an image" box to pick an image, use the Models menu to tick the models to compare
+(they're listed with VRAM requirements, and in CPU-only mode the GPU-only models are greyed out and marked "requires GPU"), and click
+"Compare." The models run one at a time; each one shows its status and, when done, its description length and time, and you can
+cancel between models. A comparison file with each model's description, length and speed opens when it finishes, and the "Open
+results" link reopens it. This helps you balance quality versus speed when selecting a vision model.
 
 ### What is Optical Character Recognition?
 Optical character recognition (aka OCR) refers to whether a .pdf file has a text layer embedded within it representing the actual text
@@ -817,23 +828,25 @@ the Tool Tab, select a .pdf, and perform OCR.  You can Ask Jeeves for more detai
 
 ### How can I extract text from scanned PDFs with OCR?
 The OCR tool, found in the Tools tab, turns scanned, image-only PDFs into searchable PDFs. To use it:
-(1) Go to the "OPTICAL CHARACTER RECOGNITION" section in the Tools tab.
-(2) Choose an OCR engine from the dropdown. RapidOCR is selected by default; Tesseract is also available.
-(3) Click "Choose PDF" to select your scanned PDF (the tool accepts PDF files only).
-(4) Click "Process" to start extracting text.
+(1) Go to the "Optical Character Recognition" section in the Tools tab.
+(2) Choose an OCR engine with the Engine switch. RapidOCR is selected by default; Tesseract is also available.
+(3) Click the "Choose a PDF" box to select your scanned PDF (the tool accepts PDF files only); its page count appears next to it.
+(4) Click "Run OCR" to start extracting text. A progress bar shows how many pages are done.
 When processing is complete, the tool saves a new PDF with an "_OCR" suffix in the same folder as the original. It looks the same
-as the original but has an invisible, searchable text layer, and a link in the completion message opens it. Add that "_OCR" PDF to
+as the original but has an invisible, searchable text layer, and the "Open PDF" link in the completion message opens it. Add that "_OCR" PDF to
 your vector database using the Create Database tab. RapidOCR also reports quality notes when it finishes, such as low-confidence
 pages worth reviewing, pages with visible content but no text, and pages it rotated to read. OCR accuracy depends on the clarity
 and quality of the scan, so review the results carefully when accuracy is critical.
 
-### What other features does the Misc tab have?
-The Tools Tab includes a 'Misc' section with database backup and restore plus a GPU comparison chart. Click 'Backup Databases' to
-copy the entire Vector_DB folder to a backup (this overwrites any existing backup), and 'Restore Databases' to overwrite your
-current databases with that backup; both ask for confirmation first because they are destructive. The GPU comparison tool lets you
-set a minimum and maximum VRAM (in GB) and then click 'GPUs' to open a chart, built with matplotlib, that compares graphics cards
-within that VRAM range by performance and memory -- useful for deciding which GPU can run a given model. The chart opens in its
-own window; simply close it to return to the program.
+### What do the Database Backup and Compare GPUs sections of the Tools tab do?
+The bottom of the Tools tab has two small sections. Database Backup: click 'Back Up' to copy the entire Vector_DB folder to a
+backup (this overwrites any existing backup), and 'Restore' to overwrite your current databases with that backup; both ask for
+confirmation first because they are destructive. The section also shows how many databases you have and names any that are not in
+the backup yet. Compare GPUs: choose the least and most VRAM (in GB) and click 'Compare' to open a list of the graphics cards in
+that range, showing each card's architecture, release year, compute capability, VRAM and memory type, with a bar comparing its CUDA
+cores -- useful for deciding which GPU can run a given model. You can filter the list by name or architecture and sort it by name,
+compute capability, VRAM or CUDA cores, and your own GPU is highlighted when it is in the range. Press Escape or click 'Close' to
+return to the tools.
 
 ### What is Ask Jeeves and how do I use it?
 Ask Jeeves is an integrated help assistant built into the VectorDB-Plugin, designed to serve as an in-app guide or Q&A tool. You can
