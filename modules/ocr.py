@@ -768,7 +768,8 @@ def _process_documents_worker(pdf_paths: List[Path], backend: str, model_path: s
         if hasattr(processor, 'cleanup'):
             processor.cleanup()
 
-def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesseract', model_path: str = None, output_dir: Path = None):
+def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesseract', model_path: str = None, output_dir: Path = None,
+                      on_progress=None):
     if isinstance(pdf_paths, Path):
         pdf_paths = [pdf_paths]
     progress_queue = Queue()
@@ -789,9 +790,13 @@ def process_documents(pdf_paths: Union[Path, List[Path]], backend: str = 'tesser
                     if pbar:
                         pbar.close()
                     pbar = tqdm.tqdm(total=total_pages, desc="Processing pages")
+                    if on_progress:
+                        on_progress(cmd, data)
                 elif cmd == 'update':
                     if pbar:
                         pbar.update(data)
+                    if on_progress:
+                        on_progress(cmd, data)
                 elif cmd == 'done':
                     documents_done += 1
                     if documents_done + len(events['fileerror']) >= len(pdf_paths):
