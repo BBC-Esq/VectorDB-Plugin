@@ -1,240 +1,148 @@
+import json
+import logging
 import threading
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import (
-   QWidget, QLabel, QGridLayout, QVBoxLayout, QGroupBox, QPushButton, QRadioButton, QButtonGroup, QMessageBox
-)
+from PySide6.QtCore import QObject, Qt, QUrl, Signal, Slot
+from PySide6.QtGui import QColor, QDesktopServices
+from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineSettings
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWidgets import QMessageBox, QVBoxLayout, QWidget
 
-from core.constants import VECTOR_MODELS, TOOLTIPS
-from core.utilities import cuda_usable, runs_on_this_hardware
-from gui.download_model import ModelDownloader, model_downloaded_signal, is_complete_download
+from core.utilities import theme_manager
+from gui.download_model import ModelDownloader, model_downloaded_signal
+from gui.tabs_models import catalog
+
+WEB_PAGE = Path(__file__).resolve().parent / "web" / "models_tab.html"
+
+
+class ModelsBridge(QObject):
+    download_requested = Signal(str)
+
+    @Slot(str)
+    def requestDownload(self, repo_id):
+        self.download_requested.emit(repo_id)
+
+
+class ModelsPage(QWebEnginePage):
+    def acceptNavigationRequest(self, url, navigation_type, is_main_frame):
+        if url.scheme() in ("http", "https"):
+            QDesktopServices.openUrl(url)
+            return False
+        return super().acceptNavigationRequest(url, navigation_type, is_main_frame)
+
+    def javaScriptConsoleMessage(self, level, message, line, source):
+        if level == QWebEnginePage.JavaScriptConsoleMessageLevel.ErrorMessageLevel:
+            logging.error("Models tab page error: %s (line %s)", message, line)
+
 
 class VectorModelsTab(QWidget):
-    DOWNLOAD_BUTTON_LABEL = "Download Selected Model"
-    DOWNLOAD_BUTTON_BUSY_LABEL = "Downloading..."
+    download_finished = Signal(str)
 
     def __init__(self, parent=None):
-       super().__init__(parent)
-       self.main_layout = QVBoxLayout()
-       self.setLayout(self.main_layout)
+        super().__init__(parent)
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        (Path("Models") / "vector").mkdir(parents=True, exist_ok=True)
+        self._view = None
+        self._page = None
+        self._ready = False
+        self._downloading = None
+        self._sent_payload = None
+        theme_manager.changed.connect(self._apply_theme)
+        model_downloaded_signal.downloaded.connect(self._on_model_downloaded)
+        model_downloaded_signal.failed.connect(self._on_download_failed)
+        self.download_finished.connect(self._on_download_finished)
 
-       self.group_boxes = {}
-       self.downloaded_labels = {}
-       self.model_radiobuttons = QButtonGroup(self)
-       self.model_radiobuttons.setExclusive(True)
-       self.stretch_factors = {
-           'BAAI': 4,
-           'Google': 2,
-           'Microsoft': 3,
-           'intfloat': 4,
-           'infgrad': 2,
-           'IEITYuan': 2,
-           'codefuse-ai': 3,
-           'geevec-ai': 2,
-           'Qwen': 4,
-           'Octen': 4,
-           'FreeLawProject': 3,
-       }
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self._view is None:
+            self._create_view()
+        else:
+            self._push_data()
 
-       models_dir = Path('Models')
-       if not models_dir.exists():
-           models_dir.mkdir(parents=True)
+    def _create_view(self):
+        self._view = QWebEngineView(self)
+        self._view.setContextMenuPolicy(Qt.NoContextMenu)
+        self._profile = QWebEngineProfile(self)
+        self._page = ModelsPage(self._profile, self._view)
+        settings = self._page.settings()
+        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, False)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanOpenWindows, False)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, False)
+        self._page.setBackgroundColor(QColor(catalog.theme_payload(theme_manager.current)["colors"]["bg_window"]))
+        self._bridge = ModelsBridge(self)
+        self._bridge.download_requested.connect(self._on_download_requested)
+        self._channel = QWebChannel(self._page)
+        self._channel.registerObject("bridge", self._bridge)
+        self._page.setWebChannel(self._channel)
+        self._page.loadFinished.connect(self._on_load_finished)
+        self._view.setPage(self._page)
+        self._layout.addWidget(self._view)
+        self._view.load(QUrl.fromLocalFile(str(WEB_PAGE)))
 
-       vector_models_dir = models_dir / "vector"
-       if not vector_models_dir.exists():
-           vector_models_dir.mkdir(parents=True)
+    def _on_load_finished(self, ok):
+        if not ok:
+            if not self._ready:
+                logging.error("The Models tab page failed to load: %s", WEB_PAGE)
+            return
+        self._ready = True
+        self._sent_payload = json.dumps(catalog.build_payload(self._downloading))
+        theme = json.dumps(catalog.theme_payload(theme_manager.current))
+        self._page.runJavaScript(f"ModelsTab.init({self._sent_payload}, {theme});")
 
-       existing_vector_directories = {d.name for d in vector_models_dir.iterdir() if is_complete_download(d)}
+    def _push_data(self):
+        if not self._ready:
+            return
+        payload = json.dumps(catalog.build_payload(self._downloading))
+        if payload != self._sent_payload:
+            self._sent_payload = payload
+            self._page.runJavaScript(f"ModelsTab.setData({payload});")
 
-       headers = ["Select", "Model Name", "Original Precision", "Parameters", "Dimensions", "Max Sequence", "Size (MB)", "Downloaded"]
-       column_stretch_factors = [1, 2, 2, 1, 1, 1, 1, 1]
+    def _apply_theme(self, theme_name):
+        if self._page is None:
+            return
+        theme = catalog.theme_payload(theme_name)
+        self._page.setBackgroundColor(QColor(theme["colors"]["bg_window"]))
+        if self._ready:
+            self._page.runJavaScript(f"ModelsTab.applyTheme({json.dumps(theme)});")
 
-       def add_centered_widget(grid, widget, row, col):
-           grid.addWidget(widget, row, col, alignment=Qt.AlignCenter)
+    def _on_download_requested(self, repo_id):
+        if self._downloading:
+            return
+        model_info = catalog.find_model(repo_id)
+        if model_info is None:
+            return
+        if catalog.is_downloaded(model_info):
+            reply = QMessageBox.question(
+                self,
+                "Model Already Downloaded",
+                f"'{model_info['name']}' is already downloaded.\n\nRe-download it?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
+        self._downloading = repo_id
+        self._push_data()
+        model_downloader = ModelDownloader(model_info, model_info["type"])
+        threading.Thread(target=self._run_download, args=(model_downloader, repo_id), daemon=True).start()
 
-       if not cuda_usable():
-           cpu_note = QLabel(
-               "Running on the CPU (no supported NVIDIA GPU). Smaller models create databases much faster. "
-               "Approximate time per 10,000 chunks on a 24-core CPU: small models ~5 min, base and 300M models "
-               "~7-19 min, large models ~20-25 min, 0.6B models ~28-40 min, the 1.7B model ~95 min. "
-               "Slower CPUs take longer."
-           )
-           cpu_note.setWordWrap(True)
-           self.main_layout.addWidget(cpu_note)
+    def _run_download(self, model_downloader, repo_id):
+        try:
+            model_downloader.download()
+        finally:
+            self.download_finished.emit(repo_id)
 
-       row_counter = 1
-       for vendor, models in VECTOR_MODELS.items():
-           models = [m for m in models if runs_on_this_hardware(m)]
-           if not models:
-               continue
-           group_box = QGroupBox(vendor)
-
-           group_box.setStyleSheet("""
-               QGroupBox::title {
-                   subcontrol-origin: margin;
-                   padding: 0 5px;
-                   font-weight: bold;
-                   color: #00bf9e;
-               }
-           """)
-
-           group_layout = QGridLayout()
-           group_layout.setVerticalSpacing(0)
-           group_layout.setHorizontalSpacing(0)
-           group_box.setLayout(group_layout)
-           group_layout.setContentsMargins(0, 10, 0, 0)
-           
-           size_policy = group_box.sizePolicy()
-           size_policy.setVerticalStretch(self.stretch_factors.get(vendor, 1))
-           group_box.setSizePolicy(size_policy)
-           
-           self.group_boxes[vendor] = group_box
-
-           for col, header in enumerate(headers):
-               header_label = QLabel(header)
-               header_label.setAlignment(Qt.AlignCenter)
-               header_label.setStyleSheet("text-decoration: underline;")
-               header_label.setToolTip(TOOLTIPS.get(f"VECTOR_MODEL_{header.upper().replace(' ', '_')}", ""))
-               group_layout.addWidget(header_label, 0, col)
-
-           for col, stretch_factor in enumerate(column_stretch_factors):
-               group_layout.setColumnStretch(col, stretch_factor)
-
-           for model in models:
-               model_info = model
-               grid = group_box.layout()
-               row = grid.rowCount()
-
-               radiobutton = QRadioButton()
-               radiobutton.setToolTip(TOOLTIPS.get("VECTOR_MODEL_SELECT", ""))
-               radiobutton.setProperty("model_info", model_info)
-               radiobutton.setProperty("downloaded_key", f"{vendor}/{model['name']}")
-               self.model_radiobuttons.addButton(radiobutton, row_counter)
-               add_centered_widget(grid, radiobutton, row, 0)
-
-               model_name_label = QLabel()
-               model_name_label.setTextFormat(Qt.RichText)
-               model_name_label.setText(f'<a style="color: #00bf9e" href="https://huggingface.co/{model["repo_id"]}">{model["name"]}</a>')
-               model_name_label.setOpenExternalLinks(False)
-               model_name_label.linkActivated.connect(self.open_link)
-               model_name_label.setToolTip(TOOLTIPS.get("VECTOR_MODEL_NAME", ""))
-               add_centered_widget(grid, model_name_label, row, 1)
-
-               precision_label = QLabel(str(model.get('precision', 'N/A')))
-               precision_label.setToolTip(TOOLTIPS.get("VECTOR_MODEL_PRECISION", ""))
-               add_centered_widget(grid, precision_label, row, 2)
-
-               parameters_label = QLabel(str(model.get('parameters', 'N/A')))
-               parameters_label.setToolTip(TOOLTIPS.get("VECTOR_MODEL_PARAMETERS", ""))
-               add_centered_widget(grid, parameters_label, row, 3)
-
-               dimensions_label = QLabel(str(model['dimensions']))
-               dimensions_label.setToolTip(TOOLTIPS.get("VECTOR_MODEL_DIMENSIONS", ""))
-               add_centered_widget(grid, dimensions_label, row, 4)
-
-               max_sequence_label = QLabel(str(model['max_sequence']))
-               max_sequence_label.setToolTip(TOOLTIPS.get("VECTOR_MODEL_MAX_SEQUENCE", ""))
-               add_centered_widget(grid, max_sequence_label, row, 5)
-
-               size_label = QLabel(str(model['size_mb']))
-               size_label.setToolTip(TOOLTIPS.get("VECTOR_MODEL_SIZE", ""))
-               add_centered_widget(grid, size_label, row, 6)
-
-               if 'cache_dir' in model:
-                   expected_dir_name = model['cache_dir']
-               else:
-                   expected_dir_name = ModelDownloader(model_info, model['type']).get_model_directory_name()
-               
-               is_downloaded = expected_dir_name in existing_vector_directories
-               downloaded_label = QLabel('Yes' if is_downloaded else 'No')
-               downloaded_label.setToolTip(TOOLTIPS.get("VECTOR_MODEL_DOWNLOADED", ""))
-               add_centered_widget(grid, downloaded_label, row, 7)
-
-               self.downloaded_labels[f"{vendor}/{model['name']}"] = (downloaded_label, model_info, radiobutton)
-
-               row_counter += 1
-
-       for vendor, group_box in self.group_boxes.items():
-           self.main_layout.addWidget(group_box)
-
-       self.download_button = QPushButton(self.DOWNLOAD_BUTTON_LABEL)
-       self.download_button.setToolTip(TOOLTIPS.get("DOWNLOAD_MODEL", ""))
-       self.download_button.clicked.connect(self.initiate_model_download)
-       self.main_layout.addWidget(self.download_button)
-
-       model_downloaded_signal.downloaded.connect(self.update_model_downloaded_status)
-       model_downloaded_signal.failed.connect(self._on_download_failed)
-
-    def initiate_model_download(self):
-       selected_button = self.model_radiobuttons.checkedButton()
-       if selected_button is None:
-           return
-
-       model_info = selected_button.property("model_info")
-       downloaded_key = selected_button.property("downloaded_key")
-       downloaded_label = self.downloaded_labels[downloaded_key][0]
-
-       if downloaded_label.text() == 'Yes':
-           reply = QMessageBox.question(
-               self,
-               "Model Already Downloaded",
-               f"'{model_info['name']}' is already downloaded.\n\nRe-download it?",
-               QMessageBox.Yes | QMessageBox.No,
-               QMessageBox.No
-           )
-           if reply != QMessageBox.Yes:
-               return
-
-       self.download_button.setEnabled(False)
-       self.download_button.setText(self.DOWNLOAD_BUTTON_BUSY_LABEL)
-
-       model_downloader = ModelDownloader(model_info, model_info['type'])
-       threading.Thread(target=model_downloader.download, daemon=True).start()
-
-    def _reset_download_button(self):
-       self.download_button.setEnabled(True)
-       self.download_button.setText(self.DOWNLOAD_BUTTON_LABEL)
+    def _on_model_downloaded(self, model_name, model_type):
+        if model_type == "vector":
+            self._push_data()
 
     def _on_download_failed(self, message):
-       self._reset_download_button()
-       QMessageBox.critical(self, "Download Failed", message)
+        QMessageBox.critical(self, "Download Failed", message)
 
-    def update_model_downloaded_status(self, model_name, model_type):
-       self._reset_download_button()
-
-       models_dir = Path('Models')
-       vector_models_dir = models_dir / "vector"
-
-       existing_vector_directories = {d.name for d in vector_models_dir.iterdir() if d.is_dir()}
-
-       for vendor, models in VECTOR_MODELS.items():
-           for model in models:
-               cache_dir = model.get('cache_dir', '')
-               generated_dir = model['repo_id'].replace('/', '--')
-
-               if cache_dir == model_name or generated_dir == model_name:
-                   key = f"{vendor}/{model['name']}"
-                   if key in self.downloaded_labels:
-                       downloaded_label, _, _ = self.downloaded_labels[key]
-                       downloaded_label.setText('Yes')
-                   self.refresh_gui()
-                   return
-
-       print(f"Model {model_name} not found in VECTOR_MODELS")
-
-    def refresh_gui(self):
-       for group_box in self.group_boxes.values():
-           group_box.repaint()
-       self.repaint()
-
-    def open_link(self, url):
-        QDesktopServices.openUrl(QUrl(url))
-
-if __name__ == "__main__":
-    from PySide6.QtWidgets import QApplication
-    app = QApplication([])
-    window = VectorModelsTab()
-    window.show()
-    app.exec()
+    def _on_download_finished(self, repo_id):
+        if self._downloading == repo_id:
+            self._downloading = None
+        self._push_data()

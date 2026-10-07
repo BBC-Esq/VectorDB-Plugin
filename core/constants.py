@@ -1998,7 +1998,6 @@ TOOLTIPS = {
     "CREATE_VECTOR_DB": "Creates a new vector database.",
     "DATABASE_NAME_INPUT": "Enter a unique database name. Use only lowercase letters, numbers, underscores, and hyphens.",
     "DATABASE_SELECT": "Vector database that will be queried.",
-    "DOWNLOAD_MODEL": "Download the selected vector model.",
     "EJECT_LOCAL_MODEL": "Unload the current local model from memory.",
     "FILE_TYPE_FILTER": "Only allows chunks that originate from certain file types.",
     "HALF_PRECISION": "Uses bfloat16/float16 for 2x speedup. Requires a GPU.",
@@ -2015,67 +2014,6 @@ TOOLTIPS = {
     "SHOW_THINKING_CHECKBOX": "If checked, show the model's internal thought process.  Only applies to 'Thinking' / reasoning models and it will be disregarded if not applicable.",
     "TRANSCRIBE_BUTTON": "Start transcription.",
     "TTS_MODEL": "Choose TTS model. Bark offers customization, Google requires internet.",
-    "VECTOR_MODEL_DIMENSIONS": "Higher dimensions captures more nuance but requires more processing time.",
-    "VECTOR_MODEL_DOWNLOADED": "Whether the model has been downloaded.",
-    "VECTOR_MODEL_LINK": "Huggingface link.",
-    "VECTOR_MODEL_MAX_SEQUENCE": "Number of tokens the model can process at once. Different from the Chunk Size setting, which is in characters.",
-    "VECTOR_MODEL_NAME": "The name of the vector model.",
-    "VECTOR_MODEL_PARAMETERS": "The number of internal weights and biases that the model learns and adjusts during training.",
-    "VECTOR_MODEL_PRECISION": (
-        "<html>"
-        "<body>"
-        "<p style='font-size: 14px; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px; margin-bottom: 10px;'>"
-        "<b>The precision ultimately used depends on your setup:</b></p>"
-        "<table style='border-collapse: collapse; width: 100%; font-size: 12px; color: #34495e;'>"
-        "<thead>"
-        "<tr style='background-color: #ecf0f1; text-align: left;'>"
-        "<th style='border: 1px solid #bdc3c7; padding: 8px;'>Compute Device</th>"
-        "<th style='border: 1px solid #bdc3c7; padding: 8px;'>Embedding Model Precision</th>"
-        "<th style='border: 1px solid #bdc3c7; padding: 8px;'>'Half' Checked?</th>"
-        "<th style='border: 1px solid #bdc3c7; padding: 8px;'>Precision Ultimately Used</th>"
-        "</tr>"
-        "</thead>"
-        "<tbody>"
-        "<tr>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>CPU</td>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>Any</td>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>Either</td>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'><code>float32</code></td>"
-        "</tr>"
-        "<tr style='background-color: #ecf0f1;'>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>CUDA</td>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>float16</td>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>Yes</td>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'><code>float16</code></td>"
-        "</tr>"
-        "<tr>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>CUDA</td>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>bfloat16</td>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>Yes</td>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>"
-        "<code>bfloat16</code> (if CUDA capability &ge; 8.0) or <code>float16</code></td>"
-        "</tr>"
-        "<tr style='background-color: #ecf0f1;'>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>CUDA</td>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>float32</td>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>No</td>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'><code>float32</code></td>"
-        "</tr>"
-        "<tr>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>CUDA</td>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>float32</td>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>Yes</td>"
-        "<td style='border: 1px solid #bdc3c7; padding: 8px;'>"
-        "<code>bfloat16</code> (if CUDA capability &ge; 8.0) or <code>float16</code>"
-        "</td>"
-        "</tr>"
-        "</tbody>"
-        "</table>"
-        "</body>"
-        "</html>"
-    ),
-    "VECTOR_MODEL_SELECT": "Choose a vector model to download.",
-    "VECTOR_MODEL_SIZE": "Size on disk.",
     "VISION_MODEL": "Select vision model for image processing. Test before bulk processing.",
     "VOICE_RECORDER": "Click to start recording, speak your question, then click again to stop recording.",
     "WHISPER_BATCH_SIZE": "Batch size for transcription. See the User Guide for optimal values.",

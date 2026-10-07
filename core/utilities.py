@@ -657,9 +657,25 @@ def save_config_atomically(config_data, config_path, **dump_kwargs):
         yaml.safe_dump(config_data, f, **dump_kwargs)
     os.replace(tmp, config_path)
 
+class ThemeManager(QObject):
+    changed = Signal(str)
+
+    def __init__(self):
+        super().__init__()
+        self.current = 'default'
+
+    def apply(self, theme_name):
+        if theme_name not in THEMES:
+            theme_name = 'default'
+        QApplication.instance().setStyleSheet(load_stylesheet(theme_name))
+        self.current = theme_name
+        self.changed.emit(theme_name)
+
+theme_manager = ThemeManager()
+
 def make_theme_changer(theme_name):
     def change_theme():
-        QApplication.instance().setStyleSheet(load_stylesheet(theme_name))
+        theme_manager.apply(theme_name)
         update_theme_in_config(theme_name)
     return change_theme
 

@@ -14,10 +14,9 @@ from gui.metrics_bar import MetricsWidget as MetricsBar
 from gui.tabs import create_tabs
 from core.utilities import (
     list_theme_files,
-    load_stylesheet,
     ensure_theme_config,
-    update_theme_in_config,
     make_theme_changer,
+    theme_manager,
     download_kokoro_tts,
     download_with_threadpool,
 )
@@ -205,11 +204,11 @@ def main():
         QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+    QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
 
     app = QApplication(sys.argv)
 
-    theme = ensure_theme_config()
-    app.setStyleSheet(load_stylesheet(theme))
+    theme_manager.apply(ensure_theme_config())
 
     ex = DocQA_GUI()
     ex.show()

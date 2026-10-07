@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en" data-scheme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Models</title>
+<link rel="stylesheet" href="models_tab.css">
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script src="models_tab.js" defer></script>
+</head>
+<body class="view-cards">
+<header class="toolbar">
+  <div class="row">
+    <label class="search">
+      <span class="search-icon" data-icon="search"></span>
+      <input id="query" type="text" placeholder="Search models" autocomplete="off" spellcheck="false">
+      <button id="clearQuery" class="clear" type="button" data-tip-text="Clear the search"><span data-icon="close"></span></button>
+      <span id="count" class="count"></span>
+    </label>
+    <button id="sortButton" class="btn menu-btn" type="button"></button>
+    <div id="viewToggle" class="seg" role="group" aria-label="Layout">
+      <button type="button" data-view="cards" data-tip-text="Card view"><span data-icon="cards"></span>Cards</button>
+      <button type="button" data-view="list" data-tip-text="Compact table; click a column heading to sort"><span data-icon="list"></span>List</button>
+    </div>
+    <span id="hardware" class="hardware" data-tip="hardware"></span>
+  </div>
+  <div class="row">
+    <div id="filters" class="filters"></div>
+  </div>
+</header>
+<main id="main"></main>
+<div id="popover" class="popover" role="dialog"></div>
+<div id="tooltip" class="tooltip" role="tooltip"></div>
+</body>
+</html>
