@@ -1982,34 +1982,19 @@ THINKING_TAGS = {
 TOOLTIPS = {
     "AUDIO_FILE_SELECT": "Select an audio file. Supports various audio formats.",
     "CHOOSE_FILES": "Select documents to add to the database. Remember to transcribe audio files in the Tools tab first.",
-    "CHUNK_OVERLAP": "Characters shared between chunks. Set to 25-50% of chunk size.",
-    "CHUNK_SIZE": (
-        "<html><body>"
-        "Upper limit (in characters, not tokens) that a chunk can be after being split.  Make sure that it falls within"
-        "the Max Sequence of the embedding model being used, which is measured in tokens (not characters), remembering that"
-        "approximately 3-4 characters = 1 token."
-        "</body></html>"
-    ),
     "CHUNKS_ONLY": "Solely query the vector database and get relevant chunks. Very useful to test the chunk size/overlap settings.",
-    "CONTEXTS": "Maximum number of chunks (aka contexts) to return.",
     "COPY_RESPONSE": "Copy the chunks (if chunks only is checked) or model's response to the clipboard.",
-    "CREATE_DEVICE_DB": "Choose 'cpu' or 'cuda'. Use 'cuda' if available.",
-    "CREATE_DEVICE_QUERY": "Choose 'cpu' or 'cuda'. 'cpu' recommended to conserve VRAM.",
     "CREATE_VECTOR_DB": "Creates a new vector database.",
     "DATABASE_NAME_INPUT": "Enter a unique database name. Use only lowercase letters, numbers, underscores, and hyphens.",
     "DATABASE_SELECT": "Vector database that will be queried.",
     "EJECT_LOCAL_MODEL": "Unload the current local model from memory.",
-    "FILE_TYPE_FILTER": "Only allows chunks that originate from certain file types.",
-    "HALF_PRECISION": "Uses bfloat16/float16 for 2x speedup. Requires a GPU.",
     "LOCAL_MODEL_SELECT": "Select a local model for generating responses.",
     "MODEL_BACKEND_SELECT": "Choose the backend for the large language model response.",
     "PORT": "Must match the port used in LM Studio.",
     "QUESTION_INPUT": "Type your question here or use the voice recorder.",
     "RESTORE_CONFIG": "Restores original config.yaml. May require manual database cleanup.",
     "RESTORE_DATABASE": "Restores backed-up databases. Use with caution.",
-    "SEARCH_TERM_FILTER": "Removes chunks that do not contain this term as a case-insensitive substring.",
     "SELECT_VECTOR_MODEL": "Choose the vector model for text embedding.",
-    "SIMILARITY": "Minimum relevance (0-1) a chunk needs to be returned. Higher returns fewer, more relevant chunks; lower returns more. Don't use 1.",
     "SPEAK_RESPONSE": "Speak the response from the large language model using text-to-speech.",
     "SHOW_THINKING_CHECKBOX": "If checked, show the model's internal thought process.  Only applies to 'Thinking' / reasoning models and it will be disregarded if not applicable.",
     "TRANSCRIBE_BUTTON": "Start transcription.",
