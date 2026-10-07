@@ -83,9 +83,11 @@ def _get_model_family(model_path: str) -> str:
     if "bge" in model_path_lower:
         return "bge"
     if "modernbert" in model_path_lower:
-        return "modernbert"
+        return "modernbert-8192" if "8192" in model_path_lower else "modernbert-512"
     if "embeddinggemma" in model_path_lower:
         return "embeddinggemma"
+    if model_path_lower.startswith("e5-") or "-e5-" in model_path_lower or "_e5-" in model_path_lower:
+        return "e5"
     return "generic"
 
 
@@ -102,6 +104,10 @@ def _get_prompt_for_family(family: str, is_query: bool = False) -> str:
         return "Instruct: Given a question, retrieve passages that answer the question.\nQuery: "
     if family == "embeddinggemma":
         return "task: search result | query: " if is_query else "title: none | text: "
+    if family == "e5":
+        return "query: " if is_query else "passage: "
+    if family == "modernbert-512":
+        return "search_query: " if is_query else "search_document: "
     return ""
 
 
@@ -617,8 +623,8 @@ def create_embedding_model(
 
     if family in ("qwen", "jasper", "f2llm", "geevec"):
         max_seq_length = 8192
-    elif family == "modernbert":
-        max_seq_length = 8192 if "8192" in model_name else 512
+    elif family == "modernbert-8192":
+        max_seq_length = 8192
     elif family == "embeddinggemma":
         max_seq_length = 2048
     else:
