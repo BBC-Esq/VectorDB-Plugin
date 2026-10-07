@@ -579,45 +579,62 @@ original file is saved as metadata.  As long as you haven't moved the original f
 locate the file and open it in the default program on your system.
 
 ### How can I create a vector database?
-Go to the Create Database tab and choose the files that you want to add to the vector database.  If you select any file types that are
-not supported, the program will let you know and give you an option to automatically exclude them.  Remember, you can repeat this
-process as many times as you with.  Also, you can choose whether to select all of the files in a particular directory or simply
-choose individual files.  To add audio transcriptions to the database you must first transcribe audio files individually, which can
-only be done within the Tools Tab.  To input descriptions of images into the vector database choose an appropriate vision model from
-the Settings Tab.  Any images you select will then automatically be processed by that vision model when you create the database.
-Remember, make sure and adjust the database creation settings within the Settings Tab before creating the database.
+Go to the Create Database tab and add the files that you want in the database with the 'Add Files' or 'Add Folder' button; you can
+repeat this as many times as you like, and file types that cannot be added are skipped and listed.  Then enter a name, choose a
+downloaded embedding model, and click 'Create Database'.  The tab shows the database creation settings it will use (chunk size,
+overlap, precision, device and pipeline) with a link to the Settings Tab, so adjust them there first if needed, and the Create
+Database button stays disabled with a short explanation until everything is ready.  To add audio transcriptions to the database
+you must first transcribe audio files individually, which can only be done within the Tools Tab.  To input descriptions of images
+into the vector database choose an appropriate vision model in the Settings Tab; any images you add are then processed by that
+vision model when you create the database.
+
+### What does the Create Database tab show while a database is being created?
+While a database is being created, the file list is locked and the tab shows each stage of the build: reading the files,
+describing images and adding transcripts, splitting the text into chunks, embedding the chunks, and saving the database.  A
+progress bar counts the embedding batches, a timer shows how long the build has been running, and the 'Show log' link opens the
+detailed output of the build, which helps if something goes wrong.  Click 'Cancel' to stop the build; any partial files are
+removed.  When the build finishes, the tab reports how long it took and how many documents and chunks it created, lists any files
+that could not be fully added, and links to the Query Database tab.  The new database is backed up automatically, and the file
+list is cleared, because the program empties the list of files to add after every successful build so it is ready for the next
+database.  If a build fails or is cancelled, the files stay in the list so you can try again.
 
 ### What file types can I add to a vector database?
 When creating a database, this program accepts a range of document and image formats. Supported document types include .pdf,
 .docx, .txt, .rtf, .html, .htm, .md, .csv, .xls, .xlsx, .xlsm, .eml, and .msg. Supported image types include .png, .jpg, .jpeg,
 .bmp, .gif, .tif, and .tiff; images are turned into text descriptions by the vision model you select in the Settings Tab and then
 embedded like any other text. Audio files cannot be added directly here -- you must first transcribe them in the Tools Tab, after
-which the transcript can be added like any other document. If you select a file whose type is not supported, the program warns you
-and offers to exclude it automatically so you can proceed with the rest.
+which the transcript can be added like any other document. If you select a file whose type is not supported, the program skips it,
+adds the rest, and lists the skipped files in the Create Database tab.
 
 ### What are the rules for naming a vector database?
 When you create a vector database you must give it a name, and the name has a few rules. It may contain only lowercase letters,
-numbers, underscores, and hyphens -- uppercase letters, spaces, and other special characters are not allowed (the program prevents
-you from typing them). Each database name must be unique; you cannot reuse the name of a database that already exists. The name is
+numbers, underscores, and hyphens; as you type, uppercase letters become lowercase, spaces become underscores, and other characters
+are left out. The name must be at least three characters long, cannot be 'null' or 'none', and cannot be longer than the limit that
+Windows path lengths allow for the folder the program is installed in. Each database name must be unique; the tab tells you as you
+type if a database with that name already exists. The name is
 how the database appears in the dropdown menus in the Query Database and Manage Databases tabs, so it is worth choosing something
 descriptive, such as 'tax_records_2024' or 'project-notes.'
 
 ### What is the PDF OCR check when creating a database?
-If you include one or more PDF files when creating a database, the program asks whether you want to check if any of the PDFs need
-OCR (optical character recognition). This matters because a PDF that is really just scanned images has no extractable text layer,
-and embedding it would add nothing useful to the database. If you choose to run the check, the program inspects the pages of your
-PDFs. If any PDF appears to need OCR, it lists those files (with a 'View Report' button) and stops before creating the database.
-The check does not perform OCR itself: run the OCR tool in the Tools Tab on the listed PDFs, or remove them from the files you
-selected, and then create the database again. For a large number of PDFs this check can be time-consuming, but it is strongly
-recommended because it prevents image-only PDFs from being silently added with no searchable text.
+If the files you add include PDFs, a switch in the Create Database tab offers to check the PDFs for missing text first, meaning
+whether any of them need OCR (optical character recognition); it is on by default. This matters because a PDF that is really just
+scanned images has no extractable text layer, and embedding it would add nothing useful to the database. With the switch on, the
+program inspects the pages of your PDFs when you click 'Create Database' and shows how many it has checked. If any PDF appears to
+need OCR, it lists those files and stops before creating the database; you can open the full list, remove those PDFs from the file
+list with one click, or run the OCR tool in the Tools Tab on them and add the resulting '_OCR' PDFs instead. The check does not
+perform OCR itself. For a large number of PDFs this check can be time-consuming, but it is strongly recommended because it prevents
+image-only PDFs from being silently added with no searchable text.
 
 ### How do I select files or a whole folder when creating a database?
-In the Create Database Tab, click 'Choose Files' to add documents. You are first asked whether you want to select an entire
-directory or individual files. If you choose a directory, the program scans it for supported files and, if it finds compatible
-files in subfolders as well, asks whether to include those subdirectory files too. If you choose individual files, you can multi-
-select any number of supported files. You can repeat this process as many times as you like to keep adding files. Selected files
-appear in a list; you can double-click a file to open it in its default program, or right-click it to remove it from the pending
-list before creating the database.
+In the Create Database Tab, click 'Add Files' to choose individual files (you can multi-select any number of supported files) or
+'Add Folder' to choose a whole folder. For a folder, the program scans it for supported files and, if it finds compatible files in
+subfolders as well, asks whether to include those subdirectory files too. Adding shows a progress bar with a 'Cancel' button, and
+you can repeat this as many times as you like to keep adding files. The files appear in a list with their file type; the buttons
+above the list show how many files of each type you added and filter the list when clicked, and the filter box narrows it by
+name. Double-click a file to open it in its default program. To remove files before creating the database, click the X at the
+right end of a row, or select files (click, Ctrl+click, Shift+click, or Ctrl+A for all) and press Delete or click 'Remove'.
+Removing only takes a file off the list and does not delete your original file, except for transcripts made in the Tools Tab,
+which are deleted because the list holds the only copy.
 
 ### Can I use images and audio files in my database?
 You can use both images and audio in your vector database. Images: When you add image files (like PNG, JPG, BMP), the selected vision
@@ -626,7 +643,7 @@ described as “A line graph showing revenue over time with an upward trend.” 
 revenue trend look like?” and retrieve the image. Make sure you choose a vision model in the Settings Tab first and use the Test
 Vision Models tool within the Tools Tab ot preview captions before using a particular model. Audio: You can't add audio files directly,
 but you can use the Transcribe Audio tool (powered by OpenAI’s Whisper model) to convert audio to text. This transcript can then be
-added like any other document during database creation. If you try to upload audio directly, the program will prompt you to transcribe
+added like any other document during database creation. If you try to add audio files directly, the program skips them and points you to the Tools Tab to transcribe
 it first. By converting images and audio to text, the system supports rich, multi-modal queries — as long as content is processed
 correctly.
 
