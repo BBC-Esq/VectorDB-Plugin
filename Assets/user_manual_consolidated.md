@@ -649,7 +649,8 @@ vision model when you create the database.
 
 ### What does the Create Database tab show while a database is being created?
 While a database is being created, the file list is locked and the tab shows each stage of the build: reading the files,
-describing images and adding transcripts, splitting the text into chunks, embedding the chunks, and saving the database.  A
+describing images and adding transcripts, splitting the text into chunks, tokenizing the chunks, embedding the chunks, and saving
+the database.  A
 progress bar counts the embedding batches, a timer shows how long the build has been running, and the 'Show log' link opens the
 detailed output of the build, which helps if something goes wrong.  Click 'Cancel' to stop the build; any partial files are
 removed.  When the build finishes, the tab reports how long it took and how many documents and chunks it created, lists any files

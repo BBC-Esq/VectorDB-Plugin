@@ -162,6 +162,7 @@
       case "extract": return docs ? `Read ${docs}` : "Reading the files…";
       case "media": return "Describing images and adding transcripts…";
       case "split": return chunks ? `Split into ${chunks}` : "Splitting the text into chunks…";
+      case "tokenize": return `Tokenizing ${chunks || "the chunks"}…`;
       case "embed": return p.batches ? `Embedding ${chunks || "chunks"} · batch ${fmt.int(p.batch || 0)} of ${fmt.int(p.batches)}` : `Embedding ${chunks || "the chunks"}…`;
       case "write": return "Saving the database…";
       case "done": return "Finishing up…";

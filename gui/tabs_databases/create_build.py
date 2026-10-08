@@ -26,6 +26,7 @@ STAGES = [
     ("extract", "Reading"),
     ("media", "Images and audio"),
     ("split", "Splitting"),
+    ("tokenize", "Tokenization"),
     ("embed", "Embedding"),
     ("write", "Saving"),
 ]
@@ -233,7 +234,7 @@ class BuildProgress:
         (re.compile(r"Processing any (audio transcripts|images)"), "stage", "media"),
         (re.compile(r"Splitting documents into chunks"), "stage", "split"),
         (re.compile(r"Split into ([\d,]+) chunks"), "chunks", None),
-        (re.compile(r"Computing vectors"), "stage", "embed"),
+        (re.compile(r"Computing vectors"), "stage", "tokenize"),
         (re.compile(r"Running forward pass on (\d+) pre-padded batches"), "batches", None),
         (re.compile(r"Forward pass: (\d+)/(\d+) batches"), "batch", None),
         (re.compile(r"Forward pass complete"), "embedded", None),
@@ -261,13 +262,13 @@ class BuildProgress:
             if not match:
                 continue
             if kind == "stage":
-                if value == "done" or STAGE_INDEX.get(value, -1) >= STAGE_INDEX.get(self.stage, -1):
-                    self.stage = value
+                self.advance(value)
             elif kind == "documents":
                 self.documents = int(match.group(1).replace(",", ""))
             elif kind == "chunks":
                 self.chunks = int(match.group(1).replace(",", ""))
             elif kind == "batches":
+                self.advance("embed")
                 self.batches = int(match.group(1))
                 self.batch = 0
             elif kind == "batch":
@@ -276,6 +277,10 @@ class BuildProgress:
                 self.batch = self.batches
             return True
         return False
+
+    def advance(self, stage):
+        if stage == "done" or STAGE_INDEX.get(stage, -1) >= STAGE_INDEX.get(self.stage, -1):
+            self.stage = stage
 
     def state(self):
         current = STAGE_INDEX.get(self.stage, -1)
