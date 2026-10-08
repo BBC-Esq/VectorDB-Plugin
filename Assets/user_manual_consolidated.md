@@ -901,15 +901,22 @@ compute capability, VRAM or CUDA cores, and your own GPU is highlighted when it 
 return to the tools.
 
 ### What is Ask Jeeves and how do I use it?
-Ask Jeeves is an integrated help assistant built into the VectorDB-Plugin, designed to serve as an in-app guide or Q&A tool. You can
-access it from the menu bar—look for the "Ask Jeeves" option. When launched, it opens a new window where you can type in questions
-about using the program. For instance, you might ask, “How do I add a PDF to my database?” or “What does chunk overlap mean?” Ask
-Jeeves will respond with helpful answers sourced from the documentation. Ask Jeeves is ideal for getting quick guidance while
-actively using the program, without needing to leave the interface or consult external resources. If the feature doesn’t respond
-or appears broken, users are encouraged to report the issue on GitHub, as it may indicate a problem with loading the help content.
-Think of Ask Jeeves as your on-demand tutor—just click it, type a plain-English question about the VectorDB-Plugin, and get clear
-explanations or step-by-step instructions. And yes, the name is a playful reference to the classic “Ask Jeeves” search engine,
-suggesting you can ask it anything!
+Ask Jeeves is the help assistant built into the VectorDB-Plugin. Click 'Jeeves' in the menu bar at the top of the main window and
+the Ask Jeeves window opens, with the familiar Jeeves picture at the top. Jeeves searches this user guide with the
+bge-small-en-v1.5 embedding model, so download that model from the Models Tab before the first use. Choose a model from the
+'Model' menu; the first time, the model is downloaded, and the status then says it is ready. Type a question in the box at the
+bottom, for example "How do I add a PDF to my database?" or "What does chunk overlap mean?", and press Enter or click 'Ask'.
+Jeeves looks through the user guide and writes the answer in the conversation, and 'Show sources' under an answer lists the
+passages of the guide it used along with their similarity scores. 'Clear' starts the conversation over, and 'Eject' unloads the
+model to free the memory it uses. Now and then Jeeves offers to recite a poem; click 'Yes, please' to pick one from the list or
+'No, thank you' to carry on. If Jeeves does not respond or appears broken, please report it on GitHub. And yes, the name is a
+playful reference to the classic "Ask Jeeves" search engine.
+
+### Can Jeeves read answers aloud?
+Yes. Click 'Speak Response' under an answer or a recited poem in the Ask Jeeves window to hear it read aloud with the Kokoro text
+to speech model, and click 'Cancel Playback' to stop. The 'Voice' and 'Speed' menus at the bottom of the window choose which voice
+Jeeves uses and how fast it speaks. If the Kokoro model has not been downloaded yet, the program offers to download it when you
+open Jeeves.
 
 ### What are the InternVL3 Vision Models?
 InternVL3, released in April 2025, is an advanced open-source multimodal LLM series trained natively on interleaved text, image,
