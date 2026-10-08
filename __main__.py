@@ -10,10 +10,9 @@ hide_unsupported_gpus()
 from core.native_preload import preload_native_libraries
 preload_native_libraries()
 
-from core.utilities import set_cuda_paths
+from core.cuda_paths import set_cuda_paths
 set_cuda_paths()
 
-from gui.main_window import main
-
 if __name__ == '__main__':
+    from gui.main_window import main
     main()
