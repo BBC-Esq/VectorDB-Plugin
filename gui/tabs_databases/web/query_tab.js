@@ -161,7 +161,7 @@
       ? `<span class="elapsed">${VDB.elapsed(turn.ended - turn.started)}</span>`
       : `<span class="elapsed" data-since="${turn.started}">${VDB.elapsed(Date.now() / 1000 - turn.started)}</span>`;
     const answer = turn.kind === "answer" && turn.answer
-      ? `<div class="md${turn.ended ? "" : " streaming"}">${QueryMarkdown.render(turn.answer)}</div>`
+      ? `<div class="md${turn.ended ? "" : " streaming"}">${Markdown.render(turn.answer)}</div>`
       : "";
     return '<div class="turn-head">'
       + `<div class="turn-question">${esc(turn.question)}</div>`

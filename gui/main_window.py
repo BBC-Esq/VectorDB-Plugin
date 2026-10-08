@@ -22,7 +22,7 @@ from core.utilities import (
     download_with_threadpool,
 )
 from gui.credentials import manage_credentials
-from chat.jeeves import launch_jeeves_process
+from gui.jeeves.jeeves import launch_jeeves_process
 from core.constants import PROJECT_ROOT
 
 script_dir = PROJECT_ROOT

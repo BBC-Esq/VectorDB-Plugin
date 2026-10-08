@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" data-scheme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask Jeeves</title>
+<link rel="stylesheet" href="../../web_common/web/common.css">
+<link rel="stylesheet" href="jeeves.css">
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script src="../../web_common/web/common.js" defer></script>
+<script src="../../web_common/web/markdown.js" defer></script>
+<script src="jeeves.js" defer></script>
+</head>
+<body>
+<main id="main">
+  <header class="plaque" id="plaque"></header>
+  <section class="model-row" id="model-row"></section>
+  <section class="card chat-card">
+    <div id="chat-head"></div>
+    <div id="chat" class="chat" tabindex="-1"></div>
+    <div id="prompt"></div>
+  </section>
+  <div id="notes"></div>
+  <section class="composer">
+    <div class="ask-row">
+      <label class="ask-box" id="ask-box"><input id="message" type="text" placeholder="Type your message here..." autocomplete="off" spellcheck="true"></label>
+      <button type="button" class="btn primary ask-btn" id="ask-btn" data-act="ask" disabled></button>
+    </div>
+    <div id="voice-row"></div>
+  </section>
+</main>
+</body>
+</html>

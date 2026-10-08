@@ -157,7 +157,7 @@
     return html;
   }
 
-  window.QueryMarkdown = {
+  window.Markdown = {
     render(text) {
       return blocks(String(text || "").replace(/\r\n?/g, "\n").split("\n"));
     },
