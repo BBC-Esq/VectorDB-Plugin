@@ -447,7 +447,8 @@ example, your Contexts setting limits the numbe of chunks that will be returned.
 from highest relevance to lowest.  It will return the most relevant chunks that meet the Similarity setting up to the maximum
 number of chunks specified in the Contexts setting.  The Similarity setting is a minimum, so a higher value means fewer chunks will be
 returned, because each one must be more similar to your question, and a lower value means more chunks will be returned.  The program
-ships with 0.8; if you get few or no chunks, lower it (for example to 0.5).  Do not use 1, which would return almost nothing.
+ships with 0.5; if you get too many loosely related chunks, raise it, and if you get few or none, lower it.  Do not use 1, which would
+return almost nothing.
 
 ### What is the search term filter setting?
 Within the Settings Tab the Search Term Filter setting allows you to require that any chunks returned contain the specified search term.

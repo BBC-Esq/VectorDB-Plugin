@@ -28,7 +28,7 @@ database:
   document_types: ''
   half: false
   search_term: ''
-  similarity: 0.8
+  similarity: 0.5
 hf_access_token:
 kokoro:
   speed: 1.3
