@@ -1,267 +1,476 @@
-import shutil
-import sqlite3
+import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
-import yaml
-from PySide6.QtCore import Qt, QAbstractTableModel
-from PySide6.QtGui import QAction, QColor
-from PySide6.QtWidgets import (
-    QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QTableView, QMenu,
-    QGroupBox, QLabel, QComboBox, QMessageBox, QHeaderView
-)
+from PySide6.QtCore import QThread, QTimer, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
+from PySide6.QtWidgets import QApplication, QTabWidget
 
-from core.utilities import open_file, save_config_atomically
-from core.constants import PROJECT_ROOT
+from core.utilities import open_file
+from gui.web_common.web_tab import WebTab
+from gui.tabs_databases import manage_data
 
-
-class SQLiteTableModel(QAbstractTableModel):
-    def __init__(self, data=None):
-        super().__init__()
-        self._data = data or []
-        self._headers = ["File Name"]
-
-    def data(self, index, role):
-        if role == Qt.DisplayRole:
-            return self._data[index.row()][0]
-        elif role == Qt.ForegroundRole:
-            return QColor('white')
-        return None
-
-    def rowCount(self, index):
-        return len(self._data)
-
-    def columnCount(self, index):
-        return 1
-
-    def headerData(self, section, orientation, role):
-        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            return self._headers[section]
-        return None
+WEB_PAGE = Path(__file__).resolve().parent / "web" / "manage_tab.html"
+TASK_MESSAGES = {
+    "delete": "A database is still being deleted. Please wait for it to finish before closing the program.",
+    "backup": "A database is still being backed up. Please wait for it to finish before closing the program.",
+    "restore": "A database is still being restored. Please wait for it to finish before closing the program.",
+}
 
 
-class RefreshingComboBox(QComboBox):
-    def __init__(self, parent=None):
+class InfoWorker(QThread):
+    loaded = Signal(str, object, object)
+
+    def __init__(self, names, parent=None):
         super().__init__(parent)
-        self.addItem("Select a database...")
-        self.setItemData(0, QColor('gray'), Qt.ForegroundRole)
-        self.setCurrentIndex(0)
+        self.names = list(names)
 
-    def showPopup(self):
-        current_text = self.currentText()
-        self.blockSignals(True)
-        self.clear()
-        self.addItem("Select a database...")
-        self.setItemData(0, QColor('gray'), Qt.ForegroundRole)
-        databases = self.parent().load_created_databases()
-        self.addItems(databases)
-        if current_text and current_text in databases:
-            index = self.findText(current_text)
-            if index >= 0:
-                self.setCurrentIndex(index)
-            else:
-                self.setCurrentIndex(0)
-        else:
-            self.setCurrentIndex(0)
-        self.blockSignals(False)
-        super().showPopup()
+    def run(self):
+        for name in self.names:
+            if self.isInterruptionRequested():
+                return
+            sig = manage_data.signature(name)
+            try:
+                info = manage_data.database_info(name, self.isInterruptionRequested)
+            except Exception as e:
+                info = {"files": None, "chunks": None, "dimensions": None, "size": None, "created": None,
+                        "complete": False, "problem": str(e)}
+            self.loaded.emit(name, sig, info)
 
 
-class ManageDatabasesTab(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.config_path = PROJECT_ROOT / "config.yaml"
-        self.created_databases = self.load_created_databases()
+class FilesWorker(QThread):
+    loaded = Signal(int, object, str)
+    checked = Signal(int, object)
 
-        self.layout = QVBoxLayout(self)
+    def __init__(self, token, name, parent=None):
+        super().__init__(parent)
+        self.token = token
+        self.name = name
 
-        self.documents_group_box = self.create_group_box_with_table_view("Files in Selected Database")
-        self.layout.addWidget(self.documents_group_box)
-
-        self.database_info_layout = QHBoxLayout()
-        self.database_info_label = QLabel("No database selected.")
-        self.database_info_label.setTextFormat(Qt.RichText)
-        self.database_info_layout.addWidget(self.database_info_label)
-        self.layout.addLayout(self.database_info_layout)
-
-        self.buttons_layout = QHBoxLayout()
-        self.pull_down_menu = RefreshingComboBox(self)
-        self.pull_down_menu.activated.connect(self.update_table_view_and_info_label)
-        self.buttons_layout.addWidget(self.pull_down_menu)
-        self.create_buttons()
-        self.layout.addLayout(self.buttons_layout)
-
-    def load_created_databases(self):
-        if self.config_path.exists():
-            with open(self.config_path, 'r', encoding='utf-8') as file:
-                config = yaml.safe_load(file)
-                databases = list(config.get('created_databases', {}).keys())
-                return [db for db in databases if db != "user_manual"]
-        return []
-
-    def display_no_databases_message(self):
-        self.model._data = []
-        self.model.layoutChanged.emit()
-        self.documents_group_box.hide()
-        self.database_info_label.setText("No database selected.")
-
-    def create_group_box_with_table_view(self, title):
-        group_box = QGroupBox(title)
-        layout = QVBoxLayout()
-        self.table_view = QTableView()
-        self.model = SQLiteTableModel()
-        self.table_view.setModel(self.model)
-        self.table_view.setSelectionMode(QTableView.SingleSelection)
-        self.table_view.setSelectionBehavior(QTableView.SelectRows)
-        self.table_view.doubleClicked.connect(self.on_double_click)
-        self.table_view.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.table_view.customContextMenuRequested.connect(self.show_context_menu)
-
-        self.table_view.horizontalHeader().setStretchLastSection(True)
-        self.table_view.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-
-        layout.addWidget(self.table_view)
-        group_box.setLayout(layout)
-        return group_box
-
-    def update_table_view_and_info_label(self, index):
-        selected_database = self.pull_down_menu.currentText()
-        if selected_database == "Select a database...":
-            self.display_no_databases_message()
+    def run(self):
+        try:
+            rows = manage_data.file_rows(self.name, self.isInterruptionRequested)
+        except Exception as e:
+            if not self.isInterruptionRequested():
+                self.loaded.emit(self.token, None, str(e))
             return
+        compact = manage_data.compact_rows(rows)
+        summary = {}
+        for row in compact["rows"]:
+            summary[row[1]] = summary.get(row[1], 0) + 1
+        self.loaded.emit(self.token, {"rows": rows, "payload": json.dumps(compact), "summary": summary}, "")
+        missing = manage_data.missing_rows(rows, self.isInterruptionRequested)
+        if missing is not None:
+            self.checked.emit(self.token, missing)
 
-        if selected_database:
-            self.documents_group_box.show()
-            db_path = PROJECT_ROOT / "Vector_DB" / selected_database / "metadata.db"
-            if db_path.exists():
-                try:
-                    conn = sqlite3.connect(str(db_path))
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT file_name, file_path FROM document_metadata")
-                    data = cursor.fetchall()
-                    conn.close()
 
-                    self.model._data = [(row[0], row[1]) for row in data]
-                    self.model.layoutChanged.emit()
+class TaskWorker(QThread):
+    done = Signal(str, str, object, str)
 
-                    if self.config_path.exists():
-                        with open(self.config_path, 'r', encoding='utf-8') as file:
-                            config = yaml.safe_load(file)
-                            db_config = config.get('created_databases', {}).get(selected_database, {})
-                            model_path = db_config.get('model', '')
-                            model_name = Path(model_path).name
-                            chunk_size = db_config.get('chunk_size', '')
-                            chunk_overlap = db_config.get('chunk_overlap', '')
-                            info_text = (
-                                f'<span style="color: #4CAF50;"><b>Name:</b></span> "{selected_database}" '
-                                f'<span style="color: #888;">|</span> '
-                                f'<span style="color: #2196F3;"><b>Model:</b></span> "{model_name}" '
-                                f'<span style="color: #888;">|</span> '
-                                f'<span style="color: #FF9800;"><b>Chunk size/overlap:</b></span> {chunk_size} / {chunk_overlap}'
-                            )
-                            self.database_info_label.setText(info_text)
-                    else:
-                        self.database_info_label.setText("Configuration missing.")
-                except sqlite3.Error as e:
-                    QMessageBox.warning(self, "Database Error", f"An error occurred while accessing the database: {e}")
-                    self.display_no_databases_message()
+    def __init__(self, kind, name, readers=(), parent=None):
+        super().__init__(parent)
+        self.kind = kind
+        self.name = name
+        self.readers = list(readers)
+
+    def run(self):
+        for reader in self.readers:
+            reader.wait(15000)
+        try:
+            if self.kind == "delete":
+                result = manage_data.delete_database(self.name)
+            elif self.kind == "backup":
+                manage_data.backup_database(self.name)
+                result = {}
             else:
-                self.display_no_databases_message()
-        else:
-            self.display_no_databases_message()
-
-    def on_double_click(self, index):
-        selected_database = self.pull_down_menu.currentText()
-        if selected_database and selected_database != "Select a database...":
-            file_path = self.model._data[index.row()][1]
-            if Path(file_path).exists():
-                open_file(file_path)
-            else:
-                QMessageBox.warning(self, "Error", f"File not found at the specified path: {file_path}")
-        else:
-            QMessageBox.warning(self, "Error", "No database selected.")
-
-    def create_buttons(self):
-        self.delete_database_button = QPushButton("Delete Database")
-        self.buttons_layout.addWidget(self.delete_database_button)
-        self.delete_database_button.clicked.connect(self.delete_selected_database)
-
-    def delete_selected_database(self):
-        selected_database = self.pull_down_menu.currentText()
-        if not selected_database or selected_database == "Select a database...":
-            QMessageBox.warning(self, "Delete Database", "No database selected.")
+                manage_data.restore_database(self.name)
+                result = {}
+        except Exception as e:
+            self.done.emit(self.kind, self.name, None, str(e))
             return
+        self.done.emit(self.kind, self.name, result, "")
 
-        reply = QMessageBox.question(
-            self, 'Delete Database',
-            "This cannot be undone.\nClick OK to proceed or Cancel to back out.",
-            QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel
-        )
 
-        if reply == QMessageBox.Ok:
-            self.model.beginResetModel()
-            self.model._data = []
-            self.model.endResetModel()
+def external_state():
+    building = None
+    tools_busy = False
+    for widget in QApplication.allWidgets():
+        in_progress = getattr(widget, "database_in_progress", None)
+        if building is None and callable(in_progress):
+            building = in_progress()
+        backup_running = getattr(widget, "database_backup_running", None)
+        if callable(backup_running) and backup_running():
+            tools_busy = True
+    return {"building": building, "tools_busy": tools_busy}
 
-            if self.config_path.exists():
-                try:
-                    with open(self.config_path, 'r', encoding='utf-8') as file:
-                        config = yaml.safe_load(file)
 
-                    if 'created_databases' in config and selected_database in config['created_databases']:
-                        del config['created_databases'][selected_database]
+class ManageDatabasesTab(WebTab):
+    def __init__(self, parent=None):
+        super().__init__(WEB_PAGE, parent)
+        self.entries = []
+        self.config_error = None
+        self.info = {}
+        self.selected = None
+        self.files = None
+        self._files_token = 0
+        self._info_worker = None
+        self._pending_info = []
+        self._workers = set()
+        self.task = None
+        self.notice = None
+        self._next_selection = None
+        self.external = {"building": None, "tools_busy": False}
+        self._stamp = None
+        self._active = False
+        self._poll = QTimer(self)
+        self._poll.setInterval(1000)
+        self._poll.timeout.connect(self._tick)
+        self.refresh()
 
-                    config.setdefault('database', {})['database_to_search'] = ''
+    def showEvent(self, event):
+        self._active = True
+        self.external = external_state()
+        self.refresh()
+        self._poll.start()
+        super().showEvent(event)
 
-                    save_config_atomically(config, self.config_path)
+    def hideEvent(self, event):
+        self._poll.stop()
+        super().hideEvent(event)
 
-                    base_dir = PROJECT_ROOT
-                    deletion_failed = False
-                    for folder_name in ["Vector_DB", "Vector_DB_Backup"]:
-                        dir_path = base_dir / folder_name / selected_database
-                        if dir_path.exists():
-                            shutil.rmtree(dir_path, ignore_errors=True)
-                            if dir_path.exists():
-                                deletion_failed = True
-                                print(f"Failed to delete: {dir_path}")
+    def _stamps(self):
+        stamps = []
+        for path in (manage_data.config_path(), manage_data.vector_root(), manage_data.backup_root()):
+            try:
+                st = path.stat()
+                stamps.append((st.st_mtime_ns, st.st_size))
+            except OSError:
+                stamps.append(None)
+        return tuple(stamps)
 
-                    if deletion_failed:
-                        QMessageBox.warning(
-                            self, "Delete Database",
-                            "Some files/folders could not be deleted. Please check manually."
-                        )
-                    else:
-                        QMessageBox.information(
-                            self, "Delete Database",
-                            f"Database '{selected_database}' and associated files have been deleted."
-                        )
+    def _tick(self):
+        external = external_state()
+        moved = external != self.external
+        self.external = external
+        if moved or self._stamps() != self._stamp:
+            self.refresh()
 
-                    self.refresh_pull_down_menu()
-                    self.update_table_view_and_info_label(-1)
-                except Exception as e:
-                    QMessageBox.warning(self, "Delete Database", f"An error occurred: {e}")
-            else:
-                QMessageBox.warning(self, "Delete Database", "Configuration file missing or corrupted.")
+    def _start(self, worker):
+        self._workers.add(worker)
+        worker.finished.connect(lambda w=worker: self._workers.discard(w))
+        worker.start()
 
-    def refresh_pull_down_menu(self):
-        self.created_databases = self.load_created_databases()
-        self.pull_down_menu.blockSignals(True)
-        self.pull_down_menu.clear()
-        self.pull_down_menu.addItem("Select a database...")
-        self.pull_down_menu.setItemData(0, QColor('gray'), Qt.ForegroundRole)
-        self.pull_down_menu.addItems(self.created_databases)
-        if self.created_databases:
-            self.pull_down_menu.setCurrentIndex(0)
+    def refresh(self):
+        self._stamp = self._stamps()
+        try:
+            cfg = manage_data.read_config()
+            self.config_error = None
+        except manage_data.ConfigError as e:
+            cfg = {}
+            self.config_error = str(e)
+        self.entries = manage_data.list_databases(cfg)
+        names = set()
+        stale = []
+        for entry in self.entries:
+            entry["model"] = manage_data.model_summary(entry["model_path"])
+            name = entry["name"]
+            names.add(name)
+            if not entry["folder"] or name == self.external["building"] or name == self._deleting():
+                continue
+            cached = self.info.get(name)
+            if cached is None or cached[0] != manage_data.signature(name):
+                stale.append(name)
+        self.info = {name: value for name, value in self.info.items() if name in names}
+        if self.selected not in names:
+            self.selected = self.entries[0]["name"] if self.entries else None
+        self._queue_info(stale)
+        self._ensure_files()
+        self.schedule_push()
+
+    def _queue_info(self, names):
+        if not self._active:
+            return
+        for name in names:
+            if name not in self._pending_info:
+                self._pending_info.append(name)
+        if self._info_worker is None and self._pending_info:
+            batch, self._pending_info = self._pending_info, []
+            self._info_worker = InfoWorker(batch)
+            self._info_worker.loaded.connect(self._on_info)
+            self._info_worker.finished.connect(self._on_info_finished)
+            self._start(self._info_worker)
+
+    def _on_info(self, name, sig, info):
+        if any(entry["name"] == name for entry in self.entries):
+            self.info[name] = (sig, info)
+            self.schedule_push()
+
+    def _on_info_finished(self):
+        interrupted = self._info_worker is not None and self._info_worker.isInterruptionRequested()
+        self._info_worker = None
+        if interrupted:
+            self.refresh()
         else:
-            self.display_no_databases_message()
-        self.pull_down_menu.blockSignals(False)
+            self._queue_info([])
 
-    def show_context_menu(self, position):
-        context_menu = QMenu(self)
-        delete_action = QAction("Delete File", self)
-        delete_action.triggered.connect(self.delete_selected_file)
-        context_menu.addAction(delete_action)
+    def _deleting(self):
+        return self.task["name"] if self.task and self.task["kind"] == "delete" else None
 
-        context_menu.exec_(self.table_view.viewport().mapToGlobal(position))
+    def _entry(self, name):
+        return next((entry for entry in self.entries if entry["name"] == name), None)
 
-    def delete_selected_file(self):
-        print("Delete file functionality will be implemented here.")
+    def _ensure_files(self):
+        if not self._active:
+            return
+        name = self.selected
+        entry = self._entry(name)
+        if (not entry or not entry["folder"] or name == self.external["building"] or name == self._deleting()
+                or not (manage_data.vector_root() / name / "metadata.db").exists()):
+            if self.files is not None:
+                self._files_token += 1
+                self.files = None
+            return
+        sig = manage_data.signature(name)
+        if self.files and self.files["name"] == name and self.files["signature"] == sig:
+            return
+        for worker in list(self._workers):
+            if isinstance(worker, FilesWorker):
+                worker.requestInterruption()
+        self._files_token += 1
+        self.files = {"name": name, "signature": sig, "version": self._files_token, "status": "loading",
+                      "rows": None, "payload": None, "error": None, "missing": None, "summary": {}}
+        worker = FilesWorker(self._files_token, name)
+        worker.loaded.connect(self._on_files)
+        worker.checked.connect(self._on_missing)
+        self._start(worker)
+
+    def _on_files(self, token, loaded, error):
+        if not self.files or token != self.files["version"]:
+            return
+        if loaded is None:
+            self.files.update(status="error", error=error)
+        else:
+            self.files.update(status="ready", rows=loaded["rows"], payload=loaded["payload"], summary=loaded["summary"])
+        self.schedule_push()
+
+    def _on_missing(self, token, missing):
+        if not self.files or token != self.files["version"]:
+            return
+        self.files["missing"] = missing
+        self.schedule_push()
+
+    def _status(self, entry, info):
+        if entry["name"] == self.external["building"]:
+            return "building"
+        if not entry["folder"]:
+            return "missing"
+        if not entry["registered"]:
+            return "leftover"
+        if info is not None and not info["complete"]:
+            return "incomplete"
+        return "ready"
+
+    def _entry_state(self, entry):
+        cached = self.info.get(entry["name"])
+        info = cached[1] if cached else None
+        return {
+            "name": entry["name"],
+            "status": self._status(entry, info),
+            "registered": entry["registered"],
+            "folder": entry["folder"],
+            "backup": entry["backup"],
+            "model": entry["model"],
+            "chunk_size": entry["chunk_size"],
+            "chunk_overlap": entry["chunk_overlap"],
+            "info": info,
+            "loading": entry["folder"] and info is None and entry["name"] != self.external["building"],
+        }
+
+    def _files_state(self):
+        files = self.files
+        if not files:
+            return None
+        rows = files["rows"]
+        return {
+            "name": files["name"],
+            "version": files["version"],
+            "status": files["status"],
+            "error": files["error"],
+            "count": len(rows) if rows is not None else None,
+            "summary": files["summary"],
+            "missing": len(files["missing"]) if files["missing"] is not None else None,
+            "checked": files["missing"] is not None,
+        }
+
+    def blocked_reason(self):
+        if self.task:
+            return "Wait for the current task to finish."
+        if self.external["tools_busy"]:
+            return "A backup or restore is running on the Tools tab. Wait for it to finish."
+        return None
+
+    def build_state(self):
+        return {
+            "databases": [self._entry_state(entry) for entry in self.entries],
+            "selected": self.selected,
+            "files": self._files_state(),
+            "task": self.task,
+            "notice": self.notice,
+            "blocked": self.blocked_reason(),
+            "building": self.external["building"],
+            "config_error": self.config_error,
+            "kinds": [{"key": key, "label": label} for key, label, _ in manage_data.KINDS] + [{"key": "other", "label": "Other"}],
+        }
+
+    def database_task_running(self):
+        return self.task is not None
+
+    def busy_message(self):
+        return TASK_MESSAGES.get(self.task["kind"]) if self.task else None
+
+    def cleanup(self):
+        self._poll.stop()
+        for worker in list(self._workers):
+            worker.requestInterruption()
+        for worker in list(self._workers):
+            worker.wait(10000 if isinstance(worker, TaskWorker) else 3000)
+
+    def js_select(self, name):
+        if self._entry(name) is None:
+            return {"error": "That database is no longer listed."}
+        self.selected = name
+        self._ensure_files()
+        self.schedule_push()
+        return {"ok": True}
+
+    def js_files(self, name, version):
+        files = self.files
+        if not files or files["name"] != name or files["version"] != version or files["rows"] is None:
+            return {"stale": True}
+        return {"name": name, "version": version, "payload": files["payload"]}
+
+    def js_missing(self, name, version):
+        files = self.files
+        if not files or files["name"] != name or files["version"] != version or files["missing"] is None:
+            return {"stale": True}
+        return {"missing": files["missing"]}
+
+    def _row_path(self, version, index):
+        files = self.files
+        if not files or files["version"] != version or files["rows"] is None or not 0 <= index < len(files["rows"]):
+            return None
+        return files["rows"][index][1]
+
+    def js_open_file(self, version, index):
+        path = self._row_path(version, index)
+        if path is None:
+            return {"error": "The file list changed. Try again."}
+        if not path or not os.path.exists(path):
+            return {"missing": True, "path": path}
+        open_file(path)
+        return {"ok": True}
+
+    def js_reveal_file(self, version, index):
+        path = self._row_path(version, index)
+        if path is None:
+            return {"error": "The file list changed. Try again."}
+        if path and os.path.exists(path):
+            if sys.platform == "win32":
+                subprocess.Popen(f'explorer /select,"{os.path.normpath(path)}"')
+            else:
+                QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(path).parent)))
+            return {"ok": True}
+        parent = Path(path).parent if path else None
+        if parent and parent.is_dir():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(parent)))
+            return {"missing": True, "path": path, "opened_folder": True}
+        return {"missing": True, "path": path}
+
+    def _begin(self, kind, name):
+        entry = self._entry(name)
+        if entry is None:
+            return {"error": "That database is no longer listed."}
+        reason = self.blocked_reason()
+        if reason:
+            return {"error": reason}
+        if name == self.external["building"]:
+            return {"error": "This database is being created on the Create Database tab."}
+        if kind == "backup" and not (entry["folder"] and entry["registered"]):
+            return {"error": "Only a complete database can be backed up."}
+        if kind == "restore" and (entry["folder"] or not entry["backup"]):
+            return {"error": "There is no backup copy to restore."}
+        readers = []
+        if kind == "delete":
+            for worker in list(self._workers):
+                if isinstance(worker, (FilesWorker, InfoWorker)):
+                    worker.requestInterruption()
+                    readers.append(worker)
+            if self.files and self.files["name"] == name:
+                self._files_token += 1
+                self.files = None
+        self.task = {"kind": kind, "name": name, "registered": entry["registered"]}
+        self.notice = None
+        worker = TaskWorker(kind, name, readers)
+        worker.done.connect(self._on_task_done)
+        self._start(worker)
+        self.schedule_push()
+        return {"ok": True}
+
+    def js_delete(self, name, next_name=None):
+        self._next_selection = next_name
+        return self._begin("delete", name)
+
+    def js_backup(self, name):
+        return self._begin("backup", name)
+
+    def js_restore(self, name):
+        return self._begin("restore", name)
+
+    def _on_task_done(self, kind, name, result, error):
+        registered = bool(self.task and self.task.get("registered"))
+        self.task = None
+        if error:
+            verb = {"delete": "deleted", "backup": "backed up", "restore": "restored"}[kind]
+            self.notice = {"kind": "error", "message": f"{name} could not be {verb}: {error}"}
+        elif kind == "delete":
+            failed = (result or {}).get("failed") or []
+            if failed:
+                message = (f"{name} was removed from the list, but some of its files could not be deleted." if registered
+                           else f"Some of the files in {name} could not be deleted.")
+                self.notice = {"kind": "warn", "message": message, "details": failed}
+            else:
+                self.notice = {"kind": "ok", "message": f"Deleted {name}."}
+                if self.selected == name:
+                    self.selected = self._next_selection
+        elif kind == "backup":
+            self.notice = {"kind": "ok", "message": f"Backed up {name}."}
+        else:
+            self.notice = {"kind": "ok", "message": f"Restored {name} from its backup copy."}
+        self.refresh()
+
+    def js_dismiss_notice(self):
+        self.notice = None
+        self.schedule_push()
+
+    def js_open_tab(self, name):
+        widget = self.parentWidget()
+        while widget is not None and not isinstance(widget, QTabWidget):
+            widget = widget.parentWidget()
+        if widget is None:
+            return {"error": "Tab not found."}
+        for index in range(widget.count()):
+            if widget.tabText(index) == name:
+                widget.setCurrentIndex(index)
+                return {"ok": True}
+        return {"error": "Tab not found."}
+
+    def js_search_database(self, name):
+        result = self.js_open_tab("Query Database")
+        for widget in QApplication.allWidgets():
+            select = getattr(widget, "select_database", None)
+            if callable(select):
+                select(name)
+                break
+        return result

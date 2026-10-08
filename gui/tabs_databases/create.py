@@ -74,6 +74,9 @@ class CreateDatabaseTab(WebTab):
     def database_build_running(self):
         return self.build.running()
 
+    def database_in_progress(self):
+        return self.build.name if self.build.busy() else None
+
     def busy_message(self):
         return self.build.busy_message()
 

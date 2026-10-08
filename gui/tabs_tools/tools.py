@@ -55,6 +55,9 @@ class ToolsTab(WebTab):
     def transcription_running(self):
         return self.transcribe.running()
 
+    def database_backup_running(self):
+        return self.backups.running()
+
     def busy_message(self):
         for tool in self.tools.values():
             message = tool.busy_message() if hasattr(tool, "busy_message") else None
