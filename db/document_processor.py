@@ -10,6 +10,7 @@ import hashlib
 from pathlib import Path
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
+from concurrent.futures.process import BrokenProcessPool
 
 import fitz
 from bs4 import BeautifulSoup
@@ -456,6 +457,8 @@ def load_documents(source_dir: Path) -> list:
                         batch_results = future.result()
                         for content, metadata in batch_results:
                             docs.append(Document(page_content=content, metadata=metadata))
+                    except BrokenProcessPool:
+                        raise
                     except Exception as e:
                         logger.error(f"Error in extraction worker: {e}")
         except Exception as e:
