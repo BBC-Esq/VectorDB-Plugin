@@ -119,7 +119,33 @@ def restore_vector_db_backup():
         raise
 
     shutil.rmtree(previous_folder, ignore_errors=True)
+    try:
+        drop_missing_databases(destination_folder)
+    except Exception as e:
+        logging.warning(f"The databases were restored, but config.yaml could not be updated to match: {e}")
     logging.info("Successfully restored Vector DB backup.")
+
+
+def drop_missing_databases(vector_folder):
+    from core.utilities import save_config_atomically
+
+    config_path = Path('config.yaml')
+    with open(config_path, 'r', encoding='utf-8') as stream:
+        config_data = yaml.safe_load(stream) or {}
+    entries = config_data.get('created_databases')
+    if not isinstance(entries, dict):
+        return
+    missing = [name for name in entries if name != 'user_manual' and not (vector_folder / str(name)).is_dir()]
+    if not missing:
+        return
+    for name in missing:
+        del entries[name]
+    database = config_data.get('database')
+    if isinstance(database, dict) and database.get('database_to_search') in missing:
+        database['database_to_search'] = ''
+    save_config_atomically(config_data, config_path, allow_unicode=True)
+    print(f"Removed {len(missing)} database(s) from the settings because the backup does not contain them: "
+          f"{', '.join(str(name) for name in missing)}")
 
 
 def delete_chat_history():
