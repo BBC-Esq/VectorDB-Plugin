@@ -200,11 +200,13 @@ class LocalModelChat:
                             ))
                             conn.send(PipeMessage(MessageType.FINISHED))
                             continue
-                        max_context_tokens = model_instance.max_length - 100
-                        context_tokens = len(model_instance.tokenizer.encode("\n\n---\n\n".join(contexts)))
+                        joined_contexts = "\n\n---\n\n".join(contexts)
+                        augmented_query = f"{rag_string}\n\n---\n\n" + joined_contexts + "\n\n-----\n\n" + user_question
+                        tokenizer = model_instance.tokenizer
+                        prompt_token_count = len(tokenizer(model_instance.create_prompt(augmented_query))["input_ids"])
 
-                        if context_tokens > max_context_tokens:
-                            logging.warning(f"Context tokens ({context_tokens}) exceed max context limit ({max_context_tokens})")
+                        if prompt_token_count > model_instance.max_length:
+                            logging.warning(f"Prompt tokens ({prompt_token_count}) exceed max context limit ({model_instance.max_length})")
                             error_message = (
                                 "The contexts received from the vector database exceed the chat model's context limit.\n\n"
                                 "You can either:\n"
@@ -216,11 +218,9 @@ class LocalModelChat:
                             conn.send(PipeMessage(MessageType.FINISHED))
                             continue
 
-                        augmented_query = f"{rag_string}\n\n---\n\n" + "\n\n---\n\n".join(contexts) + "\n\n-----\n\n" + user_question
-
-                        prepend_token_count = len(model_instance.tokenizer.encode(rag_string))
-                        context_token_count = len(model_instance.tokenizer.encode("\n\n---\n\n".join(contexts)))
-                        user_question_token_count = len(model_instance.tokenizer.encode(user_question))
+                        context_token_count = len(tokenizer.encode(joined_contexts, add_special_tokens=False))
+                        user_question_token_count = len(tokenizer.encode(user_question, add_special_tokens=False))
+                        prepend_token_count = prompt_token_count - context_token_count - user_question_token_count
 
                         full_response = ""
                         buffer = ""
@@ -235,9 +235,8 @@ class LocalModelChat:
                         if buffer:
                             conn.send(PipeMessage(MessageType.PARTIAL_RESPONSE, buffer))
 
-                        response_token_count = len(model_instance.tokenizer.encode(full_response))
-                        remaining_tokens = model_instance.max_length - (prepend_token_count + user_question_token_count + context_token_count + response_token_count)
-                        total_tokens = prepend_token_count + context_token_count + user_question_token_count + response_token_count
+                        response_token_count = len(tokenizer.encode(full_response, add_special_tokens=False))
+                        remaining_tokens = model_instance.max_length - (prompt_token_count + response_token_count)
 
                         token_count_string = (
                             f"<span style='color:#2ECC40;'>available tokens ({model_instance.max_length})</span>"
