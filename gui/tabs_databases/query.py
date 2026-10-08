@@ -18,11 +18,12 @@ from chat.local_model import LocalModelChat
 from chat.minimax import MiniMaxThread
 from chat.openai import ChatGPTThread
 from core.constants import PROJECT_ROOT
-from core.utilities import cuda_usable, my_cprint, normalize_chat_text, open_file, runs_on_this_hardware
+from core.utilities import cuda_usable, normalize_chat_text, open_file, runs_on_this_hardware
 from db.process_manager import get_process_manager
 from gui.web_common.web_tab import WebTab
 from gui.tabs_databases import query_data
 from gui.tabs_databases.query_search import chunks_query
+from modules.tts_process import run_tts_in_process
 
 WEB_PAGE = Path(__file__).resolve().parent / "web" / "query_tab.html"
 HISTORY_LIMIT = 50
@@ -31,13 +32,6 @@ CHUNKS_TIMEOUT = 120
 
 def chat_history_path():
     return PROJECT_ROOT / "chat_history.txt"
-
-
-def run_tts_in_process(config_path, input_text_file):
-    from modules.tts import run_tts
-
-    run_tts(config_path, input_text_file)
-    my_cprint("TTS models removed from memory.", "red")
 
 
 def kill_process_tree(pid):
