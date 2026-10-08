@@ -131,36 +131,58 @@ Kobold is an application that allows users to run and interact with local langua
 integrates with Kobold, and the GitHub repository contains detailed instructions for setup and usage. When you query the vector
 database within the Query Database tab you can choose Kobold as the backend that ultimately receives the query (along with the
 contexts from the vector database) and provides a response to your question.  You can get the latest release from Kobold from this
-website: https://github.com/LostRuins/koboldcpp.  On Windows machines, it is crucial that you do two things before using Kobold.  First,
-right-click on the file and check the "Unblock" checkbox near the bottom.  Secondly, you must click the "Compatibility" tab and check
-the box that says "Run this program as an administrator."  Without these steps it will likely fail.  The documentation regarding how
-to use Kobold is here: https://github.com/LostRuins/koboldcpp/wiki.
+website: https://github.com/LostRuins/koboldcpp.  On Windows machines, it is crucial that you do two things before using Kobold.
+First, right-click on the file and check the "Unblock" checkbox near the bottom.  Secondly, you must click the "Compatibility" tab
+and check the box that says "Run this program as an administrator."  Without these steps it will likely fail.  The documentation
+regarding how to use Kobold is here: https://github.com/LostRuins/koboldcpp/wiki.  The program connects to KoboldCpp at
+http://localhost:5001, its standard address, and the 'Test connection' button on the Kobold page of the Chat Backend Settings
+dialog tells you whether KoboldCpp is running and which model it has loaded.
 
 ### What is the OpenAI GPT Chat Model Backend?
-The Chat GPT models backend allows you to send queries directly to OpenAI and get a response.  To do so you must first have an API key.
-To get an API key for accessing OpenAI's large language models, first create an account by visiting OpenAI's signup page and completing
-the registration. Once logged in, go to the API keys page, click "Create new secret key," optionally name it, and then click
-"Create secret key" to generate it. Make sure to copy and store the key securely, as it won't be shown again. To activate the key,
-visit the Billing section and add your payment details. For a more detailed walkthrough, you can refer to this step-by-step tutorial.
+The Chat GPT models backend allows you to send queries directly to OpenAI and get a response.  To do so you must first have an API
+key. To get an API key for accessing OpenAI's large language models, first create an account by visiting OpenAI's signup page and
+completing the registration. Once logged in, go to the API keys page, click "Create new secret key," optionally name it, and then
+click "Create secret key" to generate it. Make sure to copy and store the key securely, as it won't be shown again. To activate
+the key, visit the Billing section and add your payment details. For a more detailed walkthrough, you can refer to this
+step-by-step tutorial.  Then paste the key into the API key box on the ChatGPT page of the Chat Backend Settings dialog, which you
+open from the 'File' menu, and click 'Test connection' to confirm that the key works and can use the model you chose.
+
+### How much does it cost to use ChatGPT or MiniMax?
+ChatGPT and MiniMax are paid online services: each question you ask is charged to your OpenAI or MiniMax account according to how
+many tokens the question, the retrieved contexts, and the answer use. The ChatGPT page of the Chat Backend Settings dialog, which
+you open from the 'File' menu, shows the selected model's input, cached input, and output prices per million tokens, and its Model
+menu lists every model's input and output price, so you can compare them before you choose. Higher 'Reasoning effort' settings
+usually cost more, because OpenAI bills the model's reasoning as output tokens. The Local Models, LM Studio, and Kobold backends
+run on your own computer and cost nothing to use.
 
 ### What is the MiniMax chat backend?
-MiniMax is a newer online chat-model backend, joining the Local Models, Kobold, LM Studio, and ChatGPT options. Like ChatGPT, it
-is a cloud service: it sends your query and the retrieved contexts to MiniMax's servers and returns a response, so it requires an
-Internet connection and an API key. To use it, first enter your MiniMax API key by going to the 'File' menu and selecting 'MiniMax
-API Key.' Then, in the Query Database Tab, choose one of the MiniMax options from the 'Answered by' menu and ask your question as
-usual. MiniMax offers several model variants (including a high-speed option) that you select directly from that menu. If the key
-is missing, the tab says so and offers a button that opens the MiniMax API key prompt. It is a good choice if you want access to a
-powerful hosted model without running anything locally.
+MiniMax is an online chat-model backend, alongside the Local Models, Kobold, LM Studio, and ChatGPT options. Like ChatGPT, it is a
+cloud service: it sends your question and the retrieved contexts to MiniMax's servers and returns a response, so it requires an
+Internet connection and an API key, and MiniMax charges your account for what you use. To use it, enter your MiniMax API key on
+the MiniMax page of the Chat Backend Settings dialog, which you open from the 'File' menu (the 'MiniMax API Key' entry in the File
+menu also still works). Then, in the Query Database Tab, choose one of the MiniMax options from the 'Answered by' menu and ask
+your question as usual. MiniMax offers several models (including a high-speed option) that you select directly from that menu. If
+the key is missing, the tab says so and offers a button that opens the MiniMax page of Chat Backend Settings. It is a good choice
+if you want access to a powerful hosted model without running anything locally.
 
 ### What is the Chat Backend Settings dialog?
-The Chat Backend Settings dialog, opened from the 'File' menu via 'Chat Backend Settings,' is where you configure the external
-chat-model backends in one place, with a tab for each. The ChatGPT tab is the most detailed: you enter your OpenAI API key (with a
-Show/Hide button), choose which OpenAI model to use, and -- for the newer models -- set a 'Verbosity' level and a 'Reasoning
-Effort' level, while a small panel shows the per-million-token input and output costs of the selected model so you can gauge
-expense. The LM Studio tab lets you set the server port to match your LM Studio installation and toggle whether the model's
-thinking process is shown. The Kobold and MiniMax tabs are placeholders for now (Kobold uses its default connection, and the
-MiniMax API key is entered from the File menu). Click OK to save. The 'Backend settings' button on the Query Database tab opens
-the same dialog on the page for the selected backend.
+The Chat Backend Settings dialog, opened from the 'File' menu via 'Chat Backend Settings,' is where you configure the chat
+backends that run outside this program. A list on the left shows ChatGPT, LM Studio, MiniMax, and Kobold with a short status for
+each, such as 'API key saved,' 'Needs an API key,' or the server address, and clicking one shows its settings on the right. Every
+change is saved as soon as you make it, so there is no OK button; click 'Close' or press Escape when you are done, and anything
+you were still typing is saved first. On the ChatGPT page you paste your OpenAI API key, choose the OpenAI model, and for the
+newer models set 'Verbosity' and 'Reasoning effort,' while boxes show the selected model's input, cached input, and output prices
+per million tokens. A saved key is never shown in full: the box shows only its last four characters, the eye button reveals it,
+and 'Remove' deletes it after a second click. The LM Studio page has the server port and the 'Show thinking' switch, the MiniMax
+page has the MiniMax API key, and the Kobold page shows the address the program uses. The 'Backend settings' button on the Query
+Database tab opens the same dialog on the page for the selected backend.
+
+### How do I check that a chat backend or API key works?
+Open the Chat Backend Settings dialog from the 'File' menu, pick the backend on the left, and click 'Test connection.' On the
+ChatGPT page it checks that OpenAI accepts your API key and that your account can use the model you chose. On the LM Studio page
+it checks that LM Studio's local server is running at the saved port and lists the models it has loaded, and on the Kobold page it
+checks that KoboldCpp is running and names its model. None of these tests uses any tokens. The MiniMax page has no test; if the
+MiniMax key is wrong, the Query Database tab shows MiniMax's error when you ask a question.
 
 ### What local chat models are available and how can I use them?
 The "local models" option within the Query Database Tab downloads chat models directly from Huggingface and requires no external
@@ -367,10 +389,12 @@ is not smaller than the Chunk Size, a red message appears under the box and noth
 "i" next to a setting's name for an explanation of what it does.
 
 ### What are the LM Studio Server settings?
-When using LM Studio as the chat model backend you can adjust a few settings in the Chat Backend Settings dialog, which you open from
-the 'File' menu.  In general, however, the LM Studio program has all the settings that you should adjust.  For purposes of this
-program you can set the port to match what you set within LM Studio, and you can choose whether to show the thinking process if the
-model you are running within LM Studio has chain of thought.
+When using LM Studio as the chat model backend you can adjust two settings on the LM Studio page of the Chat Backend Settings
+dialog, which you open from the 'File' menu. In general, however, the LM Studio program has all the settings that you should
+adjust. The Port box must match the port of LM Studio's local server, which is 1234 unless you changed it; the full address the
+program uses is shown under the box, and a new port is saved when you press Enter or click somewhere else. The 'Show thinking'
+switch chooses whether a reasoning model's thinking appears in the answer. 'Test connection' tells you whether LM Studio's server
+is running and which models it has loaded.
 
 ### What are the database creation settings?
 The Device setting allows you to choose either CPU or CUDA when creating a vector database.  It is always recommended to choose
