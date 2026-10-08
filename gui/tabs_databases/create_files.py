@@ -38,12 +38,21 @@ def scan_docs(folder):
         return []
 
 
+def count_kinds(names):
+    counts = {}
+    for name in names:
+        kind = kind_of(name)
+        counts[kind] = counts.get(kind, 0) + 1
+    return counts
+
+
 class StagedFiles(QObject):
     changed = Signal()
 
     def __init__(self, parent):
         super().__init__(parent)
         self.names = []
+        self.counts = {}
         self.version = 0
         self._mtime = None
         self.worker = None
@@ -63,15 +72,12 @@ class StagedFiles(QObject):
         names = scan_docs(folder) if mtime is not None else []
         if names != self.names:
             self.names = names
+            self.counts = count_kinds(names)
             self.version += 1
             self.changed.emit()
 
     def summary(self):
-        counts = {}
-        for name in self.names:
-            kind = kind_of(name)
-            counts[kind] = counts.get(kind, 0) + 1
-        return counts
+        return self.counts
 
     def entries(self):
         folder = docs_dir()
