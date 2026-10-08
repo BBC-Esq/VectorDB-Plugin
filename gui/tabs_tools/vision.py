@@ -13,12 +13,18 @@ from PIL import Image
 from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtWidgets import QFileDialog
 
-import modules.process_images as module_process_images
 from core.constants import PROJECT_ROOT, VISION_MODELS
 from core.utilities import fallback_if_unavailable, runs_on_this_hardware
-from modules.process_images import ALLOWED_EXTENSIONS, choose_image_loader
 
 CONFIG_FILE = 'config.yaml'
+ALLOWED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff']
+
+
+def process_images_module():
+    import modules.process_images as module_process_images
+
+    logging.getLogger("transformers").setLevel(logging.ERROR)
+    return module_process_images
 
 
 def _load_cfg() -> dict:
@@ -56,7 +62,7 @@ class ImageProcessorThread(QThread):
     def run(self):
         try:
             print(f"[Tools] Using chosen_model from config: {self.chosen_model}")
-            documents = choose_image_loader({"vision": {"chosen_model": self.chosen_model}})
+            documents = process_images_module().choose_image_loader({"vision": {"chosen_model": self.chosen_model}})
             self.finished.emit(documents)
         except Exception as e:
             error_msg = f"Error in image processing: {str(e)}\n{traceback.format_exc()}"
@@ -98,7 +104,7 @@ class MultiModelProcessorThread(QThread):
                         model_config = {"vision": {"chosen_model": model_name}}
 
                         loader_name = VISION_MODELS[model_name]['loader']
-                        loader_class = getattr(module_process_images, loader_name)
+                        loader_class = getattr(process_images_module(), loader_name)
                         loader = loader_class(model_config)
 
                         loader.model, loader.tokenizer, loader.processor = loader.initialize_model_and_tokenizer()

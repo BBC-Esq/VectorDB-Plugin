@@ -1,9 +1,7 @@
 import logging
-from openai import OpenAI
 from PySide6.QtCore import QThread, Signal
 
-from db.database_interactions import get_query_db
-from chat.base import load_chat_config, save_metadata, build_augmented_query, cleanup_gpu
+from chat.common import load_chat_config
 from core.utilities import format_citations
 from core.constants import system_message
 from core.chatgpt_settings import (
@@ -25,6 +23,8 @@ class ChatGPTChat:
         self.query_vector_db = None
 
     def connect_to_chatgpt(self, augmented_query):
+        from openai import OpenAI
+
         openai_config = self.config.get('openai', {}) or {}
         model = openai_config.get('model') or DEFAULT_OPENAI_MODEL
         api_key = openai_config.get('api_key')
@@ -78,6 +78,8 @@ class ChatGPTChat:
                 raise RuntimeError(detail)
 
     def handle_response_and_cleanup(self, full_response, metadata_list):
+        from chat.base import cleanup_gpu
+
         citations = format_citations(metadata_list)
 
         if self.query_vector_db:
@@ -89,6 +91,9 @@ class ChatGPTChat:
         return citations
 
     def ask_chatgpt(self, query, selected_database):
+        from db.database_interactions import get_query_db
+        from chat.base import build_augmented_query, save_metadata
+
         if self.query_vector_db is None or self.query_vector_db.selected_database != selected_database:
             self.query_vector_db = get_query_db(selected_database)
 

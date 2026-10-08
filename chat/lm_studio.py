@@ -2,11 +2,9 @@ import logging
 import re
 
 import requests
-from openai import OpenAI
 from PySide6.QtCore import QThread
 
-from db.database_interactions import get_query_db
-from chat.base import ChatSignals, load_chat_config, save_metadata, build_augmented_query, cleanup_gpu
+from chat.common import ChatSignals, load_chat_config
 from core.utilities import format_citations
 from core.constants import system_message, THINKING_TAGS
 
@@ -63,6 +61,8 @@ class LMStudioChat:
         self.query_vector_db = None
 
     def connect_to_local_chatgpt(self, prompt):
+        from openai import OpenAI
+
         server_config = self.config.get('server', {})
         base_url = server_config.get('connection_str')
         show_thinking = server_config.get('show_thinking', False)
@@ -115,6 +115,8 @@ class LMStudioChat:
                 yield tail
 
     def handle_response_and_cleanup(self, full_response, metadata_list):
+        from chat.base import cleanup_gpu
+
         citations = format_citations(metadata_list)
         if self.query_vector_db:
             self.query_vector_db.cleanup()
@@ -122,6 +124,9 @@ class LMStudioChat:
         return citations
 
     def ask_local_chatgpt(self, query, selected_database):
+        from db.database_interactions import get_query_db
+        from chat.base import build_augmented_query, save_metadata
+
         if self.query_vector_db is None or self.query_vector_db.selected_database != selected_database:
             self.query_vector_db = get_query_db(selected_database)
 

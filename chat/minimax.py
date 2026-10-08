@@ -1,9 +1,7 @@
 import logging
-from openai import OpenAI
 from PySide6.QtCore import QThread, Signal
 
-from db.database_interactions import get_query_db
-from chat.base import load_chat_config, save_metadata, build_augmented_query, cleanup_gpu
+from chat.common import load_chat_config
 from core.utilities import format_citations
 from core.constants import system_message, PROJECT_ROOT
 
@@ -24,6 +22,8 @@ class MiniMaxChat:
         self.query_vector_db = None
 
     def connect_to_minimax(self, augmented_query):
+        from openai import OpenAI
+
         minimax_config = self.config.get('minimax', {})
         model = minimax_config.get('model', 'MiniMax-M3')
         api_key = minimax_config.get('api_key')
@@ -54,6 +54,8 @@ class MiniMaxChat:
                 yield chunk.choices[0].delta.content
 
     def handle_response_and_cleanup(self, full_response, metadata_list):
+        from chat.base import cleanup_gpu
+
         citations = format_citations(metadata_list)
 
         if self.query_vector_db:
@@ -65,6 +67,9 @@ class MiniMaxChat:
         return citations
 
     def ask_minimax(self, query, selected_database):
+        from db.database_interactions import get_query_db
+        from chat.base import build_augmented_query, save_metadata
+
         if self.query_vector_db is None or self.query_vector_db.selected_database != selected_database:
             self.query_vector_db = get_query_db(selected_database)
 

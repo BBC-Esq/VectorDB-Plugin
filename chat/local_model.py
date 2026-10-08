@@ -9,9 +9,6 @@ import torch
 from multiprocessing import Process, Pipe
 from PySide6.QtCore import QObject, Signal
 
-import chat.base as module_chat
-from db.database_interactions import get_query_db
-from core.utilities import format_citations, my_cprint
 from core.constants import rag_string, PROJECT_ROOT
 from pathlib import Path
 
@@ -168,6 +165,10 @@ class LocalModelChat:
 
     @staticmethod
     def _local_model_process(conn, model_name):
+        import chat.base as module_chat
+        from db.database_interactions import get_query_db
+        from core.utilities import format_citations, my_cprint
+
         try:
             model_instance = module_chat.choose_model(model_name)
         except Exception as e:

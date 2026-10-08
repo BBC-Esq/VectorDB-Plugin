@@ -7,7 +7,6 @@ from PySide6.QtWidgets import QApplication, QFileDialog
 
 from core.constants import PROJECT_ROOT, WHISPER_MODELS
 from core.utilities import cuda_usable, has_bfloat16_support, my_cprint
-from modules.transcribe import WhisperTranscriber
 
 BUILD_RUNNING_MESSAGE = (
     "A vector database is being created. Transcribe after it finishes, because a "
@@ -28,6 +27,8 @@ class TranscriptionWorkerThread(QThread):
 
     def run(self):
         try:
+            from modules.transcribe import WhisperTranscriber
+
             transcriber = WhisperTranscriber(
                 model_key=self.model_key,
                 batch_size=self.batch_size

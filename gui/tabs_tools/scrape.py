@@ -8,7 +8,6 @@ from PySide6.QtCore import QObject, QSettings, QThread, Signal
 from PySide6.QtWidgets import QMessageBox
 
 from core.constants import PROJECT_ROOT, scrape_documentation
-from modules.scraper import ScraperRegistry, ScraperWorker
 
 MAX_CONCURRENT_SCRAPES = 6
 
@@ -117,6 +116,8 @@ class ScrapeTool(QObject):
             self.changed.emit()
 
     def make_worker(self, url, folder, scraper_class, name, resume):
+        from modules.scraper import ScraperWorker
+
         return ScraperWorker(url, folder, scraper_class, name=name, resume=resume)
 
     def start(self, parent_widget, name):
@@ -135,6 +136,8 @@ class ScrapeTool(QObject):
                 f"Wait for one to finish (or cancel one) before starting another.",
             )
             return
+
+        from modules.scraper import ScraperRegistry
 
         url = doc_info["URL"]
         folder = doc_info["folder"]

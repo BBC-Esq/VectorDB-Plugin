@@ -1,5 +1,6 @@
 import os
 import sys
+import warnings
 
 from ctypes import windll, byref, sizeof, c_int
 from ctypes.wintypes import BOOL, HWND, DWORD
@@ -22,7 +23,7 @@ from core.utilities import (
     download_with_threadpool,
 )
 from gui.credentials import manage_credentials
-from gui.jeeves.jeeves import launch_jeeves_process
+from gui.jeeves.launcher import launch_jeeves_process
 from core.constants import PROJECT_ROOT
 
 script_dir = PROJECT_ROOT
@@ -200,6 +201,11 @@ class DocQA_GUI(QWidget):
 
 def main():
     from PySide6.QtCore import Qt
+
+    os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+    os.environ.setdefault('TOKENIZERS_PARALLELISM', 'false')
+    os.environ.setdefault('RUST_BACKTRACE', '1')
+    warnings.filterwarnings("ignore")
 
     if hasattr(QApplication, 'setHighDpiScaleFactorRoundingPolicy'):
         QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)

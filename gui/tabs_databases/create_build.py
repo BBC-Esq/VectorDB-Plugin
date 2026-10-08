@@ -18,7 +18,6 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 
 from core.constants import PROJECT_ROOT
 from core.utilities import _needs_ocr_worker, backup_database, check_preconditions_for_db_creation, my_cprint, save_config_atomically
-from db.database_interactions import BUILD_COMPLETE_MARKER, DB_FOLDER_CREATED_MARKER, NOT_ADDED_MARKER
 
 LOG_LINES = 400
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
@@ -77,6 +76,8 @@ class VectorDBWorker(QThread):
             )
             if self._cancelled:
                 self._terminate_process_tree(self._process.pid)
+
+            from db.database_interactions import BUILD_COMPLETE_MARKER, DB_FOLDER_CREATED_MARKER, NOT_ADDED_MARKER
 
             for line in self._process.stdout:
                 line = line.rstrip("\n")

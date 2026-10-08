@@ -4,8 +4,7 @@ import requests
 import sseclient
 from PySide6.QtCore import QThread, Signal
 
-from db.database_interactions import get_query_db
-from chat.base import ChatSignals, load_chat_config, save_metadata, build_augmented_query, cleanup_gpu
+from chat.common import ChatSignals, load_chat_config
 from core.utilities import format_citations
 from core.constants import PROJECT_ROOT
 
@@ -53,6 +52,8 @@ class KoboldChat:
                 response.close()
 
     def handle_response_and_cleanup(self, full_response, metadata_list):
+        from chat.base import cleanup_gpu
+
         citations = format_citations(metadata_list)
         if self.query_vector_db:
             self.query_vector_db.cleanup()
@@ -60,6 +61,9 @@ class KoboldChat:
         return citations
 
     def ask_kobold(self, query, selected_database):
+        from db.database_interactions import get_query_db
+        from chat.base import build_augmented_query, save_metadata
+
         if self.query_vector_db is None or self.query_vector_db.selected_database != selected_database:
             self.query_vector_db = get_query_db(selected_database)
 

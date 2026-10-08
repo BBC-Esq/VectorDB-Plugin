@@ -17,8 +17,6 @@ import builtins
 from contextlib import contextmanager
 from huggingface_hub import HfApi
 
-from PySide6.QtCore import Signal, QObject
-
 from core.constants import CHAT_MODELS, system_message, rag_string, PROJECT_ROOT
 from core.utilities import my_cprint, has_bfloat16_support, format_citations, quiet_transformers_loading_bars
 
@@ -47,16 +45,6 @@ def _run_generation_thread(model, all_settings):
     thread.start()
     return thread, box
 
-
-class ChatSignals(QObject):
-    response_signal = Signal(str)
-    error_signal = Signal(str)
-    finished_signal = Signal()
-    citations_signal = Signal(str)
-
-def load_chat_config():
-    with open(PROJECT_ROOT / 'config.yaml', 'r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
 
 def save_metadata(metadata_list):
     with metadata_output_file_path.open('w', encoding='utf-8') as f:
