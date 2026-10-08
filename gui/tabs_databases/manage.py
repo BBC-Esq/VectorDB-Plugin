@@ -466,7 +466,7 @@ class ManageDatabasesTab(WebTab):
                 return {"ok": True}
         return {"error": "Tab not found."}
 
-    def js_search_database(self, name):
+    def js_query_database(self, name):
         result = self.js_open_tab("Query Database")
         for widget in QApplication.allWidgets():
             select = getattr(widget, "select_database", None)

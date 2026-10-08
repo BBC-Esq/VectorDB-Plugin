@@ -584,7 +584,7 @@ download that model again on the Models tab. The file list can be filtered by fi
 file produced. Double-click a file, or select it and press Enter, to open it in your system's default program, or click the folder
 icon at the end of its row to open the folder that contains it. When a database is created the location of each original file is
 saved, so a file you have since moved or deleted is marked 'Not found' and can't be opened, although the database still searches
-its text. The 'Search it' button switches to the Query Database tab.
+its text. The 'Query' button switches to the Query Database tab.
 
 ### How do I delete, back up or restore a database on the Manage Databases tab?
 Select the database and click 'Delete…'. The tab asks you to confirm and says exactly what will be removed: the database and its

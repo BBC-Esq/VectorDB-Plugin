@@ -228,7 +228,7 @@
       const kind = r.not_added && r.not_added.length ? "warn" : "ok";
       return `<div class="status ${kind} result">${kind === "ok" ? ICONS.check : ICONS.warn}<div class="status-body">`
         + `Created <b>${esc(r.name)}</b> in ${VDB.elapsed(r.seconds)}${from}. `
-        + '<button type="button" class="link" data-tab="Query Database">Search it on the Query Database tab</button>'
+        + '<button type="button" class="link" data-tab="Query Database">Query it on the Query Database tab</button>'
         + (state.files.count === 0 ? '<div class="status-note">The file list was cleared, ready for your next database.</div>' : "")
         + `${notes}</div>${close}</div>`;
     }

@@ -3,6 +3,7 @@
 (function () {
   const { ICONS, esc, fmt, $ } = VDB;
 
+  const QUERY = '<svg viewBox="0 0 16 16"><path d="M3.2 2.6h9.6c.66 0 1.2.54 1.2 1.2v6.1c0 .66-.54 1.2-1.2 1.2H8.4l-3 2.5v-2.5H3.2c-.66 0-1.2-.54-1.2-1.2V3.8c0-.66.54-1.2 1.2-1.2Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M6.6 5.6a1.45 1.45 0 1 1 2.1 1.3c-.45.24-.7.55-.7 1v.25" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="9.55" r=".7" fill="currentColor"/></svg>';
   const TRASH = '<svg viewBox="0 0 16 16"><path d="M2.8 4.2h10.4M6.3 4.2V2.8h3.4v1.4M4.2 4.2l.7 8.9c.05.6.55 1.1 1.15 1.1h3.9c.6 0 1.1-.5 1.15-1.1l.7-8.9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.7 6.8v4.6M9.3 6.8v4.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
   const COLUMNS = [
     { key: "name", label: "Name" },
@@ -283,7 +284,7 @@
     const off = blocked ? ` disabled data-tip-text="${esc(blocked)}"` : "";
     const buttons = [];
     if (db.status === "ready" || db.status === "incomplete") {
-      buttons.push(`<button type="button" class="btn ghost small" data-act="search">${ICONS.search}Search it</button>`);
+      buttons.push(`<button type="button" class="btn primary small" data-act="query">${QUERY}Query</button>`);
     }
     if (db.status === "ready" && !db.backup) {
       buttons.push(`<button type="button" class="btn ghost small" data-act="backup"${off}>${ICONS.archive}Back up</button>`);
@@ -394,7 +395,7 @@
       const name = confirmName;
       confirmName = null;
       VDB.call("delete", { name, next_name: nextAfter(name) });
-    } else if (action === "search") VDB.call("search_database", { name: db.name });
+    } else if (action === "query") VDB.call("query_database", { name: db.name });
     else if (action === "backup") VDB.call("backup", { name: db.name });
     else if (action === "restore") VDB.call("restore", { name: db.name });
   }
