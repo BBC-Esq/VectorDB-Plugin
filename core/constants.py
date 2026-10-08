@@ -1974,11 +1974,6 @@ THINKING_TAGS = {
     "thinking": ("<thinking>", "</thinking>")
 }
 
-TOOLTIPS = {
-    "PORT": "Must match the port used in LM Studio.",
-    "SHOW_THINKING_CHECKBOX": "If checked, show the model's internal thought process.  Only applies to 'Thinking' / reasoning models and it will be disregarded if not applicable."
-}
-
 scrape_documentation = {
     "Accelerate 1.7.0": {
         "URL": "https://huggingface.co/docs/accelerate/v1.7.0/en",

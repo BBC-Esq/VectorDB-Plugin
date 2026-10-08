@@ -742,8 +742,6 @@ class DatabaseQueryTab(WebTab):
         return {"ok": True}
 
     def js_backend_settings(self):
-        if self.backend in query_data.MINIMAX_BACKENDS:
-            return self.open_credentials("minimax")
         from gui.dialogs.ai_backends_dialog import AIBackendsDialog
 
         AIBackendsDialog(self.window(), initial_tab=query_data.SETTINGS_DIALOG_TAB.get(self.backend, 0)).exec()
@@ -760,10 +758,8 @@ class DatabaseQueryTab(WebTab):
     def js_fix_readiness(self):
         problem = self._readiness()
         action = problem.get("action") if problem else None
-        if action == "settings":
+        if action in ("settings", "minimax_key"):
             return self.js_backend_settings()
-        if action == "minimax_key":
-            return self.open_credentials("minimax")
         if action == "hf_token":
             return self.open_credentials("hf")
         return {"ok": True}

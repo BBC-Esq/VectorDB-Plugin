@@ -9,12 +9,14 @@ from chat.base import ChatSignals, load_chat_config, save_metadata, build_augmen
 from core.utilities import format_citations
 from core.constants import PROJECT_ROOT
 
+KOBOLD_URL = "http://localhost:5001"
+
 class KoboldChat:
     def __init__(self):
         self.signals = ChatSignals()
         self.config = load_chat_config()
         self.query_vector_db = None
-        self.api_url = "http://localhost:5001/api/extra/generate/stream"
+        self.api_url = f"{KOBOLD_URL}/api/extra/generate/stream"
         self.stop_request = False
 
     def connect_to_kobold(self, augmented_query):

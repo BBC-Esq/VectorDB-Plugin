@@ -9,7 +9,6 @@ from core.constants import system_message, PROJECT_ROOT
 
 MINIMAX_BASE_URL = "https://api.minimax.io/v1"
 MINIMAX_MODELS = ["MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.7-highspeed"]
-# Temperature must be in (0.0, 1.0] for MiniMax
 _MINIMAX_MIN_TEMP = 0.01
 
 
@@ -30,7 +29,7 @@ class MiniMaxChat:
         api_key = minimax_config.get('api_key')
 
         if not api_key:
-            raise ValueError("MiniMax API key not found in config.yaml.\n\n  Please set it within the 'File' menu.")
+            raise ValueError("MiniMax API key not found in config.yaml.\n\nPlease set it via File menu → Chat Backend Settings…")
 
         client = OpenAI(api_key=api_key, base_url=MINIMAX_BASE_URL)
 
@@ -39,7 +38,6 @@ class MiniMaxChat:
             {"role": "user", "content": augmented_query}
         ]
 
-        # MiniMax temperature must be in (0.0, 1.0]
         temperature = max(_MINIMAX_MIN_TEMP, 0.1)
 
         stream = client.chat.completions.create(

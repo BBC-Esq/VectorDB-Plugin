@@ -10,7 +10,7 @@ from gui.tabs_settings.settings_state import DOCUMENT_TYPES, TTS_SPECS
 
 BACKENDS = ["Local Model", "Kobold", "LM Studio", "ChatGPT", "MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.7-highspeed"]
 MINIMAX_BACKENDS = {"MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.7-highspeed"}
-SETTINGS_DIALOG_TAB = {"ChatGPT": 0, "LM Studio": 1, "Kobold": 3}
+SETTINGS_DIALOG_TAB = {"ChatGPT": 0, "LM Studio": 1, **dict.fromkeys(MINIMAX_BACKENDS, 2), "Kobold": 3}
 SETTINGS_LABEL = "Open Chat Backend Settings"
 DOCUMENT_TYPE_LABELS = dict(DOCUMENT_TYPES)
 
