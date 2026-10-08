@@ -1,7 +1,4 @@
 from pathlib import Path
-from huggingface_hub import snapshot_download, HfApi
-from huggingface_hub.utils import disable_progress_bars, RepositoryNotFoundError, GatedRepoError
-from huggingface_hub.hf_api import RepoFile
 from PySide6.QtCore import QObject, Signal
 import fnmatch
 import humanfriendly
@@ -43,6 +40,9 @@ def get_hf_token():
 
 class ModelDownloader(QObject):
     def __init__(self, model_info, model_type):
+        from huggingface_hub import HfApi
+        from huggingface_hub.utils import disable_progress_bars
+
         super().__init__()
         self.model_info = model_info
         self.model_type = model_type
@@ -90,6 +90,9 @@ class ModelDownloader(QObject):
         return self.model_info
 
     def check_repo_type(self, repo_id):
+        from huggingface_hub import HfApi
+        from huggingface_hub.utils import GatedRepoError, RepositoryNotFoundError
+
         try:
             repo_info = self.api.repo_info(repo_id, timeout=60, token=False)
             if getattr(repo_info, "private", False):
@@ -115,10 +118,14 @@ class ModelDownloader(QObject):
             return "error"
 
     def _list_repo_files(self, repo_id, use_token):
+        from huggingface_hub import HfApi
+
         api = self.api if not use_token else HfApi(token=self.hf_token)
         return list(api.list_repo_tree(repo_id, recursive=True))
 
     def _select_patterns(self, repo_files, allow_patterns, ignore_patterns):
+        from huggingface_hub.hf_api import RepoFile
+
         final_ignore = [
             "*.ckpt",
             "*.onnx",
@@ -159,6 +166,8 @@ class ModelDownloader(QObject):
         return allow_patterns, final_ignore
 
     def _filter_and_size(self, repo_files, allow_patterns, ignore_patterns):
+        from huggingface_hub.hf_api import RepoFile
+
         included_files = []
         ignored_files = []
         total_size = 0
@@ -181,6 +190,8 @@ class ModelDownloader(QObject):
         return included_files, ignored_files, total_size
 
     def download(self, allow_patterns=None, ignore_patterns=None):
+        from huggingface_hub import snapshot_download
+
         repo_id = self.get_model_url()
         repo_type = self.check_repo_type(repo_id)
         if repo_type not in ["public", "gated"]:
