@@ -94,14 +94,11 @@ from db.embedding_models import load_embedding_model
 from db.sqlite_operations import create_metadata_db
 from db.cuda_manager import get_cuda_manager
 from core.config import get_config, reload_config
-from core.constants import PROJECT_ROOT, PIPELINE_PRESETS
+from core.constants import PROJECT_ROOT, PIPELINE_PRESETS, NOT_ADDED_MARKER, DB_FOLDER_CREATED_MARKER, BUILD_COMPLETE_MARKER
 from core.utilities import my_cprint, set_cuda_paths, configure_logging
 
 logger = logging.getLogger(__name__)
 
-NOT_ADDED_MARKER = "VECTORDB_NOT_ADDED "
-DB_FOLDER_CREATED_MARKER = "VECTORDB_FOLDER_CREATED"
-BUILD_COMPLETE_MARKER = "VECTORDB_BUILD_COMPLETE"
 IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff')
 
 
