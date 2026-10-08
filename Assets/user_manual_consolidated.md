@@ -506,7 +506,9 @@ When you create a vector database it is automatically backed up.  However, if yo
 to the Database Backup section of the "Tools" tab and click the Back Up button, which replaces the previous backup with a copy of
 every current database.  Likewise, the Restore button replaces your current databases with the ones in the backup.  Both ask for
 confirmation first.  The section also shows how many databases you have and names any that are not in the backup yet.  Back Up is
-greyed out when there are no databases, and Restore is greyed out when there is no backup.
+greyed out when there are no databases, and Restore is greyed out when there is no backup.  To back up a single database
+that has no backup copy yet, or to restore one whose folder is missing, use the 'Back up' and 'Restore from backup' buttons on
+the Manage Databases tab.
 
 ### What happens if I lose a configuration file and can I restore it?
 This program cannot function without the config.yaml file if you lose it accidentally or it gets corrupted for some reason you can
@@ -571,12 +573,27 @@ supported NVIDIA GPU, the 4B and 8B versions of the Qwen3 and Octen embedding mo
 model are hidden because they are far too slow on a CPU, and a note at the top of the Models Tab gives approximate CPU times for
 the remaining models.
 
-### What is the manage databaes tab?
-The Manage Databases Tab allows you to see all of the vector databases that you have created thus far and what documents are in them.
-Select the database you want to view from the pulldown menu and you can see the files that have been embedded.  Also, you can
-doubleclick any of the files to open it in your system's default program.  When a vector database is created the location of the
-original file is saved as metadata.  As long as you haven't moved the original file on your computer, this metadata will be used to
-locate the file and open it in the default program on your system.
+### What is the Manage Databases tab?
+The Manage Databases tab lists every vector database you have created, with the embedding model it uses, how many files and chunks
+it holds, its size on disk and the date it was created; click a column heading to sort the list. Badges point out databases that
+need attention: 'No backup' when there is no backup copy yet, 'Folder missing' when the database's folder was removed outside the
+program, and 'Leftover folder' for a folder left behind by a database that was never finished. Click a database to see its details
+(embedding model, dimensions, chunk size and overlap, size, creation time and backup) and the files it was created from. If the
+embedding model it was created with is no longer downloaded, the tab warns you, because the database can't be searched until you
+download that model again on the Models tab. The file list can be filtered by file type or by name and shows how many chunks each
+file produced. Double-click a file, or select it and press Enter, to open it in your system's default program, or click the folder
+icon at the end of its row to open the folder that contains it. When a database is created the location of each original file is
+saved, so a file you have since moved or deleted is marked 'Not found' and can't be opened, although the database still searches
+its text. The 'Search it' button switches to the Query Database tab.
+
+### How do I delete, back up or restore a database on the Manage Databases tab?
+Select the database and click 'Delete…'. The tab asks you to confirm and says exactly what will be removed: the database and its
+backup copy. Your original files are never touched, and deleting can't be undone. The same button removes a database whose folder
+is missing from the list, and deletes a leftover folder, which also frees its name for a new database. A database without a backup
+copy has a 'Back up' button, and a database whose folder is missing but whose backup copy still exists has a 'Restore from backup'
+button. These buttons are unavailable while the database is being created on the Create Database tab or while a backup or restore
+is running on the Tools tab, and the program waits for a delete, backup or restore to finish before it closes. If some files can't
+be deleted because another program is using them, the tab lists them; close that program and delete the database again.
 
 ### How can I create a vector database?
 Go to the Create Database tab and add the files that you want in the database with the 'Add Files' or 'Add Folder' button; you can
@@ -612,8 +629,8 @@ numbers, underscores, and hyphens; as you type, uppercase letters become lowerca
 are left out. The name must be at least three characters long, cannot be 'null' or 'none', and cannot be longer than the limit that
 Windows path lengths allow for the folder the program is installed in. Each database name must be unique; the tab tells you as you
 type if a database with that name already exists. The name is
-how the database appears in the dropdown menus in the Query Database and Manage Databases tabs, so it is worth choosing something
-descriptive, such as 'tax_records_2024' or 'project-notes.'
+how the database appears in the Query Database tab's dropdown menu and in the Manage Databases tab's list, so it is worth choosing
+something descriptive, such as 'tax_records_2024' or 'project-notes.'
 
 ### What is the PDF OCR check when creating a database?
 If the files you add include PDFs, a switch in the Create Database tab offers to check the PDFs for missing text first, meaning
