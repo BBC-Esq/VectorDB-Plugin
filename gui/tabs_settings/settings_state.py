@@ -138,7 +138,8 @@ HELP = {
         "Low: light parallelism (2-4 workers). Normal: moderate parallelism (default). High: aggressive parallelism. "
         "Maximum: all available CPU cores."
     ),
-    "create.half": "Uses bfloat16/float16 for about a 2x speedup. Requires a supported NVIDIA GPU.",
+    "create.half": ("Uses bfloat16/float16 for about a 2x speedup. Requires a supported NVIDIA GPU. "
+                    "On GPUs older than the RTX 30 series, which lack bfloat16, a few models that are unstable in float16 stay in float32."),
     "create.half.unavailable": (
         "Half-precision requires a supported NVIDIA GPU. Databases are created in full precision on this computer."
     ),
