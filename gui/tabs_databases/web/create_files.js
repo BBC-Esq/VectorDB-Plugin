@@ -22,6 +22,8 @@
   let frame = 0;
   let headSignature = "";
   let footSignature = "";
+  let listSignature = "";
+  let lastOpen = { name: null, at: 0 };
 
   const list = () => $("#files-list");
 
@@ -160,7 +162,11 @@
     applyFilter();
     renderHead();
     renderFoot();
-    schedulePaint();
+    const signature = JSON.stringify([version, filter, query, busy, shown.length, rows.length]);
+    if (signature !== listSignature) {
+      listSignature = signature;
+      schedulePaint();
+    }
   }
 
   function loadRows() {
@@ -207,7 +213,27 @@
     }
     active = index;
     renderFoot();
-    schedulePaint();
+    updateRows();
+  }
+
+  function updateRows() {
+    for (const row of list().querySelectorAll(".file-row")) {
+      const index = Number(row.dataset.index);
+      const r = shown[index];
+      const on = Boolean(r && selected.has(r.name));
+      row.classList.toggle("on", on);
+      row.classList.toggle("active", index === active);
+      row.setAttribute("aria-selected", String(on));
+    }
+  }
+
+  function openIndex(index) {
+    const r = shown[index];
+    if (!r) return;
+    const now = Date.now();
+    if (lastOpen.name === r.name && now - lastOpen.at < 700) return;
+    lastOpen = { name: r.name, at: now };
+    VDB.call("open", { name: r.name });
   }
 
   function ensureVisible(index) {
@@ -230,12 +256,17 @@
     el.addEventListener("scroll", schedulePaint);
     window.addEventListener("resize", schedulePaint);
     el.addEventListener("mousedown", (e) => {
-      if (e.target.closest(".file-remove")) return;
+      if (e.button !== 0 || e.target.closest(".file-remove")) return;
       const row = e.target.closest(".file-row");
       if (!row) return;
       e.preventDefault();
       el.focus();
-      selectIndex(Number(row.dataset.index), e);
+      const index = Number(row.dataset.index);
+      if (e.detail === 2 && !e.shiftKey && !e.ctrlKey) {
+        openIndex(index);
+        return;
+      }
+      selectIndex(index, e);
     });
     el.addEventListener("click", (e) => {
       const remove = e.target.closest("[data-remove]");
@@ -244,17 +275,13 @@
         if (r) removeNames([r.name]);
       }
     });
-    el.addEventListener("dblclick", (e) => {
-      const row = e.target.closest(".file-row");
-      if (row && !e.target.closest(".file-remove")) VDB.call("open", { name: shown[Number(row.dataset.index)].name });
-    });
     el.addEventListener("keydown", (e) => {
       if (!shown.length) return;
       if ((e.key === "a" || e.key === "A") && e.ctrlKey) {
         e.preventDefault();
         selected = new Set(shown.map((r) => r.name));
         renderFoot();
-        schedulePaint();
+        updateRows();
       } else if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         removeNames([...selected]);
@@ -265,21 +292,19 @@
         ensureVisible(next);
       } else if (e.key === "Enter" && active >= 0) {
         e.preventDefault();
-        VDB.call("open", { name: shown[active].name });
+        openIndex(active);
       } else if (e.key === "Escape") {
         selected.clear();
         renderFoot();
-        schedulePaint();
+        updateRows();
       }
     });
     $("#files-card").addEventListener("input", (e) => {
       if (e.target.id !== "file-search") return;
       query = e.target.value;
       e.target.parentElement.classList.toggle("has-text", query.length > 0);
-      applyFilter();
-      renderFoot();
       list().scrollTop = 0;
-      schedulePaint();
+      refreshAll();
     });
     $("#files-card").addEventListener("click", (e) => {
       const chip = e.target.closest("[data-filter]");
@@ -302,7 +327,7 @@
       if (action === "clear_selection") {
         selected.clear();
         renderFoot();
-        schedulePaint();
+        updateRows();
       } else if (action === "remove_selected") {
         removeNames([...selected]);
       }
