@@ -1975,17 +1975,8 @@ THINKING_TAGS = {
 }
 
 TOOLTIPS = {
-    "CHUNKS_ONLY": "Solely query the vector database and get relevant chunks. Very useful to test the chunk size/overlap settings.",
-    "COPY_RESPONSE": "Copy the chunks (if chunks only is checked) or model's response to the clipboard.",
-    "DATABASE_SELECT": "Vector database that will be queried.",
-    "EJECT_LOCAL_MODEL": "Unload the current local model from memory.",
-    "LOCAL_MODEL_SELECT": "Select a local model for generating responses.",
-    "MODEL_BACKEND_SELECT": "Choose the backend for the large language model response.",
     "PORT": "Must match the port used in LM Studio.",
-    "QUESTION_INPUT": "Type your question here or use the voice recorder.",
-    "SPEAK_RESPONSE": "Speak the response from the large language model using text-to-speech.",
-    "SHOW_THINKING_CHECKBOX": "If checked, show the model's internal thought process.  Only applies to 'Thinking' / reasoning models and it will be disregarded if not applicable.",
-    "VOICE_RECORDER": "Click to start recording, speak your question, then click again to stop recording."
+    "SHOW_THINKING_CHECKBOX": "If checked, show the model's internal thought process.  Only applies to 'Thinking' / reasoning models and it will be disregarded if not applicable."
 }
 
 scrape_documentation = {

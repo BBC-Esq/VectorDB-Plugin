@@ -1,112 +1,182 @@
 import logging
+import multiprocessing
+import os
 import queue
+import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
-import multiprocessing
-import re
-import html
 
-import yaml
-from PySide6.QtCore import QThread, Signal, QObject, Qt, QUrl, QTimer
+from PySide6.QtCore import QObject, QThread, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QTextEdit, QPushButton, QCheckBox, QHBoxLayout, QMessageBox,
-                               QApplication, QComboBox, QLabel, QTextBrowser)
+from PySide6.QtWidgets import QApplication, QMessageBox, QTabWidget
 
-from abc import ABC, abstractmethod
+from chat.kobold import KoboldThread
 from chat.lm_studio import LMStudioChatThread
 from chat.local_model import LocalModelChat
-from chat.openai import ChatGPTThread
 from chat.minimax import MiniMaxThread
-from chat.kobold import KoboldThread
-from core.constants import CHAT_MODELS, CustomButtonStyles
-from modules.voice_recorder import VoiceRecorder
-from core.utilities import my_cprint, normalize_chat_text, cuda_usable, runs_on_this_hardware
-from core.constants import TOOLTIPS, PROJECT_ROOT
-from db.database_interactions import process_chunks_only_query
+from chat.openai import ChatGPTThread
+from core.constants import PROJECT_ROOT
+from core.utilities import cuda_usable, my_cprint, normalize_chat_text, open_file, runs_on_this_hardware
 from db.process_manager import get_process_manager
+from gui.web_common.web_tab import WebTab
+from gui.tabs_databases import query_data
+from gui.tabs_databases.query_search import chunks_query
 
-logger = logging.getLogger(__name__)
+WEB_PAGE = Path(__file__).resolve().parent / "web" / "query_tab.html"
+HISTORY_LIMIT = 50
+CHUNKS_TIMEOUT = 120
 
-current_dir = PROJECT_ROOT
-input_text_file = str(current_dir / 'chat_history.txt')
 
-class SubmitStrategy(ABC):
-    def __init__(self, tab):
+def chat_history_path():
+    return PROJECT_ROOT / "chat_history.txt"
+
+
+def run_tts_in_process(config_path, input_text_file):
+    from modules.tts import run_tts
+
+    run_tts(config_path, input_text_file)
+    my_cprint("TTS models removed from memory.", "red")
+
+
+def kill_process_tree(pid):
+    import psutil
+
+    try:
+        parent = psutil.Process(pid)
+    except psutil.NoSuchProcess:
+        return
+    try:
+        procs = parent.children(recursive=True)
+    except psutil.NoSuchProcess:
+        procs = []
+    procs.append(parent)
+    for proc in procs:
+        try:
+            proc.terminate()
+        except psutil.NoSuchProcess:
+            pass
+    _, alive = psutil.wait_procs(procs, timeout=5)
+    for proc in alive:
+        try:
+            proc.kill()
+        except psutil.NoSuchProcess:
+            pass
+
+
+def reveal_file(path):
+    if path and os.path.exists(path):
+        if sys.platform == "win32":
+            subprocess.Popen(f'explorer /select,"{os.path.normpath(path)}"')
+        else:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(path).parent)))
+        return {"ok": True}
+    parent = Path(path).parent if path else None
+    if parent and parent.is_dir():
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(parent)))
+        return {"missing": True, "opened_folder": True}
+    return {"missing": True}
+
+
+class TurnRelay(QObject):
+    def __init__(self, tab, turn_id):
+        super().__init__(tab)
         self.tab = tab
+        self.turn_id = turn_id
 
-    @abstractmethod
-    def submit(self, question: str, db_name: str) -> None: ...
+    @Slot(str)
+    def response(self, text):
+        self.tab.on_response(self.turn_id, text)
 
-class LocalModelStrategy(SubmitStrategy):
-    def submit(self, question, db_name):
-        selected_model = self.tab.model_combo_box.currentText()
-        lm = self.tab.local_model_chat
-        if selected_model != lm.current_model:
-            if lm.is_model_loaded():
-                lm.terminate_current_process()
-            lm.start_model_process(selected_model)
-        lm.start_chat(question, selected_model, db_name)
+    @Slot(str)
+    def citations(self, html):
+        self.tab.on_citations(self.turn_id, html)
 
-class LMStudioStrategy(SubmitStrategy):
-    def submit(self, question, db_name):
-        t = self.tab.lm_studio_chat_thread = LMStudioChatThread(question, db_name)
-        s = t.lm_studio_chat.signals
-        s.response_signal.connect(self.tab.update_response_lm_studio)
-        s.error_signal.connect(self.tab.show_error_message)
-        s.finished_signal.connect(self.tab.on_submission_finished)
-        s.citations_signal.connect(self.tab.display_citations_in_widget)
-        t.start()
+    @Slot(str)
+    def error(self, message):
+        self.tab.on_error(self.turn_id, message)
 
-class ChatGPTStrategy(SubmitStrategy):
-    def submit(self, question, db_name):
-        t = self.tab.chatgpt_thread = ChatGPTThread(question, db_name)
-        t.response_signal.connect(self.tab.update_response_lm_studio)
-        t.error_signal.connect(self.tab.show_error_message)
-        t.finished_signal.connect(self.tab.on_submission_finished)
-        t.citations_signal.connect(self.tab.display_citations_in_widget)
-        t.start()
+    @Slot()
+    def finished(self):
+        self.tab.on_finished(self.turn_id)
 
-class MiniMaxStrategy(SubmitStrategy):
-    def submit(self, question, db_name):
-        model_name = self.tab.model_source_combo.currentText()
-        t = self.tab.minimax_thread = MiniMaxThread(question, db_name, model_name=model_name)
-        t.response_signal.connect(self.tab.update_response_lm_studio)
-        t.error_signal.connect(self.tab.show_error_message)
-        t.finished_signal.connect(self.tab.on_submission_finished)
-        t.citations_signal.connect(self.tab.display_citations_in_widget)
-        t.start()
+    @Slot(object)
+    def chunks(self, result):
+        self.tab.on_chunks(self.turn_id, result)
 
-class KoboldStrategy(SubmitStrategy):
-    def submit(self, question, db_name):
-        t = self.tab.kobold_thread = KoboldThread(question, db_name)
-        t.response_signal.connect(self.tab.update_response_lm_studio)
-        t.error_signal.connect(self.tab.show_error_message)
-        t.finished_signal.connect(self.tab.on_submission_finished)
-        t.citations_signal.connect(self.tab.display_citations_in_widget)
-        t.start()
+    @Slot(str)
+    def failed(self, message):
+        self.tab.on_error(self.turn_id, message)
+        self.tab.on_finished(self.turn_id)
 
-class ChunksOnlyStrategy(SubmitStrategy):
-    def submit(self, question, db_name):
-        t = self.tab.database_query_thread = ChunksOnlyThread(question, db_name)
-        t.chunks_ready.connect(self.tab.display_chunks)
-        t.finished.connect(self.tab.on_database_query_finished)
-        t.start()
 
-class ChunksOnlyThread(QThread):
-    chunks_ready = Signal(str)
+class LocalSubmitWorker(QThread):
+    failed = Signal(str)
 
-    def __init__(self, query, database_name):
-        super().__init__()
-        self.query = query
-        self.database_name = database_name
+    def __init__(self, chat, model, question, database, parent=None):
+        super().__init__(parent)
+        self.chat = chat
+        self.model = model
+        self.question = question
+        self.database = database
+
+    def run(self):
+        try:
+            if self.chat.current_model != self.model or not self.chat.is_model_loaded():
+                if self.chat.model_process is not None or self.chat.current_model is not None:
+                    self.chat.terminate_current_process()
+                self.chat.start_model_process(self.model)
+            self.chat.start_chat(self.question, self.model, self.database)
+        except Exception as e:
+            logging.exception("Starting the local model failed")
+            self.failed.emit(str(e))
+
+
+class EjectWorker(QThread):
+    def __init__(self, chat, parent=None):
+        super().__init__(parent)
+        self.chat = chat
+
+    def run(self):
+        try:
+            self.chat.eject_model()
+        except Exception:
+            logging.exception("Ejecting the local model failed")
+
+
+class ChunksWorker(QThread):
+    result = Signal(object)
+
+    def __init__(self, question, database, parent=None):
+        super().__init__(parent)
+        self.question = question
+        self.database = database
         self.process = None
-        self.process_lock = threading.Lock()
-        self._stop_requested = False
+        self._lock = threading.Lock()
+        self._stop = False
 
-    def _wait_for_result(self, result_queue, process, timeout=120):
-        deadline = time.monotonic() + timeout
-        while not self._stop_requested:
+    def run(self):
+        ctx = multiprocessing.get_context("spawn")
+        result_queue = ctx.Queue()
+        try:
+            with self._lock:
+                if self._stop:
+                    return
+                self.process = ctx.Process(target=chunks_query, args=(self.database, self.question, result_queue))
+                get_process_manager().register(self.process)
+                self.process.start()
+                process = self.process
+            self.result.emit(self.wait_for_result(result_queue, process))
+        except Exception as e:
+            logging.exception("Chunks only query failed")
+            self.result.emit({"error": f"The database could not be searched: {e}"})
+        finally:
+            self.stop_process()
+
+    def wait_for_result(self, result_queue, process):
+        deadline = time.monotonic() + CHUNKS_TIMEOUT
+        while not self._stop:
             try:
                 return result_queue.get(timeout=0.5)
             except queue.Empty:
@@ -114,552 +184,616 @@ class ChunksOnlyThread(QThread):
                     try:
                         return result_queue.get(timeout=1)
                     except queue.Empty:
-                        return "Error: The database query stopped unexpectedly. Check the command prompt window for details."
+                        return {"error": "The database search stopped unexpectedly. Check the command prompt window for details."}
                 if time.monotonic() >= deadline:
-                    logger.error("Query timed out after 120 seconds")
-                    return ("Error: Query timed out after 120 seconds. "
-                            "Please try a simpler query or check your database.")
-        return None
+                    return {"error": f"The database search took longer than {CHUNKS_TIMEOUT} seconds and was stopped."}
+        return {"error": "The search was stopped."}
 
-    def run(self):
-        ctx = multiprocessing.get_context('spawn')
-        result_queue = ctx.Queue()
-
+    def stop_process(self):
+        with self._lock:
+            process, self.process = self.process, None
+        if process is None:
+            return
         try:
-            with self.process_lock:
-                if self._stop_requested:
-                    return
-                self.process = ctx.Process(
-                    target=process_chunks_only_query,
-                    args=(self.database_name, self.query, result_queue)
-                )
-                get_process_manager().register(self.process)
-                self.process.start()
-                process = self.process
-
-            try:
-                result = self._wait_for_result(result_queue, process)
-                if result is not None:
-                    self.chunks_ready.emit(result)
-            except Exception as e:
-                logger.error(f"Error getting result from queue: {e}")
-                self.chunks_ready.emit(f"Error: Failed to retrieve database response - {e}")
-
-            with self.process_lock:
-                if self.process and self.process.is_alive():
-                    self.process.join(timeout=2)
-                    if self.process.is_alive():
-                        self.process.terminate()
-                        self.process.join(timeout=1)
-                        if self.process.is_alive():
-                            try:
-                                self.process.kill()
-                                self.process.join(timeout=1)
-                            except Exception as e:
-                                logger.error(f"Failed to kill process: {e}")
-
-                if self.process:
-                    get_process_manager().unregister(self.process)
-                    self.process = None
-
-        except Exception as e:
-            logger.exception(f"Error in chunks only thread: {e}")
-            self.chunks_ready.emit(f"Error querying database: {e}")
-            with self.process_lock:
-                if self.process:
-                    try:
-                        if self.process.is_alive():
-                            self.process.terminate()
-                            self.process.join(timeout=1)
-                            if self.process.is_alive():
-                                self.process.kill()
-                                self.process.join(timeout=1)
-                        get_process_manager().unregister(self.process)
-                    except Exception as cleanup_error:
-                        logger.error(f"Error during cleanup: {cleanup_error}")
-                    finally:
-                        self.process = None
+            if process.is_alive():
+                process.join(timeout=2)
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=2)
+            if process.is_alive():
+                process.kill()
+                process.join(timeout=1)
+        except Exception:
+            logging.exception("Stopping the search process failed")
+        finally:
+            get_process_manager().unregister(process)
 
     def stop(self):
-        self._stop_requested = True
-        with self.process_lock:
-            if self.process:
-                try:
-                    if self.process.is_alive():
-                        self.process.terminate()
-                        self.process.join(timeout=2)
-                        if self.process.is_alive():
-                            self.process.kill()
-                            self.process.join(timeout=1)
-                    get_process_manager().unregister(self.process)
-                except Exception as e:
-                    logger.warning(f"Error stopping process: {e}")
-                finally:
-                    self.process = None
+        self._stop = True
+        self.stop_process()
 
 
-def run_tts_in_process(config_path, input_text_file):
-    from modules.tts import run_tts
-    run_tts(config_path, input_text_file)
-    my_cprint("TTS models removed from memory.", "red")
-
-
-class RefreshingComboBox(QComboBox):
+class DatabaseQueryTab(WebTab):
     def __init__(self, parent=None):
-        super(RefreshingComboBox, self).__init__(parent)
-
-    def showPopup(self):
-        new_items = self.parent().load_created_databases()
-        current_items = [self.itemText(i) for i in range(self.count())]
-        if new_items != current_items:
-            current_text = self.currentText()
-            self.clear()
-            self.addItems(new_items)
-            idx = self.findText(current_text)
-            if idx >= 0:
-                self.setCurrentIndex(idx)
-        super(RefreshingComboBox, self).showPopup()
-
-
-class GuiSignals(QObject):
-    response_signal = Signal(str)
-    citations_signal = Signal(str)
-    error_signal = Signal(str)
-    finished_signal = Signal()
-
-
-class CustomTextBrowser(QTextBrowser):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setOpenExternalLinks(False)
-
-    def doSetSource(self, name, type):
-        if name.scheme() == 'file':
-            QDesktopServices.openUrl(QUrl.fromLocalFile(name.toLocalFile()))
-        elif name.scheme() in ['http', 'https']:
-            QDesktopServices.openUrl(name)
-        else:
-            super().doSetSource(name, type)
-
-
-class DatabaseQueryTab(QWidget):
-    def __init__(self):
-        super(DatabaseQueryTab, self).__init__()
-        self.config_path = PROJECT_ROOT / 'config.yaml'
-        self.lm_studio_chat_thread = None
+        super().__init__(WEB_PAGE, parent)
         self.local_model_chat = LocalModelChat()
-        self.chatgpt_thread = None
-        self.kobold_thread = None
-        self.minimax_thread = None
-        self.gui_signals = GuiSignals()
-        self.current_model_name = None
-        self.database_query_thread = None
-        self.raw_response = ""
-        self.citations_block = ""
-        self.initWidgets()
-        self.setup_signals()
+        self.turns = []
+        self._next_turn = 1
+        self.active = None
+        self._local_turn = None
+        self._threads = {}
+        self._relays = {}
+        self._workers = set()
+        self.chunks_only = False
+        self.backend = "Local Model"
+        self._config = {}
+        self.databases = []
+        self.database = None
+        self.models = []
+        self.local_model = None
+        self.ejecting = False
+        self.speaking = None
+        self._tts_process = None
+        self._tts_timer = None
+        self._tts_stopped = False
+        self.voice = "idle"
+        self.voice_started = None
+        self.transcript = None
+        self._voice_recorder = None
+        self.notice = None
+        self.focus = 0
+        self._stamp = None
+        signals = self.local_model_chat.signals
+        signals.response_signal.connect(self._on_local_response)
+        signals.citations_signal.connect(self._on_local_citations)
+        signals.error_signal.connect(self._on_local_error)
+        signals.finished_signal.connect(self._on_local_finished)
+        signals.token_count_signal.connect(self._on_local_tokens)
+        signals.model_loaded_signal.connect(self.schedule_push)
+        signals.model_unloaded_signal.connect(self.schedule_push)
+        self._poll = QTimer(self)
+        self._poll.setInterval(1000)
+        self._poll.timeout.connect(self._tick)
+        self.refresh()
 
-    def initWidgets(self):
-        layout = QVBoxLayout(self)
+    def showEvent(self, event):
+        self.refresh()
+        self._poll.start()
+        super().showEvent(event)
 
-        self.response_widget = CustomTextBrowser()
-        self.response_widget.setOpenExternalLinks(True)
-        layout.addWidget(self.response_widget, 5)
+    def hideEvent(self, event):
+        self._poll.stop()
+        super().hideEvent(event)
 
-        self.token_count_label = QLabel("")
-        layout.addWidget(self.token_count_label)
-
-        hbox1_layout = QHBoxLayout()
-
-        self.database_pulldown = RefreshingComboBox(self)
-        self.database_pulldown.setToolTip(TOOLTIPS["DATABASE_SELECT"])
-        self.database_pulldown.addItems(self.load_created_databases())
-        hbox1_layout.addWidget(self.database_pulldown)
-
-        self.model_source_combo = QComboBox()
-        self.model_source_combo.setToolTip(TOOLTIPS["MODEL_BACKEND_SELECT"])
-        self.model_source_combo.addItems([
-            "Local Model",
-            "Kobold",
-            "LM Studio",
-            "ChatGPT",
-            "MiniMax-M3",
-            "MiniMax-M2.7",
-            "MiniMax-M2.7-highspeed",
-        ])
-
-        chatgpt_idx = self.model_source_combo.findText("ChatGPT")
-        if chatgpt_idx >= 0:
-            self.model_source_combo.setItemData(
-                chatgpt_idx,
-                "Configure model, API key, verbosity, and reasoning effort via File → Chat Backend Settings…",
-                Qt.ToolTipRole,
-            )
-
-        if not cuda_usable():
-            cpu_tip = ("No supported NVIDIA GPU: only small local models are offered and they run slowly on the CPU. "
-                       "LM Studio is recommended for larger or faster models.")
-            for name in ("Local Model", "LM Studio"):
-                idx = self.model_source_combo.findText(name)
-                if idx >= 0:
-                    self.model_source_combo.setItemData(idx, cpu_tip, Qt.ToolTipRole)
-
-        self.model_source_combo.setCurrentText("Local Model")
-        self.model_source_combo.currentTextChanged.connect(self.on_model_source_changed)
-        hbox1_layout.addWidget(self.model_source_combo)
-
-        self.model_combo_box = QComboBox()
-        self.model_combo_box.setToolTip(TOOLTIPS["LOCAL_MODEL_SELECT"])
-        gpu = cuda_usable()
-        for model_info in CHAT_MODELS.values():
-            if not runs_on_this_hardware(model_info):
-                continue
-            idx = self.model_combo_box.count()
-            self.model_combo_box.addItem(model_info["model"])
-            if gpu:
-                gb = round(model_info["vram"] / 1024, 1)
-                self.model_combo_box.setItemData(idx, f"Uses ~{gb} GB memory", Qt.ToolTipRole)
-        self.model_combo_box.setEnabled(True)
-        if not gpu:
-            self.model_combo_box.setToolTip("Choose a local model. It will be downloaded.")
-        if self.model_combo_box.count() > 0:
-            self.model_combo_box.setCurrentIndex(0)
-        hbox1_layout.addWidget(self.model_combo_box)
-
-        self.eject_button = QPushButton("Eject Local Model")
-        self.eject_button.setToolTip(TOOLTIPS["EJECT_LOCAL_MODEL"])
-        self.eject_button.clicked.connect(self.eject_model)
-        self.eject_button.setEnabled(False)
-        hbox1_layout.addWidget(self.eject_button)
-
-        layout.addLayout(hbox1_layout)
-
-        self.text_input = QTextEdit()
-        self.text_input.setToolTip(TOOLTIPS["QUESTION_INPUT"])
-        self.text_input.setMaximumHeight(80)
-        layout.addWidget(self.text_input, 1)
-
-        toggles_row = QHBoxLayout()
-
-        self.chunks_only_checkbox = QCheckBox("Chunks Only")
-        self.chunks_only_checkbox.setToolTip(TOOLTIPS["CHUNKS_ONLY"])
-        toggles_row.addWidget(self.chunks_only_checkbox)
-
-        toggles_row.addStretch(1)
-
-        layout.addLayout(toggles_row)
-
-        actions_row = QHBoxLayout()
-
-        self.copy_response_button = QPushButton("Copy Response")
-        self.copy_response_button.setToolTip(TOOLTIPS["COPY_RESPONSE"])
-        self.copy_response_button.clicked.connect(self.on_copy_response_clicked)
-        actions_row.addWidget(self.copy_response_button)
-
-        self.bark_button = QPushButton("Speak Response")
-        self.bark_button.setToolTip(TOOLTIPS["SPEAK_RESPONSE"])
-        self.bark_button.clicked.connect(self.on_bark_button_clicked)
-        actions_row.addWidget(self.bark_button)
-
-        self.record_button = QPushButton("Voice Recorder")
-        self.record_button.setToolTip(TOOLTIPS["VOICE_RECORDER"])
-        self.record_button.clicked.connect(self.toggle_recording)
-        actions_row.addWidget(self.record_button)
-
-        self.submit_button = QPushButton("Submit Question")
-        self.submit_button.clicked.connect(self.on_submit_button_clicked)
-        self.submit_button.setStyleSheet(CustomButtonStyles.GREEN_BUTTON_STYLE)
-        self.submit_button.setDefault(True)
-        actions_row.addWidget(self.submit_button)
-
-        layout.addLayout(actions_row)
-
-        self.is_recording = False
-        self.voice_recorder = VoiceRecorder(self)
-
-    def _strategy_for_source(self, source: str) -> SubmitStrategy:
-        STRATEGIES = {
-            "Local Model": LocalModelStrategy(self),
-            "LM Studio": LMStudioStrategy(self),
-            "Kobold": KoboldStrategy(self),
-            "ChatGPT": ChatGPTStrategy(self),
-            "MiniMax-M3": MiniMaxStrategy(self),
-            "MiniMax-M2.7": MiniMaxStrategy(self),
-            "MiniMax-M2.7-highspeed": MiniMaxStrategy(self),
-        }
-        try:
-            return STRATEGIES[source]
-        except KeyError:
-            raise ValueError(f"Unknown model source: {source}")
-
-    def setup_signals(self):
-        self.local_model_chat.signals.response_signal.connect(self.update_response_local_model)
-        self.local_model_chat.signals.citations_signal.connect(self.display_citations_in_widget)
-        self.local_model_chat.signals.error_signal.connect(self.show_error_message)
-        self.local_model_chat.signals.finished_signal.connect(self.on_submission_finished)
-        self.local_model_chat.signals.model_loaded_signal.connect(self.on_model_loaded)
-        self.local_model_chat.signals.model_unloaded_signal.connect(self.on_model_unloaded)
-        self.local_model_chat.signals.token_count_signal.connect(self.update_token_count_label)
-
-    def _render_html(self):
-        txt = re.sub(r"\n\s*\n", "\n", self.raw_response).lstrip()
-        body = html.escape(txt).replace("\n", "<br>")
-        body += self.citations_block
-
-        self.response_widget.setHtml(body)
-        self.response_widget.verticalScrollBar().setValue(
-            self.response_widget.verticalScrollBar().maximum())
-
-    def update_token_count_label(self, token_count_string):
-        self.token_count_label.setText(token_count_string)
-
-    def on_model_source_changed(self, text):
-        is_local = text == "Local Model"
-        self.model_combo_box.setVisible(is_local)
-        self.eject_button.setVisible(is_local)
-        if is_local:
-            self.model_combo_box.setEnabled(True)
-            self.eject_button.setEnabled(self.local_model_chat.is_model_loaded())
-        else:
-            self.model_combo_box.setEnabled(False)
-            self.eject_button.setEnabled(False)
-
-    def load_created_databases(self):
-        if self.config_path.exists():
-            with open(self.config_path, 'r', encoding='utf-8') as file:
-                config = yaml.safe_load(file)
-                databases = list(config.get('created_databases', {}).keys())
-                return [db for db in databases if db != "user_manual"]
-        return []
-
-    def on_submit_button_clicked(self):
-        script_dir = PROJECT_ROOT
-        selected_database = self.database_pulldown.currentText()
-        if not selected_database or not (script_dir / "Vector_DB" / selected_database).exists():
-            QMessageBox.warning(self, "No Database Selected", "Select a vector database to query first.")
-            return
-
-        self.response_widget.clear()
-        self.token_count_label.clear()
-        cursor = self.response_widget.textCursor()
-        cursor.clearSelection()
-        self.response_widget.setTextCursor(cursor)
-
-        self.raw_response = ""
-        self.citations_block = ""
-        self.submit_button.setDisabled(True)
-        user_question = self.text_input.toPlainText()
-
-        if self.chunks_only_checkbox.isChecked():
-            strategy = ChunksOnlyStrategy(self)
-        else:
-            strategy = self._strategy_for_source(self.model_source_combo.currentText())
-
-        try:
-            strategy.submit(user_question, selected_database)
-        except Exception as e:
-            logging.exception("Submission failed: %s", e)
-            self.show_error_message(str(e))
-            self.submit_button.setDisabled(False)
-
-    def display_chunks(self, chunks):
-        self.response_widget.setPlainText(chunks)
-
-    def on_database_query_finished(self):
-        self.submit_button.setDisabled(False)
-
-    def eject_model(self):
-        if self.local_model_chat.is_model_loaded():
+    def _stamps(self):
+        stamps = []
+        for path in (query_data.config_path(), PROJECT_ROOT / "Vector_DB", PROJECT_ROOT / "Models" / "chat"):
             try:
-                self.local_model_chat.eject_model()
-            except Exception as e:
-                logging.exception(f"Error during model ejection: {e}")
-            finally:
-                self.eject_button.setEnabled(False)
-                self.model_combo_box.setEnabled(True)
-                self.on_submission_finished()
+                st = path.stat()
+                stamps.append((st.st_mtime_ns, st.st_size))
+            except OSError:
+                stamps.append(None)
+        return tuple(stamps)
+
+    def _tick(self):
+        if self._stamps() != self._stamp:
+            self.refresh()
+
+    def refresh(self):
+        self._stamp = self._stamps()
+        self._config = query_data.load_config()
+        self.databases = query_data.queryable_databases(self._config)
+        names = [d["name"] for d in self.databases]
+        if self.database not in names:
+            self.database = query_data.remembered_database(self._config, names)
+        self.models = query_data.local_models(self._config)
+        model_names = [m["name"] for m in self.models]
+        if self.local_model not in model_names:
+            self.local_model = model_names[0] if model_names else None
+        self.schedule_push()
+
+    def _turn(self, turn_id):
+        return next((t for t in self.turns if t["id"] == turn_id), None)
+
+    def _readiness(self):
+        if self.chunks_only:
+            return None
+        return query_data.readiness(self._config, self.backend, self.local_model, self.models)
+
+    def loaded_model(self):
+        return self.local_model_chat.current_model if self.local_model_chat.is_model_loaded() else None
+
+    def build_state(self):
+        return {
+            "databases": self.databases,
+            "database": self.database,
+            "backends": query_data.BACKENDS,
+            "backend": self.backend,
+            "models": self.models,
+            "local_model": self.local_model,
+            "loaded_model": self.loaded_model(),
+            "ejecting": self.ejecting,
+            "cpu_only": not cuda_usable(),
+            "settings": query_data.query_settings(self._config),
+            "readiness": self._readiness(),
+            "chunks_only": self.chunks_only,
+            "busy": self.active is not None,
+            "turns": self.turns,
+            "speaking": self.speaking,
+            "tts": query_data.tts_label(self._config),
+            "voice": self.voice,
+            "voice_started": self.voice_started,
+            "transcript": self.transcript,
+            "notice": self.notice,
+            "focus": self.focus,
+        }
+
+    def select_database(self, name):
+        if any(d["name"] == name for d in self.databases):
+            self.database = name
+            query_data.remember_database(name)
+            self.focus += 1
+            self.schedule_push()
+            return True
+        return False
+
+    def js_select_database(self, name):
+        if not any(d["name"] == name for d in self.databases):
+            return {"error": "That database is no longer available."}
+        self.database = name
+        query_data.remember_database(name)
+        self.schedule_push()
+        return {"ok": True}
+
+    def js_select_backend(self, name):
+        if name not in query_data.BACKENDS:
+            return {"error": "Unknown backend."}
+        self.backend = name
+        self.schedule_push()
+        return {"ok": True}
+
+    def js_select_model(self, name):
+        if not any(m["name"] == name for m in self.models):
+            return {"error": "That model is not available on this computer."}
+        self.local_model = name
+        self.schedule_push()
+        return {"ok": True}
+
+    def js_set_chunks_only(self, value):
+        self.chunks_only = bool(value)
+        self.schedule_push()
+        return {"ok": True}
+
+    def js_ask(self, question):
+        question = (question or "").strip()
+        if not question:
+            return {"error": "Type a question first."}
+        if self.active is not None:
+            return {"error": "Wait for the current answer to finish."}
+        if self.ejecting:
+            return {"error": "Wait for the local model to finish unloading."}
+        self.refresh()
+        if not any(d["name"] == self.database for d in self.databases):
+            return {"error": "Choose a database to query first."}
+        problem = self._readiness()
+        if problem:
+            return {"error": problem["message"]}
+        local = not self.chunks_only and self.backend == "Local Model"
+        fresh = local and (self.local_model_chat.current_model != self.local_model or not self.local_model_chat.is_model_loaded())
+        turn = {
+            "id": self._next_turn,
+            "kind": "chunks" if self.chunks_only else "answer",
+            "question": question,
+            "database": self.database,
+            "backend": "Chunks only" if self.chunks_only else self.backend,
+            "model": self.local_model if local else None,
+            "started": time.time(),
+            "ended": None,
+            "phase": "loading" if fresh else "searching",
+            "answer": "",
+            "citations": [],
+            "tokens": None,
+            "error": None,
+            "chunks": None,
+            "similarity": query_data.query_settings(self._config)["similarity"],
+        }
+        self._next_turn += 1
+        self.turns.append(turn)
+        del self.turns[:-HISTORY_LIMIT]
+        self.active = turn["id"]
+        try:
+            if self.chunks_only:
+                self._start_chunks(turn)
+            elif local:
+                self._start_local(turn)
+            else:
+                self._start_thread(turn)
+        except Exception as e:
+            logging.exception("Submitting the question failed")
+            self.on_error(turn["id"], str(e))
+            self.on_finished(turn["id"])
+        self.schedule_push()
+        return {"ok": True, "turn": turn["id"]}
+
+    def _relay(self, turn_id):
+        relay = TurnRelay(self, turn_id)
+        self._relays[turn_id] = relay
+        return relay
+
+    def _keep(self, worker):
+        self._workers.add(worker)
+        worker.finished.connect(lambda w=worker: self._workers.discard(w))
+
+    def _start_thread(self, turn):
+        relay = self._relay(turn["id"])
+        question, database, backend = turn["question"], turn["database"], turn["backend"]
+        if backend == "LM Studio":
+            thread = LMStudioChatThread(question, database)
+            signals = thread.lm_studio_chat.signals
+        elif backend == "ChatGPT":
+            thread = signals = ChatGPTThread(question, database)
+        elif backend == "Kobold":
+            thread = signals = KoboldThread(question, database)
+        elif backend in query_data.MINIMAX_BACKENDS:
+            thread = signals = MiniMaxThread(question, database, model_name=backend)
         else:
-            logging.warning("No model is currently loaded.")
+            raise ValueError(f"Unknown backend: {backend}")
+        signals.response_signal.connect(relay.response)
+        signals.error_signal.connect(relay.error)
+        signals.citations_signal.connect(relay.citations)
+        signals.finished_signal.connect(relay.finished)
+        self._threads[turn["id"]] = thread
+        self._keep(thread)
+        thread.start()
 
-    def on_model_loaded(self):
-        self.eject_button.setEnabled(True)
-        self.eject_button.setText(f"Eject {self.local_model_chat.current_model}")
+    def _start_local(self, turn):
+        self._local_turn = turn["id"]
+        relay = self._relay(turn["id"])
+        worker = LocalSubmitWorker(self.local_model_chat, self.local_model, turn["question"], turn["database"])
+        worker.failed.connect(relay.failed)
+        self._keep(worker)
+        worker.start()
 
-    def on_model_unloaded(self):
-        self.eject_button.setEnabled(False)
-        self.eject_button.setText("Eject Local Model")
+    def _start_chunks(self, turn):
+        relay = self._relay(turn["id"])
+        worker = ChunksWorker(turn["question"], turn["database"])
+        worker.result.connect(relay.chunks)
+        self._threads[turn["id"]] = worker
+        self._keep(worker)
+        worker.start()
 
-    def display_citations_in_widget(self, citations):
-        if citations:
-            self.citations_block = f"<br><br>Citation Links:{citations}"
-        else:
-            self.citations_block = "<br><br>No citations found."
-        self._render_html()
-
-    def on_copy_response_clicked(self):
-        clipboard = QApplication.clipboard()
-        response_text = self.response_widget.toPlainText()
-        if response_text:
-            clipboard.setText(response_text)
-            QMessageBox.information(self, "Information", "Response copied to clipboard.")
-        else:
-            QMessageBox.warning(self, "Warning", "No response to copy.")
-
-    def on_bark_button_clicked(self):
-        script_dir = PROJECT_ROOT
-        config_path = script_dir / 'config.yaml'
-
-        with open(config_path, 'r', encoding='utf-8') as config_file:
-            config = yaml.safe_load(config_file)
-            tts_config = config.get('tts', {})
-
-        tts_model = tts_config.get('model', '').lower()
-
-        from core.constants import TTS_BACKENDS
-        if not runs_on_this_hardware(TTS_BACKENDS.get(tts_model, {"requires_cuda": True})):
-            QMessageBox.warning(self, "Error", "The Text to Speech backend you selected requires GPU-acceleration.")
+    def on_response(self, turn_id, text):
+        turn = self._turn(turn_id)
+        if turn is None or turn["ended"]:
             return
+        turn["answer"] += text
+        if turn["phase"] in ("loading", "searching"):
+            turn["phase"] = "answering"
+        self.schedule_push()
 
-        if tts_model == 'kokoro':
-            kokoro_dir = script_dir / "Models" / "tts" / "ctranslate2-4you--Kokoro-82M-light"
+    def on_citations(self, turn_id, html):
+        turn = self._turn(turn_id)
+        if turn is None:
+            return
+        turn["citations"] = query_data.parse_citations(html)
+        self.schedule_push()
+
+    def on_error(self, turn_id, message):
+        turn = self._turn(turn_id)
+        if turn is None or turn["ended"]:
+            return
+        turn["error"] = str(message or "Something went wrong.").strip()
+        turn["phase"] = "error"
+        self.schedule_push()
+
+    def on_finished(self, turn_id):
+        turn = self._turn(turn_id)
+        if turn is not None and not turn["ended"]:
+            turn["ended"] = time.time()
+            if turn["phase"] != "error":
+                turn["phase"] = "done"
+            if turn["kind"] == "answer" and turn["answer"].strip():
+                self._write_chat_history(turn["answer"])
+        if self.active == turn_id:
+            self.active = None
+        if self._local_turn == turn_id:
+            self._local_turn = None
+        self._threads.pop(turn_id, None)
+        relay = self._relays.pop(turn_id, None)
+        if relay is not None:
+            relay.deleteLater()
+        self.schedule_push()
+
+    def on_chunks(self, turn_id, result):
+        turn = self._turn(turn_id)
+        if turn is not None and not turn["ended"]:
+            result = result or {}
+            if result.get("error"):
+                turn["error"] = result["error"]
+                turn["phase"] = "error"
+            else:
+                turn["chunks"] = result.get("chunks") or []
+        self.on_finished(turn_id)
+
+    def _on_local_response(self, text):
+        if self._local_turn is not None:
+            self.on_response(self._local_turn, text)
+
+    def _on_local_citations(self, html):
+        if self._local_turn is not None:
+            self.on_citations(self._local_turn, html)
+
+    def _on_local_error(self, message):
+        if self._local_turn is not None:
+            self.on_error(self._local_turn, message)
+        else:
+            self.notice = {"kind": "error", "message": str(message)}
+            self.schedule_push()
+
+    def _on_local_finished(self):
+        if self._local_turn is not None:
+            self.on_finished(self._local_turn)
+        else:
+            self.schedule_push()
+
+    def _on_local_tokens(self, html):
+        turn = self._turn(self._local_turn) if self._local_turn is not None else None
+        if turn is not None:
+            turn["tokens"] = query_data.parse_token_counts(html)
+            self.schedule_push()
+
+    def _write_chat_history(self, text):
+        try:
+            with open(chat_history_path(), "w", encoding="utf-8") as f:
+                f.write(normalize_chat_text(text.lstrip("\n")))
+            return True
+        except OSError:
+            logging.exception("Could not write chat_history.txt")
+            return False
+
+    def js_eject(self):
+        if self.active is not None and self._local_turn is not None:
+            return {"error": "Wait for the answer to finish before unloading the model."}
+        if self.ejecting or not self.local_model_chat.is_model_loaded():
+            return {"ok": True}
+        self.ejecting = True
+        worker = EjectWorker(self.local_model_chat)
+        worker.finished.connect(self._on_ejected)
+        self._keep(worker)
+        worker.start()
+        self.schedule_push()
+        return {"ok": True}
+
+    def _on_ejected(self):
+        self.ejecting = False
+        self.schedule_push()
+
+    def js_copy(self, turn_id):
+        turn = self._turn(turn_id)
+        if turn is None:
+            return {"error": "That answer is no longer listed."}
+        text = query_data.turn_text(turn)
+        if not text:
+            return {"error": "There is nothing to copy yet."}
+        QApplication.clipboard().setText(text)
+        return {"ok": True}
+
+    def js_clear(self):
+        if self.active is not None:
+            return {"error": "Wait for the current answer to finish."}
+        self.turns = []
+        self.schedule_push()
+        return {"ok": True}
+
+    def js_open_file(self, path):
+        if not path or not os.path.exists(path):
+            self.notice = {"kind": "warn", "message": f"{Path(path or '').name or 'The file'} is no longer at {path}. It was moved or deleted after the database was created."}
+            self.schedule_push()
+            return {"missing": True}
+        open_file(path)
+        return {"ok": True}
+
+    def js_reveal_file(self, path):
+        result = reveal_file(path)
+        if result.get("missing"):
+            where = " Its folder was opened instead." if result.get("opened_folder") else ""
+            self.notice = {"kind": "warn", "message": f"{Path(path or '').name or 'The file'} is no longer at {path}.{where}"}
+            self.schedule_push()
+        return result
+
+    def tts_preflight(self, tts_model):
+        from core.constants import BACKEND_DEPENDENCIES, TTS_BACKENDS
+        from core.utilities import check_backend_dependencies, download_kokoro_tts, download_with_threadpool, install_packages
+
+        if not runs_on_this_hardware(TTS_BACKENDS.get(tts_model, {"requires_cuda": True})):
+            return "The Text to Speech backend you selected requires GPU acceleration. Choose another one on the Settings tab."
+        if tts_model == "kokoro":
+            kokoro_dir = PROJECT_ROOT / "Models" / "tts" / "ctranslate2-4you--Kokoro-82M-light"
             if not kokoro_dir.is_dir():
                 reply = QMessageBox.question(
-                    self,
-                    "Kokoro TTS Model Not Found",
+                    self, "Kokoro TTS Model Not Found",
                     "The Kokoro TTS model is missing!\n\nWould you like to download it now?",
-                    QMessageBox.Yes | QMessageBox.No,
-                    QMessageBox.Yes
-                )
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
                 if reply == QMessageBox.Yes:
-                    from core.utilities import download_with_threadpool, download_kokoro_tts
-
                     def on_kokoro_download_complete(success, message):
-                        if success:
-                            QMessageBox.information(
-                                self, "Download Complete",
-                                "The Kokoro TTS model has been downloaded. Click the button again to hear the response."
-                            )
-                        else:
-                            QMessageBox.critical(
-                                self, "Download Error",
-                                "Failed to download the Kokoro TTS model. Check your internet connection and try again."
-                            )
+                        self.notice = ({"kind": "ok", "message": "The Kokoro TTS model was downloaded. Click Speak again to hear the answer."}
+                                       if success else
+                                       {"kind": "error", "message": "The Kokoro TTS model could not be downloaded. Check your internet connection and try again."})
+                        self.schedule_push()
 
                     download_with_threadpool(download_kokoro_tts, callback=on_kokoro_download_complete)
-                return
-
-        from core.utilities import check_backend_dependencies, install_packages
-        from core.constants import BACKEND_DEPENDENCIES
-        
+                    return "Downloading the Kokoro TTS model…"
+                return ""
         if not check_backend_dependencies(tts_model, interactive=False):
-            required_packages = BACKEND_DEPENDENCIES.get(tts_model, {})
-            if required_packages:
-                packages_str = ", ".join([f"{pkg}=={ver}" for pkg, ver in required_packages.items()])
-
+            required = BACKEND_DEPENDENCIES.get(tts_model, {})
+            if required:
+                packages = ", ".join(f"{pkg}=={ver}" for pkg, ver in required.items())
                 reply = QMessageBox.question(
-                    self, 
-                    "Missing Dependencies",
-                    f"{tts_model.title()} backend requires additional packages:\n\n{packages_str}\n\nInstall now?",
-                    QMessageBox.Yes | QMessageBox.No,
-                    QMessageBox.Yes
-                )
+                    self, "Missing Dependencies",
+                    f"{tts_model.title()} backend requires additional packages:\n\n{packages}\n\nInstall now?",
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+                if reply != QMessageBox.Yes:
+                    return ""
+                if not install_packages(list(required.items())):
+                    return "The packages could not be installed. Please install them manually."
+        return None
 
-                if reply == QMessageBox.Yes:
-                    missing_packages = [(pkg, ver) for pkg, ver in required_packages.items()]
-                    if install_packages(missing_packages):
-                        QMessageBox.information(self, "Success", "Dependencies installed successfully!")
-                    else:
-                        QMessageBox.warning(self, "Installation Failed", "Failed to install dependencies. Please install manually.")
-                        return
-                else:
-                    return
+    def js_speak(self, turn_id):
+        if self.speaking is not None:
+            return {"error": "An answer is already being read aloud."}
+        turn = self._turn(turn_id)
+        if turn is None or not (turn.get("answer") or "").strip():
+            return {"error": "There is no answer to read aloud."}
+        self._config = query_data.load_config()
+        tts_model = str((self._config.get("tts") or {}).get("model") or "").lower()
+        problem = self.tts_preflight(tts_model)
+        if problem is not None:
+            if problem:
+                self.notice = {"kind": "info" if problem.endswith("…") else "warn", "message": problem}
+                self.schedule_push()
+            return {"ok": False}
+        if not self._write_chat_history(turn["answer"]):
+            return {"error": "chat_history.txt could not be written."}
+        self.start_tts(turn_id)
+        return {"ok": True}
 
-        if not (script_dir / 'chat_history.txt').exists():
-            QMessageBox.warning(self, "Error", "No response to play.")
+    def make_tts_process(self):
+        return multiprocessing.Process(target=run_tts_in_process, args=(str(query_data.config_path()), str(chat_history_path())))
+
+    def start_tts(self, turn_id):
+        self._tts_stopped = False
+        self._tts_process = self.make_tts_process()
+        self._tts_process.start()
+        self.speaking = turn_id
+        self._tts_timer = QTimer(self)
+        self._tts_timer.setInterval(400)
+        self._tts_timer.timeout.connect(self._check_tts)
+        self._tts_timer.start()
+        self.schedule_push()
+
+    def _check_tts(self):
+        process = self._tts_process
+        if process is not None and process.is_alive():
             return
+        self._tts_timer.stop()
+        self._tts_timer.deleteLater()
+        self._tts_timer = None
+        self._tts_process = None
+        self.speaking = None
+        if process is not None and process.exitcode and not self._tts_stopped:
+            self.notice = {"kind": "error", "message": f"Text to speech stopped with an error (exit code {process.exitcode}). "
+                                                        "See the command prompt window for details."}
+        self.schedule_push()
 
-        self.run_tts_module()
+    def js_stop_speaking(self):
+        process = self._tts_process
+        if process is not None and process.is_alive():
+            self._tts_stopped = True
+            kill_process_tree(process.pid)
+        return {"ok": True}
 
-    def run_tts_module(self):
-        process = multiprocessing.Process(target=run_tts_in_process, args=(str(self.config_path), input_text_file))
-        process.start()
-        timer = QTimer(self)
-        timer.timeout.connect(lambda: self._check_tts_process(process, timer))
-        timer.start(500)
+    def voice_recorder(self):
+        if self._voice_recorder is None:
+            from modules.voice_recorder import VoiceRecorder
 
-    def _check_tts_process(self, process, timer):
-        if process.is_alive():
-            return
-        timer.stop()
-        timer.deleteLater()
-        exit_code = process.exitcode
-        if exit_code:
-            QMessageBox.warning(
-                self,
-                "Text to Speech Failed",
-                f"Text to speech stopped with an error (exit code {exit_code}).\n\n"
-                "See the command prompt window for details."
-            )
+            self._voice_recorder = VoiceRecorder(self)
+        return self._voice_recorder
 
-    def toggle_recording(self):
-        if self.is_recording:
-            self.voice_recorder.stop_recording()
-            self.record_button.setText("Voice Recorder")
+    def js_record(self):
+        if self.voice != "idle":
+            return {"error": "The microphone is busy."}
+        self.voice_recorder().start_recording()
+        self.voice = "recording"
+        self.voice_started = time.time()
+        self.schedule_push()
+        return {"ok": True}
+
+    def js_stop_recording(self):
+        if self.voice != "recording":
+            return {"ok": True}
+        recorder = self.voice_recorder()
+        recorder.stop_recording()
+        if any(t.isRunning() for t in recorder.transcription_threads):
+            self.voice = "transcribing"
         else:
-            self.voice_recorder.start_recording()
-            self.record_button.setText("Stop Recording")
-        self.is_recording = not self.is_recording
+            self.voice = "idle"
+            if self.notice is None or self.notice.get("source") != "voice":
+                self.notice = {"kind": "warn", "message": "The recording was too short or silent, so nothing was transcribed.", "source": "voice"}
+        self.voice_started = None
+        self.schedule_push()
+        return {"ok": True}
 
-    def update_response_lm_studio(self, response_chunk):
-        self.raw_response += response_chunk
-        self._render_html()
-        self.response_widget.verticalScrollBar().setValue(
-            self.response_widget.verticalScrollBar().maximum()
-        )
+    @Slot(str)
+    def update_transcription(self, text):
+        text = (text or "").strip()
+        failed = text.startswith("Error:") or text.startswith("[Transcription failed")
+        if failed:
+            self.notice = {"kind": "error", "message": text.removeprefix("Error:").strip("[] ").strip(), "source": "voice"}
+        elif text:
+            self.transcript = {"id": (self.transcript or {}).get("id", 0) + 1, "text": text}
+        if failed or self.voice == "transcribing":
+            self.voice = "idle"
+            self.voice_started = None
+        self.schedule_push()
 
-    def update_response_local_model(self, chunk: str):
-        self.raw_response += chunk
-        self._render_html()
+    def js_dismiss_notice(self):
+        self.notice = None
+        self.schedule_push()
+        return {"ok": True}
 
-    def show_error_message(self, error_message):
-        if "exceed the chat model's context limit" in error_message:
-            msg_box = QMessageBox()
-            msg_box.setIcon(QMessageBox.Warning)
-            msg_box.setText(error_message)
-            msg_box.setWindowTitle("Context Limit Exceeded")
-            msg_box.setStandardButtons(QMessageBox.Ok)
-            msg_box.exec()
-        else:
-            QMessageBox.warning(self, "Error", error_message)
-        self.submit_button.setDisabled(False)
+    def js_backend_settings(self):
+        if self.backend in query_data.MINIMAX_BACKENDS:
+            return self.open_credentials("minimax")
+        from gui.dialogs.ai_backends_dialog import AIBackendsDialog
 
-    def on_submission_finished(self):
-        self.submit_button.setDisabled(False)
+        AIBackendsDialog(self.window(), initial_tab=query_data.SETTINGS_DIALOG_TAB.get(self.backend, 0)).exec()
+        self.refresh()
+        return {"ok": True}
 
-        answer_only = self.raw_response.lstrip("\n")
+    def open_credentials(self, kind):
+        from gui.credentials import manage_credentials
 
-        try:
-            with open(input_text_file, "w", encoding="utf-8") as f:
-                f.write(normalize_chat_text(answer_only))
-        except OSError as e:
-            logging.exception(f"Could not write chat_history.txt: {e}")
+        manage_credentials(self.window(), kind)
+        self.refresh()
+        return {"ok": True}
 
-    def update_transcription(self, transcription_text):
-        self.text_input.setPlainText(transcription_text)
+    def js_fix_readiness(self):
+        problem = self._readiness()
+        action = problem.get("action") if problem else None
+        if action == "settings":
+            return self.js_backend_settings()
+        if action == "minimax_key":
+            return self.open_credentials("minimax")
+        if action == "hf_token":
+            return self.open_credentials("hf")
+        return {"ok": True}
+
+    def js_open_tab(self, name):
+        widget = self.parentWidget()
+        while widget is not None and not isinstance(widget, QTabWidget):
+            widget = widget.parentWidget()
+        if widget is None:
+            return {"error": "Tab not found."}
+        for index in range(widget.count()):
+            if widget.tabText(index) == name:
+                widget.setCurrentIndex(index)
+                return {"ok": True}
+        return {"error": "Tab not found."}
+
+    def busy_message(self):
+        return None
 
     def cleanup(self):
+        self._poll.stop()
+        if self.voice == "recording" and self._voice_recorder is not None:
+            self._voice_recorder.stop_recording()
+        self.js_stop_speaking()
+        for thread in list(self._threads.values()):
+            if isinstance(thread, ChunksWorker):
+                thread.stop()
+            elif isinstance(thread, KoboldThread):
+                thread.stop()
         if self.local_model_chat.is_model_loaded():
             self.local_model_chat.eject_model()
-        if self.database_query_thread and self.database_query_thread.isRunning():
-            self.database_query_thread.stop()
-            self.database_query_thread.wait()
-        if self.chatgpt_thread and self.chatgpt_thread.isRunning():
-            self.chatgpt_thread.wait(5000)
-        if self.minimax_thread and self.minimax_thread.isRunning():
-            self.minimax_thread.wait(5000)
-        if self.kobold_thread and self.kobold_thread.isRunning():
-            self.kobold_thread.stop()
-            self.kobold_thread.wait(5000)
-        if self.lm_studio_chat_thread and self.lm_studio_chat_thread.isRunning():
-            self.lm_studio_chat_thread.wait(5000)
-        print("Cleanup completed")
+        for worker in list(self._workers):
+            worker.wait(5000)
