@@ -160,7 +160,8 @@ def main():
         for j in range(end - start):
             md = batch_metas[j]
             file_hash = md.get("hash", "") if isinstance(md, dict) else ""
-            hash_id_mappings.append((batch_id_strs[j], file_hash))
+            doc_id = md.get("doc_id") if isinstance(md, dict) else None
+            hash_id_mappings.append((batch_id_strs[j], file_hash, doc_id))
 
         batch_meta_strs = []
         prev_meta = None

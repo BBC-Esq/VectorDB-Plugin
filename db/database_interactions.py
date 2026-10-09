@@ -432,7 +432,7 @@ class CreateVectorDB:
             batch_id_strs = batch_ids.astype(str).tolist()
             for i in range(start, end):
                 file_hash = metadatas[i].get('hash', '')
-                hash_id_mappings.append((batch_id_strs[i - start], file_hash))
+                hash_id_mappings.append((batch_id_strs[i - start], file_hash, metadatas[i].get('doc_id')))
 
             batch_vectors = vectors_array[start:end]
             batch_texts = np.array(texts[start:end], dtype=object)
@@ -596,6 +596,10 @@ class CreateVectorDB:
             if not doc_data:
                 my_cprint("No documents, audio transcripts, or images found to process.", "red")
                 raise RuntimeError("No content found to ingest into the database.")
+
+            for doc_id, doc in enumerate(json_docs_to_save, start=1):
+                doc.metadata = {**(doc.metadata or {}), "doc_id": doc_id}
+            doc_data = [(doc.page_content, doc.metadata) for doc in json_docs_to_save]
 
             # Re-write extracted.pkl with audio+image docs included
             with open(extracted_pkl, "wb") as f:

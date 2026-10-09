@@ -133,6 +133,9 @@ def build_database(chunk_paths: list[Path], persist_dir: Path) -> int:
         texts = [texts[i] for i in surviving]
         metadatas = [metadatas[i] for i in surviving]
 
+    for doc_id, metadata in enumerate(metadatas, start=1):
+        metadata["doc_id"] = doc_id
+
     vectors_array = np.ascontiguousarray(vectors, dtype=np.float32)
 
     persist_dir.mkdir(parents=True, exist_ok=True)
