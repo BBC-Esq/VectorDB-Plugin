@@ -1,8 +1,9 @@
 Compute_Device:
   available:
+  - cpu
   database_creation: cpu
   database_query: cpu
-  gpu_brand: NVIDIA
+  gpu_brand:
 EMBEDDING_MODEL_DIMENSIONS: null
 EMBEDDING_MODEL_NAME: ''
 Platform_Info:
@@ -10,8 +11,6 @@ Platform_Info:
 Supported_CTranslate2_Quantizations:
   CPU:
   GPU:
-WhisperSpeech:
-  model: null
 bark:
   enable_cpu_offload: false
   model_precision: float16
@@ -28,36 +27,26 @@ database:
   document_types: ''
   half: false
   search_term: ''
-  similarity: 0.8
+  similarity: 0.5
 hf_access_token:
+kokoro:
+  speed: 1.3
+  voice: bm_george
 minimax:
   api_key:
   model: MiniMax-M2.7
 openai:
   api_key:
-  model: gpt-4o-mini
+  model: gpt-5.4-mini
   reasoning_effort: medium
+  verbosity: low
 server:
   api_key: ''
   connection_str: http://localhost:1234/v1
   show_thinking: false
-transcribe_file:
-  device: cpu
-  file: null
-  model: whisper-small-en
-  quant: float32
-  timestamps: true
-transcriber:
-  device: cpu
-  model: whisper-small.en
-  quant: float32
 tts:
-  model: googletts
+  model: kokoro
   s2a:
   t2s:
 vision:
-  chosen_model: Florence-2-base
-  chosen_quant: float16
-  chosen_size: 2b
-  flash_attention2: null
-  test_image: null
+  chosen_model: Liquid-VL - 480M
