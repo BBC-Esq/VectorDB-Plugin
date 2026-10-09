@@ -6,6 +6,7 @@
   const ROW = 30;
   const OVERSCAN = 8;
   const HUES = { pdf: 4, word: 214, text: 190, web: 268, email: 36, sheet: 140, image: 320, audio: 168, other: 220 };
+  const TRASH = '<svg viewBox="0 0 16 16"><path d="M2.8 4.2h10.4M6.3 4.2V2.8h3.4v1.4M4.2 4.2l.7 8.9c.05.6.55 1.1 1.15 1.1h3.9c.6 0 1.1-.5 1.15-1.1l.7-8.9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.7 6.8v4.6M9.3 6.8v4.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
 
   let database = null;
   let version = -1;
@@ -27,6 +28,7 @@
   let lastOpen = { index: null, at: 0 };
   let message = null;
   let missingFor = -1;
+  let pendingRemove = -1;
 
   const list = () => $("#files-list");
 
@@ -65,6 +67,7 @@
       + (gone ? '<span class="file-gone">Not found</span>' : "")
       + `<span class="file-chunks">${chunks}</span>`
       + `<button type="button" class="file-action" data-reveal="${position}" data-tip-text="Show in folder" tabindex="-1">${ICONS.folder}</button>`
+      + `<button type="button" class="file-action danger" data-remove="${position}" data-tip-text="Remove from database" aria-label="Remove ${esc(r[0])} from database" tabindex="-1">${TRASH}</button>`
       + "</div>";
   }
 
@@ -179,6 +182,7 @@
     query = "";
     active = -1;
     message = null;
+    pendingRemove = -1;
     missingFor = -1;
     headSignature = "";
     footSignature = "";
@@ -280,6 +284,42 @@
     });
   }
 
+  function askRemove(position) {
+    const index = shown[position];
+    const row = index == null ? null : rows[index];
+    if (!row) return;
+    pendingRemove = index;
+    setActive(position);
+    const copies = Number(row[5] || 1);
+    const duplicateNote = copies > 1
+      ? ` This content appears in ${esc(fmt.int(copies))} file entries; all of those entries share the same indexed chunks and will be removed together.`
+      : "";
+    message = {
+      kind: "warn",
+      html: `<b>Remove ${esc(row[0])} from this database?</b> Its ${esc(fmt.int(row[2]))} indexed chunk${row[2] === 1 ? "" : "s"} will no longer appear in searches.${duplicateNote} The original source file${copies > 1 ? "s" : ""} will not be deleted.`
+        + '<div class="file-confirm-actions"><button type="button" class="btn danger small" data-confirm-remove>Remove document</button>'
+        + '<button type="button" class="btn ghost small" data-cancel-remove>Cancel</button></div>',
+    };
+    footSignature = "";
+    renderFoot();
+  }
+
+  function confirmRemove() {
+    const index = pendingRemove;
+    pendingRemove = -1;
+    if (index < 0) return;
+    message = { kind: "warn", html: "Removing the document and updating the vector index…" };
+    footSignature = "";
+    renderFoot();
+    VDB.call("remove_file", { version, index }).then((result) => {
+      if (result.error) {
+        message = { kind: "error", html: esc(result.error) };
+        footSignature = "";
+        renderFoot();
+      }
+    });
+  }
+
   function bind() {
     const el = list();
     el.addEventListener("scroll", schedulePaint);
@@ -299,7 +339,12 @@
     });
     el.addEventListener("click", (e) => {
       const reveal = e.target.closest("[data-reveal]");
-      if (reveal) revealPosition(Number(reveal.dataset.reveal));
+      if (reveal) {
+        revealPosition(Number(reveal.dataset.reveal));
+        return;
+      }
+      const remove = e.target.closest("[data-remove]");
+      if (remove) askRemove(Number(remove.dataset.remove));
     });
     el.addEventListener("keydown", (e) => {
       if (!shown.length) return;
@@ -314,6 +359,9 @@
       } else if (e.key === "Enter" && active >= 0) {
         e.preventDefault();
         openPosition(active);
+      } else if (e.key === "Delete" && active >= 0) {
+        e.preventDefault();
+        askRemove(active);
       }
     });
     $("#files-section").addEventListener("input", (e) => {
@@ -325,6 +373,17 @@
       refreshAll();
     });
     $("#files-section").addEventListener("click", (e) => {
+      if (e.target.closest("[data-confirm-remove]")) {
+        confirmRemove();
+        return;
+      }
+      if (e.target.closest("[data-cancel-remove]")) {
+        pendingRemove = -1;
+        message = null;
+        footSignature = "";
+        renderFoot();
+        return;
+      }
       const chip = e.target.closest("[data-filter]");
       if (chip && !chip.disabled) {
         filter = chip.dataset.filter;
@@ -343,6 +402,7 @@
       }
       const act = e.target.closest('[data-act="dismiss_message"]');
       if (act) {
+        pendingRemove = -1;
         message = null;
         refreshAll();
       }

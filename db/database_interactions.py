@@ -850,10 +850,12 @@ class QueryVectorDB:
 
         self.distance_metric = "cosine"
         self.index_type = "FLAT"
+        self._index_metadata_mtime_ns = None
 
         try:
             metadata_file = db_path / "index_metadata.json"
             if metadata_file.exists():
+                self._index_metadata_mtime_ns = metadata_file.stat().st_mtime_ns
                 with open(metadata_file, 'r') as f:
                     metadata = json.load(f)
                     self.distance_metric = metadata.get('distance_metric', 'cosine')
@@ -888,6 +890,20 @@ class QueryVectorDB:
         import tiledb.vector_search as vs
 
         cuda_mgr = get_cuda_manager()
+
+        # Existing QueryVectorDB objects are cached per worker thread. Re-open
+        # the TileDB index after an incremental mutation so its updates array
+        # and has_updates flag cannot remain stale in a long-running session.
+        metadata_file = self.db_path / "index_metadata.json"
+        try:
+            current_mtime_ns = metadata_file.stat().st_mtime_ns
+        except OSError:
+            current_mtime_ns = None
+        if current_mtime_ns != self._index_metadata_mtime_ns:
+            if self.index is not None:
+                del self.index
+                self.index = None
+            self._index_metadata_mtime_ns = current_mtime_ns
 
         if not self.embeddings:
             logger.info(f"Initializing embedding model for database {self.selected_database}")
