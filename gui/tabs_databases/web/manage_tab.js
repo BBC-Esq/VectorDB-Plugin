@@ -13,7 +13,7 @@
     { key: "size", label: "Size", num: true },
     { key: "created", label: "Created", cls: "col-created" },
   ];
-  const TASK_LABELS = { delete: "Deleting", backup: "Backing up", restore: "Restoring", rebuild: "Rebuilding index" };
+  const TASK_LABELS = { delete: "Deleting", backup: "Backing up", restore: "Restoring", rebuild: "Rebuilding index", remove_document: "Removing a document from" };
   const STALE_TIP = "The backup copy was made before this database last changed.";
   const CHANGES_TIP = "Documents changed since the index was built. Their leftover data stays in the database files until you rebuild the index.";
   const FILTER_AT = 9;
