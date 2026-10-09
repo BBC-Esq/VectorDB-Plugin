@@ -8,6 +8,7 @@ pyvenv.cfg
 __pycache__/
 *.pyc
 *.pyo
+.pytest_cache/
 
 # Models (large binary files)
 Models/
@@ -38,11 +39,9 @@ chat_history.txt
 *.log
 bug_hunt.md
 Assets/User_Guide_Chunks/
+tests/_scrape_audit.*
 
 .claude/
 .lock
-
-# Tests (local only)
-tests/
 
 temp_ocr/
