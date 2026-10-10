@@ -13,7 +13,7 @@
     { key: "size", label: "Size", num: true },
     { key: "created", label: "Created", cls: "col-created" },
   ];
-  const TASK_LABELS = { delete: "Deleting", backup: "Backing up", restore: "Restoring" };
+  const TASK_LABELS = { delete: "Deleting", backup: "Backing up", restore: "Restoring", remove_document: "Removing a document from" };
   const FILTER_AT = 9;
 
   let state = null;

@@ -213,7 +213,7 @@ def file_rows(name, should_stop=None):
     for file_name, file_path, digest in docs:
         path = str(file_path or "")
         label = str(file_name or "") or (Path(path).name if path else "Unnamed file")
-        rows.append((label, path, round(counts.get(digest, 0) / max(1, sharing.get(digest, 1)))))
+        rows.append((label, path, round(counts.get(digest, 0) / max(1, sharing.get(digest, 1))), digest))
     rows.sort(key=lambda r: (r[0].lower(), r[1].lower()))
     return rows
 
@@ -221,21 +221,26 @@ def file_rows(name, should_stop=None):
 def compact_rows(rows):
     dirs = {}
     out = []
-    for name, path, chunks in rows:
+    sharing = {}
+    for _name, _path, _chunks, digest in rows:
+        sharing[digest] = sharing.get(digest, 0) + 1
+    for name, path, chunks, digest in rows:
         parent, base = os.path.split(path)
         row = [name, kind_of(path or name), chunks]
         if path and base == name:
             row.append(dirs.setdefault(parent, len(dirs)))
+            row.append("")
         else:
             row.append(-1)
             row.append(path)
+        row.append(sharing[digest])
         out.append(row)
     return {"dirs": list(dirs), "rows": out}
 
 
 def missing_rows(rows, should_stop):
     missing = []
-    for index, (_, path, _) in enumerate(rows):
+    for index, (_, path, _, _digest) in enumerate(rows):
         if should_stop():
             return None
         if not path or not os.path.exists(path):
