@@ -4,6 +4,14 @@
 
 ### Create and search a vector database from a wide variety of file types and get more reliable [responses from an LLM](https://www.youtube.com/watch?v=8-ZAYI4MvtA).  This is commonly referred to as ["retrieval augmented generation."](https://medium.com/@vici0549/search-images-with-vector-database-retrieval-augmented-generation-rag-3d5a48881de5)
 
+<details>
+<summary>Images of the program</summary>
+<br>
+
+<img src="image01.png" alt="Models tab" width="24%"> <img src="image02.png" alt="Settings tab" width="24%"> <img src="image03.png" alt="Tools tab" width="24%"> <img src="image04.png" alt="Query Database tab" width="24%">
+
+</details>
+
 </div>
 
 
