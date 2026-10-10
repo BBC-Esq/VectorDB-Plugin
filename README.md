@@ -8,7 +8,7 @@
 <summary>Images of the program</summary>
 <br>
 
-<img src="image01.png" alt="Models tab" width="24%"> <img src="image02.png" alt="Settings tab" width="24%"> <img src="image03.png" alt="Tools tab" width="24%"> <img src="image04.png" alt="Query Database tab" width="24%">
+<img src="image01.png" alt="Models tab" width="23%"> <img src="image02.png" alt="Settings tab" width="23%"> <img src="image03.png" alt="Tools tab" width="23%"> <img src="image04.png" alt="Query Database tab" width="23%">
 
 </details>
 
