@@ -71,6 +71,13 @@ def database_fingerprint(database_name):
     return (database_name, str(model), str(device), bool(half), tuple(stamps))
 
 
+def is_running(process):
+    try:
+        return process is not None and process.is_alive()
+    except ValueError:
+        return False
+
+
 class SearchService:
     def __init__(self, process_factory=spawn_search_process, fingerprint=database_fingerprint, timeout=SEARCH_TIMEOUT):
         self._process_factory = process_factory
@@ -85,18 +92,17 @@ class SearchService:
 
     @property
     def database(self):
-        process = self._process
-        return self._database if process is not None and process.is_alive() else None
+        return self._database if is_running(self._process) else None
 
     @property
     def pid(self):
         process = self._process
-        return process.pid if process is not None and process.is_alive() else None
+        return process.pid if is_running(process) else None
 
     def search(self, database_name, question):
         key = self._fingerprint(database_name)
         with self._lock:
-            if key != self._key or self._process is None or not self._process.is_alive():
+            if key != self._key or not is_running(self._process):
                 self._shutdown(graceful=True)
                 self._process, self._conn = self._process_factory(database_name)
                 self._key = key
@@ -124,7 +130,7 @@ class SearchService:
             if self._stop.is_set():
                 self._shutdown(graceful=False)
                 raise RuntimeError("The search was stopped.")
-            if not process.is_alive():
+            if not is_running(process):
                 self._shutdown(graceful=False)
                 raise RuntimeError(STOPPED_UNEXPECTEDLY)
             if time.monotonic() >= deadline:
@@ -153,14 +159,17 @@ class SearchService:
             except (BrokenPipeError, OSError):
                 pass
         if process is not None:
-            if graceful:
-                process.join(timeout=5)
-            if process.is_alive():
-                process.terminate()
-                process.join(timeout=5)
-            if process.is_alive():
-                process.kill()
-                process.join(timeout=2)
+            try:
+                if graceful:
+                    process.join(timeout=5)
+                if process.is_alive():
+                    process.terminate()
+                    process.join(timeout=5)
+                if process.is_alive():
+                    process.kill()
+                    process.join(timeout=2)
+            except ValueError:
+                pass
             get_process_manager().unregister(process)
         if conn is not None:
             try:

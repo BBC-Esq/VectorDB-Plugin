@@ -26,27 +26,45 @@ class ThreadProcess:
     def __init__(self, target, args):
         self._thread = threading.Thread(target=target, args=args, daemon=True)
         self._killed = False
+        self._closed = False
         self.pid = id(self)
+
+    def _check(self):
+        if self._closed:
+            raise ValueError("process object is closed")
 
     def start(self):
         self._thread.start()
 
     def is_alive(self):
+        self._check()
         return self._thread.is_alive() and not self._killed
 
     def join(self, timeout=None):
+        self._check()
         self._thread.join(timeout)
 
     def terminate(self):
+        self._check()
         self._killed = True
 
     kill = terminate
+
+    def close(self):
+        self._closed = True
+
+
+def running(process):
+    try:
+        return process.is_alive()
+    except ValueError:
+        return False
 
 
 def thread_factory(target, processes, events=None):
     def start(name):
         if events is not None:
-            events.append(("start", name, all(not p.is_alive() for p in processes)))
+            events.append(("start", name, not any(running(p) for p in processes)))
         parent, child = Pipe()
         process = ThreadProcess(target, (child, name))
         process.start()
@@ -112,6 +130,17 @@ def test_a_process_that_died_is_replaced(service):
     svc, events, processes, _ = service
     svc.search("one", "q")
     processes[0].terminate()
+    assert svc.search("one", "q")[0] == ["one: q"]
+    assert len(processes) == 2
+
+
+def test_a_process_closed_elsewhere_counts_as_gone(service):
+    svc, events, processes, _ = service
+    svc.search("one", "q")
+    processes[0].terminate()
+    processes[0].close()
+    assert svc.database is None and svc.pid is None
+    assert svc.release() is True
     assert svc.search("one", "q")[0] == ["one: q"]
     assert len(processes) == 2
 

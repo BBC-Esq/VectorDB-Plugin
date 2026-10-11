@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import warnings
@@ -187,7 +188,10 @@ class DocQA_GUI(QWidget):
         for i in range(self.tab_widget.count()):
             tab = self.tab_widget.widget(i)
             if hasattr(tab, 'cleanup') and callable(tab.cleanup):
-                tab.cleanup()
+                try:
+                    tab.cleanup()
+                except Exception:
+                    logging.exception("Cleaning up the %s tab failed", self.tab_widget.tabText(i))
 
         docs_dir = PROJECT_ROOT / 'Docs_for_DB'
         for item in docs_dir.glob('*'):
