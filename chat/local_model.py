@@ -166,7 +166,7 @@ class LocalModelChat:
     @staticmethod
     def _local_model_process(conn, model_name):
         import chat.base as module_chat
-        from db.database_interactions import get_query_db
+        from db.database_interactions import clear_query_cache, get_query_db
         from core.utilities import format_citations, my_cprint
 
         try:
@@ -180,7 +180,6 @@ class LocalModelChat:
                 pass
             conn.close()
             return
-        query_vector_db = None
         current_database = None
         try:
             while True:
@@ -188,9 +187,10 @@ class LocalModelChat:
                     message = conn.recv()
                     if message.type == MessageType.QUESTION:
                         user_question, _, selected_database = message.payload
-                        if query_vector_db is None or current_database != selected_database:
-                            query_vector_db = get_query_db(selected_database)
+                        if selected_database != current_database:
+                            clear_query_cache()
                             current_database = selected_database
+                        query_vector_db = get_query_db(selected_database)
                         contexts, metadata_list = query_vector_db.search(user_question)
                         if not contexts:
                             conn.send(PipeMessage(

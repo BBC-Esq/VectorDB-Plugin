@@ -34,6 +34,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_extract_metadata.py` | Content and file hashing, metadata extraction and PDF page numbers |
 | `test_gui_validation.py` | Database name rules, port extraction, the file type filter mapping and name preconditions (no GUI imports) |
 | `test_jeeves_helpers.py` | Ask Jeeves: the poems file, source rows from the user guide and text prepared for speech |
+| `test_local_model.py` | Local chat model process: follow-up questions reuse the loaded database, and switching databases releases the previous one |
 | `test_manage_data.py` | Manage Databases tab: the database list, database details, file rows, read-only connections and safely deleting a database |
 | `test_minimax.py` | MiniMax constants, model list and temperature clamping |
 | `test_models_catalog.py` | Models tab: CPU-only filtering, download status, benchmark summaries, precision compared with the embedding code, and theme colors |
