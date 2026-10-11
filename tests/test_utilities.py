@@ -317,7 +317,8 @@ class TestTtsRunSettings:
     def test_saved_choices_are_used_when_valid(self, gpu):
         assert self.run("kokoro", device="cuda", precision="float32") == ("cuda", "float32")
         assert self.run("kyutaipocket", device="cpu", precision="half") == ("cpu", "float32")
-        assert self.run("kyutai", precision="float32") == ("cuda", "float32")
+        assert self.run("kyutai", precision="float32") == ("cuda", "bfloat16")
+        assert self.run("kyutaipocket", precision="float32") == ("cuda", "bfloat16")
         assert self.run("bark", precision="float32") == ("cuda", "float16")
         assert self.run("kokoro", device="tpu", precision="int8") == ("cpu", "float32")
         assert utilities.tts_run_settings("kokoro", {"device": "cpu", "precision": "float32"})["precision"] == "float32"

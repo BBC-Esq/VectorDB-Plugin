@@ -226,8 +226,11 @@ def _kyutai_model(kyutai_cfg):
 
 def _run_choices(backend, section):
     run = tts_run_settings(backend, section)
-    choices = {"precision": run["precision"]}
-    if len((TTS_BACKENDS.get(backend) or {}).get("devices", [])) > 1:
+    info = TTS_BACKENDS.get(backend) or {}
+    choices = {}
+    if len(info.get("precisions", [])) > 1:
+        choices["precision"] = run["precision"]
+    if len(info.get("devices", [])) > 1:
         choices["device"] = run["device"]
     return choices
 
@@ -313,6 +316,8 @@ def apply_tts(cfg, backend, values):
         for name in ("device", "precision"):
             if values.get(name):
                 section[name] = values[name]
+            else:
+                section.pop(name, None)
 
 
 def normalize_config():
