@@ -49,6 +49,10 @@ main { display: flex; flex-direction: column; gap: 12px; }
 }
 
 .seg[data-tip-text] button:disabled { pointer-events: none; }
+.field[data-tip] .switch:disabled { pointer-events: none; }
+
+.input.warn, .input.warn:focus-within { border-color: var(--gold); }
+.tooltip .tt-warn { color: var(--gold); }
 
 .field.span-2 { grid-column: span 2; }
 .field.span-3 { grid-column: span 3; }

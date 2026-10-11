@@ -5,6 +5,7 @@
 
   const SAVED_MS = 1800;
   const TWO_COLUMN_TTS = new Set(["bark", "whisperspeech", "kokoro", "kyutaipocket"]);
+  const HINTED_FIELDS = new Set(["create.chunk_size", "create.chunk_overlap", "create.half"]);
 
   let state = null;
   const errors = {};
@@ -74,10 +75,12 @@
     return {};
   }
 
+  function warns(field) {
+    return !errors[field.key] && Boolean(hintFor(field).warn);
+  }
+
   function messageHTML(field) {
-    if (errors[field.key]) return `<div class="field-error">${esc(errors[field.key])}</div>`;
-    const hint = hintFor(field);
-    return `<div class="field-hint${hint.warn ? " warn" : ""}">${hint.text ? esc(hint.text) : ""}</div>`;
+    return errors[field.key] ? `<div class="field-error">${esc(errors[field.key])}</div>` : '<div class="field-hint"></div>';
   }
 
   function labelHTML(key, label) {
@@ -98,7 +101,7 @@
     const saved = state.values[field.key];
     const text = field.key in drafts ? drafts[field.key] : (saved == null ? "" : String(saved));
     const unit = field.unit ? `<span class="unit">${esc(field.unit)}</span>` : "";
-    return `<label class="input${errors[field.key] ? " invalid" : ""}"><input type="text" inputmode="decimal" data-key="${esc(field.key)}" data-kind="number" value="${esc(text)}" placeholder="${esc(field.placeholder || "")}" autocomplete="off" spellcheck="false">${unit}</label>`;
+    return `<label class="input${errors[field.key] ? " invalid" : ""}${warns(field) ? " warn" : ""}"><input type="text" inputmode="decimal" data-key="${esc(field.key)}" data-kind="number" value="${esc(text)}" placeholder="${esc(field.placeholder || "")}" autocomplete="off" spellcheck="false">${unit}</label>`;
   }
 
   function textHTML(field) {
@@ -117,7 +120,8 @@
     else if (field.type === "number") control = numberHTML(field);
     else if (field.type === "text") control = textHTML(field);
     else if (field.type === "toggle") control = switchHTML(field.key, state.values[field.key], field.disabled ? "Not available" : field.text || "", field.disabled);
-    return `<div class="field${span}" data-field="${esc(field.key)}">${labelHTML(field.key, field.label)}${control}${messageHTML(field)}</div>`;
+    const tip = HINTED_FIELDS.has(field.key) ? ' data-tip="hint"' : "";
+    return `<div class="field${span}" data-field="${esc(field.key)}"${tip}>${labelHTML(field.key, field.label)}${control}${messageHTML(field)}</div>`;
   }
 
   function speedText(speed) {
@@ -280,9 +284,19 @@
     const element = document.querySelector(`[data-field="${CSS.escape(key)}"]`);
     if (!element) return;
     const input = element.querySelector(".input");
-    if (input) input.classList.toggle("invalid", Boolean(errors[key]));
+    if (input) {
+      input.classList.toggle("invalid", Boolean(errors[key]));
+      input.classList.toggle("warn", warns(fieldDef(key)));
+    }
     const message = element.querySelector(".field-hint, .field-error");
     if (message) message.outerHTML = messageHTML(fieldDef(key));
+  }
+
+  function refreshTip() {
+    const tooltip = VDB.tooltip;
+    if (!tooltip.target || !tooltip.element.classList.contains("show")) return;
+    if (tooltip.contentFor(tooltip.target)) tooltip.show(tooltip.target);
+    else tooltip.hide();
   }
 
   function commit(key, value, fieldKey = key) {
@@ -353,6 +367,7 @@
     }
     updateMessage(key);
     if (key === "create.chunk_size") updateMessage("create.chunk_overlap");
+    refreshTip();
   }
 
   function step(input, direction) {
@@ -406,6 +421,11 @@
   }
 
   function tipContent(element) {
+    if (element.dataset.tip === "hint") {
+      const hint = hintFor(fieldDef(element.dataset.field));
+      if (!hint.text) return "";
+      return hint.warn ? `<span class="tt-warn">${esc(hint.text)}</span>` : esc(hint.text);
+    }
     if (element.dataset.tip === "hardware") {
       return state.cuda
         ? `<div class="tt-title">${esc(state.gpu || "NVIDIA GPU")}</div>Half precision and the GPU text to speech backends and vision models are available.`
