@@ -45,11 +45,9 @@ class BaseAudio:
                 print(f"Warning: Section '{section}' not found in config file.")
                 self.config = {}
 
-    def initialize_device(self, allow_cpu=False):
+    def initialize_device(self):
         if torch.cuda.is_available():
             self.device = 'cuda'
-        elif allow_cpu:
-            self.device = 'cpu'
         else:
             raise RuntimeError("CUDA is not available, but it's required for this program.")
 
@@ -365,7 +363,7 @@ class ChatTTSAudio(BaseAudio):
 
         print("Initializing ChatTTSAudio...")
 
-        self.initialize_device(allow_cpu=True)
+        self.initialize_device()
         self.chat = ChatTTS.Chat()
 
         chattts_dir = CACHE_DIR / "2Noise--ChatTTS"

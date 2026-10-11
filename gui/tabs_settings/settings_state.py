@@ -103,8 +103,8 @@ TTS_SPECS = {
 TTS_NOTES = {
     "bark": "GPU",
     "whisperspeech": "GPU",
-    "chattts": "CPU/GPU",
-    "chatterbox": "CPU/GPU",
+    "chattts": "GPU",
+    "chatterbox": "GPU",
     "googletts": "CPU, online",
     "kokoro": "CPU",
     "kyutaipocket": "CPU",

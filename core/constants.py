@@ -861,7 +861,7 @@ TTS_BACKENDS = {
     "googletts": {"requires_cuda": False},
     "kokoro": {"requires_cuda": False},
     "kyutaipocket": {"requires_cuda": False},
-    "chattts": {"requires_cuda": False},
+    "chattts": {"requires_cuda": True},
     "chatterbox": {"requires_cuda": True},
     "bark": {"requires_cuda": True},
     "whisperspeech": {"requires_cuda": True},

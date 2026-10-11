@@ -138,6 +138,16 @@ def test_gpu_only_choices_are_refused_on_a_cpu(sandbox, cpu):
     assert ss.build_state()["sections"][1]["fields"][3]["disabled"] is True
 
 
+def test_only_google_kokoro_and_pocket_run_without_a_gpu(sandbox, cpu):
+    assert ss.available_backends() == ["googletts", "kokoro", "kyutaipocket"]
+    assert not ss.apply_change("tts.backend", "chattts")["ok"]
+    cfg = config(sandbox)
+    cfg.setdefault("tts", {})["model"] = "chattts"
+    (sandbox / "config.yaml").write_text(yaml.safe_dump(cfg), encoding="utf-8")
+    assert ss.normalize_config() is True
+    assert config(sandbox)["tts"]["model"] == "googletts"
+
+
 def test_normalize_writes_only_when_something_changes(sandbox, gpu):
     cfg = config(sandbox)
     cfg.pop("vision", None)
