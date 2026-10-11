@@ -134,7 +134,7 @@
     const memory = card.device === "cpu" ? "RAM" : "VRAM";
     const where = card.device === "cpu" ? "on the CPU" : "on the GPU";
     const chips = card.online
-      ? '<span class="chip online" data-tip-text="Sends the text to Google and plays the speech it returns">Online</span>'
+      ? '<span class="chip online" data-tip-text="Sends the text to Google and plays the speech it returns. Needs an internet connection.">Online</span>'
       : [
         bench ? `<span class="chip speed" data-tip-text="Seconds of speech made per second of work. Above 1× keeps up with playback.">${speedText(bench.speed)}× real time</span>` : "",
         bench ? `<span class="chip vram" data-tip-text="${memory} used while speaking">${esc(fmt.size(bench.memory_mb))} ${memory}</span>` : "",
@@ -144,20 +144,9 @@
     const name = card.url
       ? `<a class="name" href="${esc(card.url)}" draggable="false" data-tip-text="Open the model page on Hugging Face">${esc(card.name)}${ICONS.external}</a>`
       : `<span class="name">${esc(card.name)}</span>`;
-    let specs;
-    if (card.online) {
-      specs = specHTML("Runs on", "Google's servers") + specHTML("Needs", "An internet connection") + specHTML("Memory used", "None on this computer");
-    } else if (bench) {
-      specs = specHTML("First audio", `${bench.first_audio.toFixed(2)} s`)
-        + specHTML("Speaking rate", `${fmt.int(Math.round(bench.chars_per_second))} chars/s`)
-        + specHTML("Measured on", state.tts.hardware);
-    } else {
-      specs = specHTML("Benchmark", "Not measured");
-    }
     return '<article class="card model-card tts-card">'
       + `<div class="card-head">${name}${meta ? `<div class="meta">${meta}</div>` : ""}</div>`
-      + `<div class="chips">${chips}</div>`
-      + `<div class="specs">${specs}</div></article>`;
+      + `<div class="chips">${chips}</div></article>`;
   }
 
   function ttsSegmentHTML(backend, name, label) {
@@ -176,20 +165,19 @@
 
   function ttsFields() {
     const backend = currentBackend();
-    const html = [
+    const controls = [
       `<div class="field" data-field="tts.backend">${labelHTML("tts.backend", "Backend")}`
         + `${VDB.selectButton("tts.backend", { label: backend.label, note: backend.note })}${messageHTML({ key: "tts.backend" })}</div>`,
-      `<div class="field span-3">${ttsCardHTML(backend)}</div>`,
     ];
-    if (backend.device) html.push(ttsSegmentHTML(backend, "device", "Device"));
-    if (backend.precision) html.push(ttsSegmentHTML(backend, "precision", "Precision"));
+    if (backend.device) controls.push(ttsSegmentHTML(backend, "device", "Device"));
+    if (backend.precision) controls.push(ttsSegmentHTML(backend, "precision", "Precision"));
     for (const extra of backend.extras) {
       if (!extra.visible) continue;
       const key = `tts.${backend.key}.${extra.name}`;
       const option = extra.options.find((o) => o.value === extra.value) || { label: extra.value };
-      html.push(`<div class="field" data-field="${esc(key)}">${labelHTML(key, extra.label)}${VDB.selectButton(key, option)}${messageHTML({ key })}</div>`);
+      controls.push(`<div class="field" data-field="${esc(key)}">${labelHTML(key, extra.label)}${VDB.selectButton(key, option)}${messageHTML({ key })}</div>`);
     }
-    return html.join("");
+    return `<div class="field-stack">${controls.join("")}</div><div class="field span-3">${ttsCardHTML(backend)}</div>`;
   }
 
   function specHTML(label, value) {

@@ -37,6 +37,8 @@ main { display: flex; flex-direction: column; gap: 12px; }
   align-items: start;
 }
 
+.field-stack { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
 .field.span-2 { grid-column: span 2; }
 .field.span-3 { grid-column: span 3; }
 .field.span-4 { grid-column: 1 / -1; }
@@ -112,6 +114,6 @@ main { display: flex; flex-direction: column; gap: 12px; }
 
 @media (max-width: 640px) {
   .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .field.span-3, .field.span-4 { grid-column: 1 / -1; }
+  .field.span-3, .field.span-4, .field-stack { grid-column: 1 / -1; }
   .model-card .specs { grid-template-columns: minmax(0, 1fr); gap: 7px; }
 }
