@@ -63,7 +63,7 @@ class DocQA_GUI(QWidget):
 
     def init_ui(self):
         self.setWindowTitle('VectorDB Plugin')
-        self.setGeometry(300, 300, 820, 1000)
+        self.setGeometry(300, 300, 820, 1020)
         self.setMinimumSize(350, 410)
 
         main_layout = QVBoxLayout(self)
