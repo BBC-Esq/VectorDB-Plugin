@@ -846,7 +846,7 @@ def tts_run_settings(backend, section=None):
     if device == "cpu":
         dtype = "float32"
     elif precision == "half":
-        dtype = "bfloat16" if has_bfloat16_support() else "float16"
+        dtype = info.get("half_dtype") or ("bfloat16" if has_bfloat16_support() else "float16")
     else:
         dtype = precision
     return {"device": device, "devices": devices, "precision": precision, "precisions": precisions, "dtype": dtype}

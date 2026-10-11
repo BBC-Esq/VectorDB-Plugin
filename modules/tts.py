@@ -321,11 +321,8 @@ class BarkAudio(BaseAudio):
             dtype=self.dtype,
             cache_dir=CACHE_DIR,
             token=False
-        ).to(self.device)
-        # Workaround: cuDNN cannot pack bfloat16 LSTM weights, so in half precision Bark's EnCodec codec runs in float16
-        # instead of re-packing them on every call. Remove once cuDNN accepts bfloat16 RNN weights.
-        codec_dtype = torch.float16 if half_precision(self.device, self.dtype) else self.dtype
-        move_modules([self.model.codec_model], self.device, codec_dtype)
+        )
+        move_modules([self.model], self.device, self.dtype)
 
         self.model.eval()
 

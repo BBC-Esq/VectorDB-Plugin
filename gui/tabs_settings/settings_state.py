@@ -142,7 +142,8 @@ HELP = {
     "tts.device": "Where the voice model runs. The GPU is much faster but uses video memory that a chat model may also need.",
     "tts.precision": (
         "Half precision uses less video memory than float32. It runs in bfloat16 on RTX 30-series and newer GPUs "
-        "and in float16 on older ones. The card shows the measured speed and memory for each choice."
+        "and in float16 on older ones, except Bark, which always uses float16 because it garbled speech in bfloat16. "
+        "The card shows the measured speed and memory for each choice."
     ),
     "vision.model": "The model that describes images when they are added to a database.",
 }

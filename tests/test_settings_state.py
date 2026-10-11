@@ -234,8 +234,8 @@ def test_bark_chooses_between_half_and_float32(sandbox, gpu):
     assert ss.apply_change("tts.backend", "bark")["ok"]
     bark = tts_backend("bark")
     assert bark["device"] is None and bark["precision"]["value"] == "half"
-    assert bark["card"]["dtype"] == "bfloat16"
-    assert bark["card"]["benchmark"] == benchmark("bark", "small", "cuda-bfloat16")
+    assert bark["card"]["dtype"] == "float16" and bark["precision"]["hint"] == "Runs in float16 on this GPU"
+    assert bark["card"]["benchmark"] == benchmark("bark", "small", "cuda-float16")
     assert config(sandbox)["bark"]["precision"] == "half"
     assert ss.apply_change("tts.option", {"backend": "bark", "name": "precision", "value": "float32"})["ok"]
     assert ss.apply_change("tts.option", {"backend": "bark", "name": "size", "value": "normal"})["ok"]
@@ -298,7 +298,7 @@ def test_every_tts_choice_has_a_benchmark():
                 if device == "cpu":
                     runs.add("cpu-float32")
                 elif precision == "half":
-                    runs.update({"cuda-bfloat16", "cuda-float16"})
+                    runs.update({f"cuda-{info['half_dtype']}"} if info.get("half_dtype") else {"cuda-bfloat16", "cuda-float16"})
                 else:
                     runs.add(f"cuda-{precision}")
         for variant in variants.get(backend, [""]) if runs else []:

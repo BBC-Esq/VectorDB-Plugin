@@ -305,7 +305,7 @@ class TestTtsRunSettings:
         assert self.run("kyutaipocket") == ("cuda", "bfloat16")
         for backend in ("kyutai", "chattts", "chatterbox"):
             assert self.run(backend) == ("cuda", "bfloat16")
-        assert self.run("bark") == ("cuda", "bfloat16")
+        assert self.run("bark") == ("cuda", "float16")
         assert self.run("whisperspeech") == ("cuda", "float16")
         assert self.run("googletts") == (None, None)
 

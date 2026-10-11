@@ -863,7 +863,7 @@ TTS_BACKENDS = {
     "kyutaipocket": {"requires_cuda": False, "devices": ["cpu", "cuda"], "default_device": "cuda", "precisions": ["half"]},
     "chattts": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["half", "float32"]},
     "chatterbox": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["half", "float32"]},
-    "bark": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["half", "float32"]},
+    "bark": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["half", "float32"], "half_dtype": "float16"},
     "whisperspeech": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["float16"]},
     "kyutai": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["half"]},
 }
