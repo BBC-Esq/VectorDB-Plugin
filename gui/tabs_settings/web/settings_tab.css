@@ -48,6 +48,8 @@ main { display: flex; flex-direction: column; gap: 12px; }
   align-items: start;
 }
 
+.seg[data-tip-text] button:disabled { pointer-events: none; }
+
 .field.span-2 { grid-column: span 2; }
 .field.span-3 { grid-column: span 3; }
 .field.span-4 { grid-column: 1 / -1; }

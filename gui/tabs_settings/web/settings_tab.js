@@ -158,10 +158,9 @@
       const disabled = control.disabled || o.disabled;
       return `<button type="button" class="${on ? "on" : ""}" role="radio" aria-checked="${on}" data-key="${esc(key)}" data-value="${esc(o.value)}" data-tts-option="${esc(name)}"${disabled ? " disabled" : ""}>${esc(o.label)}</button>`;
     }).join("");
-    const message = errors[key]
-      ? `<div class="field-error">${esc(errors[key])}</div>`
-      : `<div class="field-hint">${esc(control.hint || "")}</div>`;
-    return `<div class="field" data-field="${esc(key)}">${labelHTML(key, label)}<div class="seg full" role="radiogroup">${buttons}</div>${message}</div>`;
+    const tip = control.hint ? ` data-tip-text="${esc(control.hint)}"` : "";
+    const error = errors[key] ? `<div class="field-error">${esc(errors[key])}</div>` : "";
+    return `<div class="field" data-field="${esc(key)}">${labelHTML(key, label)}<div class="seg full" role="radiogroup"${tip}>${buttons}</div>${error}</div>`;
   }
 
   function ttsFields() {
