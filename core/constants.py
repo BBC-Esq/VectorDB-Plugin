@@ -636,7 +636,7 @@ libs = [
     "cfgv==3.5.0",
     "cffi==2.0.0",
     "charset-normalizer==3.4.7",
-    "git+https://github.com/BBC-Esq/chatterbox-light",
+    "git+https://github.com/BBC-Esq/chatterbox-light@v1.0.1",
     "chattts==0.2.5",
     "click==8.4.2",
     "colorama==0.4.6",
