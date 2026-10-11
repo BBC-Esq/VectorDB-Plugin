@@ -81,6 +81,9 @@ def check_for_necessary_folders():
 
 
 def restore_vector_db_backup():
+    from db.search_process import release_database
+
+    release_database()
     backup_folder = Path('Vector_DB_Backup')
     destination_folder = Path('Vector_DB')
     staging_folder = Path('Vector_DB_restore_tmp')

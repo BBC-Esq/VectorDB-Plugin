@@ -14,12 +14,6 @@ _THINKING_TAG_RE = re.compile("|".join(re.escape(t) for t in _ALL_THINKING_TAGS)
 
 
 def _strip_thinking(buffer, in_thinking):
-    """Process buffer, toggling in_thinking at each tag match.
-
-    Returns (text_to_yield, new_buffer, new_in_thinking). Holds back any tail
-    that could be the start of a partial tag so a tag split across chunks
-    (e.g. '<thi' then 'nk>') is still detected on the next call.
-    """
     out = []
     pos = 0
     cur_in = in_thinking
@@ -58,7 +52,6 @@ class LMStudioChat:
     def __init__(self):
         self.signals = ChatSignals()
         self.config = load_chat_config()
-        self.query_vector_db = None
 
     def connect_to_local_chatgpt(self, prompt):
         from openai import OpenAI
@@ -114,23 +107,11 @@ class LMStudioChat:
             if tail:
                 yield tail
 
-    def handle_response_and_cleanup(self, full_response, metadata_list):
-        from chat.base import cleanup_gpu
-
-        citations = format_citations(metadata_list)
-        if self.query_vector_db:
-            self.query_vector_db.cleanup()
-        cleanup_gpu()
-        return citations
-
     def ask_local_chatgpt(self, query, selected_database):
-        from db.database_interactions import get_query_db
+        from db.search_process import search_database
         from chat.base import build_augmented_query, save_metadata
 
-        if self.query_vector_db is None or self.query_vector_db.selected_database != selected_database:
-            self.query_vector_db = get_query_db(selected_database)
-
-        contexts, metadata_list = self.query_vector_db.search(query)
+        contexts, metadata_list = search_database(selected_database, query)
         save_metadata(metadata_list)
 
         if not contexts:
@@ -151,7 +132,7 @@ class LMStudioChat:
 
         self.signals.response_signal.emit("\n")
 
-        citations = self.handle_response_and_cleanup(full_response, metadata_list)
+        citations = format_citations(metadata_list)
         self.signals.citations_signal.emit(citations)
         self.signals.finished_signal.emit()
 
@@ -177,43 +158,3 @@ def is_lm_studio_available():
         return response.status_code == 200
     except requests.exceptions.RequestException:
         return False
-
-"""
-[Main Process]
-    |
-    |         DatabaseQueryTab (GUI)                 LMStudioChatThread
-    |         ------------------                     -----------------
-    |              |                                     |
-    |        [Submit Button]                             |
-    |              |                                     |
-    |         on_submit_button_clicked()                 |
-    |              |                                     |
-    |              |---> LMStudioChatThread.start() ---->|
-    |              |                                     |
-    |                                          [LMStudioChat Instance]
-    |                                                    |
-    |                                         ask_local_chatgpt()
-    |                                                    |
-    |                                         [QueryVectorDB Search]
-    |                                                    |
-    |                                      connect_to_local_chatgpt()
-    |                                                    |
-    |    Signal Flow                            OpenAI API Stream
-    |    -----------                            ----------------
-    |         |                                        |
-    |    Signals Received:                     Stream Chunks:
-    |    - response_signal                     - chunk.choices[0].delta.content
-    |    - error_signal                                |
-    |    - finished_signal                             |
-    |    - citations_signal                             |
-    |         |                                        |
-    |    GUI Updates:                          Cleanup Operations:
-    |    - update_response_lm_studio()         - handle_response_and_cleanup()
-    |    - show_error_message()                - save_metadata_to_file()
-    |    - on_submission_finished()            - torch.cuda.empty_cache()
-    |    - display_citations_in_widget()       - gc.collect()
-    |                                                  |
-    |                                          Emit Final Signals:
-    |                                          - citations_signal
-    |                                          - finished_signal
-"""

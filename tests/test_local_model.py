@@ -4,7 +4,6 @@ from multiprocessing import Pipe
 import pytest
 
 import chat.base as chat_base
-import db.database_interactions as database_interactions
 from chat.local_model import LocalModelChat, MessageType, PipeMessage
 
 
@@ -24,55 +23,48 @@ class FakeModel:
         return query
 
 
-class FakeQueryDB:
-    def __init__(self, events, name):
-        self.events = events
-        self.selected_database = name
-        events.append(("load", name))
-
-    def search(self, query):
-        return [f"A passage from {self.selected_database}."], [{"file_name": "a.txt", "file_path": "C:/a.txt", "similarity_score": 0.9}]
-
-    def close(self):
-        self.events.append(("release", self.selected_database))
-
-
 @pytest.fixture
 def model_process(monkeypatch):
-    events = []
+    prompts = []
+
+    def generate(model, query):
+        prompts.append(query)
+        return iter(["An answer."])
+
     monkeypatch.setattr(chat_base, "choose_model", lambda name: FakeModel())
-    monkeypatch.setattr(chat_base, "generate_response", lambda model, query: iter(["An answer."]))
-    monkeypatch.setattr(database_interactions, "QueryVectorDB", lambda name: FakeQueryDB(events, name))
+    monkeypatch.setattr(chat_base, "generate_response", generate)
     parent, child = Pipe()
     worker = threading.Thread(target=LocalModelChat._local_model_process, args=(child, "fake"), daemon=True)
     worker.start()
 
-    def ask(database):
-        parent.send(PipeMessage(MessageType.QUESTION, ("What does it say?", "fake", database)))
-        kinds = []
+    def ask(question, contexts, metadata_list):
+        parent.send(PipeMessage(MessageType.QUESTION, (question, contexts, metadata_list)))
+        messages = []
         while parent.poll(30):
             message = parent.recv()
-            kinds.append(message.type)
+            messages.append(message)
             if message.type == MessageType.FINISHED:
-                return kinds
+                return messages
         raise AssertionError("The model process did not finish answering.")
 
-    yield ask, events
+    yield ask, prompts
     parent.send(PipeMessage(MessageType.EXIT))
     worker.join(timeout=10)
 
 
-def test_follow_up_questions_reuse_the_loaded_database(model_process):
-    ask, events = model_process
-    assert MessageType.CITATIONS in ask("first")
-    assert MessageType.ERROR not in ask("first")
-    assert events == [("load", "first")]
+def test_answers_from_the_passages_it_is_given(model_process):
+    ask, prompts = model_process
+    messages = ask("What is the notice period?", ["Thirty days notice is required."],
+                   [{"file_name": "lease.txt", "file_path": "C:/lease.txt", "similarity_score": 0.9}])
+    kinds = [m.type for m in messages]
+    assert MessageType.ERROR not in kinds
+    assert "".join(m.payload for m in messages if m.type == MessageType.PARTIAL_RESPONSE) == "An answer."
+    assert "Thirty days notice is required." in prompts[0] and prompts[0].endswith("What is the notice period?")
+    assert "lease.txt" in next(m.payload for m in messages if m.type == MessageType.CITATIONS)
 
 
-def test_switching_databases_releases_the_previous_one(model_process):
-    ask, events = model_process
-    ask("first")
-    ask("second")
-    assert events == [("load", "first"), ("release", "first"), ("load", "second")]
-    ask("first")
-    assert events[3:] == [("release", "second"), ("load", "first")]
+def test_each_question_uses_its_own_passages(model_process):
+    ask, prompts = model_process
+    ask("First?", ["Passage one."], [{"file_path": "C:/one.txt", "similarity_score": 0.8}])
+    ask("Second?", ["Passage two."], [{"file_path": "C:/two.txt", "similarity_score": 0.7}])
+    assert "Passage one." in prompts[0] and "Passage two." in prompts[1] and "Passage one." not in prompts[1]

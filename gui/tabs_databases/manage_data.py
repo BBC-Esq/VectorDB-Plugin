@@ -11,6 +11,7 @@ import yaml
 
 from core.constants import PROJECT_ROOT
 from core.utilities import save_config_atomically
+from db.search_process import release_database
 from gui.download_model import is_complete_download
 from gui.tabs_databases.create_config import model_info
 
@@ -287,6 +288,7 @@ def delete_database(name):
         changed = True
     if changed:
         save_config_atomically(cfg, config_path(), allow_unicode=True)
+    release_database(name)
     failed = [problem for problem in (remove_tree(vector_root() / name), remove_tree(backup_root() / name)) if problem]
     return {"failed": failed}
 

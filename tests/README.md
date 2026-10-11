@@ -34,12 +34,13 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_extract_metadata.py` | Content and file hashing, metadata extraction and PDF page numbers |
 | `test_gui_validation.py` | Database name rules, port extraction, the file type filter mapping and name preconditions (no GUI imports) |
 | `test_jeeves_helpers.py` | Ask Jeeves: the poems file, source rows from the user guide and text prepared for speech |
-| `test_local_model.py` | Local chat model process: follow-up questions reuse the loaded database, and switching databases releases the previous one |
+| `test_local_model.py` | Local chat model process: answers from the passages it is given and returns their citations |
 | `test_manage_data.py` | Manage Databases tab: the database list, database details, file rows, read-only connections and safely deleting a database |
 | `test_minimax.py` | MiniMax constants, model list and temperature clamping |
 | `test_models_catalog.py` | Models tab: CPU-only filtering, download status, benchmark summaries, precision compared with the embedding code, and theme colors |
 | `test_query_data.py` | Query Database tab: citations, token counts, answer text, readiness messages, the database list, local model flags and chunk rows |
 | `test_scraper.py` | HTML processing, the scraper registry and selectors, URL checks and file name cleanup |
+| `test_search_process.py` | Database search process: the same database stays loaded, a new database or changed settings end the old process before loading, releasing, errors, crashes and timeouts |
 | `test_settings_state.py` | Settings tab: reading, checking and saving settings, GPU-only choices, half precision, TTS backends and unreadable config files |
 | `test_symlinks.py` | Symlink creation |
 | `test_thinking_tags.py` | Thinking tag structure and filtering |

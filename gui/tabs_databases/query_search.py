@@ -19,20 +19,3 @@ def chunk_rows(contexts, metadata_list):
             "page": meta.get("page_number"),
         })
     return rows
-
-
-def chunks_query(database_name, query, result_queue):
-    try:
-        from core.utilities import configure_logging
-
-        configure_logging("INFO")
-        from db.database_interactions import QueryVectorDB
-
-        query_db = QueryVectorDB(database_name)
-        try:
-            contexts, metadata_list = query_db.search(query)
-        finally:
-            query_db.close()
-        result_queue.put({"chunks": chunk_rows(contexts, metadata_list)})
-    except Exception as e:
-        result_queue.put({"error": str(e)})

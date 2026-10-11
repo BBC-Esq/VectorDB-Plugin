@@ -1,10 +1,8 @@
 import logging
 import multiprocessing
 import os
-import queue
 import subprocess
 import sys
-import threading
 import time
 from pathlib import Path
 
@@ -19,14 +17,14 @@ from chat.minimax import MiniMaxThread
 from chat.openai import ChatGPTThread
 from core.constants import PROJECT_ROOT
 from core.utilities import cuda_usable, normalize_chat_text, open_file, runs_on_this_hardware
-from db.process_manager import get_process_manager
+from db.search_process import loaded_database, release_database, search_database
 from gui.web_common.web_tab import WebTab
 from gui.tabs_databases import query_data
-from gui.tabs_databases.query_search import chunks_query
+from gui.tabs_databases.query_search import chunk_rows
 from modules.tts_process import run_tts_in_process
 
 WEB_PAGE = Path(__file__).resolve().parent / "web" / "query_tab.html"
-CHUNKS_TIMEOUT = 120
+NO_CHUNKS = "No chunks passed the similarity threshold. Try lowering the 'Similarity' setting in the Database Query settings tab."
 
 
 def chat_history_path():
@@ -120,9 +118,13 @@ class LocalSubmitWorker(QThread):
                 if self.chat.model_process is not None or self.chat.current_model is not None:
                     self.chat.terminate_current_process()
                 self.chat.start_model_process(self.model)
-            self.chat.start_chat(self.question, self.model, self.database)
+            contexts, metadata_list = search_database(self.database, self.question)
+            if not contexts:
+                self.failed.emit(NO_CHUNKS)
+                return
+            self.chat.start_chat(self.question, contexts, metadata_list)
         except Exception as e:
-            logging.exception("Starting the local model failed")
+            logging.exception("Answering with the local model failed")
             self.failed.emit(str(e))
 
 
@@ -133,9 +135,14 @@ class EjectWorker(QThread):
 
     def run(self):
         try:
-            self.chat.eject_model()
+            if self.chat.is_model_loaded():
+                self.chat.eject_model()
         except Exception:
             logging.exception("Ejecting the local model failed")
+        try:
+            release_database()
+        except Exception:
+            logging.exception("Unloading the database failed")
 
 
 class ChunksWorker(QThread):
@@ -145,65 +152,14 @@ class ChunksWorker(QThread):
         super().__init__(parent)
         self.question = question
         self.database = database
-        self.process = None
-        self._lock = threading.Lock()
-        self._stop = False
 
     def run(self):
-        ctx = multiprocessing.get_context("spawn")
-        result_queue = ctx.Queue()
         try:
-            with self._lock:
-                if self._stop:
-                    return
-                self.process = ctx.Process(target=chunks_query, args=(self.database, self.question, result_queue))
-                get_process_manager().register(self.process)
-                self.process.start()
-                process = self.process
-            self.result.emit(self.wait_for_result(result_queue, process))
+            contexts, metadata_list = search_database(self.database, self.question)
+            self.result.emit({"chunks": chunk_rows(contexts, metadata_list)})
         except Exception as e:
             logging.exception("Chunks only query failed")
-            self.result.emit({"error": f"The database could not be searched: {e}"})
-        finally:
-            self.stop_process()
-
-    def wait_for_result(self, result_queue, process):
-        deadline = time.monotonic() + CHUNKS_TIMEOUT
-        while not self._stop:
-            try:
-                return result_queue.get(timeout=0.5)
-            except queue.Empty:
-                if not process.is_alive():
-                    try:
-                        return result_queue.get(timeout=1)
-                    except queue.Empty:
-                        return {"error": "The database search stopped unexpectedly. Check the command prompt window for details."}
-                if time.monotonic() >= deadline:
-                    return {"error": f"The database search took longer than {CHUNKS_TIMEOUT} seconds and was stopped."}
-        return {"error": "The search was stopped."}
-
-    def stop_process(self):
-        with self._lock:
-            process, self.process = self.process, None
-        if process is None:
-            return
-        try:
-            if process.is_alive():
-                process.join(timeout=2)
-            if process.is_alive():
-                process.terminate()
-                process.join(timeout=2)
-            if process.is_alive():
-                process.kill()
-                process.join(timeout=1)
-        except Exception:
-            logging.exception("Stopping the search process failed")
-        finally:
-            get_process_manager().unregister(process)
-
-    def stop(self):
-        self._stop = True
-        self.stop_process()
+            self.result.emit({"error": str(e)})
 
 
 class DatabaseQueryTab(WebTab):
@@ -305,6 +261,7 @@ class DatabaseQueryTab(WebTab):
             "models": self.models,
             "local_model": self.local_model,
             "loaded_model": self.loaded_model(),
+            "loaded_database": loaded_database(),
             "ejecting": self.ejecting,
             "cpu_only": not cuda_usable(),
             "settings": query_data.query_settings(self._config),
@@ -544,9 +501,9 @@ class DatabaseQueryTab(WebTab):
             return False
 
     def js_eject(self):
-        if self.active is not None and self._local_turn is not None:
-            return {"error": "Wait for the answer to finish before unloading the model."}
-        if self.ejecting or not self.local_model_chat.is_model_loaded():
+        if self.active is not None:
+            return {"error": "Wait for the answer to finish before unloading."}
+        if self.ejecting or not (self.local_model_chat.is_model_loaded() or loaded_database()):
             return {"ok": True}
         self.ejecting = True
         worker = EjectWorker(self.local_model_chat)
@@ -776,10 +733,9 @@ class DatabaseQueryTab(WebTab):
         if self.voice == "recording" and self._voice_recorder is not None:
             self._voice_recorder.stop_recording()
         self.js_stop_speaking()
+        release_database()
         for thread in list(self._threads.values()):
-            if isinstance(thread, ChunksWorker):
-                thread.stop()
-            elif isinstance(thread, KoboldThread):
+            if isinstance(thread, KoboldThread):
                 thread.stop()
         if self.local_model_chat.is_model_loaded():
             self.local_model_chat.eject_model()

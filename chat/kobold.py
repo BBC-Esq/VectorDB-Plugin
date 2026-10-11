@@ -14,7 +14,6 @@ class KoboldChat:
     def __init__(self):
         self.signals = ChatSignals()
         self.config = load_chat_config()
-        self.query_vector_db = None
         self.api_url = f"{KOBOLD_URL}/api/extra/generate/stream"
         self.stop_request = False
 
@@ -51,23 +50,11 @@ class KoboldChat:
             if response:
                 response.close()
 
-    def handle_response_and_cleanup(self, full_response, metadata_list):
-        from chat.base import cleanup_gpu
-
-        citations = format_citations(metadata_list)
-        if self.query_vector_db:
-            self.query_vector_db.cleanup()
-        cleanup_gpu()
-        return citations
-
     def ask_kobold(self, query, selected_database):
-        from db.database_interactions import get_query_db
+        from db.search_process import search_database
         from chat.base import build_augmented_query, save_metadata
 
-        if self.query_vector_db is None or self.query_vector_db.selected_database != selected_database:
-            self.query_vector_db = get_query_db(selected_database)
-
-        contexts, metadata_list = self.query_vector_db.search(query)
+        contexts, metadata_list = search_database(selected_database, query)
         save_metadata(metadata_list)
 
         if not contexts:
@@ -90,7 +77,7 @@ class KoboldChat:
 
         self.signals.response_signal.emit("\n")
 
-        citations = self.handle_response_and_cleanup(full_response, metadata_list)
+        citations = format_citations(metadata_list)
         self.signals.citations_signal.emit(citations)
 
 class KoboldThread(QThread):

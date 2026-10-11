@@ -91,14 +91,14 @@ class LocalModelChat:
         time.sleep(0.5)
         self.signals.model_unloaded_signal.emit()
 
-    def start_chat(self, user_question, selected_model, selected_database):
+    def start_chat(self, user_question, contexts, metadata_list):
         if not self.model_pipe:
             self.signals.error_signal.emit("Model not loaded. Please start a model first.")
             return
 
         self.model_pipe.send(PipeMessage(
-            MessageType.QUESTION, 
-            (user_question, selected_model, selected_database)
+            MessageType.QUESTION,
+            (user_question, contexts, metadata_list)
         ))
 
     def is_model_loaded(self):
@@ -166,7 +166,6 @@ class LocalModelChat:
     @staticmethod
     def _local_model_process(conn, model_name):
         import chat.base as module_chat
-        from db.database_interactions import clear_query_cache, get_query_db
         from core.utilities import format_citations, my_cprint
 
         try:
@@ -180,26 +179,12 @@ class LocalModelChat:
                 pass
             conn.close()
             return
-        current_database = None
         try:
             while True:
                 try:
                     message = conn.recv()
                     if message.type == MessageType.QUESTION:
-                        user_question, _, selected_database = message.payload
-                        if selected_database != current_database:
-                            clear_query_cache()
-                            current_database = selected_database
-                        query_vector_db = get_query_db(selected_database)
-                        contexts, metadata_list = query_vector_db.search(user_question)
-                        if not contexts:
-                            conn.send(PipeMessage(
-                                MessageType.ERROR,
-                                "No chunks passed the similarity threshold. "
-                                "Try lowering the 'Similarity' setting in the Database Query settings tab."
-                            ))
-                            conn.send(PipeMessage(MessageType.FINISHED))
-                            continue
+                        user_question, contexts, metadata_list = message.payload
                         joined_contexts = "\n\n---\n\n".join(contexts)
                         augmented_query = f"{rag_string}\n\n---\n\n" + joined_contexts + "\n\n-----\n\n" + user_question
                         tokenizer = model_instance.tokenizer

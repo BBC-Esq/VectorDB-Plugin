@@ -19,7 +19,6 @@ class MiniMaxChat:
         self.config = load_chat_config()
         if override_model:
             self.config.setdefault('minimax', {})['model'] = override_model
-        self.query_vector_db = None
 
     def connect_to_minimax(self, augmented_query):
         from openai import OpenAI
@@ -53,27 +52,11 @@ class MiniMaxChat:
             if chunk.choices[0].delta.content is not None:
                 yield chunk.choices[0].delta.content
 
-    def handle_response_and_cleanup(self, full_response, metadata_list):
-        from chat.base import cleanup_gpu
-
-        citations = format_citations(metadata_list)
-
-        if self.query_vector_db:
-            if hasattr(self.query_vector_db.embeddings, 'client'):
-                del self.query_vector_db.embeddings.client
-            del self.query_vector_db.embeddings
-
-        cleanup_gpu()
-        return citations
-
     def ask_minimax(self, query, selected_database):
-        from db.database_interactions import get_query_db
+        from db.search_process import search_database
         from chat.base import build_augmented_query, save_metadata
 
-        if self.query_vector_db is None or self.query_vector_db.selected_database != selected_database:
-            self.query_vector_db = get_query_db(selected_database)
-
-        contexts, metadata_list = self.query_vector_db.search(query)
+        contexts, metadata_list = search_database(selected_database, query)
         save_metadata(metadata_list)
 
         if not contexts:
@@ -94,7 +77,7 @@ class MiniMaxChat:
 
         self.response_callback("\n")
 
-        citations = self.handle_response_and_cleanup(full_response, metadata_list)
+        citations = format_citations(metadata_list)
         self.citations_callback(citations)
         self.finished_callback()
 

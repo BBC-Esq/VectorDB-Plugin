@@ -247,37 +247,41 @@
     return { label: m.name, note: notes.join(" · ") };
   }
 
+  function ejectHTML() {
+    if (state.ejecting) return '<button type="button" class="btn ghost small eject" disabled><span class="spinner"></span>Ejecting…</button>';
+    const loaded = [state.loaded_model, state.loaded_database].filter(Boolean);
+    if (!loaded.length) return "";
+    const tip = `Unload ${loaded.join(" and ")} to free the memory ${loaded.length > 1 ? "they use" : "it uses"}`;
+    return `<button type="button" class="btn ghost small eject" data-act="eject" data-tip-text="${esc(tip)}"${busy() ? " disabled" : ""}>${EJECT}Eject</button>`;
+  }
+
   function renderControls() {
     const signature = JSON.stringify([state.databases, state.database, state.backend, state.models, state.local_model, state.loaded_model,
-      state.ejecting, busy(), state.chunks_only]);
+      state.loaded_database, state.ejecting, busy(), state.chunks_only]);
     if (signature === controlsSignature) return;
     controlsSignature = signature;
     const db = currentDatabase();
     const local = state.backend === "Local Model";
     const model = currentModel();
     const dbOption = db ? { label: db.name, note: db.model || "" } : { label: state.databases.length ? "Choose a database" : "No databases yet" };
+    const dbStatus = state.loaded_database ? `<span class="loaded-note">${esc(state.loaded_database)} is loaded</span>` : "";
     let modelField = "";
     if (local) {
       const loaded = state.loaded_model;
-      const eject = state.ejecting
-        ? '<button type="button" class="btn ghost small eject" disabled><span class="spinner"></span>Ejecting…</button>'
-        : loaded
-          ? `<button type="button" class="btn ghost small eject" data-act="eject" data-tip-text="Unload ${esc(loaded)} to free the memory it uses"${busy() ? " disabled" : ""}>${EJECT}Eject</button>`
-          : "";
       const status = loaded ? `<span class="loaded-note">${esc(loaded)} is loaded</span>` : "";
       modelField = '<div class="field">'
         + `<div class="field-label"><span>Model</span>${status}</div>`
-        + `<div class="select-row">${VDB.selectButton("query.model", model ? modelOption(model) : { label: state.models.length ? "Choose a model" : "None available" }, busy() || state.ejecting || !state.models.length)}${eject}</div>`
+        + `<div class="select-row">${VDB.selectButton("query.model", model ? modelOption(model) : { label: state.models.length ? "Choose a model" : "None available" }, busy() || state.ejecting || !state.models.length)}${ejectHTML()}</div>`
         + "</div>";
     } else {
       modelField = '<div class="field">'
         + '<div class="field-label"><span>Connection</span></div>'
-        + `<button type="button" class="btn ghost settings-btn" data-act="backend_settings">${ICONS.chip}Backend settings</button>`
+        + `<div class="select-row"><button type="button" class="btn ghost settings-btn" data-act="backend_settings">${ICONS.chip}Backend settings</button>${ejectHTML()}</div>`
         + "</div>";
     }
     $("#ask-controls").innerHTML = `<div class="control-grid${state.chunks_only ? " chunks-mode" : ""}">`
       + '<div class="field">'
-      + '<div class="field-label"><span>Database</span></div>'
+      + `<div class="field-label"><span>Database</span>${dbStatus}</div>`
       + VDB.selectButton("query.database", dbOption, busy() || !state.databases.length)
       + "</div>"
       + '<div class="field backend-field">'
