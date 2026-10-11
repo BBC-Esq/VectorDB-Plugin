@@ -26,7 +26,6 @@ from gui.tabs_databases.query_search import chunks_query
 from modules.tts_process import run_tts_in_process
 
 WEB_PAGE = Path(__file__).resolve().parent / "web" / "query_tab.html"
-HISTORY_LIMIT = 50
 CHUNKS_TIMEOUT = 120
 
 
@@ -392,8 +391,7 @@ class DatabaseQueryTab(WebTab):
             "similarity": query_data.query_settings(self._config)["similarity"],
         }
         self._next_turn += 1
-        self.turns.append(turn)
-        del self.turns[:-HISTORY_LIMIT]
+        self.turns = [turn]
         self.active = turn["id"]
         try:
             if self.chunks_only:
