@@ -1,4 +1,3 @@
-# Auto-generated GPU info module
 from typing import TypedDict, Dict
 from datetime import date
 

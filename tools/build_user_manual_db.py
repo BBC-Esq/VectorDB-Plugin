@@ -1,20 +1,3 @@
-"""Automate the Ask Jeeves knowledge-base vector database.
-
-A headless, end-to-end replacement for the old manual workflow (the
-tools/chunk_userguide.py GUI + a hand-driven "create database" run + a manual zip):
-
-  1. Split Assets/user_manual_consolidated.md on '###' headings -> one chunk per answer.
-  2. (Re)write the chunks to Assets/User_Guide_Chunks/chunk_NNN.txt.
-  3. Embed each chunk as ONE vector with the user_manual BGE-small model (no re-splitting,
-     no overlap) and write a NEW-format TileDB FLAT database (vectors/ + vector_index/ +
-     index_metadata.json + metadata.db) -- the layout QueryVectorDB.search expects.
-  4. Zip the database to Assets/user_manual_db.zip (root folder 'user_manual/').
-  5. Deploy the fresh database to Vector_DB/ and Vector_DB_Backup/ so it is usable immediately.
-
-Run from the project root with the venv interpreter:
-
-    Scripts\\python.exe tools\\build_user_manual_db.py [--no-deploy]
-"""
 from __future__ import annotations
 
 import argparse
@@ -39,7 +22,6 @@ BGE_MAX_TOKENS = 512
 
 
 def extract_chunks(content: str) -> list[str]:
-    """Split into one chunk per '###' section. Verbatim port of tools/chunk_userguide.py."""
     chunks: list[str] = []
     current_chunk: list[str] = []
     for line in content.split("\n"):
@@ -62,7 +44,6 @@ def extract_chunks(content: str) -> list[str]:
 
 
 def write_chunk_files(chunks: list[str]) -> list[Path]:
-    """(Re)generate Assets/User_Guide_Chunks/chunk_NNN.txt and return the paths."""
     CHUNKS_DIR.mkdir(parents=True, exist_ok=True)
     for existing in CHUNKS_DIR.iterdir():
         if existing.is_file():
@@ -76,7 +57,6 @@ def write_chunk_files(chunks: list[str]) -> list[Path]:
 
 
 def find_oversize_chunks(chunks: list[str], chunk_paths: list[Path]):
-    """Flag chunks that would exceed BGE-small's token limit (silently truncated when embedded)."""
     try:
         from transformers import AutoTokenizer
         tokenizer = AutoTokenizer.from_pretrained(str(BGE_MODEL))
@@ -90,7 +70,6 @@ def find_oversize_chunks(chunks: list[str], chunk_paths: list[Path]):
 
 
 def build_database(chunk_paths: list[Path], persist_dir: Path) -> int:
-    """Embed each chunk as one vector and write the new-format TileDB FLAT database."""
     import gc
 
     import numpy as np
@@ -139,7 +118,6 @@ def build_database(chunk_paths: list[Path], persist_dir: Path) -> int:
     vectors_array = np.ascontiguousarray(vectors, dtype=np.float32)
 
     persist_dir.mkdir(parents=True, exist_ok=True)
-    # Reuse the real new-format writer without its config-driven __init__ (we only need PERSIST_DIRECTORY).
     builder = CreateVectorDB.__new__(CreateVectorDB)
     builder.PERSIST_DIRECTORY = persist_dir
     hash_id_mappings = builder._create_tiledb_array(texts, vectors_array, metadatas)
@@ -150,7 +128,6 @@ def build_database(chunk_paths: list[Path], persist_dir: Path) -> int:
 
 
 def zip_database(persist_dir: Path, output_zip: Path) -> None:
-    """Zip persist_dir into output_zip with 'user_manual/' as the root folder."""
     if output_zip.exists():
         output_zip.unlink()
     with zipfile.ZipFile(output_zip, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -161,7 +138,6 @@ def zip_database(persist_dir: Path, output_zip: Path) -> None:
 
 
 def deploy_database(persist_dir: Path) -> None:
-    """Replace Vector_DB/user_manual and Vector_DB_Backup/user_manual with the fresh build."""
     for target_root in (VECTOR_DB, VECTOR_DB_BACKUP):
         target_root.mkdir(parents=True, exist_ok=True)
         dest = target_root / DB_NAME

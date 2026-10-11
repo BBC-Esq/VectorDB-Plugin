@@ -629,10 +629,6 @@ libs = [
     "async-timeout==5.0.1",
     "attrs==26.1.0",
     "av==16.0.1",
-    # kept at 4.14.3 (NOT lowered): unstructured 0.20.8 requires bs4>=4.14.3 (central doc parser) vs extract-msg's
-    # conservative bs4<4.14 cap - mutually exclusive, so we favor unstructured. extract-msg's cap assumed stale until
-    # contrary evidence (msg-extractor#469: open, no maintainer reply, no reports of newer bs4 breaking .msg); bs4 was
-    # already >4.14 pre-sweep. Verify .msg ingestion if in doubt.
     "beautifulsoup4==4.14.3",
     "bitsandbytes==0.50.2",
     "braceexpand==0.1.7",
@@ -643,36 +639,35 @@ libs = [
     "git+https://github.com/BBC-Esq/chatterbox-light",
     "chattts==0.2.5",
     "click==8.4.2",
-    # "cloudpickle==3.1.2",  # commented out - only needed by tiledb-cloud[tests] + fsspec[test-full] extras (not installed); not imported by app code
     "colorama==0.4.6",
     "colorclass==2.2.2",
     "coloredlogs==15.0.1",
     "compressed-rtf==1.0.7",
-    "cryptography==48.0.0",  # major 46->48; only reverse cap (curl_cffi <47) is dev/test extra-gated (inactive); transitive dep
+    "cryptography==48.0.0",
     "ctranslate2==4.8.2",
     "curl_cffi==0.15.0",
     "datasets==4.8.5",
     "Deprecated==1.3.1",
     "deprecation==2.1.0",
     "diffusers==0.40.0",
-    "dill==0.4.1",  # coupled to datasets: 0.4.1 needs a datasets that caps dill<0.4.2 (datasets 4.8.5 OK; datasets<=4.3 capped dill<0.4.1)
+    "dill==0.4.1",
     "distlib==0.4.1",
     "distro==1.9.0",
     "docopt==0.6.2",
     "docx2txt==0.9",
     "easygui==0.98.3",
-    "ebcdic==1.1.1",  # HOLD at <2: extract-msg 0.55.0 (latest, the .msg loader) requires ebcdic<2; 2.x breaks pip check / .msg handling
+    "ebcdic==1.1.1",
     "einops==0.8.2",
     "einx==0.3.0",
     "encodec==0.1.1",
     "et-xmlfile==2.0.0",
     "extract-msg==0.55.0",
     "fastcore==1.13.2",
-    "fastprogress==1.0.5",  # capped at 1.0.5: 1.1.0+ adds mandatory python-fasthtml (drags in a starlette/uvicorn web stack); only whisperspeech2 uses it (accepts any)
+    "fastprogress==1.0.5",
     "filelock==3.29.0",
     "frozendict==2.4.7",
     "frozenlist==1.8.0",
-    "fsspec[http]==2026.2.0",  # capped at datasets 4.8.5 ceiling (fsspec<=2026.2.0); 2026.3.0+ blocked; coupled to datasets pin
+    "fsspec[http]==2026.2.0",
     "googleapis-common-protos==1.75.0",
     "greenlet==3.5.1",
     "grpcio==1.81.0",
@@ -689,7 +684,7 @@ libs = [
     "identify==2.6.19",
     "idna==3.18",
     "img2pdf==0.6.3",
-    "importlib_metadata==9.0.0",  # 9.0.0 unblocked by opentelemetry-api 1.42.1 dropping its importlib_metadata<8.8.0 cap (was the only blocker)
+    "importlib_metadata==9.0.0",
     "Jinja2==3.1.6",
     "jiter==0.15.0",
     "joblib==1.5.3",
@@ -698,7 +693,7 @@ libs = [
     "jsonschema==4.26.0",
     "jsonschema-specifications==2025.9.1",
     "lark==1.3.1",
-    "llvmlite==0.47.0",  # locked to numba 0.65.1 (needs llvmlite 0.47.x; numba 0.62.1 needed llvmlite<0.46)
+    "llvmlite==0.47.0",
     "lxml==6.1.1",
     "Markdown==3.10.2",
     "markdown-it-py==4.2.0",
@@ -706,57 +701,52 @@ libs = [
     "mdurl==0.1.2",
     "ml-dtypes==0.5.4",
     "more-itertools==11.1.0",
-    "mpmath==1.3.0",  # HOLD: sympy (even latest 1.14.0) caps mpmath<1.4, and torch requires sympy>=1.13.3; mpmath 1.4.x unreachable until sympy raises the cap
+    "mpmath==1.3.0",
     "msoffcrypto-tool==6.0.0",
     "multidict==6.7.1",
-    "multiprocess==0.70.19",  # coupled to datasets: needs datasets cap multiprocess<0.70.20 (datasets 4.8.5 OK; datasets<=4.3 capped <0.70.17); pairs with dill 0.4.1
-    "narwhals==2.22.0",  # added for scikit-learn 1.9.x (new mandatory dep; zero deps)
+    "multiprocess==0.70.19",
+    "narwhals==2.22.0",
     "natsort==8.4.0",
     "networkx==3.6.1",
     "nodeenv==1.10.0",
     "num2words==0.5.14",
-    "numba==0.65.1",  # locked to llvmlite 0.47.x; caps numpy<2.5 (raised from 0.62.1's <2.4, which unblocks numpy 2.4.6)
+    "numba==0.65.1",
     "numpy==2.3.4",  # HOLD at 2.3.4: numpy 2.4.6 possibly corrupts the heap during large TileDB builds (~1.9M chunks), causing an access violation in _create_tiledb_array (confirmed by bisection). Do not bump until that 2.4 regression is fixed upstream. numba 0.65.1 caps numpy<2.5 regardless.
-    # ocrmypdf capped at 16.13.0 (Option A): gets onto pikepdf 10.x with NO new deps and no pydantic change.
-    # The full feature jump to ocrmypdf 17.x swaps the PDF render/generate backend and would ALSO require:
-    # pydantic 2.13.x + pydantic_core 2.46.x, PLUS 4 new libs to add here (fpdf2, pypdfium2, uharfbuzz, defusedxml).
-    # Revisit 17.x only as a deliberate bundle.
     "ocrmypdf==16.13.0",
     "olefile==0.47",
     "oletools==0.60.2",
     "onnx==1.21.0",
-    "openai==2.40.0",  # big jump 2.6->2.40 (within 2.x); used directly by ChatGPT (chat/openai.py) + MiniMax backends - TEST both query paths
+    "openai==2.40.0",
     "openai-whisper==20250625",
     "openpyxl==3.1.5",
-    "opentelemetry-api==1.42.1",  # opentelemetry-* is a version-locked set (api/sdk/exporters/proto + semantic-conventions); all move together at 1.42.1 / sem-conv 0.63b1
+    "opentelemetry-api==1.42.1",
     "opentelemetry-exporter-otlp-proto-grpc==1.42.1",
     "opentelemetry-sdk==1.42.1",
-    "opentelemetry-semantic-conventions==0.63b1",  # pinned to match opentelemetry-api/sdk 1.42.1 (was unpinned and had drifted to a mismatched 0.62b1)
+    "opentelemetry-semantic-conventions==0.63b1",
     "opentelemetry-exporter-otlp-proto-common==1.42.1",
     "opentelemetry-proto==1.42.1",
     "orjson==3.11.9",
     "overrides==7.7.0",
     "packaging==26.2",
-    "pandas==3.0.3",  # major 2->3; NOT imported by app code (charts removed), but a mandatory dep of anndata/datasets/tiledb-cloud (all allow pandas 3, none cap <3) which use pandas internally - TEST manually
+    "pandas==3.0.3",
     "pcodedmp==1.2.6",
     "pdfminer.six==20260107",
     "pi-heif==1.3.0",
-    "pikepdf==10.7.2",  # major 9->10; the gate for any ocrmypdf upgrade (used only via ocrmypdf / OCR feature) - TEST OCR
+    "pikepdf==10.7.2",
     "pillow==12.2.0",
     "pipdeptree",
     "platformdirs==4.10.0",
     "pluggy==1.6.0",
-    # "posthog==5.4.0",  # commented out - seems not needed by any other library (no installed dependents)
     "pre-commit==4.6.0",
     "propcache==0.5.2",
-    "protobuf==6.33.6",  # capped at 6.x: opentelemetry-proto (even latest 1.42.1) caps protobuf<7.0; 7.x blocked until opentelemetry raises it (googleapis 1.75.0 + onnx already allow 7)
+    "protobuf==6.33.6",
     "psutil==7.2.2",
     "pyarrow==24.0.0",
     "pybase16384==0.3.9",
     "pybase64==1.4.2",
-    "pycparser==3.0",  # major 2->3; transitive (cffi dep, not used in app code); cffi accepts any pycparser
-    "pydantic==2.13.4",  # locked trio with pydantic_core (exact match) + pydantic-settings; used directly by core/config.py AppConfig - TEST config load manually
-    "pydantic_core==2.46.4",  # matched to pydantic 2.13.4 (exact pin); NOT the standalone latest 2.47.0
+    "pycparser==3.0",
+    "pydantic==2.13.4",
+    "pydantic_core==2.46.4",
     "pydantic-settings==2.14.1",
     "Pygments==2.20.0",
     "PyOpenGL==3.1.10",
@@ -772,14 +762,14 @@ libs = [
     "referencing==0.37.0",
     "regex==2026.5.9",
     "requests==2.34.2",
-    "rpds-py==2026.5.1",  # used internally by jsonschema + referencing (not imported by app code); pinned (was unpinned)
+    "rpds-py==2026.5.1",
     "rich==15.0.0",
     "RTFDE==0.1.2.2",
-    "ruamel.yaml==0.18.17",  # capped at <0.19.0 by HyperPyYAML 1.2.3 (latest, used by speechbrain); 0.19.x violates it. 0.18.17 is highest <0.19.0
+    "ruamel.yaml==0.18.17",
     "ruamel.yaml.clib==0.2.15",
     "s3tokenizer==0.3.0",
     "safetensors==0.8.0",
-    "scikit-learn==1.9.0",  # 1.9.0 added mandatory dep narwhals (added to libs)
+    "scikit-learn==1.9.0",
     "scipy==1.17.1",
     "sentence-transformers==6.1.0",
     "sentencepiece==0.2.1",
@@ -793,7 +783,7 @@ libs = [
     "SQLAlchemy==2.0.50",
     "sseclient-py==1.9.0",
     "striprtf==0.0.32",
-    "sympy==1.14.0",  # torch declares sympy>=1.13.3 (1.14.0 satisfies), but torch uses sympy for symbolic shapes - VERIFY torch manually; may still need 1.13.3, revert if torch.compile/dynamo breaks
+    "sympy==1.14.0",
     "tabulate2==1.10.2",
     "tenacity==9.1.4",
     "termcolor==3.3.0",
@@ -810,10 +800,10 @@ libs = [
     "typer==0.27.2",
     "typing-inspection==0.4.2",
     "typing_extensions==4.15.0",
-    "virtualenv==20.35.3",  # held at 20.x: 21.x is a major bump needing new dep python-discovery; dev-only tool (pre-commit hooks), not app runtime - low value
+    "virtualenv==20.35.3",
     "tzdata==2026.2",
     "tzlocal==5.3.1",
-    "urllib3==2.5.0",  # HOLD: tiledb-cloud 0.14.4 (latest) caps urllib3<2.6.0, and 2.5.0 is already the highest <2.6.0 (no 2.5.x above it); 2.6/2.7 blocked until tiledb-cloud raises the cap - revisit
+    "urllib3==2.5.0",
     "vector-quantize-pytorch==1.29.1",
     "vocos==0.1.0",
     "watchdog==6.0.0",
@@ -822,7 +812,7 @@ libs = [
     "whisper-s2t-reborn==1.7.2",
     "whisperspeech2>=1.0.0,<2",
     "win-unicode-console==0.5",
-    "wrapt==2.2.1",  # major 1->2; coupled to Deprecated: 2.x needs Deprecated>=1.3.x (caps wrapt<3); Deprecated 1.2.x capped wrapt<2
+    "wrapt==2.2.1",
     "xlrd==2.0.2",
     "xxhash==3.7.0",
     "yarl==1.24.2",
@@ -1791,9 +1781,6 @@ TTS_MODELS = {
     },
 }
 
-# Ask Jeeves chat models -- keys into CHAT_MODELS, loaded UNQUANTIZED at native precision
-# (bf16/fp16/fp32 by hardware) with the Jeeves persona via chat/jeeves_model.py. Add more lightweight
-# CHAT_MODELS keys here to offer them in Ask Jeeves.
 JEEVES_MODELS = [
     'LiquidAI - .35b',
     'LiquidAI - .7b',

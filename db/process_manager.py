@@ -7,14 +7,6 @@ logger = logging.getLogger(__name__)
 
 
 class ProcessManager:
-    """Singleton that tracks every multiprocessing.Process spawned by the app
-    and provides a graceful, time-bounded cleanup path on shutdown.
-
-    Cleanup escalates: terminate (with timeout) -> kill (with timeout) -> close.
-    Without this, an unclean GUI exit can leak Python child processes that hold
-    open TileDB arrays, model weights, or CUDA contexts.
-    """
-
     _instance = None
     _lock = threading.Lock()
 

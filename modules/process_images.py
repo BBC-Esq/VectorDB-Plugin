@@ -461,9 +461,6 @@ class loader_qwenvl(BaseLoader):
     def process_single_image(self, raw_image):
         raw_image = to_rgb(raw_image)
 
-        # Prompt is hand-built as ChatML. A more robust alternative is to build it via
-        # self.processor.apply_chat_template(messages, ...) (like the sibling loaders),
-        # which produces the exact per-model template -- consider switching to that later.
         prompt = (
             "<|im_start|>user\n"
             f"{IMAGE_PROMPT} <|vision_start|><|image_pad|><|vision_end|>\n"

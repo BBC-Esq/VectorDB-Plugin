@@ -1,7 +1,3 @@
-"""Qt-free, torch-free text helpers, split out of core.utilities so headless
-split/extract workers can import normalize_text without loading PySide6 or torch
-(which pull conflicting OpenMP runtimes). Do not add GUI/torch imports here."""
-
 import re
 
 

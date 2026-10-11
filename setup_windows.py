@@ -8,7 +8,7 @@ if sys.platform == "win32":
     _h = _k.GetStdHandle(-11)
     _mode = ctypes.c_uint()
     if _k.GetConsoleMode(_h, ctypes.byref(_mode)):
-        _k.SetConsoleMode(_h, _mode.value | 0x0004)  # enable ANSI/VT color processing in cmd.exe
+        _k.SetConsoleMode(_h, _mode.value | 0x0004)
 
 cache_dir = os.path.join(
     os.environ.get("USERPROFILE", os.path.expanduser("~")),

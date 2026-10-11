@@ -18,43 +18,36 @@ from core.constants import PROJECT_ROOT
 
 _VERSION_SUFFIX_RE = re.compile(r"^v?\d+(\.\d+)*$")
 
-# Cruft commonly embedded INSIDE the main article element by Sphinx-style themes.
-# Stripped post-extraction so the saved HTML is closer to "vector-DB-ready" content.
 _CRUFT_TAGS = ("script", "style", "nav", "footer", "svg")
 _CRUFT_CLASSES = (
-    "toctree-wrapper",      # Sphinx project TOC tree, often dumped at bottom of index pages
-    "related",              # Sphinx prev/next bar
-    "sphinxsidebar",        # classic Sphinx sidebar, when scoped inside the content
-    "footer",               # Sphinx classic theme div.footer (copyright/build info)
-    "edit-this-page",       # MkDocs Material "Edit this page"
-    "md-source-file",       # MkDocs Material source-file metadata
-    "prev-next-area",       # Pydata-theme prev/next nav
+    "toctree-wrapper",
+    "related",
+    "sphinxsidebar",
+    "footer",
+    "edit-this-page",
+    "md-source-file",
+    "prev-next-area",
     "prev-next-bottom",
     "prev-next-top",
-    "bd-toc",               # Pydata "On this page" sidebar
+    "bd-toc",
     "bd-sidebar-secondary",
-    "feedback-widget",      # Pydantic.dev "Was this page helpful?"
-    "pagination-links",     # Pydantic.dev / generic prev-next pagination
-    "footer-version",       # PyMuPDF "This documentation covers all versions..."
-    "try_examples_button_container",  # SciPy "Try it in your browser! / Open in Tab"
-    "try_examples_outer_iframe",      # SciPy interactive-examples sandbox iframe
-    "sidemenu",             # lxml.de project nav inside div.document
-    "banner",               # lxml.de donation banner ("Like the tool? Help making it better!")
+    "feedback-widget",
+    "pagination-links",
+    "footer-version",
+    "try_examples_button_container",
+    "try_examples_outer_iframe",
+    "sidemenu",
+    "banner",
     "sr-only",
 )
 _CRUFT_IDS = (
-    "indices-and-tables",   # Sphinx auto-generated bottom-of-index "Index/ModIndex/Search" stub
+    "indices-and-tables",
     "search",
-    "footerDisclaimer",     # PyMuPDF "This software is provided AS-IS..."
+    "footerDisclaimer",
 )
 
 
 def _strip_trailing_version(path: str) -> str:
-    """Strip a trailing '-vX.Y.Z' / '-1.2.3' from a URL path.
-
-    Used by is_valid_url so that, e.g., a seed of /foo-v1.2/ still matches /foo-v1.3/.
-    Does NOT strip non-version suffixes (so /array-api-compat does not become /array-api).
-    """
     parts = path.rsplit("-", 1)
     if len(parts) == 2 and _VERSION_SUFFIX_RE.match(parts[1]):
         return parts[0]
@@ -70,7 +63,6 @@ _CRUFT_HEADINGS = {"copyright", "copyrights", "license", "licenses"}
 
 
 def _strip_embedded_cruft(content):
-    """Remove TOC trees, nav, scripts, etc. that sit INSIDE the extracted main element."""
     for tag_name in _CRUFT_TAGS:
         for el in content.find_all(tag_name):
             el.decompose()
@@ -80,13 +72,10 @@ def _strip_embedded_cruft(content):
     for cruft_id in _CRUFT_IDS:
         for el in content.find_all(id=cruft_id):
             el.decompose()
-    # Strip <section> whose first heading is a boilerplate heading like "Copyright" or "License".
     for section in content.find_all("section"):
         h = section.find(["h1", "h2", "h3", "h4", "h5", "h6"])
         if h and h.get_text(strip=True).lower() in _CRUFT_HEADINGS:
             section.decompose()
-    # Strip <p> elements whose only meaningful content is Prev/Next pagination anchors
-    # (e.g. ruamel.yaml's "<p><a>Prev</a> <a>Next</a></p>" with no class/id to target).
     _NAV_LABELS = {"prev", "previous", "next"}
     for p in content.find_all("p"):
         anchors = p.find_all("a")
@@ -94,7 +83,6 @@ def _strip_embedded_cruft(content):
             continue
         anchor_text = " ".join(a.get_text(strip=True).lower() for a in anchors).split()
         if anchor_text and all(w in _NAV_LABELS for w in anchor_text):
-            # Confirm there's no extra non-anchor text in the paragraph.
             non_anchor_text = "".join(
                 str(c) for c in p.contents if getattr(c, "name", None) != "a"
             ).strip()
@@ -123,11 +111,6 @@ class BaseScraper:
             new_soup = BeautifulSoup("<html><body></body></html>", "lxml")
             new_soup.body.append(cleaned)
             return new_soup
-        # Fallback differs based on whether the user configured a scraper_class:
-        #   - BaseScraper directly (no scraper_class set) => preserve full page
-        #   - any subclass (selector configured but missed) => save empty stub
-        #     so a misconfigured selector is visible as a tiny file instead of
-        #     silently saving the full untrimmed page with TOC/nav cruft.
         if type(self) is BaseScraper:
             return soup
         return BeautifulSoup("<html><body></body></html>", "lxml")
@@ -358,7 +341,7 @@ class MintlifyScraper(BaseScraper):
             m = re.search(r"\((https?://[^)\s]+\.md)\)", line)
             if not m:
                 continue
-            base_url = m.group(1)[:-3]  # strip ".md"
+            base_url = m.group(1)[:-3]
             p = urlparse(base_url)
             if p.netloc != parsed_seed.netloc:
                 continue

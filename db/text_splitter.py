@@ -1,12 +1,3 @@
-"""Pure-Python text-splitting primitives (stdlib + re only).
-
-Split out of db.document_processor so the headless split worker
-(db/stage_split.py) can import these without dragging in fitz + bs4, which
-document_processor imports at module top for its document loaders.
-db.document_processor re-exports these names for backwards compatibility.
-
-Do not add fitz / bs4 / torch / Qt imports here.
-"""
 import logging
 import re
 from dataclasses import dataclass, field

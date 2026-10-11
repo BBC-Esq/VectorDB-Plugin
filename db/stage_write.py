@@ -9,20 +9,6 @@ pickle shards) and streams it batch-by-batch, so peak memory stays ~one batch.
 
 Self-contained on purpose: imports only numpy + tiledb (+ optional orjson) and
 does NOT import torch or db.database_interactions, to keep this process pristine.
-
-Usage:
-    python stage_write.py <persist_dir> <data_dir>
-
-<data_dir> must contain:
-    meta.json        {"embedding_dim", "num_vectors", "batch_size", "num_batches"}
-    vectors.npy      float32 (num_vectors, embedding_dim)
-    shard_NNNNN.pkl  {"texts": [...], "metadatas": [...]} for each batch
-
-On success it writes:
-    <persist_dir>/vectors/           TileDB sparse array
-    <persist_dir>/vector_index/      FLAT index
-    <persist_dir>/index_metadata.json
-    <data_dir>/hash_id_mappings.pkl  list[(tiledb_id_str, file_hash)]
 """
 import faulthandler
 faulthandler.enable()

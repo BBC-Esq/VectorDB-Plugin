@@ -3,7 +3,7 @@ faulthandler.enable()
 
 # Module-level TileDB DLL preload. Mirrors the approach in VectorDB-Light's
 # vector_db_query.py (lines 1-31). Critical for subprocesses spawned via
-# multiprocessing.Process (e.g. the chunks-only query path): when the
+# multiprocessing.Process: when the
 # fresh interpreter imports this module, the DLLs load immediately —
 # before any other code can accidentally trigger a tiledb.vector_search
 # import without DLL registration, which on Windows causes the
@@ -47,9 +47,6 @@ try:
             except Exception:
                 pass
 except ImportError:
-    # tiledb not installed — will fail later at actual use. Don't block
-    # the import itself in case this module is loaded for non-TileDB work
-    # (e.g. tests that only exercise pure helpers).
     pass
 
 import gc
@@ -543,7 +540,6 @@ class CreateVectorDB:
         created_persist_dir = False
 
         try:
-            # Stage 1: Extract documents via subprocess
             my_cprint("Extracting documents (subprocess)...", "yellow")
             extract_t0 = time.time()
             _run_extract_with_retry(self.SOURCE_DIRECTORY, extracted_pkl)
@@ -601,14 +597,12 @@ class CreateVectorDB:
                 doc.metadata = {**(doc.metadata or {}), "doc_id": doc_id}
             doc_data = [(doc.page_content, doc.metadata) for doc in json_docs_to_save]
 
-            # Re-write extracted.pkl with audio+image docs included
             with open(extracted_pkl, "wb") as f:
                 pickle.dump(doc_data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
             del doc_data
             gc.collect()
 
-            # Stage 2: Split documents via subprocess
             my_cprint("Splitting documents into chunks (subprocess)...", "yellow")
             split_t0 = time.time()
             _run_split_with_retry(extracted_pkl, chunks_pkl, chunk_size, chunk_overlap, checkpoint_dir)
@@ -640,7 +634,6 @@ class CreateVectorDB:
                 my_cprint("No chunks produced after splitting.", "red")
                 raise RuntimeError("No chunks were produced after splitting; nothing to ingest.")
 
-            # Extract metadata dicts from chunks_with_meta, then free it
             all_metadatas = []
             for idx in range(len(chunk_texts)):
                 if idx < len(chunks_with_meta):
@@ -652,7 +645,6 @@ class CreateVectorDB:
             del chunks_with_meta
             gc.collect()
 
-            # Stage 3+4: Tokenize + Embed via subprocess pipeline
             with cuda_mgr.cuda_operation():
                 embeddings = self.initialize_vector_model(EMBEDDING_MODEL_NAME, config_data)
 
@@ -711,7 +703,6 @@ class CreateVectorDB:
             del vectors
             gc.collect()
 
-            # Stage 5: Write TileDB array + FLAT index in an isolated subprocess
             num_vectors = vectors_array.shape[0]
             embedding_dim = vectors_array.shape[1]
             num_write_batches = (num_vectors + TILEDB_WRITE_BATCH_SIZE - 1) // TILEDB_WRITE_BATCH_SIZE
@@ -757,7 +748,6 @@ class CreateVectorDB:
             pipeline_elapsed = time.time() - pipeline_t0
             my_cprint(f"Database created. Total time: {pipeline_elapsed:.2f} seconds.", "green")
 
-            # Stage 6: Write SQLite metadata DB
             gc.collect()
 
             try:
@@ -798,11 +788,6 @@ _thread_local = threading.local()
 
 
 def get_query_db(database_name: str) -> "QueryVectorDB":
-    """Return a thread-local QueryVectorDB instance, creating it if needed.
-
-    Each thread gets its own cache of database name → QueryVectorDB, so
-    concurrent queries against different databases don't thrash singleton state.
-    """
     if not hasattr(_thread_local, "query_db_cache"):
         _thread_local.query_db_cache = {}
 
@@ -815,7 +800,6 @@ def get_query_db(database_name: str) -> "QueryVectorDB":
 
 
 def clear_query_cache(database_name: Optional[str] = None) -> None:
-    """Clear the thread-local QueryVectorDB cache for the current thread."""
     if not hasattr(_thread_local, "query_db_cache"):
         return
 
