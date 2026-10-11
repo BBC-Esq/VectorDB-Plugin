@@ -863,7 +863,7 @@ TTS_BACKENDS = {
     "kyutaipocket": {"requires_cuda": False, "devices": ["cpu", "cuda"], "default_device": "cuda", "precisions": ["half"]},
     "chattts": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["half", "float32"]},
     "chatterbox": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["half", "float32"]},
-    "bark": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["float16"]},
+    "bark": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["half", "float32"]},
     "whisperspeech": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["float16"]},
     "kyutai": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["half"]},
 }
@@ -1709,10 +1709,14 @@ TTS_BENCHMARKS = {
     },
     "bark": {
         "small": {
-            "cuda-float16": {"speed": 1.33, "chars_per_second": 14.5, "first_audio": 6.54, "memory_mb": 1676},
+            "cuda-bfloat16": {"speed": 1.36, "chars_per_second": 12.7, "first_audio": 6.8, "memory_mb": 1771},
+            "cuda-float16": {"speed": 1.39, "chars_per_second": 13.2, "first_audio": 6.59, "memory_mb": 1762},
+            "cuda-float32": {"speed": 1.37, "chars_per_second": 12.9, "first_audio": 8.05, "memory_mb": 2917},
         },
         "normal": {
-            "cuda-float16": {"speed": 0.8, "chars_per_second": 8.6, "first_audio": 11.43, "memory_mb": 3169},
+            "cuda-bfloat16": {"speed": 0.81, "chars_per_second": 9.0, "first_audio": 12.06, "memory_mb": 3080},
+            "cuda-float16": {"speed": 0.78, "chars_per_second": 9.2, "first_audio": 10.64, "memory_mb": 3129},
+            "cuda-float32": {"speed": 0.76, "chars_per_second": 9.1, "first_audio": 13.31, "memory_mb": 5571},
         },
     },
     "whisperspeech": {

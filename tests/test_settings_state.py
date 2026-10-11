@@ -230,15 +230,24 @@ def test_kyutai_cards_follow_the_model(sandbox, gpu):
     assert not ss.apply_change("tts.option", {"backend": "kyutai", "name": "precision", "value": "float32"})["ok"]
 
 
-def test_bark_and_whisperspeech_run_in_float16_only(sandbox, gpu):
+def test_bark_chooses_between_half_and_float32(sandbox, gpu):
     assert ss.apply_change("tts.backend", "bark")["ok"]
     bark = tts_backend("bark")
-    assert bark["device"] is None and bark["precision"] is None
-    assert bark["card"]["dtype"] == "float16"
-    assert bark["card"]["benchmark"] == benchmark("bark", "small", "cuda-float16")
-    assert not ss.apply_change("tts.option", {"backend": "bark", "name": "precision", "value": "float32"})["ok"]
+    assert bark["device"] is None and bark["precision"]["value"] == "half"
+    assert bark["card"]["dtype"] == "bfloat16"
+    assert bark["card"]["benchmark"] == benchmark("bark", "small", "cuda-bfloat16")
+    assert config(sandbox)["bark"]["precision"] == "half"
+    assert ss.apply_change("tts.option", {"backend": "bark", "name": "precision", "value": "float32"})["ok"]
+    assert ss.apply_change("tts.option", {"backend": "bark", "name": "size", "value": "normal"})["ok"]
+    bark = tts_backend("bark")
+    assert bark["card"]["name"] == "Bark" and bark["card"]["dtype"] == "float32"
+    assert bark["card"]["benchmark"] == benchmark("bark", "normal", "cuda-float32")
 
+
+def test_whisperspeech_stays_in_float16(sandbox, gpu):
     assert ss.apply_change("tts.backend", "whisperspeech")["ok"]
+    whisper = tts_backend("whisperspeech")
+    assert whisper["device"] is None and whisper["precision"] is None and whisper["card"]["dtype"] == "float16"
     assert ss.apply_change("tts.option", {"backend": "whisperspeech", "name": "t2s", "value": "t2s-small"})["ok"]
     s2a = ss.tts_values(config(sandbox))["whisperspeech"]["s2a"]
     assert tts_backend("whisperspeech")["card"]["benchmark"] == benchmark("whisperspeech", f"{s2a}+t2s-small", "cuda-float16")

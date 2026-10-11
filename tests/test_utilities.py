@@ -305,7 +305,7 @@ class TestTtsRunSettings:
         assert self.run("kyutaipocket") == ("cuda", "bfloat16")
         for backend in ("kyutai", "chattts", "chatterbox"):
             assert self.run(backend) == ("cuda", "bfloat16")
-        assert self.run("bark") == ("cuda", "float16")
+        assert self.run("bark") == ("cuda", "bfloat16")
         assert self.run("whisperspeech") == ("cuda", "float16")
         assert self.run("googletts") == (None, None)
 
@@ -319,7 +319,8 @@ class TestTtsRunSettings:
         assert self.run("kyutaipocket", device="cpu", precision="half") == ("cpu", "float32")
         assert self.run("kyutai", precision="float32") == ("cuda", "bfloat16")
         assert self.run("kyutaipocket", precision="float32") == ("cuda", "bfloat16")
-        assert self.run("bark", precision="float32") == ("cuda", "float16")
+        assert self.run("bark", precision="float32") == ("cuda", "float32")
+        assert self.run("whisperspeech", precision="float32") == ("cuda", "float16")
         assert self.run("kokoro", device="tpu", precision="int8") == ("cpu", "float32")
         assert utilities.tts_run_settings("kokoro", {"device": "cpu", "precision": "float32"})["precision"] == "float32"
 

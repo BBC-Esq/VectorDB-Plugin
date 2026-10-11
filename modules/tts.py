@@ -308,23 +308,28 @@ class BarkAudio(BaseAudio):
         super().__init__()
         self.load_config('config.yaml', 'bark')
         self.initialize_device()
+        self.dtype = resolve_run("bark", self.config)[1]
         self.initialize_model_and_processor()
 
     def initialize_model_and_processor(self):
         repository_id = "suno/bark" if self.config['size'] == 'normal' else f"suno/bark-{self.config['size']}"
-        
+
         self.processor = AutoProcessor.from_pretrained(repository_id, token=False, cache_dir=CACHE_DIR)
-        
+
         self.model = BarkModel.from_pretrained(
             repository_id,
-            dtype=torch.float16,
+            dtype=self.dtype,
             cache_dir=CACHE_DIR,
             token=False
         ).to(self.device)
+        # Workaround: cuDNN cannot pack bfloat16 LSTM weights, so in half precision Bark's EnCodec codec runs in float16
+        # instead of re-packing them on every call. Remove once cuDNN accepts bfloat16 RNN weights.
+        codec_dtype = torch.float16 if half_precision(self.device, self.dtype) else self.dtype
+        move_modules([self.model.codec_model], self.device, codec_dtype)
 
         self.model.eval()
-        
-        my_cprint("Bark model loaded (float16)", "green")
+
+        my_cprint(f"Bark model loaded ({str(self.dtype).replace('torch.', '')})", "green")
 
     @torch.inference_mode()
     def process_text_to_audio(self, sentences):
@@ -343,7 +348,7 @@ class BarkAudio(BaseAudio):
                         pad_token_id=0,
                     )
 
-                    audio_array = speech_output[0].cpu().numpy()
+                    audio_array = speech_output[0].float().cpu().numpy()
                     peak = np.max(np.abs(audio_array)) if audio_array.size else 0
                     if peak:
                         audio_array = audio_array / peak

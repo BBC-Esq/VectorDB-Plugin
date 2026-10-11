@@ -253,6 +253,7 @@ def tts_values(cfg):
         "bark": {
             "size": _pick(bark_cfg.get("size", "small"), spec["bark"]["size"]["options"], "small"),
             "speaker": _pick(bark_cfg.get("speaker", "v2/en_speaker_6"), spec["bark"]["speaker"]["options"], "v2/en_speaker_6"),
+            **_run_choices("bark", bark_cfg),
         },
         "whisperspeech": {
             "s2a": _model_key_for_file(WHISPER_SPEECH_MODELS["s2a"], tts_cfg.get("s2a")),
@@ -311,7 +312,7 @@ def apply_tts(cfg, backend, values):
         kyutai["voice_display_name"] = values["voice"]
         kyutai["temp"] = 0.6
         kyutai["cfg_coef"] = 2.0
-    if backend in ("chattts", "chatterbox", "kokoro", "kyutaipocket", "kyutai"):
+    if backend in ("bark", "chattts", "chatterbox", "kokoro", "kyutaipocket", "kyutai"):
         section = _section(cfg, backend)
         for name in ("device", "precision"):
             if values.get(name):
