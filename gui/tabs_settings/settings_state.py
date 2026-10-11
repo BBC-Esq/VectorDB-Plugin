@@ -15,6 +15,7 @@ PIPELINE_PRESETS = ["minimal", "low", "normal", "high", "maximum"]
 DOCUMENT_TYPES = [("", "All files"), ("document", "Documents"), ("image", "Images"), ("audio", "Audio")]
 DEVICE_LABELS = {"cpu": "CPU", "cuda": "CUDA", "mps": "MPS"}
 DEFAULT_VISION_MODEL = "Liquid-VL - 480M"
+VISION_LICENSES = {"apache-2.0": "Apache-2.0", "lfm1.0": "LFM 1.0"}
 
 WHISPER_SPEECH_SPEAKERS = ["default", "classic", "voice_b"]
 WHISPER_SPEECH_VOICE_CLONING_LABEL = "Voice Cloning (Coming Soon)"
@@ -404,10 +405,19 @@ def _tts_state(cfg):
     return {"current": backend, "backends": backends}
 
 
-def _vision_state(cfg):
+def vision_precision(cuda):
+    if not cuda:
+        return "float32"
+    return "bfloat16" if torch.cuda.get_device_capability()[0] >= 8 else "float16"
+
+
+def _vision_state(cfg, cuda):
+    precision = vision_precision(cuda)
     models = []
     for name in available_vision_models():
         info = VISION_MODELS[name]
+        repo_id = str(info.get("repo_id", ""))
+        license_key = str(info.get("license", ""))
         models.append({
             "name": name,
             "size": str(info.get("size", "")),
@@ -416,9 +426,12 @@ def _vision_state(cfg):
             "avg_length": info.get("avg_length"),
             "vision_component": str(info.get("vision_component", "")),
             "chat_component": str(info.get("chat_component", "")),
-            "precision": str(info.get("precision", "")),
-            "quant": str(info.get("quant", "")),
-            "license": str(info.get("license", "")),
+            "precision": precision,
+            "quant": str(info.get("quant", "")) if cuda else "n/a",
+            "license": VISION_LICENSES.get(license_key.lower(), license_key),
+            "vendor": repo_id.split("/")[0] if "/" in repo_id else "",
+            "url": f"https://huggingface.co/{repo_id}" if repo_id else "",
+            "requires_cuda": bool(info.get("requires_cuda")),
         })
     return {"current": current_vision_model(cfg), "models": models}
 
@@ -453,7 +466,7 @@ def build_state():
         "sections": _sections(cfg, cuda),
         "help": HELP,
         "tts": _tts_state(cfg),
-        "vision": _vision_state(cfg),
+        "vision": _vision_state(cfg, cuda),
         "embedding": _embedding_model(cfg),
     }
 

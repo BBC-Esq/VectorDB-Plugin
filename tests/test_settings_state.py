@@ -25,6 +25,7 @@ def gpu(monkeypatch):
     monkeypatch.setattr(utilities, "cuda_usable", lambda: True)
     monkeypatch.setattr(ss, "cuda_usable", lambda: True)
     monkeypatch.setattr(ss, "gpu_name", lambda: "Test GPU")
+    monkeypatch.setattr(ss.torch.cuda, "get_device_capability", lambda *args: (8, 9))
 
 
 @pytest.fixture
@@ -151,3 +152,23 @@ def test_an_unreadable_config_is_reported_not_overwritten(sandbox, gpu):
     assert ss.normalize_config() is False
     assert not ss.apply_change("query.similarity", 0.4)["ok"]
     assert (sandbox / "config.yaml").read_text(encoding="utf-8") == "database: [unclosed"
+
+
+def test_vision_cards_describe_each_model_on_a_gpu(sandbox, gpu, monkeypatch):
+    cards = ss.build_state()["vision"]["models"]
+    assert [c["name"] for c in cards] == list(ss.VISION_MODELS)
+    for card in cards:
+        info = ss.VISION_MODELS[card["name"]]
+        assert card["vendor"] == info["repo_id"].split("/")[0]
+        assert card["url"] == f"https://huggingface.co/{info['repo_id']}"
+        assert card["license"] == ss.VISION_LICENSES.get(info["license"].lower(), info["license"])
+        assert card["precision"] == "bfloat16" and card["quant"] == info["quant"]
+        assert card["requires_cuda"] == bool(info["requires_cuda"])
+    monkeypatch.setattr(ss.torch.cuda, "get_device_capability", lambda *args: (7, 5))
+    assert {c["precision"] for c in ss.build_state()["vision"]["models"]} == {"float16"}
+
+
+def test_vision_cards_on_a_cpu(sandbox, cpu):
+    cards = ss.build_state()["vision"]["models"]
+    assert cards and all(not c["requires_cuda"] for c in cards)
+    assert {(c["precision"], c["quant"]) for c in cards} == {("float32", "n/a")}

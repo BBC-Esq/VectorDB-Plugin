@@ -42,7 +42,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_query_data.py` | Query Database tab: citations, token counts, answer text, readiness messages, the database list, local model flags and chunk rows |
 | `test_scraper.py` | HTML processing, the scraper registry and selectors, URL checks and file name cleanup |
 | `test_search_process.py` | Database search process: the same database stays loaded, a new database or changed settings end the old process before loading, releasing, errors, crashes and timeouts |
-| `test_settings_state.py` | Settings tab: reading, checking and saving settings, GPU-only choices, half precision, TTS backends and unreadable config files |
+| `test_settings_state.py` | Settings tab: reading, checking and saving settings, GPU-only choices, half precision, TTS backends, vision model cards and unreadable config files |
 | `test_symlinks.py` | Symlink creation |
 | `test_thinking_tags.py` | Thinking tag structure and filtering |
 | `test_tools.py` | File hashing, markdown chunk extraction and chunk analysis |

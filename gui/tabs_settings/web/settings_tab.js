@@ -140,22 +140,44 @@
     return html.join("");
   }
 
-  function statHTML(label, value, span) {
-    return `<div class="field${span ? ` span-${span}` : ""}"><div class="field-label"><span>${esc(label)}</span></div><div class="stat-value">${esc(value || "—")}</div></div>`;
+  function specHTML(label, value) {
+    return `<div class="spec"><span class="spec-label">${esc(label)}</span><span class="spec-value">${esc(value || "—")}</span></div>`;
+  }
+
+  function visionCardHTML(model) {
+    const sep = '<span class="sep">·</span>';
+    const meta = [
+      model.vendor ? `<span class="vendor">${esc(model.vendor)}</span>` : "",
+      model.license ? `<span data-tip-text="License">${esc(model.license)}</span>` : "",
+      model.size ? `<span>${esc(model.size.toUpperCase())} params</span>` : "",
+    ].filter(Boolean).join(sep);
+    const where = state.cuda ? "on this GPU" : "on the CPU";
+    const chips = [
+      model.vram ? `<span class="chip vram" data-tip-text="Approximate memory used while describing images">${esc(model.vram.replace(/gb/i, "GB"))} VRAM</span>` : "",
+      model.speed ? `<span class="chip speed" data-tip-text="Average speed when describing an image">${fmt.int(Math.round(model.speed))} chars/s</span>` : "",
+      model.precision ? `<span class="chip prec-${esc(model.precision)}" data-tip-text="Runs in ${esc(model.precision)} ${where}">${esc(fmt.precision(model.precision))}</span>` : "",
+      model.quant && model.quant !== "n/a" ? `<span class="chip quant" data-tip-text="Loaded with ${esc(model.quant)} quantization to use less memory">${esc(model.quant)}</span>` : "",
+      model.requires_cuda ? '<span class="chip gpu" data-tip-text="Needs a supported NVIDIA GPU">GPU only</span>' : "",
+    ].join("");
+    const name = model.url
+      ? `<a class="name" href="${esc(model.url)}" draggable="false" data-tip-text="Open the model page on Hugging Face">${esc(model.name)}${ICONS.external}</a>`
+      : `<span class="name">${esc(model.name)}</span>`;
+    return '<article class="card vision-card">'
+      + `<div class="card-head">${name}${meta ? `<div class="meta">${meta}</div>` : ""}</div>`
+      + `<div class="chips">${chips}</div>`
+      + '<div class="specs">'
+      + specHTML("Vision component", model.vision_component)
+      + specHTML("Chat component", model.chat_component)
+      + specHTML("Average description", model.avg_length ? `${fmt.int(model.avg_length)} characters` : "")
+      + "</div></article>";
   }
 
   function visionFields() {
     const model = currentVision();
     if (!model) return "";
-    return [
-      `<div class="field span-2" data-field="vision.model">${labelHTML("vision.model", "Model")}`
-        + `${VDB.selectButton("vision.model", { label: model.name, note: model.size })}${messageHTML({ key: "vision.model" })}</div>`,
-      statHTML("VRAM", model.vram),
-      statHTML("Speed", model.speed ? `${fmt.int(Math.round(model.speed))} characters/s` : ""),
-      statHTML("Vision component", model.vision_component, 2),
-      statHTML("Chat component", model.chat_component),
-      statHTML("Average description", model.avg_length ? `${fmt.int(model.avg_length)} characters` : ""),
-    ].join("");
+    return `<div class="field span-2" data-field="vision.model">${labelHTML("vision.model", "Model")}`
+      + `${VDB.selectButton("vision.model", { label: model.name, note: model.size })}${messageHTML({ key: "vision.model" })}</div>`
+      + `<div class="field span-4">${visionCardHTML(model)}</div>`;
   }
 
   function sectionHTML(section) {
