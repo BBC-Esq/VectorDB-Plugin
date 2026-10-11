@@ -22,6 +22,7 @@
   let lastTranscript = 0;
   let lastFocus = 0;
   let askError = "";
+  let askedQuestion = null;
   let copied = { id: null, timer: 0 };
 
   function extOf(name) {
@@ -364,7 +365,8 @@
       lastTranscript = state.transcript.id;
       const box = $("#question");
       const text = state.transcript.text;
-      box.value = box.value.trim() ? `${box.value.replace(/\s+$/, "")} ${text}` : text;
+      const current = box.value.trim();
+      box.value = current && current !== askedQuestion ? `${box.value.replace(/\s+$/, "")} ${text}` : text;
       box.focus();
       box.setSelectionRange(box.value.length, box.value.length);
       askError = "";
@@ -378,16 +380,12 @@
 
   function ask() {
     if (blocker()) return;
-    const box = $("#question");
-    const question = box.value.trim();
+    const question = $("#question").value.trim();
     askError = "";
     VDB.tooltip.hide();
     VDB.call("ask", { question }).then((result) => {
-      if (result.ok) {
-        box.value = "";
-      } else if (result.error) {
-        askError = result.error;
-      }
+      if (result.ok) askedQuestion = question;
+      else if (result.error) askError = result.error;
       actionsSignature = "";
       renderActions();
     });
