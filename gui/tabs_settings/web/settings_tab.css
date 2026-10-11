@@ -56,7 +56,7 @@ main { display: flex; flex-direction: column; gap: 12px; }
 
 .model-card { background: var(--bg-window); }
 
-.model-card .card-head { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.model-card .card-head { display: flex; flex-direction: column; min-width: 0; }
 
 .model-card .name {
   align-self: flex-start;
@@ -72,18 +72,7 @@ main { display: flex; flex-direction: column; gap: 12px; }
 .model-card .name svg { display: inline-block; width: 12px; height: 12px; margin-left: 5px; vertical-align: -1px; opacity: 0.55; }
 .model-card .name:hover svg { opacity: 1; }
 
-.model-card .meta {
-  color: var(--muted);
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.model-card .meta .vendor { color: var(--accent); font-weight: 600; }
-.model-card .meta .sep { margin: 0 6px; opacity: 0.6; }
-.model-card .meta [data-tip-text] { cursor: default; }
-
+.chip.params { --h: 25; --s: 85%; }
 .chip.vram { --h: 265; --s: 85%; }
 .chip.speed { --h: 205; --s: 85%; }
 .chip.prec-float32 { --h: 45; --s: 90%; }
@@ -91,7 +80,6 @@ main { display: flex; flex-direction: column; gap: 12px; }
 .chip.prec-float16 { --h: 182; --s: 70%; }
 .chip.quant { --h: 320; --s: 70%; }
 .chip.gpu { --h: 0; --s: 78%; }
-.chip.device { --h: 25; --s: 85%; }
 .chip.online { --h: 195; --s: 55%; }
 
 .model-card .specs {

@@ -127,11 +127,6 @@
   function ttsCardHTML(backend) {
     const card = backend.card;
     const bench = card.benchmark;
-    const sep = '<span class="sep">·</span>';
-    const meta = [
-      card.vendor ? `<span class="vendor">${esc(card.vendor)}</span>` : "",
-      card.summary ? `<span>${esc(card.summary)}</span>` : "",
-    ].filter(Boolean).join(sep);
     const memory = card.device === "cpu" ? "RAM" : "VRAM";
     const where = card.device === "cpu" ? "on the CPU" : "on the GPU";
     const chips = card.online
@@ -140,13 +135,13 @@
         bench ? `<span class="chip speed" data-tip-text="Seconds of speech made per second of work. Above 1× keeps up with playback.">${speedText(bench.speed)}× real time</span>` : "",
         bench ? `<span class="chip vram" data-tip-text="${memory} used while speaking">${esc(fmt.size(bench.memory_mb))} ${memory}</span>` : "",
         card.dtype ? `<span class="chip prec-${esc(card.dtype)}" data-tip-text="Runs in ${esc(card.dtype)} ${where}">${esc(fmt.precision(card.dtype))}</span>` : "",
-        card.device ? `<span class="chip device" data-tip-text="Runs ${where}">${card.device === "cpu" ? "CPU" : "GPU"}</span>` : "",
+        card.requires_cuda ? '<span class="chip gpu" data-tip-text="Needs a supported NVIDIA GPU">GPU only</span>' : "",
       ].join("");
     const name = card.url
       ? `<a class="name" href="${esc(card.url)}" draggable="false" data-tip-text="Open the model page on Hugging Face">${esc(card.name)}${ICONS.external}</a>`
       : `<span class="name">${esc(card.name)}</span>`;
     return '<article class="card model-card tts-card">'
-      + `<div class="card-head">${name}${meta ? `<div class="meta">${meta}</div>` : ""}</div>`
+      + `<div class="card-head">${name}</div>`
       + `<div class="chips">${chips}</div></article>`;
   }
 
@@ -190,14 +185,9 @@
   }
 
   function visionCardHTML(model) {
-    const sep = '<span class="sep">·</span>';
-    const meta = [
-      model.vendor ? `<span class="vendor">${esc(model.vendor)}</span>` : "",
-      model.license ? `<span data-tip-text="License">${esc(model.license)}</span>` : "",
-      model.size ? `<span>${esc(model.size.toUpperCase())} params</span>` : "",
-    ].filter(Boolean).join(sep);
     const where = state.cuda ? "on this GPU" : "on the CPU";
     const chips = [
+      model.size ? `<span class="chip params" data-tip-text="Number of parameters">${esc(model.size.toUpperCase())} params</span>` : "",
       model.vram ? `<span class="chip vram" data-tip-text="Approximate memory used while describing images">${esc(vramText(model))} VRAM</span>` : "",
       model.speed ? `<span class="chip speed" data-tip-text="Average speed when describing an image">${fmt.int(Math.round(model.speed))} chars/s</span>` : "",
       model.precision ? `<span class="chip prec-${esc(model.precision)}" data-tip-text="Runs in ${esc(model.precision)} ${where}">${esc(fmt.precision(model.precision))}</span>` : "",
@@ -208,7 +198,7 @@
       ? `<a class="name" href="${esc(model.url)}" draggable="false" data-tip-text="Open the model page on Hugging Face">${esc(model.name)}${ICONS.external}</a>`
       : `<span class="name">${esc(model.name)}</span>`;
     return '<article class="card model-card vision-card">'
-      + `<div class="card-head">${name}${meta ? `<div class="meta">${meta}</div>` : ""}</div>`
+      + `<div class="card-head">${name}</div>`
       + `<div class="chips">${chips}</div>`
       + '<div class="specs">'
       + specHTML("Vision component", model.vision_component)

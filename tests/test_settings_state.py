@@ -278,6 +278,11 @@ def test_kokoro_and_pocket_stay_on_the_cpu_without_a_gpu(sandbox, cpu):
     assert pocket["card"]["benchmark"] == benchmark("kyutaipocket", "", "cpu-float32")
 
 
+def test_only_gpu_only_tts_cards_say_so(sandbox, gpu):
+    marked = {b["key"] for b in ss.build_state()["tts"]["backends"] if b["card"]["requires_cuda"]}
+    assert marked == {"bark", "whisperspeech", "chattts", "chatterbox", "kyutai"}
+
+
 def test_kyutai_settings_saved_under_the_old_labels_still_load(sandbox, gpu):
     cfg = config(sandbox)
     cfg["kyutai"] = {"model_display_name": "0.75B (EN, ~2GB VRAM)", "hf_repo": "kyutai/tts-0.75b-en-public", "n_q": 16}
@@ -337,9 +342,8 @@ def test_vision_cards_describe_each_model_on_a_gpu(sandbox, gpu, monkeypatch):
     assert [c["name"] for c in cards] == list(ss.VISION_MODELS)
     for card in cards:
         info = ss.VISION_MODELS[card["name"]]
-        assert card["vendor"] == info["repo_id"].split("/")[0]
         assert card["url"] == f"https://huggingface.co/{info['repo_id']}"
-        assert card["license"] == ss.VISION_LICENSES.get(info["license"].lower(), info["license"])
+        assert card["size"] == info["size"]
         assert card["precision"] == "bfloat16" and card["quant"] == info["quant"]
         assert card["requires_cuda"] == bool(info["requires_cuda"])
     monkeypatch.setattr(ss.torch.cuda, "get_device_capability", lambda *args: (7, 5))

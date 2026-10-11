@@ -16,7 +16,6 @@ PIPELINE_PRESETS = ["minimal", "low", "normal", "high", "maximum"]
 DOCUMENT_TYPES = [("", "All files"), ("document", "Documents"), ("image", "Images"), ("audio", "Audio")]
 DEVICE_LABELS = {"cpu": "CPU", "cuda": "CUDA", "mps": "MPS"}
 DEFAULT_VISION_MODEL = "Liquid-VL - 480M"
-VISION_LICENSES = {"apache-2.0": "Apache-2.0", "lfm1.0": "LFM 1.0"}
 
 WHISPER_SPEECH_SPEAKERS = ["default", "classic", "voice_b"]
 WHISPER_SPEECH_VOICE_CLONING_LABEL = "Voice Cloning (Coming Soon)"
@@ -105,7 +104,7 @@ TTS_CARDS = {
     "whisperspeech": {"name": "WhisperSpeech", "repo": "WhisperSpeech/WhisperSpeech"},
     "chattts": {"name": "ChatTTS", "repo": "2Noise/ChatTTS"},
     "chatterbox": {"name": "Chatterbox", "repo": "ResembleAI/chatterbox"},
-    "googletts": {"name": "Google TTS", "vendor": "Google"},
+    "googletts": {"name": "Google TTS"},
     "kokoro": {"name": "Kokoro", "repo": "ctranslate2-4you/Kokoro-82M-light"},
     "kyutaipocket": {"name": "Kyutai Pocket", "repo": "kyutai/pocket-tts"},
 }
@@ -426,7 +425,7 @@ def _precision_control(run):
     }
 
 
-def _tts_card(key, values, run, note):
+def _tts_card(key, values, run):
     if key == "bark":
         small = values["size"] == "small"
         name, repo, variant = ("Bark Small" if small else "Bark"), ("suno/bark-small" if small else "suno/bark"), values["size"]
@@ -440,15 +439,13 @@ def _tts_card(key, values, run, note):
     benchmark = None
     if run["device"]:
         benchmark = TTS_BENCHMARKS.get(key, {}).get(variant, {}).get(f"{run['device']}-{run['dtype']}")
-    summaries = {"Online": "Online service", "CPU": "Runs on the CPU", "GPU": "Runs on the GPU", "CPU or GPU": "Runs on the CPU or GPU"}
     return {
         "name": name,
-        "vendor": repo.split("/")[0] if repo else TTS_CARDS.get(key, {}).get("vendor", ""),
         "url": f"https://huggingface.co/{repo}" if repo else "",
-        "summary": summaries[note],
         "device": run["device"],
         "dtype": run["dtype"],
         "online": key == "googletts",
+        "requires_cuda": bool((TTS_BACKENDS.get(key) or {}).get("requires_cuda")),
         "benchmark": benchmark,
     }
 
@@ -473,15 +470,14 @@ def _tts_state(cfg):
                     for option in meta["options"]
                 ],
             })
-        note = _tts_note(key, run)
         backends.append({
             "key": key,
             "label": spec["label"],
-            "note": note,
+            "note": _tts_note(key, run),
             "extras": extras,
             "device": _device_control(key, run),
             "precision": _precision_control(run),
-            "card": _tts_card(key, values[key], run, note),
+            "card": _tts_card(key, values[key], run),
         })
     return {"current": backend, "backends": backends, "hardware": TTS_BENCHMARK_HARDWARE}
 
@@ -498,7 +494,6 @@ def _vision_state(cfg, cuda):
     for name in available_vision_models():
         info = VISION_MODELS[name]
         repo_id = str(info.get("repo_id", ""))
-        license_key = str(info.get("license", ""))
         models.append({
             "name": name,
             "size": str(info.get("size", "")),
@@ -509,8 +504,6 @@ def _vision_state(cfg, cuda):
             "chat_component": str(info.get("chat_component", "")),
             "precision": precision,
             "quant": str(info.get("quant", "")) if cuda else "n/a",
-            "license": VISION_LICENSES.get(license_key.lower(), license_key),
-            "vendor": repo_id.split("/")[0] if "/" in repo_id else "",
             "url": f"https://huggingface.co/{repo_id}" if repo_id else "",
             "requires_cuda": bool(info.get("requires_cuda")),
         })
