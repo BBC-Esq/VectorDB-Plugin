@@ -810,15 +810,13 @@ class KyutaiPocketAudio(BaseAudio):
 
             language = self.config.get('language', 'english')
             voice = self.config.get('voice', 'alba')
-            quantize = self.config.get('quantize', True)
             temp = self.config.get('temp', 0.7)
 
-            my_cprint(f"Loading Kyutai Pocket TTS model (language={language}, quantize={quantize})...", "yellow")
+            my_cprint(f"Loading Kyutai Pocket TTS model (language={language})...", "yellow")
 
             self.tts_model = TTSModel.load_model(
                 language=language,
                 temp=temp,
-                quantize=quantize,
             )
             self.sample_rate = self.tts_model.sample_rate
 

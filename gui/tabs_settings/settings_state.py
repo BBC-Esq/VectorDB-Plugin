@@ -90,16 +90,6 @@ TTS_SPECS = {
         "extras": {
             "voice": {"label": "Voice", "options": KYUTAI_POCKET_VOICES, "default": "alba"},
         },
-        "toggles": {
-            "quantize": {
-                "label": "Quantize (int8)",
-                "default": True,
-                "help": (
-                    "Apply int8 quantization. The developers claim no loss of quality (WER unchanged) "
-                    "with ~48% less RAM and ~27% faster inference. Feel free to test and decide for yourself."
-                ),
-            },
-        },
     },
     "kyutai": {
         "label": "Kyutai",
@@ -254,7 +244,6 @@ def tts_values(cfg):
         },
         "kyutaipocket": {
             "voice": _pick(pocket_cfg.get("voice", "alba"), KYUTAI_POCKET_VOICES, "alba"),
-            "quantize": bool(pocket_cfg.get("quantize", True)),
         },
         "kyutai": {
             "model": _pick(kyutai_cfg.get("model_display_name"), KYUTAI_MODELS, "1.6B (EN+FR, ~4.2GB VRAM)"),
@@ -279,7 +268,7 @@ def apply_tts(cfg, backend, values):
         pocket = _section(cfg, "kyutaipocket")
         pocket["language"] = "english"
         pocket["voice"] = values["voice"]
-        pocket["quantize"] = bool(values["quantize"])
+        pocket.pop("quantize", None)
         pocket["temp"] = 0.7
     elif backend == "kokoro":
         kokoro = _section(cfg, "kokoro")

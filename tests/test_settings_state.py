@@ -119,6 +119,17 @@ def test_tts_backends_write_the_same_keys_as_before(sandbox, gpu):
     assert not ss.apply_change("tts.option", {"backend": "kokoro", "name": "voice", "value": "af"})["ok"]
 
 
+def test_kyutai_pocket_drops_the_old_int8_setting(sandbox, gpu):
+    cfg = config(sandbox)
+    cfg["kyutaipocket"] = {"voice": "alba", "quantize": True}
+    (sandbox / "config.yaml").write_text(yaml.safe_dump(cfg), encoding="utf-8")
+    assert ss.apply_change("tts.backend", "kyutaipocket")["ok"]
+    assert "quantize" not in config(sandbox)["kyutaipocket"]
+    pocket = next(b for b in ss.build_state()["tts"]["backends"] if b["key"] == "kyutaipocket")
+    assert pocket["toggles"] == []
+    assert not ss.apply_change("tts.option", {"backend": "kyutaipocket", "name": "quantize", "value": True})["ok"]
+
+
 def test_gpu_only_choices_are_refused_on_a_cpu(sandbox, cpu):
     assert "bark" not in ss.available_backends()
     assert not ss.apply_change("tts.backend", "bark")["ok"]
