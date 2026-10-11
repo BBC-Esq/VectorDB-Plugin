@@ -859,13 +859,13 @@ BACKEND_DEPENDENCIES = {
 
 TTS_BACKENDS = {
     "googletts": {"requires_cuda": False},
-    "kokoro": {"requires_cuda": False},
-    "kyutaipocket": {"requires_cuda": False},
-    "chattts": {"requires_cuda": True},
-    "chatterbox": {"requires_cuda": True},
-    "bark": {"requires_cuda": True},
-    "whisperspeech": {"requires_cuda": True},
-    "kyutai": {"requires_cuda": True},
+    "kokoro": {"requires_cuda": False, "devices": ["cpu", "cuda"], "default_device": "cpu", "precisions": ["half", "float32"]},
+    "kyutaipocket": {"requires_cuda": False, "devices": ["cpu", "cuda"], "default_device": "cuda", "precisions": ["half", "float32"]},
+    "chattts": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["half", "float32"]},
+    "chatterbox": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["half", "float32"]},
+    "bark": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["float16"]},
+    "whisperspeech": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["float16"]},
+    "kyutai": {"requires_cuda": True, "devices": ["cuda"], "precisions": ["half", "float32"]},
 }
 
 KOKORO_VOICES = [

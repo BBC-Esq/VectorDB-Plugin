@@ -47,4 +47,4 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_thinking_tags.py` | Thinking tag structure and filtering |
 | `test_tools.py` | File hashing, markdown chunk extraction and chunk analysis |
 | `test_tools_state.py` | Tools tab: Whisper models and precisions, transcription checks, scraping status, vision and OCR |
-| `test_utilities.py` | `normalize_chat_text`, `format_citations`, `prepare_long_path`, `normalize_text`, embedding batch sizes, package and installation checks, and platform and Python version info |
+| `test_utilities.py` | `normalize_chat_text`, `format_citations`, `prepare_long_path`, `normalize_text`, embedding batch sizes, package and installation checks, platform and Python version info, and the device and precision each TTS backend runs in |

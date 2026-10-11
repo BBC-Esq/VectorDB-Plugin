@@ -1,3 +1,4 @@
+import contextlib
 import importlib
 import importlib.metadata
 import importlib.util
@@ -19,7 +20,7 @@ from PySide6.QtCore import QRunnable, QObject, Signal, QThreadPool
 from PySide6.QtWidgets import QApplication, QMessageBox
 from termcolor import cprint
 
-from core.constants import PROJECT_ROOT, THEMES
+from core.constants import PROJECT_ROOT, THEMES, TTS_BACKENDS
 from core.cuda_paths import set_cuda_paths
 from core.text_utils import normalize_text
 
@@ -826,6 +827,45 @@ def fallback_if_unavailable(saved_key, registry, default_key):
     if saved_key in registry and runs_on_this_hardware(registry[saved_key]):
         return saved_key
     return default_key
+
+
+def tts_run_settings(backend, section=None):
+    info = TTS_BACKENDS.get(backend) or {}
+    section = section or {}
+    devices = [device for device in info.get("devices", []) if device != "cuda" or cuda_usable()]
+    precisions = list(info.get("precisions", []))
+    if not devices:
+        return {"device": None, "devices": [], "precision": None, "precisions": [], "dtype": None}
+    device = section.get("device")
+    if device not in devices:
+        default = info.get("default_device")
+        device = default if default in devices else devices[0]
+    precision = section.get("precision")
+    if precision not in precisions:
+        precision = precisions[0]
+    if device == "cpu":
+        dtype = "float32"
+    elif precision == "half":
+        dtype = "bfloat16" if has_bfloat16_support() else "float16"
+    else:
+        dtype = precision
+    return {"device": device, "devices": devices, "precision": precision, "precisions": precisions, "dtype": dtype}
+
+
+def autocast_for(device, dtype):
+    if device == "cuda" and dtype in (torch.float16, torch.bfloat16):
+        return torch.autocast("cuda", dtype=dtype)
+    return contextlib.nullcontext()
+
+
+def move_modules(modules, device, dtype):
+    for module in modules:
+        module.to(device=device, dtype=dtype)
+        for submodule in module.modules():
+            if isinstance(submodule, torch.nn.RNNBase):
+                submodule.flatten_parameters()
+    if device == "cuda":
+        torch.cuda.empty_cache()
 
 def set_logging_level():
     library_levels = {

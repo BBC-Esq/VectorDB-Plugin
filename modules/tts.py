@@ -1,3 +1,4 @@
+import functools
 import queue
 import re
 import threading
@@ -16,7 +17,7 @@ import soundfile as sf
 from gtts import gTTS
 from gtts.tokenizer import pre_processors, tokenizer_cases
 
-from core.utilities import my_cprint, quiet_transformers_loading_bars
+from core.utilities import autocast_for, move_modules, my_cprint, quiet_transformers_loading_bars, tts_run_settings
 from core.constants import WHISPER_SPEECH_MODELS, PROJECT_ROOT
 from modules.kokoro import split_sentences
 
@@ -25,6 +26,70 @@ quiet_transformers_loading_bars()
 current_directory = PROJECT_ROOT
 CACHE_DIR = current_directory / "models" / "tts"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def resolve_run(backend, section):
+    run = tts_run_settings(backend, section)
+    return run["device"] or "cpu", getattr(torch, run["dtype"] or "float32")
+
+
+def half_precision(device, dtype):
+    return device == "cuda" and dtype in (torch.float16, torch.bfloat16)
+
+
+# Workaround: pocket-tts generates and decodes audio in its own threads and starts its streaming states in float32,
+# so half precision runs under autocast inside those threads. Remove if pocket-tts gains its own half-precision support.
+def _run_pocket_threads_under_autocast(dtype):
+    from pocket_tts.models.tts_model import TTSModel
+
+    for name in ("_autoregressive_generation", "_decode_audio_worker"):
+        original = getattr(TTSModel, name)
+        if getattr(original, "autocast", False):
+            continue
+
+        @functools.wraps(original)
+        def wrapper(*args, _original=original, **kwargs):
+            with torch.autocast("cuda", dtype=dtype):
+                return _original(*args, **kwargs)
+
+        wrapper.autocast = True
+        setattr(TTSModel, name, wrapper)
+
+
+# Workaround: PyTorch has no complex bfloat16 math and only experimental complex float16, so Vocos' ISTFT head stays
+# in float32 when ChatTTS runs in half precision. Remove once PyTorch supports complex bfloat16.
+def _keep_vocos_head_in_float32(vocos):
+    from vocos.heads import ISTFTHead
+
+    vocos.head.float()
+    if getattr(ISTFTHead.forward, "float32", False):
+        return
+    original = ISTFTHead.forward
+
+    def forward(head, x):
+        with torch.autocast("cuda", enabled=False):
+            return original(head, x.float())
+
+    forward.float32 = True
+    ISTFTHead.forward = forward
+
+
+# Workaround: ChatTTS decodes its speaker embedding as float16 and writes it into the embeddings in place, which fails
+# when they are bfloat16, so the speaker embedding is cast to their dtype first. Remove if ChatTTS casts it itself.
+def _cast_chattts_speaker_to_embedding_dtype():
+    from ChatTTS.model.speaker import Speaker
+
+    if getattr(Speaker.apply, "casts_dtype", False):
+        return
+    original = Speaker.apply
+
+    def apply(speaker, emb, spk_emb, *args, **kwargs):
+        if isinstance(spk_emb, str):
+            spk_emb = torch.from_numpy(speaker._decode(spk_emb)).to(emb.dtype)
+        return original(speaker, emb, spk_emb, *args, **kwargs)
+
+    apply.casts_dtype = True
+    Speaker.apply = apply
 
 class BaseAudio:
     def __init__(self):
@@ -121,7 +186,11 @@ class ChatterboxAudio(BaseAudio):
         print(f"Loading Chatterbox TTS on [{self.device}] …")
         self.model = ChatterboxTTS.from_pretrained(device=self.device)
         self.sr = self.model.sr
-        print("Model ready!")
+        self.load_config('config.yaml', 'chatterbox')
+        self.dtype = resolve_run("chatterbox", self.config)[1]
+        if half_precision(self.device, self.dtype):
+            self._use_half_precision()
+        print(f"Model ready! ({str(self.dtype).replace('torch.', '')})")
 
         accent = getattr(self, "ACCENT_PRESET", None)
         if accent and hasattr(self, "ACCENT_SETTINGS"):
@@ -137,6 +206,15 @@ class ChatterboxAudio(BaseAudio):
         self.tone         = getattr(self, "TONE", "neutral")
         self.normalise    = getattr(self, "NORMALISE", True)
         self.int16_output = getattr(self, "INT16_OUTPUT", False)
+
+    def _use_half_precision(self):
+        model = self.model
+        move_modules([model.t3, model.s3gen, model.ve], self.device, self.dtype)
+        model.conds.t3 = model.conds.t3.to(dtype=self.dtype)
+        model.conds.gen = {
+            key: value.to(dtype=self.dtype) if torch.is_tensor(value) and value.is_floating_point() else value
+            for key, value in model.conds.gen.items()
+        }
 
     def _select_device(self, pref):
         import torch, warnings
@@ -190,18 +268,19 @@ class ChatterboxAudio(BaseAudio):
             if not sentence.strip() or self.stop_event.is_set():
                 continue
             try:
-                wav = self.model.generate(
-                    sentence,
-                    exaggeration=self.exaggeration,
-                    cfg_weight=self.cfg_weight,
-                )
+                with autocast_for(self.device, self.dtype):
+                    wav = self.model.generate(
+                        sentence,
+                        exaggeration=self.exaggeration,
+                        cfg_weight=self.cfg_weight,
+                    )
             except Exception as e:
                 print(f"Generation failed: {e}")
                 self.audio_queue.put(None)
                 break
 
             wav = self._apply_voice_modifications(
-                wav, self.sr,
+                wav.float(), self.sr,
                 pitch_factor=self.pitch_factor,
                 speed_factor=self.speed_factor,
                 tone=self.tone,
@@ -364,6 +443,8 @@ class ChatTTSAudio(BaseAudio):
         print("Initializing ChatTTSAudio...")
 
         self.initialize_device()
+        self.load_config('config.yaml', 'chattts')
+        self.dtype = resolve_run("chattts", self.config)[1]
         self.chat = ChatTTS.Chat()
 
         chattts_dir = CACHE_DIR / "2Noise--ChatTTS"
@@ -375,6 +456,8 @@ class ChatTTSAudio(BaseAudio):
             compile=False,
             use_flash_attn=False,
         )
+        if half_precision(self.device, self.dtype):
+            self._use_half_precision()
 
         torch.manual_seed(11)
         self.rand_spk = self.chat.sample_random_speaker()
@@ -393,6 +476,12 @@ class ChatTTSAudio(BaseAudio):
             top_P=0.7,
             top_K=20
         )
+
+    def _use_half_precision(self):
+        chat = self.chat
+        move_modules([chat.gpt, chat.embed, chat.dvae, chat.decoder, chat.vocos], self.device, self.dtype)
+        _keep_vocos_head_in_float32(chat.vocos)
+        _cast_chattts_speaker_to_embedding_dtype()
 
     @staticmethod
     def _spoken_number(match):
@@ -442,12 +531,13 @@ class ChatTTSAudio(BaseAudio):
                 text = self.prepare_text(sentence)
                 if not text:
                     continue
-                wavs = self.chat.infer(
-                    text,
-                    params_refine_text=self.params_refine_text,
-                    params_infer_code=self.params_infer_code,
-                    split_text=False
-                )
+                with autocast_for(self.device, self.dtype):
+                    wavs = self.chat.infer(
+                        text,
+                        params_refine_text=self.params_refine_text,
+                        params_infer_code=self.params_infer_code,
+                        split_text=False
+                    )
 
                 if wavs is not None and len(wavs) > 0:
                     audio_data = wavs[0]
@@ -600,6 +690,7 @@ class KyutaiAudio(BaseAudio):
 
         self.load_config('config.yaml', 'kyutai')
         self.initialize_device()
+        self.dtype = resolve_run("kyutai", self.config)[1]
         self.initialize_model()
 
     def create_checkpoint_info_from_cache(self, downloaded_paths, raw_config, weight_files):
@@ -698,9 +789,10 @@ class KyutaiAudio(BaseAudio):
                 n_q=n_q,
                 temp=temp,
                 device=torch.device(self.device),
+                dtype=self.dtype,
             )
 
-            my_cprint(f"Kyutai model loaded successfully! ({hf_repo}, n_q: {n_q})", "green")
+            my_cprint(f"Kyutai model loaded successfully! ({hf_repo}, n_q: {n_q}, {str(self.dtype).replace('torch.', '')})", "green")
 
             self.setup_voice_conditioning()
 
@@ -799,7 +891,7 @@ class KyutaiPocketAudio(BaseAudio):
             raise RuntimeError("Kyutai Pocket dependencies not available")
 
         self.load_config('config.yaml', 'kyutaipocket')
-        self.device = 'cpu'
+        self.device, self.dtype = resolve_run("kyutaipocket", self.config)
         self.initialize_model()
 
     def initialize_model(self):
@@ -810,7 +902,8 @@ class KyutaiPocketAudio(BaseAudio):
             voice = self.config.get('voice', 'alba')
             temp = self.config.get('temp', 0.7)
 
-            my_cprint(f"Loading Kyutai Pocket TTS model (language={language})...", "yellow")
+            precision = str(self.dtype).replace('torch.', '')
+            my_cprint(f"Loading Kyutai Pocket TTS model (language={language}, {self.device}, {precision})...", "yellow")
 
             self.tts_model = TTSModel.load_model(
                 language=language,
@@ -820,6 +913,8 @@ class KyutaiPocketAudio(BaseAudio):
 
             my_cprint(f"Loading voice: {voice}", "yellow")
             self.voice_state = self.tts_model.get_state_for_audio_prompt(voice)
+            if self.device == "cuda":
+                self._move_to_gpu()
 
             my_cprint(f"Kyutai Pocket model loaded successfully! (voice: {voice})", "green")
 
@@ -827,15 +922,29 @@ class KyutaiPocketAudio(BaseAudio):
             my_cprint(f"Error initializing Kyutai Pocket model: {str(e)}", "red")
             raise
 
+    def _move_to_gpu(self):
+        move_modules([self.tts_model], self.device, self.dtype)
+        self.tts_model.flow_lm.dtype = self.dtype
+        self.voice_state = {
+            name: {
+                key: value.to(device=self.device, dtype=self.dtype if value.is_floating_point() else None)
+                for key, value in state.items()
+            }
+            for name, state in self.voice_state.items()
+        }
+        if half_precision(self.device, self.dtype):
+            _run_pocket_threads_under_autocast(self.dtype)
+
     # Note: do NOT wrap these in @torch.inference_mode(). Pocket-TTS mutates the
     # pre-computed voice_state in place on every generate_audio call, and tensors
     # created outside inference_mode cannot be inplace-modified inside it.
     # The library handles its own @torch.no_grad internally.
     def generate_speech_for_sentence(self, sentence):
         try:
-            audio = self.tts_model.generate_audio(self.voice_state, sentence)
+            with autocast_for(self.device, self.dtype):
+                audio = self.tts_model.generate_audio(self.voice_state, sentence)
             if isinstance(audio, torch.Tensor):
-                audio_np = audio.cpu().numpy()
+                audio_np = audio.float().cpu().numpy()
             else:
                 audio_np = np.array(audio)
             if audio_np.ndim > 1:
@@ -883,7 +992,9 @@ class KokoroAudio:
 
         if not self.MODEL_DIR.is_dir():
             raise FileNotFoundError(f"Kokoro TTS model not found at {self.MODEL_DIR}")
-        self.tts = KokoroTTS(repo_path=str(self.MODEL_DIR))
+        device, dtype = resolve_run("kokoro", kokoro_cfg)
+        my_cprint(f"Loading Kokoro on {device} ({str(dtype).replace('torch.', '')})...", "yellow")
+        self.tts = KokoroTTS(repo_path=str(self.MODEL_DIR), device=device, dtype=dtype)
 
     def run(self, input_text_file):
         try:

@@ -1,10 +1,13 @@
+import contextlib
 import os
 import platform
 import sys
 from unittest.mock import patch
 
 import pytest
+import torch
 
+import core.utilities as utilities
 from core.utilities import (
     normalize_chat_text,
     normalize_text,
@@ -274,3 +277,63 @@ class TestGetEmbeddingBatchSize:
     def test_unknown_model_default(self):
         result = get_embedding_batch_size("unknown-model", "cuda")
         assert result == 8
+
+
+class TestTtsRunSettings:
+
+    @staticmethod
+    def run(backend, **section):
+        settings = utilities.tts_run_settings(backend, section)
+        return settings["device"], settings["dtype"]
+
+    @pytest.fixture
+    def gpu(self, monkeypatch):
+        monkeypatch.setattr(utilities, "cuda_usable", lambda: True)
+        monkeypatch.setattr(utilities, "has_bfloat16_support", lambda: True)
+
+    @pytest.fixture
+    def older_gpu(self, monkeypatch):
+        monkeypatch.setattr(utilities, "cuda_usable", lambda: True)
+        monkeypatch.setattr(utilities, "has_bfloat16_support", lambda: False)
+
+    @pytest.fixture
+    def cpu_only(self, monkeypatch):
+        monkeypatch.setattr(utilities, "cuda_usable", lambda: False)
+
+    def test_defaults_on_a_gpu(self, gpu):
+        assert self.run("kokoro") == ("cpu", "float32")
+        assert self.run("kyutaipocket") == ("cuda", "bfloat16")
+        for backend in ("kyutai", "chattts", "chatterbox"):
+            assert self.run(backend) == ("cuda", "bfloat16")
+        assert self.run("bark") == ("cuda", "float16")
+        assert self.run("whisperspeech") == ("cuda", "float16")
+        assert self.run("googletts") == (None, None)
+
+    def test_half_precision_falls_back_to_float16(self, older_gpu):
+        assert self.run("kyutaipocket") == ("cuda", "float16")
+        assert self.run("kokoro", device="cuda") == ("cuda", "float16")
+        assert self.run("chatterbox", precision="float32") == ("cuda", "float32")
+
+    def test_saved_choices_are_used_when_valid(self, gpu):
+        assert self.run("kokoro", device="cuda", precision="float32") == ("cuda", "float32")
+        assert self.run("kyutaipocket", device="cpu", precision="half") == ("cpu", "float32")
+        assert self.run("kyutai", precision="float32") == ("cuda", "float32")
+        assert self.run("bark", precision="float32") == ("cuda", "float16")
+        assert self.run("kokoro", device="tpu", precision="int8") == ("cpu", "float32")
+        assert utilities.tts_run_settings("kokoro", {"device": "cpu", "precision": "float32"})["precision"] == "float32"
+
+    def test_a_cpu_only_computer(self, cpu_only):
+        assert self.run("kokoro", device="cuda", precision="half") == ("cpu", "float32")
+        assert self.run("kyutaipocket") == ("cpu", "float32")
+        assert utilities.tts_run_settings("kyutaipocket")["devices"] == ["cpu"]
+        for backend in ("kyutai", "chattts", "chatterbox", "bark", "whisperspeech"):
+            assert self.run(backend) == (None, None)
+
+    def test_autocast_only_for_half_precision_on_a_gpu(self):
+        assert isinstance(utilities.autocast_for("cpu", torch.bfloat16), contextlib.nullcontext)
+        assert isinstance(utilities.autocast_for("cuda", torch.float32), contextlib.nullcontext)
+
+    def test_move_modules_converts_every_module(self):
+        modules = [torch.nn.Linear(4, 4), torch.nn.LSTM(4, 4)]
+        utilities.move_modules(modules, "cpu", torch.bfloat16)
+        assert {p.dtype for m in modules for p in m.parameters()} == {torch.bfloat16}

@@ -12,6 +12,7 @@ import logging
 from typing import Optional, Union
 
 from core.constants import KOKORO_VOICES
+from core.utilities import autocast_for, move_modules
 
 _BULLET_PREFIX = re.compile(r'^[\s\-–—•·*>#+]+')
 _LIST_NUMBER = re.compile(r'^\d{1,3}[.)]\s+')
@@ -65,10 +66,26 @@ def _make_direct_espeak(repo_path: Path):
     return direct_espeak
 
 
+# Workaround: PyTorch has no complex bfloat16 math and only experimental complex float16, so in half
+# precision Kokoro's inverse STFT is computed in float32. Remove once PyTorch supports complex bfloat16.
+def _compute_inverse_stft_in_float32():
+    import istftnet
+
+    if getattr(istftnet.TorchSTFT.inverse, "float32", False):
+        return
+    original = istftnet.TorchSTFT.inverse
+
+    def inverse(stft, magnitude, phase):
+        return original(stft, magnitude.float(), phase.float())
+
+    inverse.float32 = True
+    istftnet.TorchSTFT.inverse = inverse
+
+
 class KokoroTTS:
     VOICES = KOKORO_VOICES
 
-    def __init__(self, repo_path: str):
+    def __init__(self, repo_path: str, device: str = "cpu", dtype: torch.dtype = torch.float32):
         self.REPO_PATH = Path(repo_path)
         sys.path.append(str(self.REPO_PATH))
 
@@ -78,6 +95,10 @@ class KokoroTTS:
         self.generate = generate
         self.generate_full = generate_full
         self.phonemize = phonemize
+        self.device = device
+        self.dtype = dtype
+        if dtype != torch.float32:
+            _compute_inverse_stft_in_float32()
 
         self.sentence_queue = queue.Queue()
         self.audio_queue = queue.Queue()
@@ -91,15 +112,14 @@ class KokoroTTS:
         warnings.filterwarnings("ignore", category=UserWarning)
 
     def _load_model_and_voice(self, voice_name: str):
-        device = 'cpu'
-        
         if self.model is None:
             model_path = self.REPO_PATH / 'kokoro-v0_19.pth'
             if not model_path.exists():
                 raise FileNotFoundError(f"Model file not found at {model_path}")
-            
+
             from models import build_model
-            self.model = build_model(str(model_path), device)
+            self.model = build_model(str(model_path), 'cpu')
+            move_modules(vars(self.model).values(), self.device, self.dtype)
 
         if voice_name not in self.voicepack_cache:
             voices_path = self.REPO_PATH / 'voices'
@@ -110,7 +130,7 @@ class KokoroTTS:
             if not voicepack_path.exists():
                 raise FileNotFoundError(f"Voice file not found at {voicepack_path}")
                 
-            self.voicepack_cache[voice_name] = torch.load(str(voicepack_path), weights_only=True).to(device)
+            self.voicepack_cache[voice_name] = torch.load(str(voicepack_path), weights_only=True).to(device=self.device, dtype=self.dtype)
             print(f"Loaded voicepack for {voice_name}")
 
         self.current_voice_name = voice_name
@@ -151,15 +171,18 @@ class KokoroTTS:
 
                 try:
                     voicepack = self.voicepack_cache[self.current_voice_name]
-                    
-                    audio, phonemes = self.generate_full(
-                        self.model, 
-                        sentence, 
-                        voicepack, 
-                        lang=lang, 
-                        speed=speed,
-                        ps=ps
-                    )
+
+                    with autocast_for(self.device, self.dtype):
+                        audio, phonemes = self.generate_full(
+                            self.model,
+                            sentence,
+                            voicepack,
+                            lang=lang,
+                            speed=speed,
+                            ps=ps
+                        )
+                    if audio is not None:
+                        audio = audio.astype("float32", copy=False)
 
                     if audio is not None and not self.stop_event.is_set():
                         self.audio_queue.put(audio)
