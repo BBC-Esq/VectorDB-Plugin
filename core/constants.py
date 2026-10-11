@@ -1662,122 +1662,150 @@ OCR_MODELS = {
     },
 }
 
-TTS_MODELS = {
-    "Kokoro": {
-        "model": "Kokoro",
-        "repo_id": "ctranslate2-4you/Kokoro-82M-light",
-        "save_dir": "ctranslate2-4you--Kokoro-82M-light",
-        "cps": 20.5,
-        "vram": "2GB",
-        "precision": "float32",
-        "gated": False,
-        'license': 'apache-2.0',
-        "allow_patterns": [
-            "voices/**",
-            "config.json",
-            "istftnet.py",
-            "kokoro-v0_19.pth",
-            "kokoro.py",
-            "models.py",
-            "plbert.py"
-        ],
+TTS_BENCHMARK_HARDWARE = "RTX 4090 and Core i9-13900K"
+
+TTS_BENCHMARKS = {
+    "kokoro": {
+        "": {
+            "cpu-float32": {"speed": 5.47, "chars_per_second": 95.3, "first_audio": 0.98, "memory_mb": 1055},
+            "cuda-bfloat16": {"speed": 38.21, "chars_per_second": 664.8, "first_audio": 0.12, "memory_mb": 876},
+            "cuda-float16": {"speed": 35.08, "chars_per_second": 611.3, "first_audio": 0.16, "memory_mb": 886},
+            "cuda-float32": {"speed": 38.62, "chars_per_second": 673.1, "first_audio": 0.12, "memory_mb": 1208},
+        },
     },
-    "Bark - Normal": {
-        "model": "Bark - Normal", 
-        "repo_id": "suno/bark",
-        "save_dir": "tts",
-        "cps": 18.2,
-        "vram": "4GB",
-        "precision": "float32",
-        "gated": False,
-        'license': 'mit',
-        "allow_patterns": [
-            "voices/**",
-            "config.json",
-            "istftnet.py",
-            "kokoro-v0_19.pth",
-            "plbert.py"
-        ],
-        "ignore_patterns": [
-            "demo/**",
-            "fp16/**",
-            ".gitattributes",
-            "kokoro-v0_19.onnx",
-            "kokoro.py",
-            "models.py",
-        ]
+    "kyutaipocket": {
+        "": {
+            "cpu-float32": {"speed": 3.16, "chars_per_second": 60.5, "first_audio": 1.66, "memory_mb": 554},
+            "cuda-bfloat16": {"speed": 8.94, "chars_per_second": 171.0, "first_audio": 0.55, "memory_mb": 729},
+            "cuda-float16": {"speed": 8.94, "chars_per_second": 166.9, "first_audio": 0.55, "memory_mb": 718},
+            "cuda-float32": {"speed": 9.91, "chars_per_second": 186.1, "first_audio": 0.52, "memory_mb": 966},
+        },
     },
-    "Bark - Small": {
-        "model": "Bark - Small", 
-        "repo_id": "suno/bark-small",
-        "save_dir": "tts",
-        "cps": 18.2,
-        "vram": "4GB",
-        "precision": "float32",
-        "gated": False,
-        'license': 'mit',
-        "allow_patterns": [
-            "voices/**",
-            "config.json",
-            "istftnet.py",
-            "kokoro-v0_19.pth",
-            "plbert.py"
-        ],
-        "ignore_patterns": [
-            "demo/**",
-            "fp16/**",
-            ".gitattributes",
-            "kokoro-v0_19.onnx",
-            "kokoro.py",
-            "models.py",
-        ]
+    "kyutai": {
+        "1.6B": {
+            "cuda-bfloat16": {"speed": 3.08, "chars_per_second": 45.7, "first_audio": 2.18, "memory_mb": 4794},
+            "cuda-float16": {"speed": 3.08, "chars_per_second": 46.4, "first_audio": 1.89, "memory_mb": 4751},
+            "cuda-float32": {"speed": 2.19, "chars_per_second": 33.3, "first_audio": 2.64, "memory_mb": 9136},
+        },
+        "0.75B": {
+            "cuda-bfloat16": {"speed": 5.38, "chars_per_second": 80.7, "first_audio": 1.27, "memory_mb": 2473},
+            "cuda-float16": {"speed": 5.41, "chars_per_second": 79.6, "first_audio": 1.05, "memory_mb": 2560},
+            "cuda-float32": {"speed": 4.12, "chars_per_second": 58.4, "first_audio": 1.69, "memory_mb": 4078},
+        },
     },
-    "WhisperSpeech": {
-        "model": "WhisperSpeech", 
-        "repo_id": "WhisperSpeech/WhisperSpeech",
-        "save_dir": "tts",
-        "cps": 18.2,
-        "vram": "4GB",
-        "precision": "fp32",
-        "gated": False,
-        'license': 'mit',
-        "allow_patterns": [
-            "voices/**",
-            "config.json",
-            "istftnet.py",
-            "kokoro-v0_19.pth",
-            "plbert.py"
-        ],
-        "ignore_patterns": [
-            "demo/**",
-            "fp16/**",
-            ".gitattributes",
-            "kokoro-v0_19.onnx",
-            "kokoro.py",
-            "models.py",
-        ]
+    "chattts": {
+        "": {
+            "cuda-bfloat16": {"speed": 2.15, "chars_per_second": 38.2, "first_audio": 2.28, "memory_mb": 1619},
+            "cuda-float16": {"speed": 2.18, "chars_per_second": 38.5, "first_audio": 2.44, "memory_mb": 1622},
+            "cuda-float32": {"speed": 2.45, "chars_per_second": 43.5, "first_audio": 2.2, "memory_mb": 1717},
+        },
     },
-    "ChatTTS": {
-        "model": "ChatTTS", 
-        "repo_id": "2Noise/ChatTTS",
-        "save_dir": "tts",
-        "cps": 18.2,
-        "vram": "4GB",
-        "precision": "fp32",
-        "gated": False,
-        'license': 'CCA Non-Commercial 4.0',
-        "allow_patterns": [
-            "asset/**",
-            "config/**",
-        ],
-        "ignore_patterns": [
-            "demo/**",
-            "fp16/**",
-            ".gitattributes",
-            "kokoro-v0_19.onnx",
-            "kokoro.py",
-            "models.py",
-        ]
+    "chatterbox": {
+        "": {
+            "cuda-bfloat16": {"speed": 1.73, "chars_per_second": 32.8, "first_audio": 3.13, "memory_mb": 2282},
+            "cuda-float16": {"speed": 1.71, "chars_per_second": 32.0, "first_audio": 3.13, "memory_mb": 2241},
+            "cuda-float32": {"speed": 1.76, "chars_per_second": 32.9, "first_audio": 3.01, "memory_mb": 3885},
+        },
+    },
+    "bark": {
+        "small": {
+            "cuda-float16": {"speed": 1.33, "chars_per_second": 14.5, "first_audio": 6.54, "memory_mb": 1676},
+        },
+        "normal": {
+            "cuda-float16": {"speed": 0.8, "chars_per_second": 8.6, "first_audio": 11.43, "memory_mb": 3169},
+        },
+    },
+    "whisperspeech": {
+        "s2a-q4-tiny+t2s-tiny": {
+            "cuda-float16": {"speed": 7.15, "chars_per_second": 120.6, "first_audio": 0.8, "memory_mb": 960},
+        },
+        "s2a-q4-tiny+t2s-base": {
+            "cuda-float16": {"speed": 7.13, "chars_per_second": 117.0, "first_audio": 0.8, "memory_mb": 1242},
+        },
+        "s2a-q4-tiny+t2s-small": {
+            "cuda-float16": {"speed": 5.75, "chars_per_second": 104.4, "first_audio": 1.02, "memory_mb": 2427},
+        },
+        "s2a-q4-tiny+t2s-fast-small": {
+            "cuda-float16": {"speed": 7.91, "chars_per_second": 123.8, "first_audio": 0.73, "memory_mb": 2245},
+        },
+        "s2a-q4-tiny+t2s-fast-medium": {
+            "cuda-float16": {"speed": 6.38, "chars_per_second": 98.9, "first_audio": 0.91, "memory_mb": 4361},
+        },
+        "s2a-q4-tiny+t2s-hq-fast": {
+            "cuda-float16": {"speed": 7.92, "chars_per_second": 123.1, "first_audio": 0.74, "memory_mb": 2204},
+        },
+        "s2a-q4-base+t2s-tiny": {
+            "cuda-float16": {"speed": 5.39, "chars_per_second": 90.6, "first_audio": 1.07, "memory_mb": 1159},
+        },
+        "s2a-q4-base+t2s-base": {
+            "cuda-float16": {"speed": 5.16, "chars_per_second": 79.8, "first_audio": 1.11, "memory_mb": 1250},
+        },
+        "s2a-q4-base+t2s-small": {
+            "cuda-float16": {"speed": 4.28, "chars_per_second": 77.7, "first_audio": 1.32, "memory_mb": 2514},
+        },
+        "s2a-q4-base+t2s-fast-small": {
+            "cuda-float16": {"speed": 5.29, "chars_per_second": 82.6, "first_audio": 1.08, "memory_mb": 2250},
+        },
+        "s2a-q4-base+t2s-fast-medium": {
+            "cuda-float16": {"speed": 4.0, "chars_per_second": 62.4, "first_audio": 1.48, "memory_mb": 4417},
+        },
+        "s2a-q4-base+t2s-hq-fast": {
+            "cuda-float16": {"speed": 5.27, "chars_per_second": 81.6, "first_audio": 1.11, "memory_mb": 2260},
+        },
+        "s2a-q4-hq-fast+t2s-tiny": {
+            "cuda-float16": {"speed": 6.0, "chars_per_second": 93.1, "first_audio": 0.96, "memory_mb": 2113},
+        },
+        "s2a-q4-hq-fast+t2s-base": {
+            "cuda-float16": {"speed": 5.49, "chars_per_second": 100.3, "first_audio": 1.04, "memory_mb": 2169},
+        },
+        "s2a-q4-hq-fast+t2s-small": {
+            "cuda-float16": {"speed": 4.5, "chars_per_second": 78.2, "first_audio": 1.28, "memory_mb": 2744},
+        },
+        "s2a-q4-hq-fast+t2s-fast-small": {
+            "cuda-float16": {"speed": 5.8, "chars_per_second": 89.7, "first_audio": 1.02, "memory_mb": 2651},
+        },
+        "s2a-q4-hq-fast+t2s-fast-medium": {
+            "cuda-float16": {"speed": 4.84, "chars_per_second": 75.3, "first_audio": 1.2, "memory_mb": 4274},
+        },
+        "s2a-q4-hq-fast+t2s-hq-fast": {
+            "cuda-float16": {"speed": 6.68, "chars_per_second": 103.9, "first_audio": 0.88, "memory_mb": 2608},
+        },
+        "s2a-q4-small+t2s-tiny": {
+            "cuda-float16": {"speed": 2.63, "chars_per_second": 40.7, "first_audio": 2.16, "memory_mb": 3074},
+        },
+        "s2a-q4-small+t2s-base": {
+            "cuda-float16": {"speed": 2.55, "chars_per_second": 43.2, "first_audio": 2.26, "memory_mb": 3240},
+        },
+        "s2a-q4-small+t2s-small": {
+            "cuda-float16": {"speed": 2.33, "chars_per_second": 39.3, "first_audio": 2.46, "memory_mb": 3724},
+        },
+        "s2a-q4-small+t2s-fast-small": {
+            "cuda-float16": {"speed": 2.5, "chars_per_second": 38.6, "first_audio": 2.27, "memory_mb": 3549},
+        },
+        "s2a-q4-small+t2s-fast-medium": {
+            "cuda-float16": {"speed": 2.38, "chars_per_second": 36.9, "first_audio": 2.45, "memory_mb": 4579},
+        },
+        "s2a-q4-small+t2s-hq-fast": {
+            "cuda-float16": {"speed": 2.6, "chars_per_second": 40.4, "first_audio": 2.25, "memory_mb": 3319},
+        },
+        "s2a-v1.1-small+t2s-tiny": {
+            "cuda-float16": {"speed": 2.63, "chars_per_second": 40.7, "first_audio": 2.24, "memory_mb": 2551},
+        },
+        "s2a-v1.1-small+t2s-base": {
+            "cuda-float16": {"speed": 2.56, "chars_per_second": 44.8, "first_audio": 2.24, "memory_mb": 2754},
+        },
+        "s2a-v1.1-small+t2s-small": {
+            "cuda-float16": {"speed": 2.35, "chars_per_second": 37.9, "first_audio": 2.47, "memory_mb": 3156},
+        },
+        "s2a-v1.1-small+t2s-fast-small": {
+            "cuda-float16": {"speed": 2.6, "chars_per_second": 40.4, "first_audio": 2.22, "memory_mb": 3063},
+        },
+        "s2a-v1.1-small+t2s-fast-medium": {
+            "cuda-float16": {"speed": 2.41, "chars_per_second": 37.7, "first_audio": 2.42, "memory_mb": 4282},
+        },
+        "s2a-v1.1-small+t2s-hq-fast": {
+            "cuda-float16": {"speed": 2.6, "chars_per_second": 40.6, "first_audio": 2.2, "memory_mb": 3062},
+        },
     },
 }
 

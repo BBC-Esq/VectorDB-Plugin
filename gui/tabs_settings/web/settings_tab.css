@@ -41,11 +41,11 @@ main { display: flex; flex-direction: column; gap: 12px; }
 .field.span-3 { grid-column: span 3; }
 .field.span-4 { grid-column: 1 / -1; }
 
-.vision-card { background: var(--bg-window); }
+.model-card { background: var(--bg-window); }
 
-.vision-card .card-head { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.model-card .card-head { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 
-.vision-card .name {
+.model-card .name {
   align-self: flex-start;
   color: var(--text-primary);
   font-size: 15px;
@@ -55,11 +55,11 @@ main { display: flex; flex-direction: column; gap: 12px; }
   overflow-wrap: anywhere;
 }
 
-.vision-card .name:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
-.vision-card .name svg { display: inline-block; width: 12px; height: 12px; margin-left: 5px; vertical-align: -1px; opacity: 0.55; }
-.vision-card .name:hover svg { opacity: 1; }
+.model-card .name:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.model-card .name svg { display: inline-block; width: 12px; height: 12px; margin-left: 5px; vertical-align: -1px; opacity: 0.55; }
+.model-card .name:hover svg { opacity: 1; }
 
-.vision-card .meta {
+.model-card .meta {
   color: var(--muted);
   font-size: 12px;
   white-space: nowrap;
@@ -67,9 +67,9 @@ main { display: flex; flex-direction: column; gap: 12px; }
   text-overflow: ellipsis;
 }
 
-.vision-card .meta .vendor { color: var(--accent); font-weight: 600; }
-.vision-card .meta .sep { margin: 0 6px; opacity: 0.6; }
-.vision-card .meta [data-tip-text] { cursor: default; }
+.model-card .meta .vendor { color: var(--accent); font-weight: 600; }
+.model-card .meta .sep { margin: 0 6px; opacity: 0.6; }
+.model-card .meta [data-tip-text] { cursor: default; }
 
 .chip.vram { --h: 265; --s: 85%; }
 .chip.speed { --h: 205; --s: 85%; }
@@ -78,8 +78,10 @@ main { display: flex; flex-direction: column; gap: 12px; }
 .chip.prec-float16 { --h: 182; --s: 70%; }
 .chip.quant { --h: 320; --s: 70%; }
 .chip.gpu { --h: 0; --s: 78%; }
+.chip.device { --h: 25; --s: 85%; }
+.chip.online { --h: 195; --s: 55%; }
 
-.vision-card .specs {
+.model-card .specs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0 12px;
@@ -111,5 +113,5 @@ main { display: flex; flex-direction: column; gap: 12px; }
 @media (max-width: 640px) {
   .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .field.span-3, .field.span-4 { grid-column: 1 / -1; }
-  .vision-card .specs { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+  .model-card .specs { grid-template-columns: minmax(0, 1fr); gap: 7px; }
 }

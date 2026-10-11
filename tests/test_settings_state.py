@@ -26,6 +26,7 @@ def gpu(monkeypatch):
     monkeypatch.setattr(ss, "cuda_usable", lambda: True)
     monkeypatch.setattr(ss, "gpu_name", lambda: "Test GPU")
     monkeypatch.setattr(ss.torch.cuda, "get_device_capability", lambda *args: (8, 9))
+    monkeypatch.setattr(utilities, "has_bfloat16_support", lambda: True)
 
 
 @pytest.fixture
@@ -36,6 +37,18 @@ def cpu(monkeypatch):
 
 def config(folder):
     return yaml.safe_load((folder / "config.yaml").read_text(encoding="utf-8"))
+
+
+def save(folder, cfg):
+    (folder / "config.yaml").write_text(yaml.safe_dump(cfg), encoding="utf-8")
+
+
+def tts_backend(key):
+    return next(b for b in ss.build_state()["tts"]["backends"] if b["key"] == key)
+
+
+def benchmark(backend, variant, run):
+    return ss.TTS_BENCHMARKS[backend][variant][run]
 
 
 def test_build_state_reads_the_saved_values(sandbox, gpu):
@@ -102,7 +115,7 @@ def test_half_precision_needs_a_gpu(sandbox, cpu):
 
 def test_tts_backends_write_the_same_keys_as_before(sandbox, gpu):
     assert ss.apply_change("tts.backend", "kyutai")["ok"]
-    assert ss.apply_change("tts.option", {"backend": "kyutai", "name": "model", "value": "0.75B (EN, ~2GB VRAM)"})["ok"]
+    assert ss.apply_change("tts.option", {"backend": "kyutai", "name": "model", "value": "0.75B (English)"})["ok"]
     kyutai = config(sandbox)["kyutai"]
     assert kyutai["hf_repo"] == "kyutai/tts-0.75b-en-public" and kyutai["n_q"] == 16
     assert kyutai["temp"] == 0.6 and kyutai["cfg_coef"] == 2.0
@@ -125,8 +138,7 @@ def test_kyutai_pocket_drops_the_old_int8_setting(sandbox, gpu):
     (sandbox / "config.yaml").write_text(yaml.safe_dump(cfg), encoding="utf-8")
     assert ss.apply_change("tts.backend", "kyutaipocket")["ok"]
     assert "quantize" not in config(sandbox)["kyutaipocket"]
-    pocket = next(b for b in ss.build_state()["tts"]["backends"] if b["key"] == "kyutaipocket")
-    assert pocket["toggles"] == []
+    assert "toggles" not in tts_backend("kyutaipocket")
     assert not ss.apply_change("tts.option", {"backend": "kyutaipocket", "name": "quantize", "value": True})["ok"]
 
 
@@ -146,6 +158,121 @@ def test_only_google_kokoro_and_pocket_run_without_a_gpu(sandbox, cpu):
     (sandbox / "config.yaml").write_text(yaml.safe_dump(cfg), encoding="utf-8")
     assert ss.normalize_config() is True
     assert config(sandbox)["tts"]["model"] == "googletts"
+
+
+def test_kokoro_runs_on_the_cpu_until_the_gpu_is_chosen(sandbox, gpu):
+    kokoro = tts_backend("kokoro")
+    assert kokoro["device"]["value"] == "cpu"
+    assert kokoro["precision"]["disabled"] and kokoro["precision"]["value"] == "float32"
+    assert (kokoro["card"]["device"], kokoro["card"]["dtype"]) == ("cpu", "float32")
+    assert kokoro["card"]["benchmark"] == benchmark("kokoro", "", "cpu-float32")
+
+    assert ss.apply_change("tts.option", {"backend": "kokoro", "name": "device", "value": "cuda"})["ok"]
+    kokoro = tts_backend("kokoro")
+    assert kokoro["precision"]["value"] == "half" and not kokoro["precision"]["disabled"]
+    assert kokoro["card"]["dtype"] == "bfloat16"
+    assert kokoro["card"]["benchmark"] == benchmark("kokoro", "", "cuda-bfloat16")
+
+    assert ss.apply_change("tts.option", {"backend": "kokoro", "name": "precision", "value": "float32"})["ok"]
+    assert tts_backend("kokoro")["card"]["benchmark"] == benchmark("kokoro", "", "cuda-float32")
+    saved = config(sandbox)["kokoro"]
+    assert (saved["device"], saved["precision"]) == ("cuda", "float32")
+
+
+def test_kyutai_pocket_defaults_to_half_precision_on_the_gpu(sandbox, gpu):
+    assert ss.apply_change("tts.backend", "kyutaipocket")["ok"]
+    pocket = tts_backend("kyutaipocket")
+    assert (pocket["device"]["value"], pocket["precision"]["value"]) == ("cuda", "half")
+    assert pocket["card"]["benchmark"] == benchmark("kyutaipocket", "", "cuda-bfloat16")
+    saved = config(sandbox)["kyutaipocket"]
+    assert (saved["device"], saved["precision"]) == ("cuda", "half")
+
+    assert ss.apply_change("tts.option", {"backend": "kyutaipocket", "name": "device", "value": "cpu"})["ok"]
+    assert tts_backend("kyutaipocket")["card"]["benchmark"] == benchmark("kyutaipocket", "", "cpu-float32")
+    refused = ss.apply_change("tts.option", {"backend": "kyutaipocket", "name": "precision", "value": "float32"})
+    assert not refused["ok"] and "float32" in refused["error"]
+
+
+@pytest.mark.parametrize("backend", ["chattts", "chatterbox"])
+def test_gpu_only_backends_choose_between_half_and_float32(sandbox, gpu, backend):
+    assert ss.apply_change("tts.backend", backend)["ok"]
+    state = tts_backend(backend)
+    assert state["device"] is None and state["precision"]["value"] == "half"
+    assert state["card"]["benchmark"] == benchmark(backend, "", "cuda-bfloat16")
+    assert config(sandbox)[backend]["precision"] == "half"
+    assert ss.apply_change("tts.option", {"backend": backend, "name": "precision", "value": "float32"})["ok"]
+    assert tts_backend(backend)["card"]["benchmark"] == benchmark(backend, "", "cuda-float32")
+    assert not ss.apply_change("tts.option", {"backend": backend, "name": "device", "value": "cpu"})["ok"]
+
+
+def test_kyutai_cards_follow_the_model_and_precision(sandbox, gpu):
+    assert ss.apply_change("tts.backend", "kyutai")["ok"]
+    kyutai = tts_backend("kyutai")
+    assert kyutai["card"]["name"] == "Kyutai 1.6B"
+    assert kyutai["card"]["benchmark"] == benchmark("kyutai", "1.6B", "cuda-bfloat16")
+    assert ss.apply_change("tts.option", {"backend": "kyutai", "name": "model", "value": "0.75B (English)"})["ok"]
+    assert ss.apply_change("tts.option", {"backend": "kyutai", "name": "precision", "value": "float32"})["ok"]
+    kyutai = tts_backend("kyutai")
+    assert kyutai["card"]["name"] == "Kyutai 0.75B"
+    assert kyutai["card"]["url"] == "https://huggingface.co/kyutai/tts-0.75b-en-public"
+    assert kyutai["card"]["benchmark"] == benchmark("kyutai", "0.75B", "cuda-float32")
+
+
+def test_bark_and_whisperspeech_run_in_float16_only(sandbox, gpu):
+    assert ss.apply_change("tts.backend", "bark")["ok"]
+    bark = tts_backend("bark")
+    assert bark["device"] is None and bark["precision"] is None
+    assert bark["card"]["dtype"] == "float16"
+    assert bark["card"]["benchmark"] == benchmark("bark", "small", "cuda-float16")
+    assert not ss.apply_change("tts.option", {"backend": "bark", "name": "precision", "value": "float32"})["ok"]
+
+    assert ss.apply_change("tts.backend", "whisperspeech")["ok"]
+    assert ss.apply_change("tts.option", {"backend": "whisperspeech", "name": "t2s", "value": "t2s-small"})["ok"]
+    s2a = ss.tts_values(config(sandbox))["whisperspeech"]["s2a"]
+    assert tts_backend("whisperspeech")["card"]["benchmark"] == benchmark("whisperspeech", f"{s2a}+t2s-small", "cuda-float16")
+
+
+def test_half_precision_uses_float16_on_gpus_without_bfloat16(sandbox, gpu, monkeypatch):
+    monkeypatch.setattr(utilities, "has_bfloat16_support", lambda: False)
+    assert ss.apply_change("tts.backend", "kyutaipocket")["ok"]
+    pocket = tts_backend("kyutaipocket")
+    assert pocket["card"]["dtype"] == "float16"
+    assert pocket["card"]["benchmark"] == benchmark("kyutaipocket", "", "cuda-float16")
+    assert "float16" in pocket["precision"]["hint"]
+
+
+def test_kokoro_and_pocket_stay_on_the_cpu_without_a_gpu(sandbox, cpu):
+    kokoro = tts_backend("kokoro")
+    assert kokoro["device"]["value"] == "cpu"
+    assert next(o for o in kokoro["device"]["options"] if o["value"] == "cuda")["disabled"]
+    assert kokoro["card"]["benchmark"] == benchmark("kokoro", "", "cpu-float32")
+    assert not ss.apply_change("tts.option", {"backend": "kokoro", "name": "device", "value": "cuda"})["ok"]
+
+    assert ss.apply_change("tts.backend", "kyutaipocket")["ok"]
+    pocket = tts_backend("kyutaipocket")
+    assert (pocket["device"]["value"], pocket["card"]["dtype"]) == ("cpu", "float32")
+    assert pocket["card"]["benchmark"] == benchmark("kyutaipocket", "", "cpu-float32")
+
+
+def test_kyutai_settings_saved_under_the_old_labels_still_load(sandbox, gpu):
+    cfg = config(sandbox)
+    cfg["kyutai"] = {"model_display_name": "0.75B (EN, ~2GB VRAM)", "hf_repo": "kyutai/tts-0.75b-en-public", "n_q": 16}
+    save(sandbox, cfg)
+    assert ss.tts_values(config(sandbox))["kyutai"]["model"] == "0.75B (English)"
+
+
+def test_every_tts_choice_has_a_benchmark():
+    for backend in ("kokoro", "kyutaipocket"):
+        assert set(ss.TTS_BENCHMARKS[backend][""]) == {"cpu-float32", "cuda-bfloat16", "cuda-float16", "cuda-float32"}
+    for backend in ("chattts", "chatterbox"):
+        assert set(ss.TTS_BENCHMARKS[backend][""]) == {"cuda-bfloat16", "cuda-float16", "cuda-float32"}
+    for model in ss.KYUTAI_MODELS:
+        assert set(ss.TTS_BENCHMARKS["kyutai"][model.split()[0]]) == {"cuda-bfloat16", "cuda-float16", "cuda-float32"}
+    for size in ss.TTS_SPECS["bark"]["extras"]["size"]["options"]:
+        assert set(ss.TTS_BENCHMARKS["bark"][size]) == {"cuda-float16"}
+    for s2a in ss.WHISPER_SPEECH_MODELS["s2a"]:
+        for t2s in ss.WHISPER_SPEECH_MODELS["t2s"]:
+            assert set(ss.TTS_BENCHMARKS["whisperspeech"][f"{s2a}+{t2s}"]) == {"cuda-float16"}
 
 
 def test_normalize_writes_only_when_something_changes(sandbox, gpu):

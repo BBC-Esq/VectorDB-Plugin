@@ -6,8 +6,9 @@ from pathlib import Path
 import torch
 import yaml
 
-from core.constants import KOKORO_SPEEDS, KOKORO_VOICES, TTS_BACKENDS, VECTOR_MODELS, VISION_MODELS, WHISPER_SPEECH_MODELS
-from core.utilities import cuda_usable, fallback_if_unavailable, runs_on_this_hardware, save_config_atomically
+from core.constants import (KOKORO_SPEEDS, KOKORO_VOICES, TTS_BACKENDS, TTS_BENCHMARK_HARDWARE, TTS_BENCHMARKS, VECTOR_MODELS,
+                            VISION_MODELS, WHISPER_SPEECH_MODELS)
+from core.utilities import cuda_usable, fallback_if_unavailable, runs_on_this_hardware, save_config_atomically, tts_run_settings
 
 CONFIG_FILE = Path("config.yaml")
 
@@ -27,9 +28,10 @@ KYUTAI_POCKET_VOICES = [
 ]
 
 KYUTAI_MODELS = {
-    "1.6B (EN+FR, ~4.2GB VRAM)": ("kyutai/tts-1.6b-en_fr", 32),
-    "0.75B (EN, ~2GB VRAM)": ("kyutai/tts-0.75b-en-public", 16),
+    "1.6B (English and French)": ("kyutai/tts-1.6b-en_fr", 32),
+    "0.75B (English)": ("kyutai/tts-0.75b-en-public", 16),
 }
+DEFAULT_KYUTAI_MODEL = "1.6B (English and French)"
 
 KYUTAI_VOICES = {
     "Default Male": "expresso/ex04-ex03_default_002_channel2_239s.wav",
@@ -94,21 +96,19 @@ TTS_SPECS = {
     "kyutai": {
         "label": "Kyutai",
         "extras": {
-            "model": {"label": "Model", "options": list(KYUTAI_MODELS), "default": "1.6B (EN+FR, ~4.2GB VRAM)"},
+            "model": {"label": "Model", "options": list(KYUTAI_MODELS), "default": DEFAULT_KYUTAI_MODEL},
             "voice": {"label": "Voice", "options": list(KYUTAI_VOICES), "default": "Happy Male"},
         },
     },
 }
 
-TTS_NOTES = {
-    "bark": "GPU",
-    "whisperspeech": "GPU",
-    "chattts": "GPU",
-    "chatterbox": "GPU",
-    "googletts": "CPU, online",
-    "kokoro": "CPU",
-    "kyutaipocket": "CPU",
-    "kyutai": "GPU",
+TTS_CARDS = {
+    "whisperspeech": {"name": "WhisperSpeech", "repo": "WhisperSpeech/WhisperSpeech"},
+    "chattts": {"name": "ChatTTS", "repo": "2Noise/ChatTTS"},
+    "chatterbox": {"name": "Chatterbox", "repo": "ResembleAI/chatterbox"},
+    "googletts": {"name": "Google TTS", "vendor": "Google"},
+    "kokoro": {"name": "Kokoro", "repo": "ctranslate2-4you/Kokoro-82M-light"},
+    "kyutaipocket": {"name": "Kyutai Pocket", "repo": "kyutai/pocket-tts"},
 }
 
 HELP = {
@@ -140,6 +140,11 @@ HELP = {
     ),
     "create.chunk_overlap": "Characters shared between neighboring chunks. Set to 25-50% of chunk size.",
     "tts.backend": "The voice used when a response is read aloud. Backends that need a GPU are hidden on CPU-only computers.",
+    "tts.device": "Where the voice model runs. The GPU is much faster but uses video memory that a chat model may also need.",
+    "tts.precision": (
+        "Half precision uses less video memory than float32. It runs in bfloat16 on RTX 30-series and newer GPUs "
+        "and in float16 on older ones. The card shows the measured speed and memory for each choice."
+    ),
     "vision.model": "The model that describes images when they are added to a database.",
 }
 
@@ -211,6 +216,22 @@ def _model_key_for_file(models, filename):
     return next(iter(models))
 
 
+def _kyutai_model(kyutai_cfg):
+    name = kyutai_cfg.get("model_display_name")
+    if name in KYUTAI_MODELS:
+        return name
+    repo = kyutai_cfg.get("hf_repo")
+    return next((label for label, (hf_repo, _n_q) in KYUTAI_MODELS.items() if hf_repo == repo), DEFAULT_KYUTAI_MODEL)
+
+
+def _run_choices(backend, section):
+    run = tts_run_settings(backend, section)
+    choices = {"precision": run["precision"]}
+    if len((TTS_BACKENDS.get(backend) or {}).get("devices", [])) > 1:
+        choices["device"] = run["device"]
+    return choices
+
+
 def tts_values(cfg):
     tts_cfg = cfg.get("tts") or {}
     bark_cfg = cfg.get("bark") or {}
@@ -235,19 +256,22 @@ def tts_values(cfg):
             "t2s": _model_key_for_file(WHISPER_SPEECH_MODELS["t2s"], tts_cfg.get("t2s")),
             "speaker": _pick(tts_cfg.get("speaker"), WHISPER_SPEECH_SPEAKERS, WHISPER_SPEECH_SPEAKERS[0]),
         },
-        "chattts": {},
-        "chatterbox": {},
+        "chattts": _run_choices("chattts", cfg.get("chattts") or {}),
+        "chatterbox": _run_choices("chatterbox", cfg.get("chatterbox") or {}),
         "googletts": {},
         "kokoro": {
             "voice": _pick(kokoro_cfg.get("voice", "bm_george"), KOKORO_VOICES, "bm_george"),
             "speed": speed_label,
+            **_run_choices("kokoro", kokoro_cfg),
         },
         "kyutaipocket": {
             "voice": _pick(pocket_cfg.get("voice", "alba"), KYUTAI_POCKET_VOICES, "alba"),
+            **_run_choices("kyutaipocket", pocket_cfg),
         },
         "kyutai": {
-            "model": _pick(kyutai_cfg.get("model_display_name"), KYUTAI_MODELS, "1.6B (EN+FR, ~4.2GB VRAM)"),
+            "model": _kyutai_model(kyutai_cfg),
             "voice": _pick(kyutai_cfg.get("voice_display_name"), KYUTAI_VOICES, "Happy Male"),
+            **_run_choices("kyutai", kyutai_cfg),
         },
     }
 
@@ -284,6 +308,11 @@ def apply_tts(cfg, backend, values):
         kyutai["voice_display_name"] = values["voice"]
         kyutai["temp"] = 0.6
         kyutai["cfg_coef"] = 2.0
+    if backend in ("chattts", "chatterbox", "kokoro", "kyutaipocket", "kyutai"):
+        section = _section(cfg, backend)
+        for name in ("device", "precision"):
+            if values.get(name):
+                section[name] = values[name]
 
 
 def normalize_config():
@@ -367,12 +396,71 @@ def _sections(cfg, cuda):
     ]
 
 
+def _tts_note(key, run):
+    if key == "googletts":
+        return "Online"
+    if "cuda" not in run["devices"]:
+        return "CPU"
+    return "CPU or GPU" if "cpu" in run["devices"] else "GPU"
+
+
+def _device_control(key, run):
+    if len((TTS_BACKENDS.get(key) or {}).get("devices", [])) < 2:
+        return None
+    gpu = "cuda" in run["devices"]
+    return {
+        "value": run["device"],
+        "options": [{"value": "cpu", "label": "CPU"}, {"value": "cuda", "label": "GPU", "disabled": not gpu}],
+        "hint": "" if gpu else "Needs a supported NVIDIA GPU",
+    }
+
+
+def _precision_control(run):
+    if len(run["precisions"]) < 2:
+        return None
+    on_cpu = run["device"] == "cpu"
+    return {
+        "value": "float32" if on_cpu else run["precision"],
+        "disabled": on_cpu,
+        "options": [{"value": "half", "label": "Half"}, {"value": "float32", "label": "Float32"}],
+        "hint": "The CPU always uses float32" if on_cpu else f"Runs in {run['dtype']} on this GPU",
+    }
+
+
+def _tts_card(key, values, run, note):
+    if key == "bark":
+        small = values["size"] == "small"
+        name, repo, variant = ("Bark Small" if small else "Bark"), ("suno/bark-small" if small else "suno/bark"), values["size"]
+    elif key == "kyutai":
+        size = values["model"].split()[0]
+        name, repo, variant = f"Kyutai {size}", KYUTAI_MODELS[values["model"]][0], size
+    else:
+        card = TTS_CARDS[key]
+        name, repo = card["name"], card.get("repo", "")
+        variant = f"{values['s2a']}+{values['t2s']}" if key == "whisperspeech" else ""
+    benchmark = None
+    if run["device"]:
+        benchmark = TTS_BENCHMARKS.get(key, {}).get(variant, {}).get(f"{run['device']}-{run['dtype']}")
+    summaries = {"Online": "Online service", "CPU": "Runs on the CPU", "GPU": "Runs on the GPU", "CPU or GPU": "Runs on the CPU or GPU"}
+    return {
+        "name": name,
+        "vendor": repo.split("/")[0] if repo else TTS_CARDS.get(key, {}).get("vendor", ""),
+        "url": f"https://huggingface.co/{repo}" if repo else "",
+        "summary": summaries[note],
+        "device": run["device"],
+        "dtype": run["dtype"],
+        "online": key == "googletts",
+        "benchmark": benchmark,
+    }
+
+
 def _tts_state(cfg):
     backend = current_backend(cfg)
     values = tts_values(cfg)
     backends = []
     for key in available_backends():
         spec = TTS_SPECS[key]
+        run = tts_run_settings(key, values[key])
         extras = []
         for name, meta in spec["extras"].items():
             visible = not (key == "kyutai" and name == "voice" and not values["kyutai"]["model"].startswith("1.6B"))
@@ -386,12 +474,17 @@ def _tts_state(cfg):
                     for option in meta["options"]
                 ],
             })
-        toggles = [
-            {"name": name, "label": meta["label"], "value": bool(values[key].get(name, meta["default"])), "help": meta["help"]}
-            for name, meta in spec.get("toggles", {}).items()
-        ]
-        backends.append({"key": key, "label": spec["label"], "note": TTS_NOTES.get(key, ""), "extras": extras, "toggles": toggles})
-    return {"current": backend, "backends": backends}
+        note = _tts_note(key, run)
+        backends.append({
+            "key": key,
+            "label": spec["label"],
+            "note": note,
+            "extras": extras,
+            "device": _device_control(key, run),
+            "precision": _precision_control(run),
+            "card": _tts_card(key, values[key], run, note),
+        })
+    return {"current": backend, "backends": backends, "hardware": TTS_BENCHMARK_HARDWARE}
 
 
 def vision_precision(cuda):
@@ -559,8 +652,16 @@ def _set_tts_option(cfg, value):
         if choice not in meta["options"] or choice in meta.get("disabled", []):
             raise SettingsError(f"Choose a {meta['label'].lower()} from the list.")
         values[name] = choice
-    elif name in spec.get("toggles", {}):
-        values[name] = bool(choice)
+    elif name in ("device", "precision") and name in values:
+        run = tts_run_settings(backend, values)
+        if name == "device" and choice not in run["devices"]:
+            raise SettingsError("Running it on the GPU needs a supported NVIDIA GPU." if choice == "cuda" else "Choose the CPU or the GPU.")
+        if name == "precision":
+            if run["device"] == "cpu":
+                raise SettingsError("The CPU always runs in float32. Choose the GPU to change the precision.")
+            if choice not in run["precisions"]:
+                raise SettingsError("Choose half precision or float32.")
+        values[name] = choice
     else:
         raise SettingsError("Unknown text to speech option.")
     before = copy.deepcopy(cfg)
