@@ -20,6 +20,10 @@
     return state.vision.models.find((m) => m.name === state.vision.current) || state.vision.models[0];
   }
 
+  function vramText(model) {
+    return String(model.vram || "").replace(/gb/i, "GB");
+  }
+
   function fieldDef(key) {
     for (const section of state.sections) {
       for (const field of section.fields || []) {
@@ -153,7 +157,7 @@
     ].filter(Boolean).join(sep);
     const where = state.cuda ? "on this GPU" : "on the CPU";
     const chips = [
-      model.vram ? `<span class="chip vram" data-tip-text="Approximate memory used while describing images">${esc(model.vram.replace(/gb/i, "GB"))} VRAM</span>` : "",
+      model.vram ? `<span class="chip vram" data-tip-text="Approximate memory used while describing images">${esc(vramText(model))} VRAM</span>` : "",
       model.speed ? `<span class="chip speed" data-tip-text="Average speed when describing an image">${fmt.int(Math.round(model.speed))} chars/s</span>` : "",
       model.precision ? `<span class="chip prec-${esc(model.precision)}" data-tip-text="Runs in ${esc(model.precision)} ${where}">${esc(fmt.precision(model.precision))}</span>` : "",
       model.quant && model.quant !== "n/a" ? `<span class="chip quant" data-tip-text="Loaded with ${esc(model.quant)} quantization to use less memory">${esc(model.quant)}</span>` : "",
@@ -175,9 +179,9 @@
   function visionFields() {
     const model = currentVision();
     if (!model) return "";
-    return `<div class="field span-2" data-field="vision.model">${labelHTML("vision.model", "Model")}`
+    return `<div class="field" data-field="vision.model">${labelHTML("vision.model", "Model")}`
       + `${VDB.selectButton("vision.model", { label: model.name, note: model.size })}${messageHTML({ key: "vision.model" })}</div>`
-      + `<div class="field span-4">${visionCardHTML(model)}</div>`;
+      + `<div class="field span-3">${visionCardHTML(model)}</div>`;
   }
 
   function sectionHTML(section) {
@@ -342,7 +346,7 @@
         },
       });
     } else if (id === "vision.model") {
-      const options = state.vision.models.map((m) => ({ value: m.name, label: m.name, note: `${m.size} · ${m.vram}` }));
+      const options = state.vision.models.map((m) => ({ value: m.name, label: m.name, note: `${m.size} · ${vramText(m)}` }));
       VDB.openSelect(id, {
         title: "Vision model",
         options,
