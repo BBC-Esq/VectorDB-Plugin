@@ -119,23 +119,23 @@ def test_file_rows_compact_and_missing(root, tmp_path_factory):
     assert [r[0] for r in rows] == ["gone.txt", "present.pdf"] and [r[2] for r in rows] == [5, 5]
     compact = manage_data.compact_rows(rows)
     assert compact["dirs"] == [str(source)]
-    assert compact["rows"] == [["gone.txt", "text", 5, 0], ["present.pdf", "pdf", 5, 0]]
+    assert compact["rows"] == [["gone.txt", "text", 5, 0, "", 1, 2], ["present.pdf", "pdf", 5, 0, "", 1, 1]]
     assert manage_data.missing_rows(rows, lambda: False) == [0]
     assert manage_data.missing_rows(rows, lambda: True) is None
 
 
 def test_compact_rows_keeps_odd_paths():
-    rows = [("call.wav", "D:/audio/call.wav", 2), ("label.txt", "D:/other/real_name.txt", 1), ("nothing", "", 0)]
+    rows = [("call.wav", "D:/audio/call.wav", 2, "a", 1, 1), ("label.txt", "D:/other/real_name.txt", 1, "b", 2, 1), ("nothing", "", 0, "c", 3, 1)]
     compact = manage_data.compact_rows(rows)
-    assert compact["rows"][0] == ["call.wav", "audio", 2, 0]
-    assert compact["rows"][1] == ["label.txt", "text", 1, -1, "D:/other/real_name.txt"]
-    assert compact["rows"][2] == ["nothing", "other", 0, -1, ""]
+    assert compact["rows"][0] == ["call.wav", "audio", 2, 0, "", 1, 1]
+    assert compact["rows"][1] == ["label.txt", "text", 1, -1, "D:/other/real_name.txt", 1, 2]
+    assert compact["rows"][2] == ["nothing", "other", 0, -1, "", 1, 3]
 
 
 def test_file_rows_shared_hash_split(root):
     folder = root / "Vector_DB" / "dupes"
-    docs = [Document(page_content="t", metadata={"file_name": n, "file_path": f"C:/d/{n}", "hash": "same"}) for n in ("a.txt", "b.txt")]
-    create_metadata_db(folder, docs, [(f"id{i}", "same") for i in range(6)])
+    docs = [Document(page_content="t", metadata={"doc_id": i, "file_name": n, "file_path": f"C:/d/{n}", "hash": "same"}) for i, n in enumerate(("a.txt", "b.txt"), start=1)]
+    create_metadata_db(folder, docs, [(f"id{i}", "same", 1 if i < 3 else 2) for i in range(6)])
     assert [r[2] for r in manage_data.file_rows("dupes")] == [3, 3]
 
 

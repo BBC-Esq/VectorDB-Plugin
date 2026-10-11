@@ -12,6 +12,7 @@ from core.constants import PROJECT_ROOT
 from core.utilities import open_file
 from gui.web_common.web_tab import WebTab
 from gui.tabs_databases import manage_data
+from db.sqlite_operations import ensure_document_ids
 
 WEB_PAGE = Path(__file__).resolve().parent / "web" / "manage_tab.html"
 TASK_MESSAGES = {
@@ -54,6 +55,7 @@ class FilesWorker(QThread):
 
     def run(self):
         try:
+            ensure_document_ids(manage_data.vector_root() / self.name)
             rows = manage_data.file_rows(self.name, self.isInterruptionRequested)
         except Exception as e:
             if not self.isInterruptionRequested():
@@ -101,16 +103,16 @@ class TaskWorker(QThread):
 class DocumentMutationWorker(QThread):
     done = Signal(str, str, object, str)
 
-    def __init__(self, database_name, document_name, document_hash, parent=None):
+    def __init__(self, database_name, document_name, document_id, parent=None):
         super().__init__(parent)
         self.database_name = database_name
         self.document_name = document_name
-        self.document_hash = document_hash
+        self.document_id = document_id
 
     def run(self):
         script = PROJECT_ROOT / "db" / "stage_mutate.py"
         database_path = manage_data.vector_root() / self.database_name
-        command = [sys.executable, str(script), "remove", str(database_path), self.document_hash]
+        command = [sys.executable, str(script), "remove", str(database_path), str(self.document_id)]
         try:
             completed = subprocess.run(
                 command,
@@ -452,8 +454,11 @@ class ManageDatabasesTab(WebTab):
             return {"missing": True, "path": path, "opened_folder": True}
         return {"missing": True, "path": path}
 
-    def js_remove_file(self, version, index):
-        row = self._row(version, index)
+    def js_remove_file(self, database_name, document_id):
+        files = self.files
+        if database_name != self.selected or not files or files["name"] != database_name or files["rows"] is None:
+            return {"error": "The database changed. Select the document and try again."}
+        row = next((item for item in files["rows"] if item[4] == document_id), None)
         if row is None:
             return {"error": "The file list changed. Select the document and try again."}
         reason = self.blocked_reason()
@@ -463,9 +468,7 @@ class ManageDatabasesTab(WebTab):
         entry = self._entry(name)
         if entry is None or not entry["folder"]:
             return {"error": "That database is no longer available."}
-        document_name, _path, _chunks, document_hash = row
-        if not document_hash:
-            return {"error": "This document has no metadata hash, so it cannot be removed safely."}
+        document_name, _path, _chunks, _digest, _id, _copies = row
 
         for worker in list(self._workers):
             if isinstance(worker, (FilesWorker, InfoWorker)):
@@ -474,7 +477,7 @@ class ManageDatabasesTab(WebTab):
         self.files = None
         self.task = {"kind": "remove_document", "name": name, "file": document_name}
         self.notice = None
-        worker = DocumentMutationWorker(name, document_name, document_hash)
+        worker = DocumentMutationWorker(name, document_name, document_id)
         worker.done.connect(self._on_document_removed)
         self._start(worker)
         self.schedule_push()
@@ -490,9 +493,10 @@ class ManageDatabasesTab(WebTab):
         else:
             removed = int((result or {}).get("removed_chunks", 0))
             suffix = f" ({removed} chunk{'s' if removed != 1 else ''} removed)" if removed else ""
+            cleanup_warning = (result or {}).get("cleanup_warning")
             self.notice = {
-                "kind": "ok",
-                "message": f"Removed {document_name} from {database_name}{suffix}.",
+                "kind": "warn" if cleanup_warning else "ok",
+                "message": f"Removed {document_name} from {database_name}{suffix}." + (f" Index cleanup is incomplete: {cleanup_warning}" if cleanup_warning else ""),
             }
         self.info.pop(database_name, None)
         self.files = None

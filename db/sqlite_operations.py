@@ -6,41 +6,21 @@ METADATA_SCHEMA_VERSION = 4
 
 
 class DocumentNotFoundError(LookupError):
-    """Raised when a requested document is not present in a metadata DB."""
+    pass
 
 
-def get_document_chunk_ids(connection, document_hash):
-    """Return every TileDB external ID associated with one source document."""
-    rows = connection.execute(
-        "SELECT tiledb_id FROM hash_chunk_ids WHERE hash = ? ORDER BY tiledb_id",
-        (document_hash,),
-    ).fetchall()
-    return [row[0] for row in rows]
-
-
-def delete_document_metadata(connection, document_hash):
-    """Delete a document and its chunk mapping inside the caller's transaction.
-
-    The caller owns commit/rollback so this can be coordinated with the vector
-    index mutation.
-    """
-    document_count = connection.execute(
-        "SELECT COUNT(*) FROM document_metadata WHERE hash = ?",
-        (document_hash,),
-    ).fetchone()[0]
-    if not document_count:
-        raise DocumentNotFoundError(
-            f"No document with hash '{document_hash}' exists in this database."
-        )
-
-    chunk_ids = get_document_chunk_ids(connection, document_hash)
+def delete_document_metadata(connection, document_id):
+    group = document_group(connection, document_id)
+    if not group:
+        raise DocumentNotFoundError(f"No document with ID {document_id} exists in this database.")
+    chunk_ids = chunk_ids_for_documents(connection, group)
     if not chunk_ids:
-        raise RuntimeError(
-            "The document has no vector mappings. The database may be inconsistent."
-        )
-
-    connection.execute("DELETE FROM hash_chunk_ids WHERE hash = ?", (document_hash,))
-    connection.execute("DELETE FROM document_metadata WHERE hash = ?", (document_hash,))
+        raise RuntimeError("The document has no vector mappings. The database may be inconsistent.")
+    for start in range(0, len(group), 500):
+        batch = group[start:start + 500]
+        placeholders = ", ".join("?" * len(batch))
+        connection.execute(f"DELETE FROM hash_chunk_ids WHERE document_id IN ({placeholders})", batch)
+        connection.execute(f"DELETE FROM document_metadata WHERE id IN ({placeholders})", batch)
     return chunk_ids
 
 

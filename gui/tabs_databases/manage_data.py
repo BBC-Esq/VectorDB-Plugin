@@ -223,16 +223,22 @@ def database_info(name, should_stop=None):
 def file_rows(name, should_stop=None):
     db_path = vector_root() / name / "metadata.db"
     with closing(connect_readonly(db_path, should_stop)) as conn:
-        docs = conn.execute("SELECT file_name, file_path, hash FROM document_metadata").fetchall()
-        counts = dict(conn.execute("SELECT hash, COUNT(*) FROM hash_chunk_ids GROUP BY hash").fetchall())
+        docs = conn.execute("SELECT id, file_name, file_path, hash FROM document_metadata").fetchall()
+        counts = dict(conn.execute(
+            "SELECT document_id, COUNT(*) FROM hash_chunk_ids WHERE document_id IS NOT NULL GROUP BY document_id"
+        ).fetchall())
     sharing = {}
-    for _, _, digest in docs:
-        sharing[digest] = sharing.get(digest, 0) + 1
+    group_chunks = {}
+    for document_id, _, file_path, digest in docs:
+        key = (digest, file_path)
+        sharing[key] = sharing.get(key, 0) + 1
+        group_chunks[key] = group_chunks.get(key, 0) + counts.get(document_id, 0)
     rows = []
-    for file_name, file_path, digest in docs:
+    for document_id, file_name, file_path, digest in docs:
         path = str(file_path or "")
         label = str(file_name or "") or (Path(path).name if path else "Unnamed file")
-        rows.append((label, path, round(counts.get(digest, 0) / max(1, sharing.get(digest, 1))), digest))
+        chunks = group_chunks[(digest, file_path)]
+        rows.append((label, path, chunks, digest, document_id, sharing[(digest, file_path)]))
     rows.sort(key=lambda r: (r[0].lower(), r[1].lower()))
     return rows
 
@@ -240,10 +246,7 @@ def file_rows(name, should_stop=None):
 def compact_rows(rows):
     dirs = {}
     out = []
-    sharing = {}
-    for _name, _path, _chunks, digest in rows:
-        sharing[digest] = sharing.get(digest, 0) + 1
-    for name, path, chunks, digest in rows:
+    for name, path, chunks, _digest, document_id, copies in rows:
         parent, base = os.path.split(path)
         row = [name, kind_of(path or name), chunks]
         if path and base == name:
@@ -252,14 +255,14 @@ def compact_rows(rows):
         else:
             row.append(-1)
             row.append(path)
-        row.append(sharing[digest])
+        row.extend((copies, document_id))
         out.append(row)
     return {"dirs": list(dirs), "rows": out}
 
 
 def missing_rows(rows, should_stop):
     missing = []
-    for index, (_, path, _, _digest) in enumerate(rows):
+    for index, (_, path, *_rest) in enumerate(rows):
         if should_stop():
             return None
         if not path or not os.path.exists(path):

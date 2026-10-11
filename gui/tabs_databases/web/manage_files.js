@@ -28,7 +28,7 @@
   let lastOpen = { index: null, at: 0 };
   let message = null;
   let missingFor = -1;
-  let pendingRemove = -1;
+  let pendingRemove = null;
 
   const list = () => $("#files-list");
 
@@ -182,7 +182,7 @@
     query = "";
     active = -1;
     message = null;
-    pendingRemove = -1;
+    pendingRemove = null;
     missingFor = -1;
     headSignature = "";
     footSignature = "";
@@ -288,7 +288,7 @@
     const index = shown[position];
     const row = index == null ? null : rows[index];
     if (!row) return;
-    pendingRemove = index;
+    pendingRemove = row[6];
     setActive(position);
     const copies = Number(row[5] || 1);
     const duplicateNote = copies > 1
@@ -305,13 +305,13 @@
   }
 
   function confirmRemove() {
-    const index = pendingRemove;
-    pendingRemove = -1;
-    if (index < 0) return;
+    const documentId = pendingRemove;
+    pendingRemove = null;
+    if (documentId == null) return;
     message = { kind: "warn", html: "Removing the document and updating the vector index…" };
     footSignature = "";
     renderFoot();
-    VDB.call("remove_file", { version, index }).then((result) => {
+    VDB.call("remove_file", { database_name: database, document_id: documentId }).then((result) => {
       if (result.error) {
         message = { kind: "error", html: esc(result.error) };
         footSignature = "";
@@ -378,7 +378,7 @@
         return;
       }
       if (e.target.closest("[data-cancel-remove]")) {
-        pendingRemove = -1;
+        pendingRemove = null;
         message = null;
         footSignature = "";
         renderFoot();
@@ -402,7 +402,7 @@
       }
       const act = e.target.closest('[data-act="dismiss_message"]');
       if (act) {
-        pendingRemove = -1;
+        pendingRemove = null;
         message = null;
         refreshAll();
       }

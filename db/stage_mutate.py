@@ -1,5 +1,3 @@
-"""Run an existing-database mutation in a clean subprocess."""
-
 import ctypes
 import json
 import os
@@ -10,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 def _setup_tiledb_dlls():
-    import tiledb  # noqa: F401
+    __import__("tiledb")
 
     venv_root = os.path.dirname(os.path.dirname(sys.executable))
     site_packages = os.path.join(venv_root, "Lib", "site-packages")
@@ -38,7 +36,7 @@ def _setup_tiledb_dlls():
 def main():
     if len(sys.argv) != 4 or sys.argv[1] != "remove":
         print(
-            f"Usage: {sys.argv[0]} remove <database_directory> <document_hash>",
+            f"Usage: {sys.argv[0]} remove <database_directory> <document_id>",
             file=sys.stderr,
         )
         return 2
@@ -46,7 +44,7 @@ def main():
     _setup_tiledb_dlls()
     from db.database_mutations import remove_document
 
-    result = remove_document(sys.argv[2], sys.argv[3])
+    result = remove_document(sys.argv[2], int(sys.argv[3]))
     print("VECTORDB_MUTATION_RESULT " + json.dumps(result), flush=True)
     return 0
 
