@@ -4,6 +4,7 @@
   const { ICONS, esc, fmt, $ } = VDB;
 
   const SAVED_MS = 1800;
+  const TWO_COLUMN_TTS = new Set(["bark", "whisperspeech", "kokoro", "kyutaipocket"]);
 
   let state = null;
   const errors = {};
@@ -176,6 +177,11 @@
       const key = `tts.${backend.key}.${extra.name}`;
       const option = extra.options.find((o) => o.value === extra.value) || { label: extra.value };
       controls.push(`<div class="field" data-field="${esc(key)}">${labelHTML(key, extra.label)}${VDB.selectButton(key, option)}${messageHTML({ key })}</div>`);
+    }
+    if (TWO_COLUMN_TTS.has(backend.key) && controls.length > 2) {
+      const rows = Math.ceil(controls.length / 2);
+      return `<div class="field-stack two" style="grid-template-rows: repeat(${rows}, auto)">${controls.join("")}</div>`
+        + `<div class="field span-2">${ttsCardHTML(backend)}</div>`;
     }
     return `<div class="field-stack">${controls.join("")}</div><div class="field span-3">${ttsCardHTML(backend)}</div>`;
   }

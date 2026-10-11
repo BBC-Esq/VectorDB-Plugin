@@ -6,8 +6,8 @@ from pathlib import Path
 import torch
 import yaml
 
-from core.constants import (KOKORO_SPEEDS, KOKORO_VOICES, TTS_BACKENDS, TTS_BENCHMARK_HARDWARE, TTS_BENCHMARKS, VECTOR_MODELS,
-                            VISION_MODELS, WHISPER_SPEECH_MODELS)
+from core.constants import (KOKORO_VOICES, TTS_BACKENDS, TTS_BENCHMARK_HARDWARE, TTS_BENCHMARKS, VECTOR_MODELS, VISION_MODELS,
+                            WHISPER_SPEECH_MODELS)
 from core.utilities import cuda_usable, fallback_if_unavailable, runs_on_this_hardware, save_config_atomically, tts_run_settings
 
 CONFIG_FILE = Path("config.yaml")
@@ -84,7 +84,6 @@ TTS_SPECS = {
         "label": "Kokoro",
         "extras": {
             "voice": {"label": "Voice", "options": list(KOKORO_VOICES), "default": "bm_george"},
-            "speed": {"label": "Speed", "options": list(KOKORO_SPEEDS), "default": "Medium"},
         },
     },
     "kyutaipocket": {
@@ -243,12 +242,6 @@ def tts_values(cfg):
     kyutai_cfg = cfg.get("kyutai") or {}
     spec = {key: value["extras"] for key, value in TTS_SPECS.items()}
 
-    try:
-        speed = float(kokoro_cfg.get("speed", KOKORO_SPEEDS["Medium"]))
-    except (TypeError, ValueError):
-        speed = KOKORO_SPEEDS["Medium"]
-    speed_label = next((label for label, value in KOKORO_SPEEDS.items() if abs(value - speed) < 1e-6), "Medium")
-
     return {
         "bark": {
             "size": _pick(bark_cfg.get("size", "small"), spec["bark"]["size"]["options"], "small"),
@@ -265,7 +258,6 @@ def tts_values(cfg):
         "googletts": {},
         "kokoro": {
             "voice": _pick(kokoro_cfg.get("voice", "bm_george"), KOKORO_VOICES, "bm_george"),
-            "speed": speed_label,
             **_run_choices("kokoro", kokoro_cfg),
         },
         "kyutaipocket": {
@@ -301,7 +293,7 @@ def apply_tts(cfg, backend, values):
     elif backend == "kokoro":
         kokoro = _section(cfg, "kokoro")
         kokoro["voice"] = values["voice"]
-        kokoro["speed"] = KOKORO_SPEEDS.get(values["speed"], KOKORO_SPEEDS["Medium"])
+        kokoro.pop("speed", None)
     elif backend == "kyutai":
         kyutai = _section(cfg, "kyutai")
         hf_repo, n_q = KYUTAI_MODELS[values["model"]]

@@ -39,6 +39,15 @@ main { display: flex; flex-direction: column; gap: 12px; }
 
 .field-stack { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 
+.field-stack.two {
+  grid-column: span 2;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: column;
+  gap: 10px 14px;
+  align-items: start;
+}
+
 .field.span-2 { grid-column: span 2; }
 .field.span-3 { grid-column: span 3; }
 .field.span-4 { grid-column: 1 / -1; }

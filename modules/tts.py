@@ -981,19 +981,14 @@ class KokoroAudio:
     MODEL_DIR = PROJECT_ROOT / "Models" / "tts" / "ctranslate2-4you--Kokoro-82M-light"
 
     def __init__(self, config_path):
-        from core.constants import KOKORO_VOICES
+        from core.constants import KOKORO_SPEEDS, KOKORO_VOICES
         from modules.kokoro import KokoroTTS
 
         with open(config_path, 'r', encoding='utf-8') as f:
             kokoro_cfg = (yaml.safe_load(f) or {}).get('kokoro') or {}
         voice = kokoro_cfg.get('voice', 'bm_george')
         self.voice = voice if voice in KOKORO_VOICES else 'bm_george'
-        try:
-            self.speed = float(kokoro_cfg.get('speed', 1.3))
-        except (TypeError, ValueError):
-            self.speed = 1.3
-        if self.speed <= 0:
-            self.speed = 1.3
+        self.speed = KOKORO_SPEEDS["Medium"]
 
         if not self.MODEL_DIR.is_dir():
             raise FileNotFoundError(f"Kokoro TTS model not found at {self.MODEL_DIR}")

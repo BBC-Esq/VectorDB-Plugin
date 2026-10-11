@@ -121,8 +121,8 @@ def test_tts_backends_write_the_same_keys_as_before(sandbox, gpu):
     assert kyutai["temp"] == 0.6 and kyutai["cfg_coef"] == 2.0
 
     assert ss.apply_change("tts.backend", "kokoro")["ok"]
-    assert ss.apply_change("tts.option", {"backend": "kokoro", "name": "speed", "value": "Fast"})["ok"]
-    assert config(sandbox)["kokoro"]["speed"] == 1.6
+    assert "speed" not in config(sandbox)["kokoro"]
+    assert not ss.apply_change("tts.option", {"backend": "kokoro", "name": "speed", "value": "Fast"})["ok"]
 
     assert ss.apply_change("tts.backend", "whisperspeech")["ok"]
     assert ss.apply_change("tts.option", {"backend": "whisperspeech", "name": "t2s", "value": "t2s-small"})["ok"]
