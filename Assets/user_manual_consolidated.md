@@ -548,10 +548,11 @@ quality but requires an Internet connection because it uses an online service ra
 When you create a vector database it is automatically backed up.  However, if you want to manually back up all databases you can go
 to the Database Backup section of the "Tools" tab and click the Back Up button, which replaces the previous backup with a copy of
 every current database.  Likewise, the Restore button replaces your current databases with the ones in the backup.  Both ask for
-confirmation first.  The section also shows how many databases you have and names any that are not in the backup yet.  Back Up is
-greyed out when there are no databases, and Restore is greyed out when there is no backup.  To back up a single database
-that has no backup copy yet, or to restore one whose folder is missing, use the 'Back up' and 'Restore from backup' buttons on
-the Manage Databases tab.
+confirmation first.  The section also shows how many databases you have and names any that are not in the backup yet or have
+changed since the backup was made.  Back Up is greyed out when there are no databases, Restore is greyed out when there is no
+backup, and both wait while a database task is running on the Manage Databases tab or a database is being created.  To back up a
+single database that has no backup copy yet, update a backup copy that is out of date, or restore a database whose folder is
+missing, use the 'Back up', 'Update backup' and 'Restore from backup' buttons on the Manage Databases tab.
 
 ### What happens if I lose a configuration file and can I restore it?
 This program cannot function without the config.yaml file if you lose it accidentally or it gets corrupted for some reason you can
@@ -619,8 +620,9 @@ the remaining models.
 ### What is the Manage Databases tab?
 The Manage Databases tab lists every vector database you have created, with the embedding model it uses, how many files and chunks
 it holds, its size on disk and the date it was created; click a column heading to sort the list. Badges point out databases that
-need attention: 'No backup' when there is no backup copy yet, 'Folder missing' when the database's folder was removed outside the
-program, and 'Leftover folder' for a folder left behind by a database that was never finished. Click a database to see its details
+need attention: 'No backup' when there is no backup copy yet, 'Old backup' when the backup copy was made before the database last
+changed, 'Folder missing' when the database's folder was removed outside the program, and 'Leftover folder' for a folder left
+behind by a database that was never finished. Click a database to see its details
 (embedding model, dimensions, chunk size and overlap, size, creation time and backup) and the files it was created from. If the
 embedding model it was created with is no longer downloaded, the tab warns you, because the database can't be searched until you
 download that model again on the Models tab. The file list can be filtered by file type or by name and shows how many chunks each
@@ -633,8 +635,8 @@ its text. The 'Query' button switches to the Query Database tab.
 Select the database and click 'Delete…'. The tab asks you to confirm and says exactly what will be removed: the database and its
 backup copy. Your original files are never touched, and deleting can't be undone. The same button removes a database whose folder
 is missing from the list, and deletes a leftover folder, which also frees its name for a new database. A database without a backup
-copy has a 'Back up' button, and a database whose folder is missing but whose backup copy still exists has a 'Restore from backup'
-button. These buttons are unavailable while the database is being created on the Create Database tab or while a backup or restore
+copy has a 'Back up' button, a database whose backup copy is out of date has an 'Update backup' button that replaces it, and a
+database whose folder is missing but whose backup copy still exists has a 'Restore from backup' button. These buttons are unavailable while the database is being created on the Create Database tab or while a backup or restore
 is running on the Tools tab, and the program waits for a delete, backup or restore to finish before it closes. If some files can't
 be deleted because another program is using them, the tab lists them; close that program and delete the database again.
 
@@ -920,7 +922,8 @@ and quality of the scan, so review the results carefully when accuracy is critic
 The bottom of the Tools tab has two small sections. Database Backup: click 'Back Up' to copy the entire Vector_DB folder to a
 backup (this overwrites any existing backup), and 'Restore' to overwrite your current databases with that backup; both ask for
 confirmation first because they are destructive. The section also shows how many databases you have and names any that are not in
-the backup yet. Compare GPUs: choose the least and most VRAM (in GB) and click 'Compare' to open a list of the graphics cards in
+the backup yet or have changed since it was made, and both buttons wait while a database task is running on the Manage Databases
+tab or a database is being created. Compare GPUs: choose the least and most VRAM (in GB) and click 'Compare' to open a list of the graphics cards in
 that range, showing each card's architecture, release year, compute capability, VRAM and memory type, with a bar comparing its CUDA
 cores -- useful for deciding which GPU can run a given model. You can filter the list by name or architecture and sort it by name,
 compute capability, VRAM or CUDA cores, and your own GPU is highlighted when it is in the range. Press Escape or click 'Close' to
