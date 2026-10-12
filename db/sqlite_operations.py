@@ -1,7 +1,8 @@
 import sqlite3
+import time
 from pathlib import Path
 
-METADATA_SCHEMA_VERSION = 2
+METADATA_SCHEMA_VERSION = 3
 
 
 def create_metadata_db(persist_directory, documents, hash_id_mappings):
@@ -57,27 +58,33 @@ def create_metadata_db(persist_directory, documents, hash_id_mappings):
         ))
 
         _assign_document_ids(conn, persist_directory / "vectors")
+        _create_database_info(conn, time.time())
         conn.execute(f"PRAGMA user_version = {METADATA_SCHEMA_VERSION}")
         conn.commit()
     finally:
         conn.close()
 
 
-def ensure_document_ids(database_directory):
+def upgrade_metadata_db(database_directory):
     database_directory = Path(database_directory)
-    connection = sqlite3.connect(database_directory / "metadata.db", timeout=30, isolation_level=None)
+    path = database_directory / "metadata.db"
+    created_at = path.stat().st_mtime
+    connection = sqlite3.connect(path, timeout=30, isolation_level=None)
     try:
         if connection.execute("PRAGMA user_version").fetchone()[0] >= METADATA_SCHEMA_VERSION:
             return False
         connection.execute("BEGIN IMMEDIATE")
         try:
-            if connection.execute("PRAGMA user_version").fetchone()[0] >= METADATA_SCHEMA_VERSION:
+            version = connection.execute("PRAGMA user_version").fetchone()[0]
+            if version >= METADATA_SCHEMA_VERSION:
                 connection.execute("ROLLBACK")
                 return False
-            columns = {row[1] for row in connection.execute("PRAGMA table_info(hash_chunk_ids)")}
-            if "document_id" not in columns:
-                connection.execute("ALTER TABLE hash_chunk_ids ADD COLUMN document_id INTEGER")
-            _assign_document_ids(connection, database_directory / "vectors")
+            if version < 2:
+                columns = {row[1] for row in connection.execute("PRAGMA table_info(hash_chunk_ids)")}
+                if "document_id" not in columns:
+                    connection.execute("ALTER TABLE hash_chunk_ids ADD COLUMN document_id INTEGER")
+                _assign_document_ids(connection, database_directory / "vectors")
+            _create_database_info(connection, created_at)
             connection.execute(f"PRAGMA user_version = {METADATA_SCHEMA_VERSION}")
             connection.execute("COMMIT")
         except BaseException:
@@ -86,6 +93,46 @@ def ensure_document_ids(database_directory):
         return True
     finally:
         connection.close()
+
+
+def bump_version(connection):
+    try:
+        changed = connection.execute("UPDATE database_info SET version = version + 1 WHERE id = 1").rowcount
+    except sqlite3.OperationalError as error:
+        if "no such table" not in str(error):
+            raise
+        changed = 0
+    if changed != 1:
+        raise RuntimeError("metadata.db has no version record. Call upgrade_metadata_db() before changing a database.")
+
+
+def stored_database_info(connection):
+    try:
+        row = connection.execute("SELECT created_at, version FROM database_info WHERE id = 1").fetchone()
+    except sqlite3.OperationalError as error:
+        if "no such table" in str(error):
+            return None
+        raise
+    return {"created": row[0], "version": row[1]} if row else None
+
+
+def database_stamp(database_directory, timeout=5):
+    path = Path(database_directory) / "metadata.db"
+    created_at = path.stat().st_mtime
+    connection = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=timeout)
+    try:
+        stored = stored_database_info(connection)
+    finally:
+        connection.close()
+    return stored or {"created": created_at, "version": 1}
+
+
+def _create_database_info(connection, created_at):
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS database_info "
+        "(id INTEGER PRIMARY KEY CHECK (id = 1), created_at REAL NOT NULL, version INTEGER NOT NULL)"
+    )
+    connection.execute("INSERT OR IGNORE INTO database_info (id, created_at, version) VALUES (1, ?, 1)", (created_at,))
 
 
 def document_group(connection, document_id):

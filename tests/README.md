@@ -28,6 +28,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_constants.py` | Required keys in the chat, embedding, vision and Whisper model lists, document loaders, thinking tags, pipeline presets and supported file types |
 | `test_create_state.py` | Create Database tab: adding and removing files, the embedding model list, settings, build progress read from the build log, recording the new database and the checks before a build starts |
 | `test_credentials.py` | Config file load and save round trip, and where each credential is stored |
+| `test_database_info.py` | Each database's creation date and version in `metadata.db`: recorded when it is built, kept from the file's date when an older database is upgraded, raised only by committed changes, and read without writing |
 | `test_database_interactions.py` | Model family detection, query prompts, text normalization, `metadata.db` creation and audio document loading |
 | `test_document_ids.py` | Document ids in `metadata.db`: new databases, older mapping formats, the one-time upgrade of older databases (including a failed upgrade changing nothing) and batched lookups |
 | `test_document_processor.py` | `FixedSizeTextSplitter` chunking: size, overlap, metadata and edge cases |

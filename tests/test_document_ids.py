@@ -11,7 +11,7 @@ from db.sqlite_operations import (
     create_metadata_db,
     document_group,
     documents_with_content,
-    ensure_document_ids,
+    upgrade_metadata_db,
 )
 from db.text_splitter import Document
 
@@ -94,7 +94,7 @@ def test_new_database_records_document_ids(tmp_path):
         assert document_group(connection, 4) == [4, 5]
         assert sorted(chunk_ids_for_documents(connection, document_group(connection, 5))) == ["41", "51"]
         assert document_group(connection, 99) == []
-    assert ensure_document_ids(tmp_path) is False
+    assert upgrade_metadata_db(tmp_path) is False
 
 
 def test_legacy_two_item_mappings_are_filled_by_content(tmp_path):
@@ -139,7 +139,7 @@ def test_upgrade_of_old_database(tmp_path):
     _old_database(db_dir, documents, [(chunk_id, owner[0]) for chunk_id, owner in chunk_owner.items()])
     _write_vectors(db_dir, [(chunk_id, {"hash": h, "file_path": p}) for chunk_id, (h, p) in chunk_owner.items()])
 
-    assert ensure_document_ids(db_dir) is True
+    assert upgrade_metadata_db(db_dir) is True
 
     assigned = dict(_rows(db_dir, "SELECT tiledb_id, document_id FROM hash_chunk_ids"))
     assert assigned == {
@@ -153,7 +153,7 @@ def test_upgrade_of_old_database(tmp_path):
     assert {"hash_chunk_ids_document", "document_metadata_hash"} <= _indexes(db_dir)
     with sqlite3.connect(db_dir / "metadata.db") as connection:
         assert sorted(chunk_ids_for_documents(connection, document_group(connection, 5))) == [str(BIG + 6), str(BIG + 7)]
-    assert ensure_document_ids(db_dir) is False
+    assert upgrade_metadata_db(db_dir) is False
 
 
 def test_upgrade_without_chunk_store_leaves_shared_content_unassigned(tmp_path):
@@ -163,7 +163,7 @@ def test_upgrade_without_chunk_store_leaves_shared_content_unassigned(tmp_path):
         [("a.txt", "ha", "C:/a.txt", "x"), ("c.txt", "hc", "C:/A/c.txt", "x"), ("c.txt", "hc", "C:/B/c.txt", "x")],
         [("1", "ha"), ("2", "hc"), ("3", "hc")],
     )
-    assert ensure_document_ids(db_dir) is True
+    assert upgrade_metadata_db(db_dir) is True
     assert dict(_rows(db_dir, "SELECT tiledb_id, document_id FROM hash_chunk_ids")) == {"1": 1, "2": None, "3": None}
 
 
@@ -180,16 +180,17 @@ def test_failed_upgrade_changes_nothing(tmp_path, monkeypatch):
 
     monkeypatch.setattr(sqlite_operations, "_assign_document_ids", assign_then_fail)
     with pytest.raises(RuntimeError):
-        ensure_document_ids(db_dir)
+        upgrade_metadata_db(db_dir)
 
     columns = [row[1] for row in _rows(db_dir, "PRAGMA table_info(hash_chunk_ids)")]
     assert columns == ["tiledb_id", "hash"]
     assert _rows(db_dir, "PRAGMA user_version")[0][0] == 0
     assert not {"hash_chunk_ids_document", "document_metadata_hash"} & _indexes(db_dir)
+    assert not _rows(db_dir, "SELECT name FROM sqlite_master WHERE name = 'database_info'")
     assert (db_dir / "metadata.db").read_bytes() == before
 
     monkeypatch.setattr(sqlite_operations, "_assign_document_ids", real_assign)
-    assert ensure_document_ids(db_dir) is True
+    assert upgrade_metadata_db(db_dir) is True
     assert dict(_rows(db_dir, "SELECT tiledb_id, document_id FROM hash_chunk_ids")) == {"1": 1}
 
 
