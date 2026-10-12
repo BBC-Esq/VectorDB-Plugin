@@ -1,13 +1,14 @@
 import json
 import os
 import sqlite3
+import time
 from contextlib import closing
 
 import pytest
 import yaml
 
 from db.document_processor import Document
-from db.sqlite_operations import create_metadata_db
+from db.sqlite_operations import bump_version, create_metadata_db, upgrade_metadata_db
 from gui.tabs_databases import manage_data
 
 
@@ -224,6 +225,53 @@ def test_backup_and_restore(root):
     (root / "Vector_DB" / "half").mkdir()
     with pytest.raises(FileNotFoundError):
         manage_data.backup_database("half")
+
+
+def backup_row(name):
+    return next(r for r in manage_data.list_databases(manage_data.read_config()) if r["name"] == name)
+
+
+def raise_version(folder):
+    with closing(sqlite3.connect(folder / "metadata.db")) as connection:
+        bump_version(connection)
+        connection.commit()
+
+
+def test_backup_goes_out_of_date_when_the_database_changes(root):
+    folder = make_db(root, "kept", ["C:/docs/a.txt"], backup=True)
+    write_config(root, {"created_databases": {"kept": entry()}})
+    assert (backup_row("kept")["backup"], backup_row("kept")["backup_stale"]) == (True, False)
+    raise_version(folder)
+    assert backup_row("kept")["backup_stale"] is True
+    manage_data.backup_database("kept")
+    assert backup_row("kept")["backup_stale"] is False
+
+
+def test_rebuilt_database_does_not_match_its_old_backup(root):
+    import shutil
+    folder = make_db(root, "rebuilt", ["C:/docs/a.txt"], backup=True)
+    write_config(root, {"created_databases": {"rebuilt": entry()}})
+    shutil.rmtree(folder)
+    time.sleep(0.01)
+    make_db(root, "rebuilt", ["C:/docs/b.txt"])
+    assert backup_row("rebuilt")["backup_stale"] is True
+
+
+def test_older_databases_compare_by_file_date(root):
+    import shutil
+    folder = make_db(root, "legacy", ["C:/docs/a.txt"])
+    with closing(sqlite3.connect(folder / "metadata.db")) as connection:
+        connection.execute("DROP TABLE database_info")
+        connection.execute("PRAGMA user_version = 2")
+        connection.commit()
+    os.utime(folder / "metadata.db", (1700000000, 1700000000))
+    shutil.copytree(folder, root / "Vector_DB_Backup" / "legacy")
+    write_config(root, {"created_databases": {"legacy": entry()}})
+    assert backup_row("legacy")["backup_stale"] is False
+    assert upgrade_metadata_db(folder) is True
+    assert backup_row("legacy")["backup_stale"] is False
+    raise_version(folder)
+    assert backup_row("legacy")["backup_stale"] is True
 
 
 def test_backup_keeps_old_copy_when_copy_fails(root, monkeypatch):

@@ -14,6 +14,7 @@
     { key: "created", label: "Created", cls: "col-created" },
   ];
   const TASK_LABELS = { delete: "Deleting", backup: "Backing up", restore: "Restoring" };
+  const STALE_TIP = "The backup copy was made before this database last changed.";
   const FILTER_AT = 9;
 
   let state = null;
@@ -94,7 +95,9 @@
       case "missing": return '<span class="badge danger">Folder missing</span>';
       case "leftover": return '<span class="badge warn">Leftover folder</span>';
       case "incomplete": return '<span class="badge warn">Incomplete</span>';
-      default: return db.backup ? "" : '<span class="badge muted" data-tip-text="There is no backup copy of this database yet.">No backup</span>';
+      default:
+        if (!db.backup) return '<span class="badge muted" data-tip-text="There is no backup copy of this database yet.">No backup</span>';
+        return db.backup_stale ? `<span class="badge muted" data-tip-text="${STALE_TIP}">Old backup</span>` : "";
     }
   }
 
@@ -205,9 +208,12 @@
     const model = db.model
       ? `<span class="ellipsis">${esc(db.model.name)}</span>${db.model.vendor ? `<span class="tile-note">${esc(db.model.vendor)}</span>` : ""}`
       : plain(null);
-    const backup = db.backup
-      ? `<span class="ok-text">${ICONS.check}Backed up</span>`
-      : '<span class="warn-text">Not backed up</span>';
+    let backup = '<span class="warn-text">Not backed up</span>';
+    if (db.backup) {
+      backup = db.backup_stale
+        ? `<span class="warn-text" data-tip-text="${STALE_TIP}">Out of date</span>`
+        : `<span class="ok-text">${ICONS.check}Backed up</span>`;
+    }
     const tiles = [];
     if (db.registered) tiles.push(tile("Embedding model", model, " wide"));
     if (db.status !== "missing" && db.status !== "leftover") tiles.push(tile("Dimensions", number(info.dimensions)));
@@ -286,8 +292,8 @@
     if (db.status === "ready" || db.status === "incomplete") {
       buttons.push(`<button type="button" class="btn primary small" data-act="query">${QUERY}Query</button>`);
     }
-    if (db.status === "ready" && !db.backup) {
-      buttons.push(`<button type="button" class="btn ghost small" data-act="backup"${off}>${ICONS.archive}Back up</button>`);
+    if (db.status === "ready" && (!db.backup || db.backup_stale)) {
+      buttons.push(`<button type="button" class="btn ghost small" data-act="backup"${off}>${ICONS.archive}${db.backup ? "Update backup" : "Back up"}</button>`);
     }
     if (db.status === "missing" && db.backup) {
       buttons.push(`<button type="button" class="btn ghost small" data-act="restore"${off}>${ICONS.restore}Restore from backup</button>`);

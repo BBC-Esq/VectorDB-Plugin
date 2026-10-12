@@ -127,6 +127,12 @@ def database_stamp(database_directory, timeout=5):
     return stored or {"created": created_at, "version": 1}
 
 
+def stamps_match(first_directory, second_directory, timeout=5):
+    first = database_stamp(first_directory, timeout)
+    second = database_stamp(second_directory, timeout)
+    return first["version"] == second["version"] and abs(first["created"] - second["created"]) < 0.001
+
+
 def _create_database_info(connection, created_at):
     connection.execute(
         "CREATE TABLE IF NOT EXISTS database_info "

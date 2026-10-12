@@ -12,7 +12,7 @@ import yaml
 from core.constants import PROJECT_ROOT
 from core.utilities import save_config_atomically
 from db.search_process import release_database
-from db.sqlite_operations import stored_database_info
+from db.sqlite_operations import stamps_match, stored_database_info
 from gui.download_model import is_complete_download
 from gui.tabs_databases.create_config import model_info
 
@@ -84,6 +84,13 @@ def folder_names(root):
         return set()
 
 
+def backup_out_of_date(name):
+    try:
+        return not stamps_match(vector_root() / name, backup_root() / name, timeout=1)
+    except (OSError, sqlite3.Error):
+        return False
+
+
 def list_databases(cfg):
     registered = registered_databases(cfg)
     folders = folder_names(vector_root())
@@ -96,6 +103,7 @@ def list_databases(cfg):
             "registered": entry is not None,
             "folder": name in folders,
             "backup": name in backups,
+            "backup_stale": name in folders and name in backups and backup_out_of_date(name),
             "model_path": str(entry.get("model") or "") if entry else "",
             "chunk_size": entry.get("chunk_size") if entry else None,
             "chunk_overlap": entry.get("chunk_overlap") if entry else None,

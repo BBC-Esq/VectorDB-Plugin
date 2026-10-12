@@ -8,13 +8,19 @@
     + "New databases are also backed up automatically when you create them.";
   const RESTORE_TIP = "Replaces your current databases with the ones in the backup.";
 
+  function names(list) {
+    return list.slice(0, 3).map(esc).join(", ") + (list.length > 3 ? ", …" : "");
+  }
+
   function summaryHTML(s) {
     if (!s.databases && !s.has_backup) return html.status("info", "No databases yet.");
     const count = `<b>${fmt.int(s.databases)}</b> database${s.databases === 1 ? "" : "s"}`;
     if (!s.has_backup) return html.status("warn", `${count} · no backup yet`);
-    if (!s.missing.length) return html.status("ok", `${count} · all backed up`);
-    const names = s.missing.slice(0, 3).map(esc).join(", ") + (s.missing.length > 3 ? ", …" : "");
-    return html.status("warn", `${count} · ${s.missing.length} not in the backup: ${names}`);
+    if (!s.missing.length && !s.stale.length) return html.status("ok", `${count} · all backed up`);
+    const parts = [];
+    if (s.missing.length) parts.push(`${s.missing.length} not in the backup: ${names(s.missing)}`);
+    if (s.stale.length) parts.push(`${s.stale.length} changed since the backup: ${names(s.stale)}`);
+    return html.status("warn", `${count} · ${parts.join(" · ")}`);
   }
 
   function render(s) {

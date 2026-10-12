@@ -250,7 +250,7 @@ def test_backup_summary(monkeypatch, tmp_path):
         (tmp_path / "Vector_DB" / name).mkdir(parents=True)
     (tmp_path / "Vector_DB" / "notes.txt").write_text("x", encoding="utf-8")
     tool = backups.BackupTool(None)
-    assert tool.state() == {"databases": 2, "missing": ["alpha", "beta"], "has_backup": False,
+    assert tool.state() == {"databases": 2, "missing": ["alpha", "beta"], "stale": [], "has_backup": False,
                             "task": None, "started": None, "result": None}
     (tmp_path / "Vector_DB_Backup" / "alpha").mkdir(parents=True)
     tool.refresh()
@@ -263,6 +263,28 @@ def test_backup_summary(monkeypatch, tmp_path):
 
     tool.worker, tool.task = Running(), "restore"
     assert tool.busy_message() == "A database restore is still running. Please wait for it to finish before closing the program."
+
+
+def test_backup_summary_lists_databases_changed_since_the_backup(monkeypatch, tmp_path):
+    import shutil
+    import sqlite3
+    from contextlib import closing
+
+    from db.sqlite_operations import bump_version, create_metadata_db
+    from db.text_splitter import Document
+
+    monkeypatch.chdir(tmp_path)
+    for name in ("alpha", "beta"):
+        document = Document(page_content="t", metadata={"doc_id": 1, "file_name": "a.txt", "hash": "h", "file_path": "C:/a.txt"})
+        create_metadata_db(tmp_path / "Vector_DB" / name, [document], [("1", "h", 1)])
+        shutil.copytree(tmp_path / "Vector_DB" / name, tmp_path / "Vector_DB_Backup" / name)
+    tool = backups.BackupTool(None)
+    assert tool.state()["stale"] == [] and tool.state()["missing"] == []
+    with closing(sqlite3.connect(tmp_path / "Vector_DB" / "beta" / "metadata.db")) as connection:
+        bump_version(connection)
+        connection.commit()
+    tool.refresh()
+    assert tool.state()["stale"] == ["beta"]
 
 
 def test_gpu_rows_filter_and_sort(monkeypatch):

@@ -36,7 +36,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_gui_validation.py` | Database name rules, port extraction, the file type filter mapping and name preconditions (no GUI imports) |
 | `test_jeeves_helpers.py` | Ask Jeeves: the poems file, source rows from the user guide and text prepared for speech |
 | `test_local_model.py` | Local chat model process: answers from the passages it is given and returns their citations |
-| `test_manage_data.py` | Manage Databases tab: the database list, database details, file rows, read-only connections and safely deleting a database |
+| `test_manage_data.py` | Manage Databases tab: the database list, database details (chunk counts and creation dates from `metadata.db`), file rows, read-only connections, safely deleting a database, backing up and restoring, and backups that are out of date |
 | `test_minimax.py` | MiniMax constants, model list and temperature clamping |
 | `test_models_catalog.py` | Models tab: CPU-only filtering, download status, benchmark summaries, precision compared with the embedding code, and theme colors |
 | `test_process_manager.py` | Process cleanup at exit: stops a running process and tolerates one that is already closed |
@@ -47,5 +47,5 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_symlinks.py` | Symlink creation |
 | `test_thinking_tags.py` | Thinking tag structure and filtering |
 | `test_tools.py` | File hashing, markdown chunk extraction and chunk analysis |
-| `test_tools_state.py` | Tools tab: Whisper models and precisions, transcription checks, scraping status, vision and OCR |
+| `test_tools_state.py` | Tools tab: Whisper models and precisions, transcription checks, scraping status, vision, OCR and the backup summary, including databases changed since the backup |
 | `test_utilities.py` | `normalize_chat_text`, `format_citations`, `prepare_long_path`, `normalize_text`, embedding batch sizes, package and installation checks, platform and Python version info, and the device and precision each TTS backend runs in |

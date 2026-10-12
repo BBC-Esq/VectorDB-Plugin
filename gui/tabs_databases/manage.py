@@ -281,6 +281,7 @@ class ManageDatabasesTab(WebTab):
             "registered": entry["registered"],
             "folder": entry["folder"],
             "backup": entry["backup"],
+            "backup_stale": entry["backup_stale"],
             "model": entry["model"],
             "chunk_size": entry["chunk_size"],
             "chunk_overlap": entry["chunk_overlap"],

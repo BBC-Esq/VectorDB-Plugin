@@ -1,3 +1,4 @@
+import sqlite3
 import time
 from pathlib import Path
 
@@ -6,6 +7,7 @@ from PySide6.QtWidgets import QMessageBox
 
 from core.initialize import restore_vector_db_backup
 from core.utilities import backup_database
+from db.sqlite_operations import stamps_match
 
 JEEVES_DATABASE = "user_manual"
 
@@ -42,6 +44,17 @@ def backup_has_content():
         return False
 
 
+def out_of_date(names):
+    stale = []
+    for name in names:
+        try:
+            if not stamps_match(Path('Vector_DB') / name, Path('Vector_DB_Backup') / name, timeout=1):
+                stale.append(name)
+        except (OSError, sqlite3.Error):
+            continue
+    return sorted(stale, key=str.lower)
+
+
 class BackupTool(QObject):
     changed = Signal()
 
@@ -53,12 +66,14 @@ class BackupTool(QObject):
         self.result = None
         self.databases = set()
         self.backed_up = set()
+        self.stale = []
         self.has_backup = False
         self.refresh()
 
     def refresh(self):
         self.databases = database_names('Vector_DB')
         self.backed_up = database_names('Vector_DB_Backup')
+        self.stale = out_of_date(self.databases & self.backed_up)
         self.has_backup = backup_has_content()
 
     def running(self):
@@ -68,6 +83,7 @@ class BackupTool(QObject):
         return {
             "databases": len(self.databases),
             "missing": sorted(self.databases - self.backed_up, key=str.lower),
+            "stale": self.stale,
             "has_backup": self.has_backup,
             "task": self.task if self.running() else None,
             "started": self.started,
