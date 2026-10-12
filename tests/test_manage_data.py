@@ -1,6 +1,7 @@
 import json
 import os
 import sqlite3
+from contextlib import closing
 
 import pytest
 import yaml
@@ -81,7 +82,8 @@ def test_read_config_errors(root):
 
 
 def test_database_info_and_incomplete(root):
-    make_db(root, "ready_db", ["C:/docs/a.txt", "C:/docs/b.pdf"], chunks_per_file=4)
+    folder = make_db(root, "ready_db", ["C:/docs/a.txt", "C:/docs/b.pdf"], chunks_per_file=4)
+    (folder / "index_metadata.json").write_text(json.dumps({"dimensions": 384, "num_vectors": 99}), encoding="utf-8")
     info = manage_data.database_info("ready_db")
     assert (info["files"], info["chunks"], info["dimensions"], info["complete"]) == (2, 8, 384, True)
     assert info["size"] >= 1000 and info["created"]
@@ -91,6 +93,19 @@ def test_database_info_and_incomplete(root):
     (root / "Vector_DB" / "ready_db" / "index_metadata.json").unlink()
     no_index = manage_data.database_info("ready_db")
     assert no_index["complete"] is False and no_index["chunks"] == 8 and "index_metadata.json" in no_index["problem"]
+
+
+def test_created_date_comes_from_metadata_db(root):
+    folder = make_db(root, "dated", ["C:/docs/a.txt"])
+    with closing(sqlite3.connect(folder / "metadata.db")) as connection:
+        stored = connection.execute("SELECT created_at FROM database_info").fetchone()[0]
+    os.utime(folder / "metadata.db", (stored + 5000, stored + 5000))
+    assert manage_data.database_info("dated")["created"] == stored
+    with closing(sqlite3.connect(folder / "metadata.db")) as connection:
+        connection.execute("DROP TABLE database_info")
+        connection.commit()
+    os.utime(folder / "metadata.db", (1700000000, 1700000000))
+    assert manage_data.database_info("dated")["created"] == 1700000000
 
 
 def test_file_rows_compact_and_missing(root, tmp_path_factory):

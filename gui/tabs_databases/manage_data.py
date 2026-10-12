@@ -12,6 +12,7 @@ import yaml
 from core.constants import PROJECT_ROOT
 from core.utilities import save_config_atomically
 from db.search_process import release_database
+from db.sqlite_operations import stored_database_info
 from gui.download_model import is_complete_download
 from gui.tabs_databases.create_config import model_info
 
@@ -170,7 +171,7 @@ def database_info(name, should_stop=None):
     meta = read_index_metadata(folder)
     info = {
         "files": None,
-        "chunks": meta.get("num_vectors"),
+        "chunks": None,
         "dimensions": meta.get("dimensions"),
         "size": folder_size(folder),
         "created": None,
@@ -190,11 +191,13 @@ def database_info(name, should_stop=None):
     try:
         with closing(connect_readonly(db_path, should_stop)) as conn:
             info["files"] = conn.execute("SELECT COUNT(*) FROM document_metadata").fetchone()[0]
-            if info["chunks"] is None:
-                info["chunks"] = conn.execute("SELECT COUNT(*) FROM hash_chunk_ids").fetchone()[0]
+            info["chunks"] = conn.execute("SELECT COUNT(*) FROM hash_chunk_ids").fetchone()[0]
+            stored = stored_database_info(conn)
     except sqlite3.Error as e:
         info["problem"] = f"The database's file list could not be read: {e}"
         return info
+    if stored:
+        info["created"] = stored["created"]
     if not meta:
         info["problem"] = "The database's index information (index_metadata.json) is missing, so the database is incomplete."
         return info
