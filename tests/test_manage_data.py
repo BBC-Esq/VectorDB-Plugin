@@ -119,17 +119,17 @@ def test_file_rows_compact_and_missing(root, tmp_path_factory):
     assert [r[0] for r in rows] == ["gone.txt", "present.pdf"] and [r[2] for r in rows] == [5, 5]
     compact = manage_data.compact_rows(rows)
     assert compact["dirs"] == [str(source)]
-    assert compact["rows"] == [["gone.txt", "text", 5, 0, "", 1, 2], ["present.pdf", "pdf", 5, 0, "", 1, 1]]
+    assert compact["rows"] == [["gone.txt", "text", 5, 0, "", 1, 2, 5], ["present.pdf", "pdf", 5, 0, "", 1, 1, 5]]
     assert manage_data.missing_rows(rows, lambda: False) == [0]
     assert manage_data.missing_rows(rows, lambda: True) is None
 
 
 def test_compact_rows_keeps_odd_paths():
-    rows = [("call.wav", "D:/audio/call.wav", 2, "a", 1, 1), ("label.txt", "D:/other/real_name.txt", 1, "b", 2, 1), ("nothing", "", 0, "c", 3, 1)]
+    rows = [("call.wav", "D:/audio/call.wav", 2, "a", 1, 1, 2), ("label.txt", "D:/other/real_name.txt", 1, "b", 2, 1, 1), ("nothing", "", 0, "c", 3, 1, 0)]
     compact = manage_data.compact_rows(rows)
-    assert compact["rows"][0] == ["call.wav", "audio", 2, 0, "", 1, 1]
-    assert compact["rows"][1] == ["label.txt", "text", 1, -1, "D:/other/real_name.txt", 1, 2]
-    assert compact["rows"][2] == ["nothing", "other", 0, -1, "", 1, 3]
+    assert compact["rows"][0] == ["call.wav", "audio", 2, 0, "", 1, 1, 2]
+    assert compact["rows"][1] == ["label.txt", "text", 1, -1, "D:/other/real_name.txt", 1, 2, 1]
+    assert compact["rows"][2] == ["nothing", "other", 0, -1, "", 1, 3, 0]
 
 
 def test_file_rows_shared_hash_split(root):

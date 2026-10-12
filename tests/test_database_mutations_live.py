@@ -9,8 +9,8 @@ from db.sqlite_operations import create_metadata_db, delete_document_metadata
 from db.text_splitter import Document
 
 
-@pytest.mark.parametrize("fail_after_delete", [False, True])
-def test_real_index_returns_results_after_removal_or_rollback(tmp_path, fail_after_delete):
+@pytest.mark.parametrize("failure", ["none", "metadata", "flag"])
+def test_real_index_returns_results_after_removal_or_rollback(tmp_path, failure):
     tiledb = pytest.importorskip("tiledb")
     vector_search = pytest.importorskip("tiledb.vector_search")
 
@@ -52,7 +52,7 @@ def test_real_index_returns_results_after_removal_or_rollback(tmp_path, fail_aft
     create_metadata_db(tmp_path, documents, mappings)
     (tmp_path / "index_metadata.json").write_text(json.dumps({"index_type": "FLAT", "num_vectors": len(ids)}), encoding="utf-8")
 
-    if fail_after_delete:
+    if failure == "metadata":
         def fail_metadata(connection, document_id):
             delete_document_metadata(connection, document_id)
             raise RuntimeError("simulated metadata failure")
@@ -60,11 +60,29 @@ def test_real_index_returns_results_after_removal_or_rollback(tmp_path, fail_aft
         with patch.object(database_mutations, "delete_document_metadata", side_effect=fail_metadata):
             with pytest.raises(RuntimeError, match="simulated metadata failure"):
                 database_mutations.remove_document(tmp_path, 1)
+    elif failure == "flag":
+        original_clear = database_mutations._clear_update_flag
+        calls = 0
+
+        def fail_once(index):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise RuntimeError("simulated flag failure")
+            original_clear(index)
+
+        with patch.object(database_mutations, "_clear_update_flag", side_effect=fail_once):
+            with pytest.raises(RuntimeError, match="simulated flag failure"):
+                database_mutations.remove_document(tmp_path, 1)
     else:
         result = database_mutations.remove_document(tmp_path, 1)
         assert result["removed_chunks"] == 5
         assert result["cleanup_warning"] is None
 
+    with tiledb.Group(str(tmp_path / "vector_index"), "r") as group:
+        assert not group.meta["has_updates"]
+        assert len(json.loads(group.meta["ingestion_timestamps"])) == 1
+    assert not (tmp_path / "index_metadata.json.tmp").exists()
     index = vector_search.FlatIndex(uri=str(tmp_path / "vector_index"))
     _distances, found = index.query(np.asarray([[1.0, 0.0, 0.0]], dtype=np.float32), k=2)
-    assert set(found[0].tolist()) == ({10, 20} if fail_after_delete else {60, 70})
+    assert set(found[0].tolist()) == ({10, 20} if failure != "none" else {60, 70})

@@ -41,6 +41,8 @@ class _FakeFlatIndex:
     consolidated = 0
     vacuumed = 0
     cleared = []
+    latest_ingestion_timestamp = 0
+    has_updates = False
 
     def __init__(self, uri, open_for_remote_query_execution=False):
         self.uri = uri
@@ -48,12 +50,17 @@ class _FakeFlatIndex:
 
     def delete_batch(self, external_ids, timestamp=None):
         self.__class__.deleted.append((external_ids.tolist(), timestamp))
+        self.__class__.has_updates = True
 
     def update_batch(self, vectors, external_ids, timestamp=None):
         assert vectors.ndim == 1 and vectors.dtype == object
         assert all(vector.ndim == 1 and vector.dtype == np.float32 for vector in vectors)
         restored = [np.asarray(vector).tolist() for vector in vectors]
         self.__class__.restored.append((external_ids.tolist(), restored, timestamp))
+        self.__class__.has_updates = True
+
+    def _set_has_updates(self, value):
+        self.__class__.has_updates = value
 
     def consolidate_updates(self):
         self.__class__.consolidated += 1
@@ -74,6 +81,8 @@ class ExistingDatabaseMutationTests(unittest.TestCase):
         _FakeFlatIndex.consolidated = 0
         _FakeFlatIndex.vacuumed = 0
         _FakeFlatIndex.cleared = []
+        _FakeFlatIndex.latest_ingestion_timestamp = 0
+        _FakeFlatIndex.has_updates = False
         self.temporary = tempfile.TemporaryDirectory()
         self.database = Path(self.temporary.name)
         (self.database / "vectors").mkdir()
@@ -134,6 +143,12 @@ class ExistingDatabaseMutationTests(unittest.TestCase):
         self.assertEqual(_FakeFlatIndex.consolidated, 1)
         self.assertEqual(_FakeFlatIndex.vacuumed, 1)
         self.assertEqual(len(_FakeFlatIndex.cleared), 1)
+        self.assertFalse(_FakeFlatIndex.has_updates)
+        self.assertFalse((self.database / "index_metadata.json.tmp").exists())
+        with open(self.database / "index_metadata.json", encoding="utf-8") as handle:
+            self.assertEqual(json.load(handle)["num_vectors"], 3)
+        with sqlite3.connect(self.database / "metadata.db") as connection:
+            self.assertEqual(connection.execute("SELECT version FROM database_info").fetchone()[0], 2)
 
         connection = sqlite3.connect(self.database / "metadata.db")
         try:
@@ -161,7 +176,11 @@ class ExistingDatabaseMutationTests(unittest.TestCase):
         self.assertEqual(_FakeFlatIndex.restored[0][0], [10, 20])
         self.assertEqual(_FakeFlatIndex.restored[0][1], [[1.0, 2.0], [3.0, 4.0]])
         self.assertGreater(_FakeFlatIndex.restored[0][2], _FakeFlatIndex.deleted[0][1])
+        self.assertLessEqual(_FakeFlatIndex.restored[0][2], int(database_mutations.time.time() * 1000))
         self.assertEqual(_FakeFlatIndex.consolidated, 1)
+        self.assertFalse(_FakeFlatIndex.has_updates)
+        self.assertEqual(_FakeFlatIndex.vacuumed, 1)
+        self.assertEqual(len(_FakeFlatIndex.cleared), 1)
 
         connection = sqlite3.connect(self.database / "metadata.db")
         try:
@@ -171,6 +190,7 @@ class ExistingDatabaseMutationTests(unittest.TestCase):
                 ).fetchone()[0],
                 1,
             )
+            self.assertEqual(connection.execute("SELECT version FROM database_info").fetchone()[0], 1)
         finally:
             connection.close()
 
@@ -224,6 +244,31 @@ class ExistingDatabaseMutationTests(unittest.TestCase):
         self.assertEqual(_FakeFlatIndex.vacuumed, 1)
         with sqlite3.connect(self.database / "metadata.db") as connection:
             self.assertEqual(connection.execute("SELECT id FROM document_metadata").fetchall(), [(2,)])
+
+    def test_future_index_timestamp_stops_before_database_upgrade(self):
+        _FakeFlatIndex.latest_ingestion_timestamp = int(database_mutations.time.time() * 1000) + 3600000
+        with self.assertRaisesRegex(RuntimeError, "Correct the clock"):
+            database_mutations.remove_document(self.database, 1)
+        self.assertEqual(_FakeFlatIndex.deleted, [])
+        self.assertFalse(_FakeFlatIndex.has_updates)
+        with sqlite3.connect(self.database / "metadata.db") as connection:
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 0)
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM document_metadata").fetchone()[0], 2)
+
+    def test_cleanup_failure_after_undo_reports_restored_document(self):
+        def fail_after_delete(connection, document_id):
+            real_delete_metadata(connection, document_id)
+            raise RuntimeError("simulated metadata failure")
+
+        with patch.object(database_mutations, "delete_document_metadata", side_effect=fail_after_delete):
+            with patch.object(_FakeFlatIndex, "clear_history", side_effect=RuntimeError("cleanup blocked")):
+                with self.assertRaisesRegex(RuntimeError, "document was restored, but index cleanup could not finish"):
+                    database_mutations.remove_document(self.database, 1)
+
+        self.assertEqual(_FakeFlatIndex.restored[0][0], [10, 20])
+        self.assertFalse(_FakeFlatIndex.has_updates)
+        with sqlite3.connect(self.database / "metadata.db") as connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM document_metadata").fetchone()[0], 2)
 
 
 if __name__ == "__main__":

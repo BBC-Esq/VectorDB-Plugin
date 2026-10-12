@@ -12,7 +12,6 @@ from core.constants import PROJECT_ROOT
 from core.utilities import open_file
 from gui.web_common.web_tab import WebTab
 from gui.tabs_databases import manage_data
-from db.sqlite_operations import ensure_document_ids
 
 WEB_PAGE = Path(__file__).resolve().parent / "web" / "manage_tab.html"
 TASK_MESSAGES = {
@@ -55,7 +54,6 @@ class FilesWorker(QThread):
 
     def run(self):
         try:
-            ensure_document_ids(manage_data.vector_root() / self.name)
             rows = manage_data.file_rows(self.name, self.isInterruptionRequested)
         except Exception as e:
             if not self.isInterruptionRequested():
@@ -121,6 +119,7 @@ class DocumentMutationWorker(QThread):
                 text=True,
                 encoding="utf-8",
                 errors="replace",
+                env={**os.environ, "PYTHONIOENCODING": "utf-8"},
                 timeout=3600,
             )
         except Exception as error:
@@ -136,7 +135,7 @@ class DocumentMutationWorker(QThread):
                     result = json.loads(line[len(marker):])
                 except (TypeError, ValueError):
                     pass
-        if completed.returncode == 0 and result is not None:
+        if result is not None:
             self.done.emit(self.database_name, self.document_name, result, "")
             return
         errors = [line.removeprefix("ERROR: ") for line in output.splitlines() if line.strip()]
@@ -468,7 +467,7 @@ class ManageDatabasesTab(WebTab):
         entry = self._entry(name)
         if entry is None or not entry["folder"]:
             return {"error": "That database is no longer available."}
-        document_name, _path, _chunks, _digest, _id, _copies = row
+        document_name, _path, _chunks, _digest, _id, _copies, _group_chunks = row
 
         for worker in list(self._workers):
             if isinstance(worker, (FilesWorker, InfoWorker)):

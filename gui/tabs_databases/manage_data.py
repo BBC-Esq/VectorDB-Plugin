@@ -224,9 +224,22 @@ def file_rows(name, should_stop=None):
     db_path = vector_root() / name / "metadata.db"
     with closing(connect_readonly(db_path, should_stop)) as conn:
         docs = conn.execute("SELECT id, file_name, file_path, hash FROM document_metadata").fetchall()
-        counts = dict(conn.execute(
-            "SELECT document_id, COUNT(*) FROM hash_chunk_ids WHERE document_id IS NOT NULL GROUP BY document_id"
-        ).fetchall())
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(hash_chunk_ids)")}
+        if "document_id" in columns and conn.execute("PRAGMA user_version").fetchone()[0] >= 2:
+            counts = dict(conn.execute(
+                "SELECT document_id, COUNT(*) FROM hash_chunk_ids WHERE document_id IS NOT NULL GROUP BY document_id"
+            ).fetchall())
+        else:
+            hash_counts = dict(conn.execute(
+                "SELECT hash, COUNT(*) FROM hash_chunk_ids GROUP BY hash"
+            ).fetchall())
+            sharing_by_hash = {}
+            for _document_id, _file_name, _file_path, digest in docs:
+                sharing_by_hash[digest] = sharing_by_hash.get(digest, 0) + 1
+            counts = {
+                document_id: round(hash_counts.get(digest, 0) / sharing_by_hash[digest])
+                for document_id, _file_name, _file_path, digest in docs
+            }
     sharing = {}
     group_chunks = {}
     for document_id, _, file_path, digest in docs:
@@ -238,7 +251,8 @@ def file_rows(name, should_stop=None):
         path = str(file_path or "")
         label = str(file_name or "") or (Path(path).name if path else "Unnamed file")
         chunks = group_chunks[(digest, file_path)]
-        rows.append((label, path, chunks, digest, document_id, sharing[(digest, file_path)]))
+        rows.append((label, path, counts.get(document_id, 0), digest, document_id,
+                     sharing[(digest, file_path)], chunks))
     rows.sort(key=lambda r: (r[0].lower(), r[1].lower()))
     return rows
 
@@ -246,7 +260,7 @@ def file_rows(name, should_stop=None):
 def compact_rows(rows):
     dirs = {}
     out = []
-    for name, path, chunks, _digest, document_id, copies in rows:
+    for name, path, chunks, _digest, document_id, copies, group_chunks in rows:
         parent, base = os.path.split(path)
         row = [name, kind_of(path or name), chunks]
         if path and base == name:
@@ -255,7 +269,7 @@ def compact_rows(rows):
         else:
             row.append(-1)
             row.append(path)
-        row.extend((copies, document_id))
+        row.extend((copies, document_id, group_chunks))
         out.append(row)
     return {"dirs": list(dirs), "rows": out}
 

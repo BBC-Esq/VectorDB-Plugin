@@ -292,11 +292,12 @@
     setActive(position);
     const copies = Number(row[5] || 1);
     const duplicateNote = copies > 1
-      ? ` This content appears in ${esc(fmt.int(copies))} file entries; all of those entries share the same indexed chunks and will be removed together.`
+      ? ` This content appears in ${esc(fmt.int(copies))} entries from the same source; all of those entries and their indexed chunks will be removed together.`
       : "";
+    const removedChunks = Number(row[7] ?? row[2]);
     message = {
       kind: "warn",
-      html: `<b>Remove ${esc(row[0])} from this database?</b> Its ${esc(fmt.int(row[2]))} indexed chunk${row[2] === 1 ? "" : "s"} will no longer appear in searches.${duplicateNote} The original source file${copies > 1 ? "s" : ""} will not be deleted.`
+      html: `<b>Remove ${esc(row[0])} from this database?</b> ${esc(fmt.int(removedChunks))} indexed chunk${removedChunks === 1 ? "" : "s"} will no longer appear in searches.${duplicateNote} The original source file${copies > 1 ? "s" : ""} will not be deleted.`
         + '<div class="file-confirm-actions"><button type="button" class="btn danger small" data-confirm-remove>Remove document</button>'
         + '<button type="button" class="btn ghost small" data-cancel-remove>Cancel</button></div>',
     };
