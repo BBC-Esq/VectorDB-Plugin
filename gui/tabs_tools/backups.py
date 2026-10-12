@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QThread, Signal
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from core.initialize import restore_vector_db_backup
 from core.utilities import backup_database
@@ -44,6 +44,19 @@ def backup_has_content():
         return False
 
 
+def other_database_work():
+    if QApplication.instance() is None:
+        return None
+    for widget in QApplication.allWidgets():
+        task_running = getattr(widget, "database_task_running", None)
+        if callable(task_running) and task_running():
+            return "A database task is running on the Manage Databases tab. Wait for it to finish."
+        in_progress = getattr(widget, "database_in_progress", None)
+        if callable(in_progress) and in_progress():
+            return "A database is being created on the Create Database tab. Wait for it to finish."
+    return None
+
+
 def out_of_date(names):
     stale = []
     for name in names:
@@ -79,12 +92,16 @@ class BackupTool(QObject):
     def running(self):
         return self.worker is not None and self.worker.isRunning()
 
+    def blocked(self):
+        return None if self.running() else other_database_work()
+
     def state(self):
         return {
             "databases": len(self.databases),
             "missing": sorted(self.databases - self.backed_up, key=str.lower),
             "stale": self.stale,
             "has_backup": self.has_backup,
+            "blocked": self.blocked(),
             "task": self.task if self.running() else None,
             "started": self.started,
             "result": self.result,
@@ -102,8 +119,14 @@ class BackupTool(QObject):
         self.worker.start()
         self.changed.emit()
 
+    def _must_wait(self, parent_widget):
+        reason = other_database_work()
+        if reason:
+            QMessageBox.information(parent_widget, "Please Wait", reason)
+        return reason
+
     def backup(self, parent_widget):
-        if self.running():
+        if self.running() or self._must_wait(parent_widget):
             return
         confirm = QMessageBox.question(
             parent_widget,
@@ -116,7 +139,7 @@ class BackupTool(QObject):
             self._start("backup", backup_database)
 
     def restore(self, parent_widget):
-        if self.running():
+        if self.running() or self._must_wait(parent_widget):
             return
         confirm = QMessageBox.question(
             parent_widget,

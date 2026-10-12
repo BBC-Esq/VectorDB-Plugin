@@ -194,6 +194,7 @@ def test_cpu_confirmation(monkeypatch):
 
 def test_build_start_guards(root, monkeypatch):
     monkeypatch.setattr(create_build, "transcription_running", lambda: False)
+    monkeypatch.setattr(create_build, "backup_running", lambda: False)
     files = create_files.StagedFiles(None)
     controller = create_build.BuildController(None, files)
     cfg = {"EMBEDDING_MODEL_NAME": str(root / "model")}
@@ -203,3 +204,6 @@ def test_build_start_guards(root, monkeypatch):
     assert controller.result["kind"] == "error" and controller.phase == "idle"
     monkeypatch.setattr(create_build, "transcription_running", lambda: True)
     assert "transcription" in controller.start(None, "good_name", "model", True, cfg)["error"]
+    monkeypatch.setattr(create_build, "transcription_running", lambda: False)
+    monkeypatch.setattr(create_build, "backup_running", lambda: True)
+    assert "Tools tab" in controller.start(None, "good_name", "model", True, cfg)["error"]

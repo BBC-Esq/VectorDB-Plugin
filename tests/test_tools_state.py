@@ -246,12 +246,13 @@ def test_ocr_process_documents_reports_progress(monkeypatch):
 
 def test_backup_summary(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(backups, "other_database_work", lambda: None)
     for name in ("alpha", "beta", "user_manual"):
         (tmp_path / "Vector_DB" / name).mkdir(parents=True)
     (tmp_path / "Vector_DB" / "notes.txt").write_text("x", encoding="utf-8")
     tool = backups.BackupTool(None)
     assert tool.state() == {"databases": 2, "missing": ["alpha", "beta"], "stale": [], "has_backup": False,
-                            "task": None, "started": None, "result": None}
+                            "blocked": None, "task": None, "started": None, "result": None}
     (tmp_path / "Vector_DB_Backup" / "alpha").mkdir(parents=True)
     tool.refresh()
     assert tool.state()["missing"] == ["beta"] and tool.state()["has_backup"] is True
@@ -274,6 +275,7 @@ def test_backup_summary_lists_databases_changed_since_the_backup(monkeypatch, tm
     from db.text_splitter import Document
 
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(backups, "other_database_work", lambda: None)
     for name in ("alpha", "beta"):
         document = Document(page_content="t", metadata={"doc_id": 1, "file_name": "a.txt", "hash": "h", "file_path": "C:/a.txt"})
         create_metadata_db(tmp_path / "Vector_DB" / name, [document], [("1", "h", 1)])
@@ -285,6 +287,59 @@ def test_backup_summary_lists_databases_changed_since_the_backup(monkeypatch, tm
         connection.commit()
     tool.refresh()
     assert tool.state()["stale"] == ["beta"]
+
+
+def test_backup_and_restore_wait_for_other_database_work(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "Vector_DB" / "alpha").mkdir(parents=True)
+    (tmp_path / "Vector_DB_Backup" / "alpha").mkdir(parents=True)
+    shown = []
+    monkeypatch.setattr(backups.QMessageBox, "information", lambda parent, title, text: shown.append(text))
+    monkeypatch.setattr(backups.QMessageBox, "question", lambda *args, **kwargs: pytest.fail("asked to confirm while waiting"))
+    reason = "A database task is running on the Manage Databases tab. Wait for it to finish."
+    monkeypatch.setattr(backups, "other_database_work", lambda: reason)
+    tool = backups.BackupTool(None)
+    assert tool.state()["blocked"] == reason
+    tool.backup(None)
+    tool.restore(None)
+    assert shown == [reason, reason] and tool.worker is None
+    monkeypatch.setattr(backups, "other_database_work", lambda: None)
+    assert tool.state()["blocked"] is None
+
+
+def test_other_database_work_names_the_busy_tab(monkeypatch):
+    class Manage:
+        def __init__(self, busy):
+            self.busy = busy
+
+        def database_task_running(self):
+            return self.busy
+
+    class Create:
+        def __init__(self, name):
+            self.name = name
+
+        def database_in_progress(self):
+            return self.name
+
+    class App:
+        widgets = []
+
+        @staticmethod
+        def instance():
+            return object()
+
+        @classmethod
+        def allWidgets(cls):
+            return cls.widgets
+
+    monkeypatch.setattr(backups, "QApplication", App)
+    App.widgets = [Manage(False), Create(None), object()]
+    assert backups.other_database_work() is None
+    App.widgets = [Manage(True)]
+    assert "Manage Databases tab" in backups.other_database_work()
+    App.widgets = [Create("new_db")]
+    assert "Create Database tab" in backups.other_database_work()
 
 
 def test_gpu_rows_filter_and_sort(monkeypatch):

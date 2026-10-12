@@ -304,6 +304,11 @@ def transcription_running():
                for w in QApplication.allWidgets())
 
 
+def backup_running():
+    return any(callable(getattr(w, "database_backup_running", None)) and w.database_backup_running()
+               for w in QApplication.allWidgets())
+
+
 def update_config_with_database_name(database_name):
     config_path = PROJECT_ROOT / "config.yaml"
     if config_path.exists():
@@ -395,6 +400,8 @@ class BuildController(QObject):
         if transcription_running():
             return self._fail("An audio transcription is still running. Create the database after it finishes "
                               "so the transcript is included.")
+        if backup_running():
+            return self._fail("A backup or restore is running on the Tools tab. Create the database after it finishes.")
         if not cfg.get("EMBEDDING_MODEL_NAME"):
             return self._fail("Please select a model before creating a database.")
         database_name = (database_name or "").strip()

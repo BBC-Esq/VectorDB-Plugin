@@ -3,6 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import torch
+from PySide6.QtCore import QTimer
 
 from core.utilities import cuda_usable
 from gui.tabs_tools.backups import BackupTool
@@ -40,6 +41,16 @@ class ToolsTab(WebTab):
         }
         for tool in self.tools.values():
             tool.changed.connect(self.schedule_push)
+        self._blocked = None
+        self._poll = QTimer(self)
+        self._poll.setInterval(1000)
+        self._poll.timeout.connect(self._check_blocked)
+
+    def _check_blocked(self):
+        blocked = self.backups.blocked()
+        if blocked != self._blocked:
+            self._blocked = blocked
+            self.schedule_push()
 
     def build_state(self):
         state = {name: tool.state() for name, tool in self.tools.items()}
@@ -50,7 +61,13 @@ class ToolsTab(WebTab):
         self.scrape.refresh()
         self.vision.refresh()
         self.backups.refresh()
+        self._blocked = self.backups.blocked()
+        self._poll.start()
         super().showEvent(event)
+
+    def hideEvent(self, event):
+        self._poll.stop()
+        super().hideEvent(event)
 
     def transcription_running(self):
         return self.transcribe.running()
@@ -66,6 +83,7 @@ class ToolsTab(WebTab):
         return None
 
     def cleanup(self):
+        self._poll.stop()
         for tool in self.tools.values():
             if hasattr(tool, "cleanup"):
                 tool.cleanup()

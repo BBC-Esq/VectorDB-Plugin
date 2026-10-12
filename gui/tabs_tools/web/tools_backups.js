@@ -33,11 +33,12 @@
       line = summaryHTML(s);
     }
     const busy = Boolean(s.task);
+    const wait = busy ? null : s.blocked;
     return html.header("archive", "Database Backup", "")
       + `<div class="summary">${line}</div>`
       + '<div class="line buttons">'
-      + html.action("backup", "Back Up", { icon: "archive", disabled: busy || !s.databases, tip: s.databases ? BACKUP_TIP : "There are no databases to back up" })
-      + html.action("restore", "Restore", { icon: "restore", kind: "danger", disabled: busy || !s.has_backup, tip: s.has_backup ? RESTORE_TIP : "There is no backup to restore" })
+      + html.action("backup", "Back Up", { icon: "archive", disabled: busy || Boolean(wait) || !s.databases, tip: wait || (s.databases ? BACKUP_TIP : "There are no databases to back up") })
+      + html.action("restore", "Restore", { icon: "restore", kind: "danger", disabled: busy || Boolean(wait) || !s.has_backup, tip: wait || (s.has_backup ? RESTORE_TIP : "There is no backup to restore") })
       + "</div>";
   }
 

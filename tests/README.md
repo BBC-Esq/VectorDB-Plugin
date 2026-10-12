@@ -26,7 +26,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_backends_data.py` | Chat Backend Settings dialog: API keys, model choices, the LM Studio address and port, and the LM Studio and ChatGPT connection checks |
 | `test_chat_base.py` | `build_augmented_query`, maximum lengths, maximum new tokens, generation settings and `make_bnb_settings` |
 | `test_constants.py` | Required keys in the chat, embedding, vision and Whisper model lists, document loaders, thinking tags, pipeline presets and supported file types |
-| `test_create_state.py` | Create Database tab: adding and removing files, the embedding model list, settings, build progress read from the build log, recording the new database and the checks before a build starts |
+| `test_create_state.py` | Create Database tab: adding and removing files, the embedding model list, settings, build progress read from the build log, recording the new database and the checks before a build starts, including waiting for a backup or restore |
 | `test_credentials.py` | Config file load and save round trip, and where each credential is stored |
 | `test_database_info.py` | Each database's creation date and version in `metadata.db`: recorded when it is built, kept from the file's date when an older database is upgraded, raised only by committed changes, and read without writing |
 | `test_database_interactions.py` | Model family detection, query prompts, text normalization, `metadata.db` creation and audio document loading |
@@ -47,5 +47,5 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_symlinks.py` | Symlink creation |
 | `test_thinking_tags.py` | Thinking tag structure and filtering |
 | `test_tools.py` | File hashing, markdown chunk extraction and chunk analysis |
-| `test_tools_state.py` | Tools tab: Whisper models and precisions, transcription checks, scraping status, vision, OCR and the backup summary, including databases changed since the backup |
+| `test_tools_state.py` | Tools tab: Whisper models and precisions, transcription checks, scraping status, vision, OCR and the backup summary, including databases changed since the backup and backups that wait while another database task runs |
 | `test_utilities.py` | `normalize_chat_text`, `format_citations`, `prepare_long_path`, `normalize_text`, embedding batch sizes, package and installation checks, platform and Python version info, and the device and precision each TTS backend runs in |
