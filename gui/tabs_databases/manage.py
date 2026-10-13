@@ -17,6 +17,7 @@ TASK_MESSAGES = {
     "delete": "A database is still being deleted. Please wait for it to finish before closing the program.",
     "backup": "A database is still being backed up. Please wait for it to finish before closing the program.",
     "restore": "A database is still being restored. Please wait for it to finish before closing the program.",
+    "rebuild": "A database index is still being rebuilt. Please wait for it to finish before closing the program.",
 }
 
 
@@ -84,6 +85,8 @@ class TaskWorker(QThread):
             elif self.kind == "backup":
                 manage_data.backup_database(self.name)
                 result = {}
+            elif self.kind == "rebuild":
+                result = manage_data.rebuild_index(self.name)
             else:
                 manage_data.restore_database(self.name)
                 result = {}
@@ -177,7 +180,7 @@ class ManageDatabasesTab(WebTab):
             entry["model"] = manage_data.model_summary(entry["model_path"])
             name = entry["name"]
             names.add(name)
-            if not entry["folder"] or name == self.external["building"] or name == self._deleting():
+            if not entry["folder"] or name == self.external["building"] or name == self._replacing():
                 continue
             cached = self.info.get(name)
             if cached is None or cached[0] != manage_data.signature(name):
@@ -215,8 +218,8 @@ class ManageDatabasesTab(WebTab):
         else:
             self._queue_info([])
 
-    def _deleting(self):
-        return self.task["name"] if self.task and self.task["kind"] == "delete" else None
+    def _replacing(self):
+        return self.task["name"] if self.task and self.task["kind"] in ("delete", "rebuild") else None
 
     def _entry(self, name):
         return next((entry for entry in self.entries if entry["name"] == name), None)
@@ -226,7 +229,7 @@ class ManageDatabasesTab(WebTab):
             return
         name = self.selected
         entry = self._entry(name)
-        if (not entry or not entry["folder"] or name == self.external["building"] or name == self._deleting()
+        if (not entry or not entry["folder"] or name == self.external["building"] or name == self._replacing()
                 or not (manage_data.vector_root() / name / "metadata.db").exists()):
             if self.files is not None:
                 self._files_token += 1
@@ -402,8 +405,12 @@ class ManageDatabasesTab(WebTab):
             return {"error": "Only a complete database can be backed up."}
         if kind == "restore" and (entry["folder"] or not entry["backup"]):
             return {"error": "There is no backup copy to restore."}
+        if kind == "rebuild":
+            cached = self.info.get(name)
+            if not (entry["folder"] and entry["registered"]) or not cached or not cached[1].get("changes"):
+                return {"error": "This database has no changes, so its index doesn't need rebuilding."}
         readers = []
-        if kind == "delete":
+        if kind in ("delete", "rebuild"):
             for worker in list(self._workers):
                 if isinstance(worker, (FilesWorker, InfoWorker)):
                     worker.requestInterruption()
@@ -429,10 +436,15 @@ class ManageDatabasesTab(WebTab):
     def js_restore(self, name):
         return self._begin("restore", name)
 
+    def js_rebuild(self, name):
+        return self._begin("rebuild", name)
+
     def _on_task_done(self, kind, name, result, error):
         registered = bool(self.task and self.task.get("registered"))
         self.task = None
-        if error:
+        if error and kind == "rebuild":
+            self.notice = {"kind": "error", "message": f"The index of {name} could not be rebuilt: {error}"}
+        elif error:
             verb = {"delete": "deleted", "backup": "backed up", "restore": "restored"}[kind]
             self.notice = {"kind": "error", "message": f"{name} could not be {verb}: {error}"}
         elif kind == "delete":
@@ -447,6 +459,8 @@ class ManageDatabasesTab(WebTab):
                     self.selected = self._next_selection
         elif kind == "backup":
             self.notice = {"kind": "ok", "message": f"Backed up {name}."}
+        elif kind == "rebuild":
+            self.notice = {"kind": "ok", "message": f"Rebuilt the index of {name}."}
         else:
             self.notice = {"kind": "ok", "message": f"Restored {name} from its backup copy."}
         self.refresh()

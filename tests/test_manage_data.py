@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 from db.document_processor import Document
-from db.sqlite_operations import bump_version, create_metadata_db, upgrade_metadata_db
+from db.sqlite_operations import bump_version, create_metadata_db, record_removal, upgrade_metadata_db
 from gui.tabs_databases import manage_data
 
 
@@ -272,6 +272,47 @@ def test_older_databases_compare_by_file_date(root):
     assert backup_row("legacy")["backup_stale"] is False
     raise_version(folder)
     assert backup_row("legacy")["backup_stale"] is True
+
+
+def test_database_info_counts_changes_since_the_index_was_built(root):
+    folder = make_db(root, "changed", ["C:/docs/a.txt", "C:/docs/b.txt"], chunks_per_file=3)
+    assert (manage_data.database_info("changed")["changes"], manage_data.database_info("changed")["removed_chunks"]) == (0, 0)
+    with closing(sqlite3.connect(folder / "metadata.db")) as connection:
+        document_id = connection.execute("SELECT id FROM document_metadata WHERE file_name = 'a.txt'").fetchone()[0]
+        record_removal(connection, [document_id])
+        connection.execute("DELETE FROM hash_chunk_ids WHERE document_id = ?", (document_id,))
+        connection.execute("DELETE FROM document_metadata WHERE id = ?", (document_id,))
+        bump_version(connection)
+        connection.commit()
+    info = manage_data.database_info("changed")
+    assert (info["files"], info["chunks"], info["changes"], info["removed_chunks"]) == (1, 3, 1, 3)
+
+
+class Completed:
+    def __init__(self, stdout, stderr="", returncode=0):
+        self.stdout, self.stderr, self.returncode = stdout, stderr, returncode
+
+
+def test_rebuild_index_runs_in_its_own_process(root, monkeypatch):
+    make_db(root, "big", ["C:/docs/a.txt"])
+    released, calls = [], []
+    monkeypatch.setattr(manage_data, "release_database", lambda name=None: released.append(name))
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        return Completed(stdout="building\n" + manage_data.REBUILD_MARKER + json.dumps({"chunks": 3}) + "\n", returncode=1)
+
+    monkeypatch.setattr(manage_data.subprocess, "run", fake_run)
+    assert manage_data.rebuild_index("big") == {"chunks": 3}
+    command, kwargs = calls[0]
+    assert command[1].endswith("stage_rebuild.py") and command[2] == str(root / "Vector_DB" / "big")
+    assert kwargs["env"]["PYTHONIOENCODING"] == "utf-8" and released == ["big"]
+    monkeypatch.setattr(manage_data.subprocess, "run",
+                        lambda command, **kwargs: Completed(stdout="building\n", stderr="ERROR: RuntimeError: disk full\n", returncode=1))
+    with pytest.raises(RuntimeError, match="^RuntimeError: disk full$"):
+        manage_data.rebuild_index("big")
+    with pytest.raises(ValueError):
+        manage_data.rebuild_index("../escape")
 
 
 def test_backup_keeps_old_copy_when_copy_fails(root, monkeypatch):

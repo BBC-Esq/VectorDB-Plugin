@@ -151,6 +151,15 @@ def drop_missing_databases(vector_folder):
           f"{', '.join(str(name) for name in missing)}")
 
 
+def finish_interrupted_rebuilds():
+    from db.stage_rebuild import finish_interrupted_rebuilds as finish
+
+    try:
+        finish(Path('Vector_DB'))
+    except Exception as e:
+        logging.warning(f"An interrupted index rebuild could not be finished: {e}")
+
+
 def delete_chat_history():
     chat_history_path = PROJECT_ROOT / 'chat_history.txt'
     chat_history_path.unlink(missing_ok=True)
@@ -161,6 +170,7 @@ def main():
     platform_info = get_platform_info()
     update_config_file(Compute_Device=compute_device_info, Platform_Info=platform_info)
     check_for_necessary_folders()
+    finish_interrupted_rebuilds()
     delete_chat_history()
 
 if __name__ == "__main__":

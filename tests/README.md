@@ -29,14 +29,16 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_create_state.py` | Create Database tab: adding and removing files, the embedding model list, settings, build progress read from the build log, recording the new database and the checks before a build starts, including waiting for a backup or restore |
 | `test_credentials.py` | Config file load and save round trip, and where each credential is stored |
 | `test_database_info.py` | Each database's creation date and version in `metadata.db`: recorded when it is built, kept from the file's date when an older database is upgraded, raised only by committed changes, and read without writing |
-| `test_database_interactions.py` | Model family detection, query prompts, text normalization, `metadata.db` creation and audio document loading |
+| `test_database_interactions.py` | Model family detection, query prompts, text normalization, `metadata.db` creation, audio document loading and searches skipping removed chunks |
 | `test_document_ids.py` | Document ids in `metadata.db`: new databases, older mapping formats, the one-time upgrade of older databases (including a failed upgrade changing nothing) and batched lookups |
 | `test_document_processor.py` | `FixedSizeTextSplitter` chunking: size, overlap, metadata and edge cases |
 | `test_extract_metadata.py` | Content and file hashing, metadata extraction and PDF page numbers |
 | `test_gui_validation.py` | Database name rules, port extraction, the file type filter mapping and name preconditions (no GUI imports) |
+| `test_index_changes.py` | The record in `metadata.db` of changes since the index was built: present in new and upgraded databases, written only when a change commits, and read without writing |
+| `test_index_rebuild.py` | Rebuild index: a real index and chunk store rebuilt without removed chunks, a failed rebuild changing nothing, an empty database refused, and interrupted rebuilds finished or undone |
 | `test_jeeves_helpers.py` | Ask Jeeves: the poems file, source rows from the user guide and text prepared for speech |
 | `test_local_model.py` | Local chat model process: answers from the passages it is given and returns their citations |
-| `test_manage_data.py` | Manage Databases tab: the database list, database details (chunk counts and creation dates from `metadata.db`), file rows, read-only connections, safely deleting a database, backing up and restoring, and backups that are out of date |
+| `test_manage_data.py` | Manage Databases tab: the database list, database details (chunk counts and creation dates from `metadata.db`), file rows, read-only connections, safely deleting a database, backing up and restoring, backups that are out of date, changes since the index was built and starting a rebuild of the index |
 | `test_minimax.py` | MiniMax constants, model list and temperature clamping |
 | `test_models_catalog.py` | Models tab: CPU-only filtering, download status, benchmark summaries, precision compared with the embedding code, and theme colors |
 | `test_process_manager.py` | Process cleanup at exit: stops a running process and tolerates one that is already closed |

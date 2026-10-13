@@ -3,6 +3,8 @@ import os
 import shutil
 import sqlite3
 import stat
+import subprocess
+import sys
 import time
 from contextlib import closing
 from pathlib import Path
@@ -12,7 +14,8 @@ import yaml
 from core.constants import PROJECT_ROOT
 from core.utilities import save_config_atomically
 from db.search_process import release_database
-from db.sqlite_operations import stamps_match, stored_database_info
+from db.sqlite_operations import pending_changes, stamps_match, stored_database_info
+from db.stage_rebuild import RESULT_MARKER as REBUILD_MARKER
 from gui.download_model import is_complete_download
 from gui.tabs_databases.create_config import model_info
 
@@ -183,6 +186,8 @@ def database_info(name, should_stop=None):
         "dimensions": meta.get("dimensions"),
         "size": folder_size(folder),
         "created": None,
+        "changes": 0,
+        "removed_chunks": 0,
         "complete": False,
         "problem": None,
     }
@@ -201,6 +206,8 @@ def database_info(name, should_stop=None):
             info["files"] = conn.execute("SELECT COUNT(*) FROM document_metadata").fetchone()[0]
             info["chunks"] = conn.execute("SELECT COUNT(*) FROM hash_chunk_ids").fetchone()[0]
             stored = stored_database_info(conn)
+            pending = pending_changes(conn)
+            info["changes"], info["removed_chunks"] = pending["documents"], pending["chunks"]
     except sqlite3.Error as e:
         info["problem"] = f"The database's file list could not be read: {e}"
         return info
@@ -328,6 +335,28 @@ def backup_database(name):
         raise FileNotFoundError(f"{source} is not a complete database, so it was not backed up.")
     backup_root().mkdir(parents=True, exist_ok=True)
     copy_into_place(source, backup_root() / name, PROJECT_ROOT / f".backup_{name}")
+
+
+def rebuild_index(name):
+    check_name(name)
+    folder = vector_root() / name
+    if not (folder / "metadata.db").exists():
+        raise FileNotFoundError(f"{folder} is not a complete database, so its index was not rebuilt.")
+    release_database(name)
+    completed = subprocess.run(
+        [sys.executable, str(PROJECT_ROOT / "db" / "stage_rebuild.py"), str(folder)],
+        cwd=str(PROJECT_ROOT),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"},
+    )
+    for line in completed.stdout.splitlines():
+        if line.startswith(REBUILD_MARKER):
+            return json.loads(line[len(REBUILD_MARKER):])
+    errors = [line.removeprefix("ERROR: ") for line in (completed.stdout + "\n" + completed.stderr).splitlines() if line.strip()]
+    raise RuntimeError(errors[-1] if errors else "The index could not be rebuilt.")
 
 
 def restore_database(name):

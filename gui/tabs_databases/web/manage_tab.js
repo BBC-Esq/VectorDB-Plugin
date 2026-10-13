@@ -13,8 +13,9 @@
     { key: "size", label: "Size", num: true },
     { key: "created", label: "Created", cls: "col-created" },
   ];
-  const TASK_LABELS = { delete: "Deleting", backup: "Backing up", restore: "Restoring" };
+  const TASK_LABELS = { delete: "Deleting", backup: "Backing up", restore: "Restoring", rebuild: "Rebuilding index" };
   const STALE_TIP = "The backup copy was made before this database last changed.";
+  const CHANGES_TIP = "Documents changed since the index was built. Their leftover data stays in the database files until you rebuild the index.";
   const FILTER_AT = 9;
 
   let state = null;
@@ -22,6 +23,7 @@
   let pendingSelect = null;
   let sort = { key: "name", dir: 1 };
   let confirmName = null;
+  let confirmRebuild = null;
   let dbQuery = "";
   let headSignature = "";
   let tableSignature = "";
@@ -101,6 +103,15 @@
     }
   }
 
+  function changeCount(db) {
+    return db.info && !taskFor(db.name) && (db.status === "ready" || db.status === "incomplete") ? db.info.changes || 0 : 0;
+  }
+
+  function changesBadgeHTML(db) {
+    const count = changeCount(db);
+    return count ? `<span class="badge muted" data-tip-text="${CHANGES_TIP}">${fmt.int(count)} change${count === 1 ? "" : "s"}</span>` : "";
+  }
+
   function modelCell(db) {
     if (!db.model) return '<span class="faint">—</span>';
     const warn = db.model.downloaded ? "" : `<span class="model-warn" data-tip-text="This model is not downloaded, so the database can't be searched.">${ICONS.warn}</span>`;
@@ -147,7 +158,7 @@
     const info = db.info || {};
     const on = db.name === selected;
     return `<div class="db-row${on ? " on" : ""} status-${db.status}" role="option" aria-selected="${on}" data-db="${esc(db.name)}">`
-      + `<span class="db-name"><span class="db-label">${esc(db.name)}</span>${badgeHTML(db)}</span>`
+      + `<span class="db-name"><span class="db-label">${esc(db.name)}</span>${badgeHTML(db)}${changesBadgeHTML(db)}</span>`
       + `<span class="db-model col-model">${modelCell(db)}</span>`
       + `<span class="num">${numCell(db, info.files)}</span>`
       + `<span class="num">${numCell(db, info.chunks)}</span>`
@@ -225,6 +236,12 @@
       tiles.push(tile("Files", number(info.files)));
       tiles.push(tile("Chunks", number(info.chunks)));
     }
+    const changes = changeCount(db);
+    if (changes) {
+      const leftover = info.removed_chunks || 0;
+      const tip = `${CHANGES_TIP} ${fmt.int(leftover)} chunk${leftover === 1 ? "" : "s"} of leftover data.`;
+      tiles.push(tile("Changes", `<span class="warn-text" data-tip-text="${esc(tip)}">${fmt.int(changes)} document${changes === 1 ? "" : "s"}</span>`));
+    }
     if (db.status !== "missing") {
       tiles.push(tile("Size on disk", wait || plain(bytes(info.size))));
       tiles.push(tile("Created", wait || plain(moment(info.created)), " date"));
@@ -280,6 +297,17 @@
       + "</div></div></div>";
   }
 
+  function rebuildConfirmHTML(db) {
+    const count = changeCount(db);
+    return `<div class="confirm" role="alertdialog" aria-label="Confirm rebuild">${ICONS.info}<div class="confirm-body">`
+      + `<div class="confirm-title">Rebuild the index of <b>${esc(db.name)}</b>?</div>`
+      + `<div class="confirm-text">This builds a new index without the leftover data from the ${esc(fmt.int(count))} changed document${count === 1 ? "" : "s"} and clears that data out of the database files. On a large database it can take several minutes and use a lot of memory.</div>`
+      + '<div class="confirm-actions">'
+      + `<button type="button" class="btn primary" data-act="confirm_rebuild">${ICONS.build}Rebuild index</button>`
+      + '<button type="button" class="btn ghost" data-act="cancel_rebuild" id="cancel-rebuild">Cancel</button>'
+      + "</div></div></div>";
+  }
+
   function actionsHTML(db) {
     const task = taskFor(db.name);
     if (task) {
@@ -291,6 +319,9 @@
     const buttons = [];
     if (db.status === "ready" || db.status === "incomplete") {
       buttons.push(`<button type="button" class="btn primary small" data-act="query">${QUERY}Query</button>`);
+    }
+    if (db.status === "ready" && changeCount(db)) {
+      buttons.push(`<button type="button" class="btn ghost small" data-act="rebuild"${off}${confirmRebuild === db.name ? " disabled" : ""}>${ICONS.build}Rebuild index…</button>`);
     }
     if (db.status === "ready" && (!db.backup || db.backup_stale)) {
       buttons.push(`<button type="button" class="btn ghost small" data-act="backup"${off}>${ICONS.archive}${db.backup ? "Update backup" : "Back up"}</button>`);
@@ -312,18 +343,20 @@
       return;
     }
     if (confirmName && confirmName !== db.name) confirmName = null;
-    const signature = JSON.stringify([db, state.task, state.blocked, confirmName]);
+    if (confirmRebuild && (confirmRebuild !== db.name || !changeCount(db))) confirmRebuild = null;
+    const signature = JSON.stringify([db, state.task, state.blocked, confirmName, confirmRebuild]);
     if (signature !== detailSignature) {
       detailSignature = signature;
-      const hadCancelFocus = document.activeElement && document.activeElement.id === "cancel-delete";
+      const focused = document.activeElement ? document.activeElement.id : "";
       $("#detail-head").innerHTML = '<div class="detail-title-row">'
-        + `<h2 class="section-title detail-name">${ICONS.database}<span class="ellipsis">${esc(db.name)}</span>${badgeHTML(db)}</h2>`
+        + `<h2 class="section-title detail-name">${ICONS.database}<span class="ellipsis">${esc(db.name)}</span>${badgeHTML(db)}${changesBadgeHTML(db)}</h2>`
         + actionsHTML(db)
         + "</div>";
       $("#detail-body").innerHTML = (confirmName === db.name ? confirmHTML(db) : "")
+        + (confirmRebuild === db.name ? rebuildConfirmHTML(db) : "")
         + statsHTML(db)
         + warningsHTML(db);
-      if (confirmName === db.name && hadCancelFocus) $("#cancel-delete").focus();
+      if ((focused === "cancel-delete" || focused === "cancel-rebuild") && $(`#${focused}`)) $(`#${focused}`).focus();
     }
     ManageFiles.update(state.files && state.files.name === db.name ? state.files : null, state.kinds);
   }
@@ -346,6 +379,7 @@
     selected = name;
     pendingSelect = name;
     confirmName = null;
+    confirmRebuild = null;
     tableSignature = "";
     renderTable();
     renderDetail();
@@ -379,9 +413,21 @@
     const db = current();
     if (!db || state.blocked || taskFor(db.name) || db.status === "building") return;
     confirmName = db.name;
+    confirmRebuild = null;
     detailSignature = "";
     renderDetail();
     const cancel = $("#cancel-delete");
+    if (cancel) cancel.focus();
+  }
+
+  function askRebuild() {
+    const db = current();
+    if (!db || state.blocked || taskFor(db.name) || !changeCount(db)) return;
+    confirmRebuild = db.name;
+    confirmName = null;
+    detailSignature = "";
+    renderDetail();
+    const cancel = $("#cancel-rebuild");
     if (cancel) cancel.focus();
   }
 
@@ -393,14 +439,20 @@
     const db = current();
     if (!db) return;
     if (action === "delete") askDelete();
-    else if (action === "cancel_delete") {
+    else if (action === "rebuild") askRebuild();
+    else if (action === "cancel_delete" || action === "cancel_rebuild") {
       confirmName = null;
+      confirmRebuild = null;
       detailSignature = "";
       renderDetail();
     } else if (action === "confirm_delete") {
       const name = confirmName;
       confirmName = null;
       VDB.call("delete", { name, next_name: nextAfter(name) });
+    } else if (action === "confirm_rebuild") {
+      const name = confirmRebuild;
+      confirmRebuild = null;
+      VDB.call("rebuild", { name });
     } else if (action === "query") VDB.call("query_database", { name: db.name });
     else if (action === "backup") VDB.call("backup", { name: db.name });
     else if (action === "restore") VDB.call("restore", { name: db.name });
@@ -451,9 +503,9 @@
       }
     });
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && confirmName && !VDB.popover.key) {
+      if (e.key === "Escape" && (confirmName || confirmRebuild) && !VDB.popover.key) {
         e.preventDefault();
-        act("cancel_delete");
+        act(confirmName ? "cancel_delete" : "cancel_rebuild");
       }
     });
     document.addEventListener("input", (e) => {
