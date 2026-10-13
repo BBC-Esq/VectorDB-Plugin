@@ -2,7 +2,7 @@ import sqlite3
 import time
 from pathlib import Path
 
-METADATA_SCHEMA_VERSION = 3
+METADATA_SCHEMA_VERSION = 4
 
 
 def create_metadata_db(persist_directory, documents, hash_id_mappings):
@@ -59,6 +59,7 @@ def create_metadata_db(persist_directory, documents, hash_id_mappings):
 
         _assign_document_ids(conn, persist_directory / "vectors")
         _create_database_info(conn, time.time())
+        _create_change_tables(conn)
         conn.execute(f"PRAGMA user_version = {METADATA_SCHEMA_VERSION}")
         conn.commit()
     finally:
@@ -85,6 +86,7 @@ def upgrade_metadata_db(database_directory):
                     connection.execute("ALTER TABLE hash_chunk_ids ADD COLUMN document_id INTEGER")
                 _assign_document_ids(connection, database_directory / "vectors")
             _create_database_info(connection, created_at)
+            _create_change_tables(connection)
             connection.execute(f"PRAGMA user_version = {METADATA_SCHEMA_VERSION}")
             connection.execute("COMMIT")
         except BaseException:
@@ -104,6 +106,59 @@ def bump_version(connection):
         changed = 0
     if changed != 1:
         raise RuntimeError("metadata.db has no version record. Call upgrade_metadata_db() before changing a database.")
+
+
+def record_removal(connection, document_ids):
+    document_ids = list(document_ids)
+    changed_at = time.time()
+    try:
+        for start in range(0, len(document_ids), 500):
+            batch = document_ids[start:start + 500]
+            placeholders = ", ".join("?" * len(batch))
+            connection.execute(
+                "INSERT OR IGNORE INTO removed_chunks (tiledb_id) "
+                f"SELECT tiledb_id FROM hash_chunk_ids WHERE document_id IN ({placeholders})",
+                batch,
+            )
+            connection.execute(
+                "INSERT INTO index_changes (change, file_name, chunks, changed_at) "
+                "SELECT 'removed', file_name, (SELECT COUNT(*) FROM hash_chunk_ids WHERE document_id = document_metadata.id), ? "
+                f"FROM document_metadata WHERE id IN ({placeholders})",
+                [changed_at, *batch],
+            )
+    except sqlite3.OperationalError as error:
+        if "no such table" in str(error):
+            raise RuntimeError("metadata.db has no change log. Call upgrade_metadata_db() before changing a database.") from error
+        raise
+
+
+def pending_changes(connection):
+    try:
+        documents = connection.execute("SELECT COUNT(*) FROM index_changes").fetchone()[0]
+        chunks = connection.execute("SELECT COUNT(*) FROM removed_chunks").fetchone()[0]
+    except sqlite3.OperationalError as error:
+        if "no such table" in str(error):
+            return {"documents": 0, "chunks": 0}
+        raise
+    return {"documents": documents, "chunks": chunks}
+
+
+def removed_chunk_ids(database_directory, timeout=30):
+    path = Path(database_directory) / "metadata.db"
+    connection = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=timeout)
+    try:
+        return [int(tiledb_id) for (tiledb_id,) in connection.execute("SELECT tiledb_id FROM removed_chunks")]
+    except sqlite3.OperationalError as error:
+        if "no such table" in str(error):
+            return []
+        raise
+    finally:
+        connection.close()
+
+
+def clear_changes(connection):
+    connection.execute("DELETE FROM removed_chunks")
+    connection.execute("DELETE FROM index_changes")
 
 
 def stored_database_info(connection):
@@ -139,6 +194,14 @@ def _create_database_info(connection, created_at):
         "(id INTEGER PRIMARY KEY CHECK (id = 1), created_at REAL NOT NULL, version INTEGER NOT NULL)"
     )
     connection.execute("INSERT OR IGNORE INTO database_info (id, created_at, version) VALUES (1, ?, 1)", (created_at,))
+
+
+def _create_change_tables(connection):
+    connection.execute("CREATE TABLE IF NOT EXISTS removed_chunks (tiledb_id TEXT PRIMARY KEY)")
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS index_changes "
+        "(id INTEGER PRIMARY KEY AUTOINCREMENT, change TEXT NOT NULL, file_name TEXT, chunks INTEGER NOT NULL, changed_at REAL NOT NULL)"
+    )
 
 
 def document_group(connection, document_id):
