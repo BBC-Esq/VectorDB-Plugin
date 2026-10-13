@@ -491,11 +491,10 @@ class ManageDatabasesTab(WebTab):
             }
         else:
             removed = int((result or {}).get("removed_chunks", 0))
-            suffix = f" ({removed} chunk{'s' if removed != 1 else ''} removed)" if removed else ""
-            cleanup_warning = (result or {}).get("cleanup_warning")
+            suffix = f" ({removed} chunk{'s' if removed != 1 else ''} hidden from search)" if removed else ""
             self.notice = {
-                "kind": "warn" if cleanup_warning else "ok",
-                "message": f"Removed {document_name} from {database_name}{suffix}." + (f" Index cleanup is incomplete: {cleanup_warning}" if cleanup_warning else ""),
+                "kind": "ok",
+                "message": f"Removed {document_name} from {database_name}{suffix}. Rebuild the index later to reclaim its space.",
             }
         self.info.pop(database_name, None)
         self.files = None
