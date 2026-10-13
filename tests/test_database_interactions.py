@@ -1,6 +1,7 @@
 import json
 import sqlite3
 
+import numpy as np
 import pytest
 
 from db.document_processor import Document
@@ -10,7 +11,7 @@ from db.embedding_models import (
     _get_prompt_for_family,
     _normalize_text,
 )
-from db.database_interactions import CreateVectorDB
+from db.database_interactions import CreateVectorDB, QueryVectorDB, skip_removed
 
 
 class TestGetModelFamily:
@@ -153,3 +154,54 @@ class TestLoadAudioDocuments:
         instance = self._make_instance(tmp_path)
         (instance.SOURCE_DIRECTORY / "note.txt").write_text("not audio", encoding="utf-8")
         assert instance.load_audio_documents() == []
+
+
+class TestSkipRemovedChunks:
+
+    def test_drops_removed_ids_and_keeps_the_nearest(self):
+        distances = np.array([0.1, 0.2, 0.3, 0.4, 0.5], dtype=np.float32)
+        ids = np.array([5, 6, 7, 8, 9], dtype=np.uint64)
+        kept_distances, kept_ids = skip_removed(distances, ids, np.array([5, 7], dtype=np.uint64), 2)
+        assert kept_ids.tolist() == [6, 8]
+        assert kept_distances.tolist() == pytest.approx([0.2, 0.4])
+
+    def test_nothing_removed(self):
+        distances = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+        ids = np.array([5, 6, 7], dtype=np.uint64)
+        _, kept_ids = skip_removed(distances, ids, np.empty(0, dtype=np.uint64), 2)
+        assert kept_ids.tolist() == [5, 6]
+
+    def test_search_asks_for_extra_results_and_returns_the_rest(self, tmp_path):
+        import tiledb
+
+        uri = str(tmp_path / "vectors")
+        schema = tiledb.ArraySchema(
+            domain=tiledb.Domain(tiledb.Dim(name="id", domain=(0, np.iinfo(np.uint64).max - 20000), tile=10000, dtype=np.uint64)),
+            attrs=[tiledb.Attr(name="text", dtype=str, var=True), tiledb.Attr(name="metadata", dtype=str, var=True)],
+            sparse=True,
+        )
+        tiledb.Array.create(uri, schema)
+        ids = np.arange(1, 7, dtype=np.uint64)
+        with tiledb.open(uri, mode="w") as array:
+            array[ids] = {
+                "text": np.array([f"chunk {i}" for i in ids], dtype=object),
+                "metadata": np.array([json.dumps({"file_name": f"f{i}.txt"}) for i in ids], dtype=object),
+            }
+
+        class FakeIndex:
+            size = 6
+            asked = None
+
+            def query(self, vectors, k):
+                FakeIndex.asked = k
+                return np.array([[0.1, 0.2, 0.3, 0.4, 0.5, 0.6][:k]]), np.array([ids[:k]], dtype=np.uint64)
+
+        query_db = QueryVectorDB.__new__(QueryVectorDB)
+        query_db.index = FakeIndex()
+        query_db.removed_ids = np.array([1, 3], dtype=np.uint64)
+        query_db.distance_metric = "cosine"
+        query_db.array_uri = uri
+        results, exhausted = query_db._retrieve(np.zeros((1, 4), dtype=np.float32), 2, 0.0, tiledb)
+        assert FakeIndex.asked == 4
+        assert [text for text, _ in results] == ["chunk 2", "chunk 4"]
+        assert exhausted is False

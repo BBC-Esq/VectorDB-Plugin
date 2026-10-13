@@ -88,7 +88,7 @@ except ImportError:
 
 from db.document_processor import Document
 from db.embedding_models import load_embedding_model
-from db.sqlite_operations import create_metadata_db
+from db.sqlite_operations import create_metadata_db, removed_chunk_ids
 from db.cuda_manager import get_cuda_manager
 from core.config import get_config, reload_config
 from core.constants import PROJECT_ROOT, PIPELINE_PRESETS, NOT_ADDED_MARKER, DB_FOLDER_CREATED_MARKER, BUILD_COMPLETE_MARKER
@@ -122,6 +122,13 @@ WRITE_MAX_RETRIES = 5
 TILEDB_WRITE_BATCH_SIZE = 100000
 
 MAX_UINT64_SENTINEL = np.iinfo(np.uint64).max
+
+
+def skip_removed(distances, ids, removed_ids, k):
+    if len(removed_ids):
+        keep = ~np.isin(ids, removed_ids)
+        distances, ids = distances[keep], ids[keep]
+    return distances[:k], ids[:k]
 
 
 def _get_split_params():
@@ -833,6 +840,7 @@ class QueryVectorDB:
 
         self.embeddings = None
         self.index = None
+        self.removed_ids = np.empty(0, dtype=np.uint64)
         self.model_name = None
         self._debug_id = id(self)
 
@@ -884,6 +892,9 @@ class QueryVectorDB:
         if not self.index:
             logger.info(f"Loading TileDB FLAT index for {self.selected_database}")
             self.index = vs.FlatIndex(uri=self.index_uri)
+            self.removed_ids = np.asarray(sorted(removed_chunk_ids(self.db_path)), dtype=np.uint64)
+            if len(self.removed_ids):
+                logger.info(f"Skipping {len(self.removed_ids):,} removed chunks until the index is rebuilt")
 
         self.config = self.load_configuration()
         k = k if k is not None else self.config.database.contexts
@@ -926,7 +937,11 @@ class QueryVectorDB:
         return contexts, metadata_list
 
     def _retrieve(self, query_vector_np, k, score_threshold, tiledb):
-        result_distances, result_ids = self.index.query(query_vector_np, k=k)
+        fetch_k = k + len(self.removed_ids)
+        size = int(getattr(self.index, "size", 0) or 0)
+        if size:
+            fetch_k = min(fetch_k, size)
+        result_distances, result_ids = self.index.query(query_vector_np, k=fetch_k)
 
         if len(result_distances) == 0 or len(result_distances[0]) == 0:
             logger.warning("No results returned from vector search")
@@ -942,6 +957,7 @@ class QueryVectorDB:
         valid_mask = ids != MAX_UINT64_SENTINEL
         distances = distances[valid_mask]
         ids = ids[valid_mask]
+        distances, ids = skip_removed(distances, ids, self.removed_ids, k)
 
         if len(ids) == 0:
             logger.warning("All results were sentinel values - no valid matches")
