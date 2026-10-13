@@ -622,8 +622,9 @@ The Manage Databases tab lists every vector database you have created, with the 
 it holds, its size on disk and the date it was created; click a column heading to sort the list. Badges point out databases that
 need attention: 'No backup' when there is no backup copy yet, 'Old backup' when the backup copy was made before the database last
 changed, 'Folder missing' when the database's folder was removed outside the program, and 'Leftover folder' for a folder left
-behind by a database that was never finished. Click a database to see its details
-(embedding model, dimensions, chunk size and overlap, size, creation time and backup) and the files it was created from. If the
+behind by a database that was never finished. A database whose documents have changed since its index was built also shows how
+many have changed, such as '3 changes'. Click a database to see its details (embedding model, dimensions, chunk size and
+overlap, size, creation time, backup and any changes since the index was built) and the files it was created from. If the
 embedding model it was created with is no longer downloaded, the tab warns you, because the database can't be searched until you
 download that model again on the Models tab. The file list can be filtered by file type or by name and shows how many chunks each
 file produced. Double-click a file, or select it and press Enter, to open it in your system's default program, or click the folder
@@ -637,8 +638,21 @@ backup copy. Your original files are never touched, and deleting can't be undone
 is missing from the list, and deletes a leftover folder, which also frees its name for a new database. A database without a backup
 copy has a 'Back up' button, a database whose backup copy is out of date has an 'Update backup' button that replaces it, and a
 database whose folder is missing but whose backup copy still exists has a 'Restore from backup' button. These buttons are unavailable while the database is being created on the Create Database tab or while a backup or restore
-is running on the Tools tab, and the program waits for a delete, backup or restore to finish before it closes. If some files can't
-be deleted because another program is using them, the tab lists them; close that program and delete the database again.
+is running on the Tools tab, and the program waits for a delete, backup, restore or index rebuild to finish before it closes. If
+some files can't be deleted because another program is using them, the tab lists them; close that program and delete the
+database again.
+
+### What does 'Rebuild index' on the Manage Databases tab do?
+A database's search index is built when the database is created. When documents in the database change after that, the change
+is saved right away and searches already reflect it, but data left over from the change stays in the index and the database
+files until the index is rebuilt. The Manage Databases tab counts these changes: the database shows a badge such as '3 changes',
+its details show a 'Changes' tile with the number of changed documents (hover over it to see how many chunks of leftover data
+remain), and a 'Rebuild index…' button appears. Click it and confirm to build a new index from the chunks the database holds now
+and clear the leftover data out of its files. The rebuild reuses the embeddings already stored in the database, so nothing is
+embedded again and it is much faster than creating the database again, but on a large database it can take several minutes and
+use a lot of memory. If the rebuild fails, the database is left as it was, and if the computer shuts down partway through, the
+program finishes or undoes the rebuild the next time it starts. A rebuild changes the database's files, so afterwards its
+backup copy shows as out of date until you update it.
 
 ### How can I create a vector database?
 Go to the Create Database tab and add the files that you want in the database with the 'Add Files' or 'Add Folder' button; you can
