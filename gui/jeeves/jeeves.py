@@ -240,7 +240,7 @@ class JeevesPage(WebTab):
         return KokoroTTS(repo_path=str(PROJECT_ROOT / "Models" / "tts" / "ctranslate2-4you--Kokoro-82M-light"))
 
     def build_state(self):
-        image = PROJECT_ROOT / "Assets" / "ask_jeeves_transparent.jpg"
+        image = PROJECT_ROOT / "Assets" / "ask_jeeves.jpg"
         return {
             "image": QUrl.fromLocalFile(str(image)).toString() if image.exists() else None,
             "models": self.models,
