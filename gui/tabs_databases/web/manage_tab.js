@@ -15,7 +15,7 @@
   ];
   const TASK_LABELS = { delete: "Deleting", backup: "Backing up", restore: "Restoring", rebuild: "Rebuilding index", remove_document: "Removing a document" };
   const STALE_TIP = "The backup copy was made before this database last changed.";
-  const CHANGES_TIP = "Documents changed since the index was built. Their leftover data stays in the database files until you rebuild the index.";
+  const CHANGES_TIP = "Documents added or removed since the index was built. Searches already reflect them, and rebuilding the index folds them into a new index.";
   const FILTER_AT = 9;
 
   let state = null;
@@ -238,8 +238,10 @@
     }
     const changes = changeCount(db);
     if (changes) {
-      const leftover = info.removed_chunks || 0;
-      const tip = `${CHANGES_TIP} ${fmt.int(leftover)} chunk${leftover === 1 ? "" : "s"} of leftover data.`;
+      const counts = [];
+      if (info.added_chunks) counts.push(`${fmt.int(info.added_chunks)} chunk${info.added_chunks === 1 ? "" : "s"} added`);
+      if (info.removed_chunks) counts.push(`${fmt.int(info.removed_chunks)} chunk${info.removed_chunks === 1 ? "" : "s"} removed`);
+      const tip = counts.length ? `${CHANGES_TIP} ${counts.join(" and ")}.` : CHANGES_TIP;
       tiles.push(tile("Changes", `<span class="warn-text" data-tip-text="${esc(tip)}">${fmt.int(changes)} document${changes === 1 ? "" : "s"}</span>`));
     }
     if (db.status !== "missing") {
@@ -301,7 +303,7 @@
     const count = changeCount(db);
     return `<div class="confirm" role="alertdialog" aria-label="Confirm rebuild">${ICONS.info}<div class="confirm-body">`
       + `<div class="confirm-title">Rebuild the index of <b>${esc(db.name)}</b>?</div>`
-      + `<div class="confirm-text">This builds a new index without the leftover data from the ${esc(fmt.int(count))} changed document${count === 1 ? "" : "s"} and clears that data out of the database files. On a large database it can take several minutes and use a lot of memory.</div>`
+      + `<div class="confirm-text">This builds a new index with the changes to ${esc(fmt.int(count))} document${count === 1 ? "" : "s"} and clears leftover data out of the database files. On a large database it can take several minutes and use a lot of memory.</div>`
       + '<div class="confirm-actions">'
       + `<button type="button" class="btn primary" data-act="confirm_rebuild">${ICONS.build}Rebuild index</button>`
       + '<button type="button" class="btn ghost" data-act="cancel_rebuild" id="cancel-rebuild">Cancel</button>'
