@@ -52,7 +52,7 @@ def test_new_database_records_its_creation_date_and_version(tmp_path):
     _new_database(tmp_path)
     created, version = _rows(tmp_path, "SELECT created_at, version FROM database_info")[0]
     assert started - 1 <= created <= time.time() + 1 and version == 1
-    assert _rows(tmp_path, "PRAGMA user_version")[0][0] == METADATA_SCHEMA_VERSION == 4
+    assert _rows(tmp_path, "PRAGMA user_version")[0][0] == METADATA_SCHEMA_VERSION == 5
     assert database_stamp(tmp_path) == {"created": created, "version": 1}
 
 

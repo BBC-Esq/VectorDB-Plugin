@@ -98,11 +98,11 @@ def test_rebuild_keeps_only_the_current_chunks(tmp_path, vector_search):
     folder = build_database(tmp_path / "db", vector_search)
     created = database_stamp(folder)["created"]
     remove(folder, 1)
-    assert changes(folder) == {"documents": 1, "chunks": 3}
+    assert changes(folder) == {"documents": 1, "removed_chunks": 3, "added_chunks": 0}
     result = stage_rebuild.rebuild(folder)
     assert (result["chunks"], result["changed_documents"], result["removed_chunks"]) == (3, 1, 3)
     assert index_ids(folder) == store_ids(folder) == [201, 202, 301]
-    assert changes(folder) == {"documents": 0, "chunks": 0}
+    assert changes(folder) == {"documents": 0, "removed_chunks": 0, "added_chunks": 0}
     assert database_stamp(folder) == {"created": created, "version": 3}
     assert json.loads((folder / "index_metadata.json").read_text(encoding="utf-8"))["num_vectors"] == 3
     assert sorted(path.name for path in tmp_path.iterdir()) == ["db"]
@@ -122,7 +122,7 @@ def test_failed_rebuild_changes_nothing(tmp_path, vector_search, monkeypatch):
     monkeypatch.setattr(vector_search, "ingest", broken)
     with pytest.raises(RuntimeError, match="simulated failure"):
         stage_rebuild.rebuild(folder)
-    assert changes(folder) == {"documents": 1, "chunks": 2}
+    assert changes(folder) == {"documents": 1, "removed_chunks": 2, "added_chunks": 0}
     assert database_stamp(folder)["version"] == 2
     assert index_ids(folder) == [101, 102, 103, 201, 202, 301]
     assert sorted(path.name for path in tmp_path.iterdir()) == ["db"]
@@ -134,7 +134,7 @@ def test_rebuild_refuses_an_empty_database(tmp_path, vector_search):
         remove(folder, document_id)
     with pytest.raises(RuntimeError, match="no chunks left"):
         stage_rebuild.rebuild(folder)
-    assert changes(folder) == {"documents": 3, "chunks": 6}
+    assert changes(folder) == {"documents": 3, "removed_chunks": 6, "added_chunks": 0}
 
 
 def make_folder(path, marker=None):

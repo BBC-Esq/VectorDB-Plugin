@@ -188,6 +188,7 @@ def database_info(name, should_stop=None):
         "created": None,
         "changes": 0,
         "removed_chunks": 0,
+        "added_chunks": 0,
         "complete": False,
         "problem": None,
     }
@@ -207,7 +208,8 @@ def database_info(name, should_stop=None):
             info["chunks"] = conn.execute("SELECT COUNT(*) FROM hash_chunk_ids").fetchone()[0]
             stored = stored_database_info(conn)
             pending = pending_changes(conn)
-            info["changes"], info["removed_chunks"] = pending["documents"], pending["chunks"]
+            info["changes"] = pending["documents"]
+            info["removed_chunks"], info["added_chunks"] = pending["removed_chunks"], pending["added_chunks"]
     except sqlite3.Error as e:
         info["problem"] = f"The database's file list could not be read: {e}"
         return info

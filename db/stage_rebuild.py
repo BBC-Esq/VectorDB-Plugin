@@ -204,7 +204,8 @@ def rebuild(database_directory):
     return {
         "chunks": len(chunk_ids),
         "changed_documents": pending["documents"],
-        "removed_chunks": pending["chunks"],
+        "removed_chunks": pending["removed_chunks"],
+        "added_chunks": pending["added_chunks"],
         "seconds": round(time.time() - started, 1),
     }
 

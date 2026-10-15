@@ -2,7 +2,7 @@ import sqlite3
 import time
 from pathlib import Path
 
-METADATA_SCHEMA_VERSION = 4
+METADATA_SCHEMA_VERSION = 5
 
 
 class DocumentNotFoundError(LookupError):
@@ -128,6 +128,14 @@ def bump_version(connection):
 
 
 def record_removal(connection, document_ids):
+    _record_change(connection, "removed", "removed_chunks", document_ids)
+
+
+def record_addition(connection, document_ids):
+    _record_change(connection, "added", "added_chunks", document_ids)
+
+
+def _record_change(connection, change, table, document_ids):
     document_ids = list(document_ids)
     changed_at = time.time()
     try:
@@ -135,15 +143,15 @@ def record_removal(connection, document_ids):
             batch = document_ids[start:start + 500]
             placeholders = ", ".join("?" * len(batch))
             connection.execute(
-                "INSERT OR IGNORE INTO removed_chunks (tiledb_id) "
+                f"INSERT OR IGNORE INTO {table} (tiledb_id) "
                 f"SELECT tiledb_id FROM hash_chunk_ids WHERE document_id IN ({placeholders})",
                 batch,
             )
             connection.execute(
                 "INSERT INTO index_changes (change, file_name, chunks, changed_at) "
-                "SELECT 'removed', file_name, (SELECT COUNT(*) FROM hash_chunk_ids WHERE document_id = document_metadata.id), ? "
+                "SELECT ?, file_name, (SELECT COUNT(*) FROM hash_chunk_ids WHERE document_id = document_metadata.id), ? "
                 f"FROM document_metadata WHERE id IN ({placeholders})",
-                [changed_at, *batch],
+                [change, changed_at, *batch],
             )
     except sqlite3.OperationalError as error:
         if "no such table" in str(error):
@@ -152,21 +160,35 @@ def record_removal(connection, document_ids):
 
 
 def pending_changes(connection):
+    return {
+        "documents": _count_rows(connection, "index_changes"),
+        "removed_chunks": _count_rows(connection, "removed_chunks"),
+        "added_chunks": _count_rows(connection, "added_chunks"),
+    }
+
+
+def _count_rows(connection, table):
     try:
-        documents = connection.execute("SELECT COUNT(*) FROM index_changes").fetchone()[0]
-        chunks = connection.execute("SELECT COUNT(*) FROM removed_chunks").fetchone()[0]
+        return connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
     except sqlite3.OperationalError as error:
         if "no such table" in str(error):
-            return {"documents": 0, "chunks": 0}
+            return 0
         raise
-    return {"documents": documents, "chunks": chunks}
 
 
 def removed_chunk_ids(database_directory, timeout=30):
+    return _listed_chunk_ids(database_directory, "removed_chunks", timeout)
+
+
+def added_chunk_ids(database_directory, timeout=30):
+    return _listed_chunk_ids(database_directory, "added_chunks", timeout)
+
+
+def _listed_chunk_ids(database_directory, table, timeout):
     path = Path(database_directory) / "metadata.db"
     connection = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=timeout)
     try:
-        return [int(tiledb_id) for (tiledb_id,) in connection.execute("SELECT tiledb_id FROM removed_chunks")]
+        return [int(tiledb_id) for (tiledb_id,) in connection.execute(f"SELECT tiledb_id FROM {table}")]
     except sqlite3.OperationalError as error:
         if "no such table" in str(error):
             return []
@@ -177,6 +199,7 @@ def removed_chunk_ids(database_directory, timeout=30):
 
 def clear_changes(connection):
     connection.execute("DELETE FROM removed_chunks")
+    connection.execute("DELETE FROM added_chunks")
     connection.execute("DELETE FROM index_changes")
 
 
@@ -217,6 +240,7 @@ def _create_database_info(connection, created_at):
 
 def _create_change_tables(connection):
     connection.execute("CREATE TABLE IF NOT EXISTS removed_chunks (tiledb_id TEXT PRIMARY KEY)")
+    connection.execute("CREATE TABLE IF NOT EXISTS added_chunks (tiledb_id TEXT PRIMARY KEY)")
     connection.execute(
         "CREATE TABLE IF NOT EXISTS index_changes "
         "(id INTEGER PRIMARY KEY AUTOINCREMENT, change TEXT NOT NULL, file_name TEXT, chunks INTEGER NOT NULL, changed_at REAL NOT NULL)"

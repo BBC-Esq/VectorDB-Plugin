@@ -34,7 +34,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_document_processor.py` | `FixedSizeTextSplitter` chunking: size, overlap, metadata and edge cases |
 | `test_extract_metadata.py` | Content and file hashing, metadata extraction and PDF page numbers |
 | `test_gui_validation.py` | Database name rules, port extraction, the file type filter mapping and name preconditions (no GUI imports) |
-| `test_index_changes.py` | The record in `metadata.db` of changes since the index was built: present in new and upgraded databases, written only when a change commits, and read without writing |
+| `test_index_changes.py` | The record in `metadata.db` of documents added or removed since the index was built: present in new and upgraded databases, written only when a change commits, read without writing and cleared |
 | `test_index_rebuild.py` | Rebuild index: a real index and chunk store rebuilt without removed chunks, a failed rebuild changing nothing, an empty database refused, and interrupted rebuilds finished or undone |
 | `test_jeeves_helpers.py` | Ask Jeeves: the poems file, source rows from the user guide and text prepared for speech |
 | `test_local_model.py` | Local chat model process: answers from the passages it is given and returns their citations |

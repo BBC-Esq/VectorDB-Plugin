@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 from db.document_processor import Document
-from db.sqlite_operations import bump_version, create_metadata_db, record_removal, upgrade_metadata_db
+from db.sqlite_operations import bump_version, create_metadata_db, record_addition, record_removal, upgrade_metadata_db
 from gui.tabs_databases import manage_data
 
 
@@ -285,7 +285,16 @@ def test_database_info_counts_changes_since_the_index_was_built(root):
         bump_version(connection)
         connection.commit()
     info = manage_data.database_info("changed")
-    assert (info["files"], info["chunks"], info["changes"], info["removed_chunks"]) == (1, 3, 1, 3)
+    assert (info["files"], info["chunks"], info["changes"], info["removed_chunks"], info["added_chunks"]) == (1, 3, 1, 3, 0)
+    with closing(sqlite3.connect(folder / "metadata.db")) as connection:
+        connection.execute("INSERT INTO document_metadata (id, file_name, hash, file_path, page_content) "
+                           "VALUES (9, 'c.txt', 'hc', 'C:/docs/c.txt', 'c')")
+        connection.executemany("INSERT INTO hash_chunk_ids (tiledb_id, hash, document_id) VALUES (?, 'hc', 9)", [("91",), ("92",)])
+        record_addition(connection, [9])
+        bump_version(connection)
+        connection.commit()
+    info = manage_data.database_info("changed")
+    assert (info["files"], info["chunks"], info["changes"], info["removed_chunks"], info["added_chunks"]) == (2, 5, 2, 3, 2)
 
 
 class Completed:

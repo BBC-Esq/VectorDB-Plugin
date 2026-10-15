@@ -78,7 +78,7 @@ class ExistingDatabaseMutationTests(unittest.TestCase):
         self.assertEqual(state["version"], 2)
         self.assertEqual(removed_chunk_ids(self.database), [10, 20])
         with closing(sqlite3.connect(self.database / "metadata.db")) as connection, connection:
-            self.assertEqual(pending_changes(connection), {"documents": 1, "chunks": 2})
+            self.assertEqual(pending_changes(connection), {"documents": 1, "removed_chunks": 2, "added_chunks": 0})
             self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], METADATA_SCHEMA_VERSION)
 
     def test_same_path_twins_are_removed_and_logged_together(self):
