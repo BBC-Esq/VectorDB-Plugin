@@ -5,6 +5,25 @@ from pathlib import Path
 METADATA_SCHEMA_VERSION = 4
 
 
+class DocumentNotFoundError(LookupError):
+    pass
+
+
+def delete_document_metadata(connection, document_id):
+    group = document_group(connection, document_id)
+    if not group:
+        raise DocumentNotFoundError(f"No document with ID {document_id} exists in this database.")
+    chunk_ids = chunk_ids_for_documents(connection, group)
+    if not chunk_ids:
+        raise RuntimeError("The document has no vector mappings. The database may be inconsistent.")
+    for start in range(0, len(group), 500):
+        batch = group[start:start + 500]
+        placeholders = ", ".join("?" * len(batch))
+        connection.execute(f"DELETE FROM hash_chunk_ids WHERE document_id IN ({placeholders})", batch)
+        connection.execute(f"DELETE FROM document_metadata WHERE id IN ({placeholders})", batch)
+    return chunk_ids
+
+
 def create_metadata_db(persist_directory, documents, hash_id_mappings):
     if not persist_directory.exists():
         persist_directory.mkdir(parents=True, exist_ok=True)

@@ -630,7 +630,10 @@ download that model again on the Models tab. The file list can be filtered by fi
 file produced. Double-click a file, or select it and press Enter, to open it in your system's default program, or click the folder
 icon at the end of its row to open the folder that contains it. When a database is created the location of each original file is
 saved, so a file you have since moved or deleted is marked 'Not found' and can't be opened, although the database still searches
-its text. The 'Query' button switches to the Query Database tab.
+its text. To stop searching a document without deleting the whole database, point at its row and click the trash icon, or select
+it and press Delete. After confirmation, the program removes the document from the file list and immediately excludes its
+chunks from searches; the original source file is never deleted. Its chunks remain in the index until you use 'Rebuild index' to
+reclaim their space. The 'Query' button switches to the Query Database tab.
 
 ### How do I delete, back up or restore a database on the Manage Databases tab?
 Select the database and click 'Delete…'. The tab asks you to confirm and says exactly what will be removed: the database and its

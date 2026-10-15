@@ -296,6 +296,8 @@ main { display: flex; flex-direction: column; gap: 12px; }
 .file-action svg { width: 14px; height: 14px; }
 .file-row:hover .file-action, .file-row.on .file-action { visibility: visible; }
 .file-action:hover { background: var(--hover); color: var(--text-primary); }
+.file-action.danger:hover { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+.file-confirm-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
 
 .file-empty {
   position: absolute;

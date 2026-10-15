@@ -8,6 +8,7 @@ from PySide6.QtCore import QThread, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QApplication, QTabWidget
 
+from core.constants import PROJECT_ROOT
 from core.utilities import open_file
 from gui.web_common.web_tab import WebTab
 from gui.tabs_databases import manage_data
@@ -18,6 +19,7 @@ TASK_MESSAGES = {
     "backup": "A database is still being backed up. Please wait for it to finish before closing the program.",
     "restore": "A database is still being restored. Please wait for it to finish before closing the program.",
     "rebuild": "A database index is still being rebuilt. Please wait for it to finish before closing the program.",
+    "remove_document": "A document is still being removed. Please wait for it to finish before closing the program.",
 }
 
 
@@ -94,6 +96,55 @@ class TaskWorker(QThread):
             self.done.emit(self.kind, self.name, None, str(e))
             return
         self.done.emit(self.kind, self.name, result, "")
+
+
+class DocumentMutationWorker(QThread):
+    done = Signal(str, str, object, str)
+
+    def __init__(self, database_name, document_name, document_id, parent=None):
+        super().__init__(parent)
+        self.database_name = database_name
+        self.document_name = document_name
+        self.document_id = document_id
+
+    def run(self):
+        script = PROJECT_ROOT / "db" / "stage_mutate.py"
+        database_path = manage_data.vector_root() / self.database_name
+        command = [sys.executable, str(script), "remove", str(database_path), str(self.document_id)]
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=str(PROJECT_ROOT),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+                timeout=3600,
+            )
+        except Exception as error:
+            self.done.emit(self.database_name, self.document_name, None, f"{type(error).__name__}: {error}")
+            return
+
+        output = "\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
+        marker = "VECTORDB_MUTATION_RESULT "
+        result = None
+        for line in completed.stdout.splitlines():
+            if line.startswith(marker):
+                try:
+                    result = json.loads(line[len(marker):])
+                except (TypeError, ValueError):
+                    pass
+        if result is not None:
+            self.done.emit(self.database_name, self.document_name, result, "")
+            return
+        errors = [line.removeprefix("ERROR: ") for line in output.splitlines() if line.strip()]
+        self.done.emit(
+            self.database_name,
+            self.document_name,
+            None,
+            errors[-1] if errors else "Document removal failed.",
+        )
 
 
 def external_state():
@@ -221,6 +272,9 @@ class ManageDatabasesTab(WebTab):
     def _replacing(self):
         return self.task["name"] if self.task and self.task["kind"] in ("delete", "rebuild") else None
 
+    def _mutating(self):
+        return self.task["name"] if self.task and self.task["kind"] == "remove_document" else None
+
     def _entry(self, name):
         return next((entry for entry in self.entries if entry["name"] == name), None)
 
@@ -229,7 +283,8 @@ class ManageDatabasesTab(WebTab):
             return
         name = self.selected
         entry = self._entry(name)
-        if (not entry or not entry["folder"] or name == self.external["building"] or name == self._replacing()
+        if (not entry or not entry["folder"] or name == self.external["building"]
+                or name in (self._replacing(), self._mutating())
                 or not (manage_data.vector_root() / name / "metadata.db").exists()):
             if self.files is not None:
                 self._files_token += 1
@@ -339,7 +394,7 @@ class ManageDatabasesTab(WebTab):
         for worker in list(self._workers):
             worker.requestInterruption()
         for worker in list(self._workers):
-            worker.wait(10000 if isinstance(worker, TaskWorker) else 3000)
+            worker.wait(10000 if isinstance(worker, (TaskWorker, DocumentMutationWorker)) else 3000)
 
     def js_select(self, name):
         if self._entry(name) is None:
@@ -391,6 +446,53 @@ class ManageDatabasesTab(WebTab):
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(parent)))
             return {"missing": True, "path": path, "opened_folder": True}
         return {"missing": True, "path": path}
+
+    def js_remove_file(self, database_name, document_id):
+        files = self.files
+        if database_name != self.selected or not files or files["name"] != database_name or files["rows"] is None:
+            return {"error": "The database changed. Select the document and try again."}
+        row = next((item for item in files["rows"] if item[4] == document_id), None)
+        if row is None:
+            return {"error": "The file list changed. Select the document and try again."}
+        reason = self.blocked_reason()
+        if reason:
+            return {"error": reason}
+        name = self.selected
+        entry = self._entry(name)
+        if entry is None or not entry["folder"]:
+            return {"error": "That database is no longer available."}
+        document_name, _path, _chunks, _digest, _id, _copies, _group_chunks = row
+
+        for worker in list(self._workers):
+            if isinstance(worker, (FilesWorker, InfoWorker)):
+                worker.requestInterruption()
+        self._files_token += 1
+        self.files = None
+        self.task = {"kind": "remove_document", "name": name, "file": document_name}
+        self.notice = None
+        worker = DocumentMutationWorker(name, document_name, document_id)
+        worker.done.connect(self._on_document_removed)
+        self._start(worker)
+        self.schedule_push()
+        return {"ok": True}
+
+    def _on_document_removed(self, database_name, document_name, result, error):
+        self.task = None
+        if error:
+            self.notice = {
+                "kind": "error",
+                "message": f"{document_name} could not be removed from {database_name}: {error}",
+            }
+        else:
+            removed = int((result or {}).get("removed_chunks", 0))
+            suffix = f" ({removed} chunk{'s' if removed != 1 else ''} hidden from search)" if removed else ""
+            self.notice = {
+                "kind": "ok",
+                "message": f"Removed {document_name} from {database_name}{suffix}. Rebuild the index later to reclaim its space.",
+            }
+        self.info.pop(database_name, None)
+        self.files = None
+        self.refresh()
 
     def _begin(self, kind, name):
         entry = self._entry(name)
