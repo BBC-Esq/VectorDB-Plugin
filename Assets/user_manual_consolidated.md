@@ -647,10 +647,10 @@ database again.
 
 ### What does 'Rebuild index' on the Manage Databases tab do?
 A database's search index is built when the database is created. When documents in the database change after that, the change
-is saved right away and searches already reflect it, but data left over from the change stays in the index and the database
-files until the index is rebuilt. The Manage Databases tab counts these changes: the database shows a badge such as '3 changes',
-its details show a 'Changes' tile with the number of changed documents (hover over it to see how many chunks of leftover data
-remain), and a 'Rebuild index…' button appears. Click it and confirm to build a new index from the chunks the database holds now
+is saved right away and searches already reflect it, but the index itself is not updated until it is rebuilt, and any data left
+over from the change stays in the database files until then. The Manage Databases tab counts these changes: the database shows a
+badge such as '3 changes', its details show a 'Changes' tile with the number of changed documents (hover over it to see how many
+chunks changed), and a 'Rebuild index…' button appears. Click it and confirm to build a new index from the chunks the database holds now
 and clear the leftover data out of its files. The rebuild reuses the embeddings already stored in the database, so nothing is
 embedded again and it is much faster than creating the database again, but on a large database it can take several minutes and
 use a lot of memory. If the rebuild fails, the database is left as it was, and if the computer shuts down partway through, the
