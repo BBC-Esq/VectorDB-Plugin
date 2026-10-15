@@ -1,6 +1,7 @@
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,7 +20,7 @@ class ExistingDatabaseMutationTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.database = Path(self.temporary.name)
-        with sqlite3.connect(self.database / "metadata.db") as connection:
+        with closing(sqlite3.connect(self.database / "metadata.db")) as connection, connection:
             connection.executescript("""
                 CREATE TABLE document_metadata (
                     id INTEGER PRIMARY KEY, file_name TEXT, hash TEXT,
@@ -43,7 +44,7 @@ class ExistingDatabaseMutationTests(unittest.TestCase):
         self.temporary.cleanup()
 
     def state(self):
-        with sqlite3.connect(self.database / "metadata.db") as connection:
+        with closing(sqlite3.connect(self.database / "metadata.db")) as connection, connection:
             return {
                 "documents": connection.execute(
                     "SELECT id, file_name FROM document_metadata ORDER BY id"
@@ -76,12 +77,12 @@ class ExistingDatabaseMutationTests(unittest.TestCase):
         self.assertEqual(state["changes"], [("removed", "alpha.txt", 2)])
         self.assertEqual(state["version"], 2)
         self.assertEqual(removed_chunk_ids(self.database), [10, 20])
-        with sqlite3.connect(self.database / "metadata.db") as connection:
+        with closing(sqlite3.connect(self.database / "metadata.db")) as connection, connection:
             self.assertEqual(pending_changes(connection), {"documents": 1, "chunks": 2})
             self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], METADATA_SCHEMA_VERSION)
 
     def test_same_path_twins_are_removed_and_logged_together(self):
-        with sqlite3.connect(self.database / "metadata.db") as connection:
+        with closing(sqlite3.connect(self.database / "metadata.db")) as connection, connection:
             connection.execute("INSERT INTO document_metadata VALUES (4, 'alpha.txt', 'shared', '/alpha.txt', 'alpha')")
             connection.execute("INSERT INTO hash_chunk_ids VALUES ('50', 'shared', 4)")
 
