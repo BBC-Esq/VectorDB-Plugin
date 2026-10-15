@@ -16,14 +16,11 @@ def remove_document(database_directory, document_id):
     if not metadata_path.is_file():
         raise FileNotFoundError(f"Required database asset is missing: {metadata_path}")
 
-    # Upgrading old databases can inspect TileDB to resolve duplicate files, so
-    # this function runs in the mutation child process rather than the GUI.
     upgrade_metadata_db(database_directory)
     connection = sqlite3.connect(str(metadata_path), timeout=30)
     try:
         connection.execute("BEGIN IMMEDIATE")
         group = document_group(connection, document_id)
-        # Capture chunk ownership while its metadata still exists.
         record_removal(connection, group)
         chunk_ids = delete_document_metadata(connection, document_id)
         bump_version(connection)

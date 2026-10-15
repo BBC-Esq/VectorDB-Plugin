@@ -4,7 +4,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from db import database_mutations
+from db import database_mutations, stage_rebuild
 from db.sqlite_operations import create_metadata_db, delete_document_metadata, removed_chunk_ids
 from db.text_splitter import Document
 
@@ -12,6 +12,7 @@ from db.text_splitter import Document
 @pytest.mark.parametrize("failure", [False, True])
 def test_real_index_is_unchanged_and_sqlite_removal_is_atomic(tmp_path, failure):
     tiledb = pytest.importorskip("tiledb")
+    stage_rebuild._setup_tiledb_dlls()
     vector_search = pytest.importorskip("tiledb.vector_search")
 
     ids = np.arange(10, 80, 10, dtype=np.uint64)
@@ -67,8 +68,6 @@ def test_real_index_is_unchanged_and_sqlite_removal_is_atomic(tmp_path, failure)
         assert connection.execute("SELECT COUNT(*) FROM index_changes").fetchone()[0] == (0 if failure else 1)
     assert removed_chunk_ids(tmp_path) == ([] if failure else [10, 20, 30, 40, 50])
 
-    # The vector index still contains the original chunks; search hides IDs in
-    # removed_chunks until the user explicitly rebuilds the index.
     index = vector_search.FlatIndex(uri=str(tmp_path / "vector_index"))
     _distances, found = index.query(np.asarray([[1.0, 0.0, 0.0]], dtype=np.float32), k=2)
     assert set(found[0].tolist()) == {10, 20}

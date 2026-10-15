@@ -422,12 +422,6 @@ class ManageDatabasesTab(WebTab):
             return None
         return files["rows"][index][1]
 
-    def _row(self, version, index):
-        files = self.files
-        if not files or files["version"] != version or files["rows"] is None or not 0 <= index < len(files["rows"]):
-            return None
-        return files["rows"][index]
-
     def js_open_file(self, version, index):
         path = self._row_path(version, index)
         if path is None:

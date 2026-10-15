@@ -13,7 +13,7 @@
     { key: "size", label: "Size", num: true },
     { key: "created", label: "Created", cls: "col-created" },
   ];
-  const TASK_LABELS = { delete: "Deleting", backup: "Backing up", restore: "Restoring", rebuild: "Rebuilding index", remove_document: "Removing a document from" };
+  const TASK_LABELS = { delete: "Deleting", backup: "Backing up", restore: "Restoring", rebuild: "Rebuilding index", remove_document: "Removing a document" };
   const STALE_TIP = "The backup copy was made before this database last changed.";
   const CHANGES_TIP = "Documents changed since the index was built. Their leftover data stays in the database files until you rebuild the index.";
   const FILTER_AT = 9;
@@ -311,7 +311,8 @@
   function actionsHTML(db) {
     const task = taskFor(db.name);
     if (task) {
-      return `<div class="detail-task"><span class="spinner"></span><span>${esc(TASK_LABELS[task.kind])} ${esc(db.name)}…</span></div>`;
+      const label = task.kind === "remove_document" ? "Removing a document from" : TASK_LABELS[task.kind];
+      return `<div class="detail-task"><span class="spinner"></span><span>${esc(label)} ${esc(db.name)}…</span></div>`;
     }
     if (db.status === "building") return "";
     const blocked = state.blocked;
