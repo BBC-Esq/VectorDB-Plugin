@@ -310,13 +310,13 @@ the Create Database Tab before creating the vector database.
 To dictate a question, go to the "Query Database" tab, click the "Speak a question" button, and speak clearly; the button shows a
 timer while it records. Click "Stop recording" when you are done. The recording is transcribed on your computer and the text is
 added to the end of the question box, so you can edit it before asking. If the microphone cannot be used, or the recording was too
-short, the tab tells you.
+short or had no speech in it, the tab tells you.
 
 ### How can I transcribe an audio file to be put into the vector database?
 To transcribe an audio file, go to the Transcribe Audio section of the Tools tab, choose a Model and a Precision, click the
 "Choose an audio file" box to pick the file (most file formats are supported such as .mp3, .wav, .m4a, .ogg, .wma, and .flac) and
 click the Transcribe button. The section shows a timer while it works, and when it finishes it names the transcript it saved in
-the Docs_for_DB folder. You can then see the transcript in the "Create Database" tab and it will be entered into the vector
+the Docs_for_DB folder. If the file has no speech in it, no transcript is saved and the section says so. You can then see the transcript in the "Create Database" tab and it will be entered into the vector
 database when you create it.  The transcribing functionality uses the powerful `WhisperS2T` library with the `Ctranslate2`
 backend.  Make sure to adjust the "Batch size" setting (1 to 150) when transcribing an audio file depending on the size of the
 whisper model you choose. Increasing the batch size can improve speed but demands more VRAM, so care should be taken not to exceed
