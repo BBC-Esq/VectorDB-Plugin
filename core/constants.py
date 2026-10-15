@@ -809,7 +809,7 @@ libs = [
     "watchdog==6.0.0",
     "wcwidth==0.7.0",
     "webdataset==1.0.2",
-    "whisper-s2t-reborn==1.7.2",
+    "whisper-s2t-reborn==1.8.0",
     "whisperspeech2>=1.0.0,<2",
     "win-unicode-console==0.5",
     "wrapt==2.2.1",

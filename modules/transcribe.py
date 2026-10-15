@@ -10,7 +10,7 @@ import torch
 import av
 
 import whisper_s2t
-from whisper_s2t.backends.ctranslate2.hf_utils import download_model
+from whisper_s2t import download_model
 from core.extract_metadata import extract_typed_metadata
 from core.constants import WHISPER_MODELS, PROJECT_ROOT
 
@@ -36,15 +36,10 @@ class WhisperTranscriber:
             'compute_type': self.compute_type,
             'asr_options': {
                 "beam_size": 5,
-                "best_of": 1,
                 "patience": 2,
                 "length_penalty": 1,
                 "repetition_penalty": 1.01,
                 "no_repeat_ngram_size": 0,
-                "compression_ratio_threshold": 2.4,
-                "log_prob_threshold": -1.0,
-                "no_speech_threshold": 0.5,
-                "prefix": None,
                 "suppress_blank": True,
                 "suppress_tokens": [-1],
                 "without_timestamps": True,
