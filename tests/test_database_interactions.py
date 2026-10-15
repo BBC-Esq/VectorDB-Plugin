@@ -11,7 +11,7 @@ from db.embedding_models import (
     _get_prompt_for_family,
     _normalize_text,
 )
-from db.database_interactions import CreateVectorDB, QueryVectorDB, skip_removed
+from db.database_interactions import CreateVectorDB, QueryVectorDB, merge_added, normalized_rows, skip_removed
 
 
 class TestGetModelFamily:
@@ -199,9 +199,90 @@ class TestSkipRemovedChunks:
         query_db = QueryVectorDB.__new__(QueryVectorDB)
         query_db.index = FakeIndex()
         query_db.removed_ids = np.array([1, 3], dtype=np.uint64)
+        query_db.added_ids = np.empty(0, dtype=np.uint64)
+        query_db.added_vectors = np.empty((0, 0), dtype=np.float32)
         query_db.distance_metric = "cosine"
         query_db.array_uri = uri
         results, exhausted = query_db._retrieve(np.zeros((1, 4), dtype=np.float32), 2, 0.0, tiledb)
         assert FakeIndex.asked == 4
         assert [text for text, _ in results] == ["chunk 2", "chunk 4"]
         assert exhausted is False
+
+
+def _chunk_store(path, vectors):
+    import tiledb
+
+    dimensions = len(next(iter(vectors.values())))
+    schema = tiledb.ArraySchema(
+        domain=tiledb.Domain(tiledb.Dim(name="id", domain=(0, np.iinfo(np.uint64).max - 20000), tile=10000, dtype=np.uint64)),
+        attrs=[tiledb.Attr(name="vector", dtype=np.dtype([("", np.float32)] * dimensions)),
+               tiledb.Attr(name="text", dtype=str, var=True), tiledb.Attr(name="metadata", dtype=str, var=True)],
+        sparse=True,
+    )
+    tiledb.Array.create(str(path), schema)
+    ids = np.array(sorted(vectors), dtype=np.uint64)
+    matrix = np.array([vectors[int(i)] for i in ids], dtype=np.float32)
+    with tiledb.open(str(path), mode="w") as array:
+        array[ids] = {
+            "vector": matrix.view([("", np.float32)] * dimensions).reshape(-1),
+            "text": np.array([f"chunk {i}" for i in ids], dtype=object),
+            "metadata": np.array([json.dumps({"file_name": f"f{i}.txt"}) for i in ids], dtype=object),
+        }
+
+
+class TestAddedChunks:
+
+    def test_added_chunks_are_ranked_with_the_index_results(self):
+        added_vectors = normalized_rows(np.array([[0.0, 2.0], [1.0, 1.0], [-1.0, 0.0]], dtype=np.float32))
+        added_ids = np.array([10, 11, 12], dtype=np.uint64)
+        distances, ids = merge_added(np.array([0.1, 0.5], dtype=np.float32), np.array([1, 2], dtype=np.uint64),
+                                     np.array([0.0, 3.0], dtype=np.float32), added_vectors, added_ids, 2)
+        assert ids.tolist() == [10, 1, 11, 2]
+        assert distances.tolist() == pytest.approx([0.0, 0.1, 1 - np.sqrt(0.5), 0.5])
+
+    def test_nothing_added(self):
+        distances, ids = merge_added(np.array([0.1], dtype=np.float32), np.array([1], dtype=np.uint64),
+                                     np.array([1.0, 0.0], dtype=np.float32), np.empty((0, 0), dtype=np.float32),
+                                     np.empty(0, dtype=np.uint64), 4)
+        assert ids.tolist() == [1] and distances.tolist() == pytest.approx([0.1])
+
+    def test_search_returns_added_chunks_and_skips_removed_ones(self, tmp_path):
+        import tiledb
+
+        vectors = {i: [1.0, float(i), 0.0, 0.0] for i in range(1, 5)}
+        vectors.update({10: [0.0, 1.0, 0.0, 0.0], 11: [0.0, 1.0, 0.0, 0.0], 12: [1.0, 0.0, 0.0, 0.0]})
+        _chunk_store(tmp_path / "vectors", vectors)
+
+        class FakeIndex:
+            size = 4
+
+            def query(self, vectors, k):
+                return np.array([[0.2, 0.3, 0.4, 0.5][:k]]), np.array([[1, 2, 3, 4][:k]], dtype=np.uint64)
+
+        query_db = QueryVectorDB.__new__(QueryVectorDB)
+        query_db.index = FakeIndex()
+        query_db.removed_ids = np.array([2, 11], dtype=np.uint64)
+        query_db.added_ids = np.array([10, 11, 12], dtype=np.uint64)
+        query_db.added_vectors = normalized_rows(np.array([vectors[10], vectors[11], vectors[12]], dtype=np.float32))
+        query_db.distance_metric = "cosine"
+        query_db.array_uri = str(tmp_path / "vectors")
+        results, _ = query_db._retrieve(np.array([[0.0, 1.0, 0.0, 0.0]], dtype=np.float32), 3, 0.0, tiledb)
+        assert [text for text, _ in results] == ["chunk 10", "chunk 1", "chunk 3"]
+        assert results[0][1]["similarity_score"] == pytest.approx(1.0)
+
+    def test_added_chunks_are_loaded_from_the_chunk_store(self, tmp_path):
+        import tiledb
+
+        _chunk_store(tmp_path / "vectors", {1: [3.0, 4.0, 0.0, 0.0], 2: [0.0, 2.0, 0.0, 0.0], 3: [1.0, 0.0, 0.0, 0.0]})
+        documents = [Document(page_content="a", metadata={"doc_id": 1, "file_name": "a.txt", "hash": "ha", "file_path": "C:/a.txt"})]
+        create_metadata_db(tmp_path, documents, [("1", "ha", 1), ("2", "ha", 1), ("3", "ha", 1)])
+        with sqlite3.connect(tmp_path / "metadata.db") as connection:
+            connection.executemany("INSERT INTO added_chunks (tiledb_id) VALUES (?)", [("2",), ("3",)])
+        connection.close()
+        query_db = QueryVectorDB.__new__(QueryVectorDB)
+        query_db.db_path = tmp_path
+        query_db.array_uri = str(tmp_path / "vectors")
+        query_db.removed_ids = np.array([3], dtype=np.uint64)
+        query_db._load_added_chunks(tiledb)
+        assert query_db.added_ids.tolist() == [2]
+        assert query_db.added_vectors.tolist() == [pytest.approx([0.0, 1.0, 0.0, 0.0])]

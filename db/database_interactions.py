@@ -88,7 +88,7 @@ except ImportError:
 
 from db.document_processor import Document
 from db.embedding_models import load_embedding_model
-from db.sqlite_operations import create_metadata_db, removed_chunk_ids
+from db.sqlite_operations import added_chunk_ids, create_metadata_db, removed_chunk_ids
 from db.cuda_manager import get_cuda_manager
 from core.config import get_config, reload_config
 from core.constants import PROJECT_ROOT, PIPELINE_PRESETS, NOT_ADDED_MARKER, DB_FOLDER_CREATED_MARKER, BUILD_COMPLETE_MARKER
@@ -129,6 +129,30 @@ def skip_removed(distances, ids, removed_ids, k):
         keep = ~np.isin(ids, removed_ids)
         distances, ids = distances[keep], ids[keep]
     return distances[:k], ids[:k]
+
+
+def merge_added(distances, ids, query_vector, added_vectors, added_ids, limit):
+    if not len(added_ids):
+        return distances, ids
+    query = np.asarray(query_vector, dtype=np.float32).reshape(-1)
+    norm = float(np.linalg.norm(query))
+    if norm > 0:
+        query = query / norm
+    added_distances = (1.0 - added_vectors @ query).astype(np.float32)
+    if 0 < limit < len(added_distances):
+        top = np.argpartition(added_distances, limit - 1)[:limit]
+        added_distances, added_ids = added_distances[top], added_ids[top]
+    distances = np.concatenate([np.asarray(distances, dtype=np.float32), added_distances])
+    ids = np.concatenate([np.asarray(ids, dtype=np.uint64), np.asarray(added_ids, dtype=np.uint64)])
+    order = np.argsort(distances, kind="stable")
+    return distances[order], ids[order]
+
+
+def normalized_rows(vectors):
+    vectors = np.asarray(vectors, dtype=np.float32)
+    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    return vectors / norms
 
 
 def _get_split_params():
@@ -841,6 +865,8 @@ class QueryVectorDB:
         self.embeddings = None
         self.index = None
         self.removed_ids = np.empty(0, dtype=np.uint64)
+        self.added_ids = np.empty(0, dtype=np.uint64)
+        self.added_vectors = np.empty((0, 0), dtype=np.float32)
         self.model_name = None
         self._debug_id = id(self)
 
@@ -895,6 +921,9 @@ class QueryVectorDB:
             self.removed_ids = np.asarray(sorted(removed_chunk_ids(self.db_path)), dtype=np.uint64)
             if len(self.removed_ids):
                 logger.info(f"Skipping {len(self.removed_ids):,} removed chunks until the index is rebuilt")
+            self._load_added_chunks(tiledb)
+            if len(self.added_ids):
+                logger.info(f"Searching {len(self.added_ids):,} added chunks alongside the index until it is rebuilt")
 
         self.config = self.load_configuration()
         k = k if k is not None else self.config.database.contexts
@@ -936,6 +965,23 @@ class QueryVectorDB:
         logger.info(f"Final results returned: {len(contexts)}")
         return contexts, metadata_list
 
+    def _load_added_chunks(self, tiledb):
+        ids = np.setdiff1d(np.asarray(added_chunk_ids(self.db_path), dtype=np.uint64), self.removed_ids)
+        if not len(ids):
+            self.added_ids = np.empty(0, dtype=np.uint64)
+            self.added_vectors = np.empty((0, 0), dtype=np.float32)
+            return
+        found_ids, vectors = [], []
+        with tiledb.open(self.array_uri, mode='r') as array:
+            query = array.query(attrs=["vector"])
+            for start in range(0, len(ids), 20000):
+                data = query.multi_index[ids[start:start + 20000]]
+                found = np.asarray(data["id"], dtype=np.uint64)
+                found_ids.append(found)
+                vectors.append(np.ascontiguousarray(data["vector"]).view(np.float32).reshape(len(found), -1))
+        self.added_ids = np.concatenate(found_ids)
+        self.added_vectors = normalized_rows(np.concatenate(vectors))
+
     def _retrieve(self, query_vector_np, k, score_threshold, tiledb):
         fetch_k = k + len(self.removed_ids)
         size = int(getattr(self.index, "size", 0) or 0)
@@ -943,24 +989,21 @@ class QueryVectorDB:
             fetch_k = min(fetch_k, size)
         result_distances, result_ids = self.index.query(query_vector_np, k=fetch_k)
 
-        if len(result_distances) == 0 or len(result_distances[0]) == 0:
-            logger.warning("No results returned from vector search")
-            return [], True
-
-        distances = result_distances[0]
-        ids = result_ids[0]
-
-        if len(ids) > 0 and ids[0] == MAX_UINT64_SENTINEL:
-            logger.warning("TileDB returned sentinel value - no matches found in index")
-            return [], True
-
-        valid_mask = ids != MAX_UINT64_SENTINEL
-        distances = distances[valid_mask]
-        ids = ids[valid_mask]
+        if len(result_distances) and len(result_distances[0]):
+            distances = np.asarray(result_distances[0])
+            ids = np.asarray(result_ids[0])
+            valid_mask = ids != MAX_UINT64_SENTINEL
+            distances = distances[valid_mask]
+            ids = ids[valid_mask]
+        else:
+            distances = np.empty(0, dtype=np.float32)
+            ids = np.empty(0, dtype=np.uint64)
+        distances, ids = merge_added(distances, ids, query_vector_np[0], self.added_vectors, self.added_ids,
+                                     k + len(self.removed_ids))
         distances, ids = skip_removed(distances, ids, self.removed_ids, k)
 
         if len(ids) == 0:
-            logger.warning("All results were sentinel values - no valid matches")
+            logger.warning("No results returned from vector search")
             return [], True
 
         logger.info(f"Raw distances - min: {distances.min():.4f}, max: {distances.max():.4f}, mean: {distances.mean():.4f}")
