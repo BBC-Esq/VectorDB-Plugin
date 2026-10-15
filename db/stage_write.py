@@ -79,52 +79,15 @@ def _setup_tiledb_dlls():
                 pass
 
 
-def main():
-    persist_dir = Path(sys.argv[1])
-    data_dir = Path(sys.argv[2])
+def write_chunk_batches(array_uri, data_dir, meta, vectors_mm, choose_ids):
+    import tiledb
 
-    with open(data_dir / "meta.json", "r", encoding="utf-8") as f:
-        meta = json.load(f)
     embedding_dim = int(meta["embedding_dim"])
     num_vectors = int(meta["num_vectors"])
     batch_size = int(meta["batch_size"])
     num_batches = int(meta["num_batches"])
-
-    _setup_tiledb_dlls()
-    import tiledb
-    import tiledb.vector_search as vs
-    from tiledb.vector_search import _tiledbvspy as vspy
-
-    array_uri = str(persist_dir / "vectors")
-    index_uri = str(persist_dir / "vector_index")
-
-    for partial in (array_uri, index_uri):
-        if os.path.isdir(partial):
-            shutil.rmtree(partial, ignore_errors=True)
-
-    t0 = time.time()
-    logger.info(f"Creating TileDB array: {num_vectors:,} vectors of dimension {embedding_dim}")
-
-    dom = tiledb.Domain(
-        tiledb.Dim(name="id", domain=(0, np.iinfo(np.uint64).max - 20000), tile=10000, dtype=np.uint64)
-    )
-    attrs = [
-        tiledb.Attr(name="vector", dtype=np.dtype([("", np.float32)] * embedding_dim)),
-        tiledb.Attr(name="text", dtype=str, var=True),
-        tiledb.Attr(name="metadata", dtype=str, var=True),
-    ]
-    schema = tiledb.ArraySchema(
-        domain=dom, attrs=attrs, sparse=True,
-        cell_order="row-major", tile_order="row-major",
-    )
-    tiledb.Array.create(array_uri, schema)
-
-    vectors_mm = np.load(str(data_dir / "vectors.npy"), mmap_mode="r")
-    logger.info(f"Writing TileDB array in {num_batches} batch(es)")
-
     all_ids = np.empty(num_vectors, dtype=np.uint64)
     hash_id_mappings = []
-    rng = np.random.default_rng()
 
     for batch_idx in range(num_batches):
         start = batch_idx * batch_size
@@ -136,10 +99,7 @@ def main():
         batch_metas = shard["metadatas"]
         del shard
 
-        batch_ids = rng.integers(
-            low=0, high=np.iinfo(np.uint64).max,
-            size=end - start, dtype=np.uint64, endpoint=False,
-        )
+        batch_ids = choose_ids(end - start)
         all_ids[start:end] = batch_ids
 
         batch_id_strs = batch_ids.astype(str).tolist()
@@ -177,6 +137,57 @@ def main():
         del batch_texts_list, batch_metas, batch_meta_strs, batch_id_strs
         gc.collect()
         logger.info(f"  batch {batch_idx + 1}/{num_batches} written ({end:,}/{num_vectors:,})")
+
+    return all_ids, hash_id_mappings
+
+
+def main():
+    persist_dir = Path(sys.argv[1])
+    data_dir = Path(sys.argv[2])
+
+    with open(data_dir / "meta.json", "r", encoding="utf-8") as f:
+        meta = json.load(f)
+    embedding_dim = int(meta["embedding_dim"])
+    num_vectors = int(meta["num_vectors"])
+    num_batches = int(meta["num_batches"])
+
+    _setup_tiledb_dlls()
+    import tiledb
+    import tiledb.vector_search as vs
+    from tiledb.vector_search import _tiledbvspy as vspy
+
+    array_uri = str(persist_dir / "vectors")
+    index_uri = str(persist_dir / "vector_index")
+
+    for partial in (array_uri, index_uri):
+        if os.path.isdir(partial):
+            shutil.rmtree(partial, ignore_errors=True)
+
+    t0 = time.time()
+    logger.info(f"Creating TileDB array: {num_vectors:,} vectors of dimension {embedding_dim}")
+
+    dom = tiledb.Domain(
+        tiledb.Dim(name="id", domain=(0, np.iinfo(np.uint64).max - 20000), tile=10000, dtype=np.uint64)
+    )
+    attrs = [
+        tiledb.Attr(name="vector", dtype=np.dtype([("", np.float32)] * embedding_dim)),
+        tiledb.Attr(name="text", dtype=str, var=True),
+        tiledb.Attr(name="metadata", dtype=str, var=True),
+    ]
+    schema = tiledb.ArraySchema(
+        domain=dom, attrs=attrs, sparse=True,
+        cell_order="row-major", tile_order="row-major",
+    )
+    tiledb.Array.create(array_uri, schema)
+
+    vectors_mm = np.load(str(data_dir / "vectors.npy"), mmap_mode="r")
+    logger.info(f"Writing TileDB array in {num_batches} batch(es)")
+
+    rng = np.random.default_rng()
+    all_ids, hash_id_mappings = write_chunk_batches(
+        array_uri, data_dir, meta, vectors_mm,
+        lambda count: rng.integers(low=0, high=np.iinfo(np.uint64).max, size=count, dtype=np.uint64, endpoint=False),
+    )
 
     tiledb.consolidate(array_uri)
     tiledb.vacuum(array_uri)

@@ -61,6 +61,7 @@ import tempfile
 import threading
 import time
 import traceback
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -114,11 +115,13 @@ os.environ.setdefault("RUST_BACKTRACE", "1")
 STAGE_EXTRACT_PATH = PROJECT_ROOT / "db" / "stage_extract.py"
 STAGE_SPLIT_PATH = PROJECT_ROOT / "db" / "stage_split.py"
 STAGE_WRITE_PATH = PROJECT_ROOT / "db" / "stage_write.py"
+STAGE_APPEND_PATH = PROJECT_ROOT / "db" / "stage_append.py"
 
 EXTRACT_MAX_RETRIES = 3
 SPLIT_MAX_WORKER_RETRIES = 3
 SPLIT_MAX_RETRIES = 5
 WRITE_MAX_RETRIES = 5
+APPEND_MAX_RETRIES = 3
 TILEDB_WRITE_BATCH_SIZE = 100000
 
 MAX_UINT64_SENTINEL = np.iinfo(np.uint64).max
@@ -273,6 +276,82 @@ def _run_write_with_retry(persist_dir, data_dir):
             gc.collect()
 
     raise RuntimeError(f"Write stage failed after {WRITE_MAX_RETRIES} attempts")
+
+
+@dataclass
+class PreparedChunks:
+    texts: list
+    metadatas: list
+    vectors: np.ndarray
+    documents: list
+    not_added: list
+
+
+def _save_write_handoff(data_dir, texts, metadatas, vectors_array):
+    data_dir.mkdir(parents=True, exist_ok=True)
+    num_vectors = vectors_array.shape[0]
+    embedding_dim = vectors_array.shape[1]
+    num_write_batches = (num_vectors + TILEDB_WRITE_BATCH_SIZE - 1) // TILEDB_WRITE_BATCH_SIZE
+    np.save(data_dir / "vectors.npy", vectors_array)
+    for b in range(num_write_batches):
+        bstart = b * TILEDB_WRITE_BATCH_SIZE
+        bend = min(bstart + TILEDB_WRITE_BATCH_SIZE, num_vectors)
+        with open(data_dir / f"shard_{b:05d}.pkl", "wb") as f:
+            pickle.dump(
+                {"texts": texts[bstart:bend], "metadatas": metadatas[bstart:bend]},
+                f, protocol=pickle.HIGHEST_PROTOCOL,
+            )
+    with open(data_dir / "meta.json", "w", encoding="utf-8") as f:
+        json.dump({
+            "embedding_dim": embedding_dim,
+            "num_vectors": num_vectors,
+            "batch_size": TILEDB_WRITE_BATCH_SIZE,
+            "num_batches": num_write_batches,
+        }, f)
+
+
+def _run_append_with_retry(database_directory, data_dir):
+    cmd = [sys.executable, str(STAGE_APPEND_PATH), str(database_directory), str(data_dir)]
+    mappings_pkl = Path(data_dir) / "hash_id_mappings.pkl"
+
+    for attempt in range(1, APPEND_MAX_RETRIES + 1):
+        logger.info(f"Append attempt {attempt}/{APPEND_MAX_RETRIES}")
+        mappings_pkl.unlink(missing_ok=True)
+        exit_code, output_lines = _run_subprocess_stage(f"Append (attempt {attempt})", cmd)
+
+        if exit_code == 0 and mappings_pkl.exists():
+            return
+
+        errors = [line[len("ERROR: "):] for line in output_lines if line.startswith("ERROR: ")]
+        if errors and not errors[-1].startswith(("MemoryError", "OSError")):
+            raise RuntimeError(errors[-1])
+        logger.error(f"Append attempt {attempt} failed (exit code {exit_code})")
+
+        if attempt < APPEND_MAX_RETRIES:
+            time.sleep(3)
+            gc.collect()
+
+    raise RuntimeError(f"Append stage failed after {APPEND_MAX_RETRIES} attempts")
+
+
+def append_chunks(database_directory, prepared):
+    tmp_path = Path(tempfile.mkdtemp(prefix="vectordb_append_"))
+    try:
+        data_dir = tmp_path / "write_data"
+        _save_write_handoff(data_dir, prepared.texts, prepared.metadatas,
+                            np.ascontiguousarray(prepared.vectors, dtype=np.float32))
+        _run_append_with_retry(Path(database_directory), data_dir)
+        with open(data_dir / "hash_id_mappings.pkl", "rb") as f:
+            return pickle.load(f)
+    finally:
+        shutil.rmtree(tmp_path, ignore_errors=True)
+
+
+def prepare_documents(database_name, source_directory, first_document_id=1):
+    database = get_config().created_databases[database_name]
+    builder = CreateVectorDB(database_name)
+    return builder.prepare(Path(source_directory), database.model, int(database.chunk_size), int(database.chunk_overlap),
+                           first_document_id=first_document_id)
 
 
 def _setup_tiledb_dlls():
@@ -553,27 +632,21 @@ class CreateVectorDB:
                     logger.warning(f"Failed to delete {item}: {e}")
 
     @torch.inference_mode()
-    def run(self):
+    def prepare(self, source_directory, model_path, chunk_size, chunk_overlap, first_document_id=1, before_embedding=None):
         cuda_mgr = get_cuda_manager()
-        pipeline_t0 = time.time()
-
         config_data = get_config()
-        EMBEDDING_MODEL_NAME = config_data.EMBEDDING_MODEL_NAME
-        chunk_size = config_data.database.chunk_size
-        chunk_overlap = config_data.database.chunk_overlap
+        source_directory = Path(source_directory)
 
-        tmp_dir = tempfile.mkdtemp(prefix="vectordb_create_")
-        tmp_path = Path(tmp_dir)
+        tmp_path = Path(tempfile.mkdtemp(prefix="vectordb_prepare_"))
         extracted_pkl = tmp_path / "extracted.pkl"
         chunks_pkl = tmp_path / "chunks.pkl"
         checkpoint_dir = tmp_path / "checkpoints"
         checkpoint_dir.mkdir(exist_ok=True)
-        created_persist_dir = False
 
         try:
             my_cprint("Extracting documents (subprocess)...", "yellow")
             extract_t0 = time.time()
-            _run_extract_with_retry(self.SOURCE_DIRECTORY, extracted_pkl)
+            _run_extract_with_retry(source_directory, extracted_pkl)
             logger.info(f"Extract stage: {time.time() - extract_t0:.1f}s")
 
             with open(extracted_pkl, "rb") as f:
@@ -592,7 +665,7 @@ class CreateVectorDB:
                 json_docs_to_save.append(Document(page_content=content, metadata=metadata))
 
             print("Processing any audio transcripts...")
-            audio_documents = self.load_audio_documents()
+            audio_documents = self.load_audio_documents(source_directory)
             if audio_documents:
                 for doc in audio_documents:
                     doc_data.append((doc.page_content, doc.metadata))
@@ -600,14 +673,14 @@ class CreateVectorDB:
 
             print("Processing any images...")
             staged_images = {}
-            for entry in self.SOURCE_DIRECTORY.iterdir():
+            for entry in source_directory.iterdir():
                 if entry.suffix.lower() in IMAGE_EXTENSIONS:
                     real_path = os.path.realpath(entry)
                     staged_images[os.path.normcase(real_path)] = os.path.basename(real_path)
             processed_images = set()
             try:
                 from modules.process_images import choose_image_loader
-                image_documents = choose_image_loader()
+                image_documents = choose_image_loader(image_dir=source_directory)
                 if isinstance(image_documents, list) and image_documents:
                     for doc in image_documents:
                         content = doc.page_content if hasattr(doc, 'page_content') else str(doc)
@@ -624,7 +697,7 @@ class CreateVectorDB:
                 my_cprint("No documents, audio transcripts, or images found to process.", "red")
                 raise RuntimeError("No content found to ingest into the database.")
 
-            for doc_id, doc in enumerate(json_docs_to_save, start=1):
+            for doc_id, doc in enumerate(json_docs_to_save, start=first_document_id):
                 doc.metadata = {**(doc.metadata or {}), "doc_id": doc_id}
             doc_data = [(doc.page_content, doc.metadata) for doc in json_docs_to_save]
 
@@ -677,21 +750,13 @@ class CreateVectorDB:
             gc.collect()
 
             with cuda_mgr.cuda_operation():
-                embeddings = self.initialize_vector_model(EMBEDDING_MODEL_NAME, config_data)
+                embeddings = self.initialize_vector_model(model_path, config_data)
 
             my_cprint("\nComputing vectors...", "yellow")
             embed_t0 = time.time()
 
-            try:
-                self.PERSIST_DIRECTORY.mkdir(parents=True, exist_ok=False)
-                created_persist_dir = True
-                print(DB_FOLDER_CREATED_MARKER, flush=True)
-                my_cprint(f"Created directory: {self.PERSIST_DIRECTORY}", "green")
-            except FileExistsError:
-                raise FileExistsError(
-                    f"Vector database '{self.PERSIST_DIRECTORY.name}' already exists. "
-                    "Choose a different name or delete the existing DB first."
-                )
+            if before_embedding is not None:
+                before_embedding()
 
             with cuda_mgr.cuda_operation():
                 vectors, surviving_indices = embeddings.embed_documents(chunk_texts)
@@ -734,30 +799,39 @@ class CreateVectorDB:
             del vectors
             gc.collect()
 
-            num_vectors = vectors_array.shape[0]
-            embedding_dim = vectors_array.shape[1]
-            num_write_batches = (num_vectors + TILEDB_WRITE_BATCH_SIZE - 1) // TILEDB_WRITE_BATCH_SIZE
+            return PreparedChunks(chunk_texts, all_metadatas, vectors_array, json_docs_to_save, not_added)
+        finally:
+            shutil.rmtree(tmp_path, ignore_errors=True)
 
+    def _create_persist_directory(self):
+        try:
+            self.PERSIST_DIRECTORY.mkdir(parents=True, exist_ok=False)
+        except FileExistsError:
+            raise FileExistsError(
+                f"Vector database '{self.PERSIST_DIRECTORY.name}' already exists. "
+                "Choose a different name or delete the existing DB first."
+            )
+        self._created_persist_dir = True
+        print(DB_FOLDER_CREATED_MARKER, flush=True)
+        my_cprint(f"Created directory: {self.PERSIST_DIRECTORY}", "green")
+
+    @torch.inference_mode()
+    def run(self):
+        pipeline_t0 = time.time()
+        config_data = get_config()
+        self._created_persist_dir = False
+        tmp_path = None
+
+        try:
+            prepared = self.prepare(self.SOURCE_DIRECTORY, config_data.EMBEDDING_MODEL_NAME,
+                                    config_data.database.chunk_size, config_data.database.chunk_overlap,
+                                    before_embedding=self._create_persist_directory)
+            json_docs_to_save, not_added = prepared.documents, prepared.not_added
+
+            tmp_path = Path(tempfile.mkdtemp(prefix="vectordb_create_"))
             write_data_dir = tmp_path / "write_data"
-            write_data_dir.mkdir(exist_ok=True)
-            np.save(write_data_dir / "vectors.npy", vectors_array)
-            for b in range(num_write_batches):
-                bstart = b * TILEDB_WRITE_BATCH_SIZE
-                bend = min(bstart + TILEDB_WRITE_BATCH_SIZE, num_vectors)
-                with open(write_data_dir / f"shard_{b:05d}.pkl", "wb") as f:
-                    pickle.dump(
-                        {"texts": chunk_texts[bstart:bend], "metadatas": all_metadatas[bstart:bend]},
-                        f, protocol=pickle.HIGHEST_PROTOCOL,
-                    )
-            with open(write_data_dir / "meta.json", "w", encoding="utf-8") as f:
-                json.dump({
-                    "embedding_dim": embedding_dim,
-                    "num_vectors": num_vectors,
-                    "batch_size": TILEDB_WRITE_BATCH_SIZE,
-                    "num_batches": num_write_batches,
-                }, f)
-
-            del vectors_array, chunk_texts, all_metadatas
+            _save_write_handoff(write_data_dir, prepared.texts, prepared.metadatas, prepared.vectors)
+            del prepared
             gc.collect()
 
             try:
@@ -805,14 +879,12 @@ class CreateVectorDB:
 
         except Exception:
             traceback.print_exc()
-            if created_persist_dir and self.PERSIST_DIRECTORY.exists():
+            if self._created_persist_dir and self.PERSIST_DIRECTORY.exists():
                 shutil.rmtree(self.PERSIST_DIRECTORY, ignore_errors=True)
             raise
         finally:
-            try:
-                shutil.rmtree(tmp_dir, ignore_errors=True)
-            except Exception:
-                pass
+            if tmp_path is not None:
+                shutil.rmtree(tmp_path, ignore_errors=True)
 
 
 _thread_local = threading.local()

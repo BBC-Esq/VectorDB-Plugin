@@ -35,7 +35,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_extract_metadata.py` | Content and file hashing, metadata extraction and PDF page numbers |
 | `test_gui_validation.py` | Database name rules, port extraction, the file type filter mapping and name preconditions (no GUI imports) |
 | `test_index_changes.py` | The record in `metadata.db` of documents added or removed since the index was built: present in new and upgraded databases, written only when a change commits, read without writing and cleared |
-| `test_index_rebuild.py` | Rebuild index: a real index and chunk store rebuilt without removed chunks, a failed rebuild changing nothing, an empty database refused, and interrupted rebuilds finished or undone |
+| `test_index_rebuild.py` | Rebuild index: a real index and chunk store rebuilt without removed chunks, a failed rebuild changing nothing, an empty database refused, and interrupted rebuilds finished or undone; new chunks appended to the chunk store and folded in by a rebuild, appends that were never committed dropped, and vectors of another size refused |
 | `test_jeeves_helpers.py` | Ask Jeeves: the poems file, source rows from the user guide and text prepared for speech |
 | `test_local_model.py` | Local chat model process: answers from the passages it is given and returns their citations |
 | `test_manage_data.py` | Manage Databases tab: the database list, database details (chunk counts and creation dates from `metadata.db`), file rows, read-only connections, safely deleting a database, backing up and restoring, backups that are out of date, changes since the index was built and starting a rebuild of the index |

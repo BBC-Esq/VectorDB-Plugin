@@ -79,7 +79,7 @@ def run_loader_in_process(loader_func):
         return []
 
 
-def choose_image_loader(model_config: dict | None = None):
+def choose_image_loader(model_config: dict | None = None, image_dir=None):
     if model_config is None:
         cfg_path = Path('config.yaml')
         if not cfg_path.exists():
@@ -97,10 +97,9 @@ def choose_image_loader(model_config: dict | None = None):
     loader_name = VISION_MODELS[chosen_model]['loader']
 
     loader_class = globals()[loader_name]
-    loader = loader_class(model_config)
+    loader = loader_class(model_config, image_dir)
 
-    image_dir = PROJECT_ROOT / "Docs_for_DB"
-    if not check_for_images(image_dir):
+    if not check_for_images(loader.image_dir):
         return []
 
     with ProcessPoolExecutor(1, initializer=set_cuda_paths) as executor:
@@ -114,8 +113,9 @@ def choose_image_loader(model_config: dict | None = None):
 
 
 class BaseLoader:
-    def __init__(self, config):
+    def __init__(self, config, image_dir=None):
         self.config = config
+        self.image_dir = Path(image_dir) if image_dir else PROJECT_ROOT / "Docs_for_DB"
         self.device = get_best_device()
         self.model = None
         self.tokenizer = None
@@ -136,7 +136,7 @@ class BaseLoader:
         raise NotImplementedError
 
     def process_images(self):
-        image_dir = PROJECT_ROOT / "Docs_for_DB"
+        image_dir = self.image_dir
         documents = []
 
         try:

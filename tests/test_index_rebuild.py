@@ -6,7 +6,14 @@ import numpy as np
 import pytest
 
 from db import stage_rebuild
-from db.sqlite_operations import bump_version, create_metadata_db, database_stamp, pending_changes, record_removal
+from db.sqlite_operations import (
+    bump_version,
+    create_metadata_db,
+    database_stamp,
+    pending_changes,
+    record_addition,
+    record_removal,
+)
 from db.text_splitter import Document
 
 DIMENSIONS = 8
@@ -135,6 +142,65 @@ def test_rebuild_refuses_an_empty_database(tmp_path, vector_search):
     with pytest.raises(RuntimeError, match="no chunks left"):
         stage_rebuild.rebuild(folder)
     assert changes(folder) == {"documents": 3, "removed_chunks": 6, "added_chunks": 0}
+
+
+def prepared_chunks(chunk_ids, document_id, name, dimensions=DIMENSIONS):
+    from db.database_interactions import PreparedChunks
+
+    metadata = {"file_name": name, "hash": name, "file_path": f"C:/{name}", "doc_id": document_id}
+    vectors = np.stack([np.random.default_rng(chunk).random(dimensions, dtype=np.float32) for chunk in chunk_ids])
+    return PreparedChunks([f"new chunk {chunk}" for chunk in chunk_ids], [dict(metadata) for _ in chunk_ids], vectors,
+                          [Document(page_content=name, metadata=metadata)], [])
+
+
+def test_added_chunks_are_appended_and_folded_in_by_a_rebuild(tmp_path, vector_search):
+    from db.database_interactions import append_chunks
+
+    folder = build_database(tmp_path / "db", vector_search)
+    original = store_ids(folder)
+    prepared = prepared_chunks([901, 902], 4, "d.txt")
+    mappings = append_chunks(folder, prepared)
+    new_ids = sorted(int(chunk_id) for chunk_id, _, _ in mappings)
+    assert [(content_hash, document_id) for _, content_hash, document_id in mappings] == [("d.txt", 4), ("d.txt", 4)]
+    assert len(new_ids) == 2 and not set(new_ids) & set(original)
+    assert store_ids(folder) == sorted(original + new_ids)
+    assert index_ids(folder) == original
+    with closing(sqlite3.connect(folder / "metadata.db")) as connection:
+        connection.execute("INSERT INTO document_metadata (id, file_name, hash, file_path, page_content) "
+                           "VALUES (4, 'd.txt', 'd.txt', 'C:/d.txt', 'd.txt')")
+        connection.executemany("INSERT INTO hash_chunk_ids (tiledb_id, hash, document_id) VALUES (?, ?, ?)", mappings)
+        record_addition(connection, [4])
+        bump_version(connection)
+        connection.commit()
+    assert changes(folder) == {"documents": 1, "removed_chunks": 0, "added_chunks": 2}
+    result = stage_rebuild.rebuild(folder)
+    assert (result["chunks"], result["changed_documents"], result["added_chunks"]) == (8, 1, 2)
+    assert index_ids(folder) == store_ids(folder) == sorted(original + new_ids)
+    assert changes(folder) == {"documents": 0, "removed_chunks": 0, "added_chunks": 0}
+    index = vector_search.FlatIndex(uri=str(folder / "vector_index"))
+    _, found = index.query(np.array([prepared.vectors[1]]), k=1)
+    assert int(found[0][0]) == int(mappings[1][0])
+
+
+def test_chunks_appended_without_a_commit_are_dropped_by_a_rebuild(tmp_path, vector_search):
+    from db.database_interactions import append_chunks
+
+    folder = build_database(tmp_path / "db", vector_search)
+    original = store_ids(folder)
+    append_chunks(folder, prepared_chunks([911], 4, "orphan.txt"))
+    assert len(store_ids(folder)) == len(original) + 1
+    stage_rebuild.rebuild(folder)
+    assert index_ids(folder) == store_ids(folder) == original
+
+
+def test_appending_vectors_of_another_size_is_refused(tmp_path, vector_search):
+    from db.database_interactions import append_chunks
+
+    folder = build_database(tmp_path / "db", vector_search)
+    original = store_ids(folder)
+    with pytest.raises(RuntimeError, match="dimensions"):
+        append_chunks(folder, prepared_chunks([921], 4, "wide.txt", dimensions=DIMENSIONS + 4))
+    assert store_ids(folder) == original
 
 
 def make_folder(path, marker=None):
