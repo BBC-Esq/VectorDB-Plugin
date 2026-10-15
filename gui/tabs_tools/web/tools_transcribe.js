@@ -25,7 +25,7 @@
     if (s.running) {
       return html.status("run", `Transcribing <b>${esc(s.file.name)}</b> with ${esc(s.model)} (${esc(s.precision)}) ${html.since(s.started)}`);
     }
-    if (s.result) return html.status(s.result.ok ? "ok" : "error", esc(s.result.message));
+    if (s.result) return html.status(s.result.kind || (s.result.ok ? "ok" : "error"), esc(s.result.message));
     return "";
   }
 

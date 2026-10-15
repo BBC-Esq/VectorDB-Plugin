@@ -42,12 +42,12 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_minimax.py` | MiniMax constants, model list and temperature clamping |
 | `test_models_catalog.py` | Models tab: CPU-only filtering, download status, benchmark summaries, precision compared with the embedding code, and theme colors |
 | `test_process_manager.py` | Process cleanup at exit: stops a running process and tolerates one that is already closed |
-| `test_query_data.py` | Query Database tab: citations, token counts, answer text, readiness messages, the database list, local model flags and chunk rows |
+| `test_query_data.py` | Query Database tab: citations, token counts, answer text, readiness messages, the database list, local model flags, chunk rows and a voice recording with no speech |
 | `test_scraper.py` | HTML processing, the scraper registry and selectors, URL checks and file name cleanup |
 | `test_search_process.py` | Database search process: the same database stays loaded, a new database or changed settings end the old process before loading, releasing, errors, crashes and timeouts |
 | `test_settings_state.py` | Settings tab: reading, checking and saving settings, GPU-only choices, half precision, TTS backends with their device and precision choices and model cards, vision model cards and unreadable config files |
 | `test_symlinks.py` | Symlink creation |
 | `test_thinking_tags.py` | Thinking tag structure and filtering |
 | `test_tools.py` | File hashing, markdown chunk extraction and chunk analysis |
-| `test_tools_state.py` | Tools tab: Whisper models and precisions, transcription checks, scraping status, vision, OCR and the backup summary, including databases changed since the backup and backups that wait while another database task runs |
+| `test_tools_state.py` | Tools tab: Whisper models and precisions, transcription checks and results (including audio with no speech), scraping status, vision, OCR and the backup summary, including databases changed since the backup and backups that wait while another database task runs |
 | `test_utilities.py` | `normalize_chat_text`, `format_citations`, `prepare_long_path`, `normalize_text`, embedding batch sizes, package and installation checks, platform and Python version info, and the device and precision each TTS backend runs in |

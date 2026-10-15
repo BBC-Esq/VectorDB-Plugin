@@ -101,6 +101,46 @@ def test_transcript_name_finds_numbered_copies(cpu_only, monkeypatch, tmp_path):
     assert tool._transcript_name() == "meeting [draft] (2).json"
 
 
+def test_transcribe_reports_each_outcome(cpu_only, monkeypatch, tmp_path):
+    monkeypatch.setattr(transcribe, "PROJECT_ROOT", tmp_path)
+    (tmp_path / "Docs_for_DB").mkdir()
+    tool = transcribe.TranscribeTool(None)
+    tool.file = str(tmp_path / "silence.wav")
+    tool.started = time.time()
+    tool._on_finished("no_speech", "")
+    assert tool.result == {"ok": False, "kind": "warn",
+                           "message": "No speech was detected in silence.wav, so no transcript was saved."}
+    tool._on_finished("failed", "boom")
+    assert tool.result == {"ok": False, "message": "Transcription failed: boom"}
+    (tmp_path / "Docs_for_DB" / "silence.json").write_text("{}", encoding="utf-8")
+    tool._on_finished("saved", "")
+    assert tool.result["ok"] and "silence.json" in tool.result["message"]
+
+
+class FinishedProcess:
+    def __init__(self, exitcode):
+        self.exitcode = None
+        self._exitcode = exitcode
+
+    def start(self):
+        pass
+
+    def join(self):
+        self.exitcode = self._exitcode
+
+
+def test_transcription_worker_exit_codes(monkeypatch):
+    from modules import transcribe as worker
+
+    transcriber = worker.WhisperTranscriber(next(iter(worker.WHISPER_MODELS)), 8)
+    for exitcode, saved in ((0, True), (worker.NO_SPEECH_EXIT_CODE, False)):
+        monkeypatch.setattr(worker, "Process", lambda target, exitcode=exitcode: FinishedProcess(exitcode))
+        assert transcriber.start_transcription_process("talk.wav") is saved
+    monkeypatch.setattr(worker, "Process", lambda target: FinishedProcess(1))
+    with pytest.raises(RuntimeError):
+        transcriber.start_transcription_process("talk.wav")
+
+
 def test_scrape_state_marks_scraped_docs(monkeypatch, tmp_path, scrape_settings):
     monkeypatch.setattr(scrape, "PROJECT_ROOT", tmp_path)
     folder = scrape.scrape_documentation["aiohttp"]["folder"]

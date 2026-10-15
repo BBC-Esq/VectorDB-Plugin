@@ -19,6 +19,7 @@ warnings.filterwarnings("ignore")
 current_directory = PROJECT_ROOT
 CACHE_DIR = current_directory / "Models" / "whisper"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+NO_SPEECH_EXIT_CODE = 77
 
 class WhisperTranscriber:
     def __init__(self, model_key, batch_size):
@@ -62,8 +63,11 @@ class WhisperTranscriber:
         process = Process(target=self.transcribe_and_create_document)
         process.start()
         process.join()
+        if process.exitcode == NO_SPEECH_EXIT_CODE:
+            return False
         if process.exitcode is not None and process.exitcode != 0:
             raise RuntimeError(f"Transcription worker exited with code {process.exitcode}")
+        return True
 
     @torch.inference_mode()
     def transcribe_and_create_document(self):
@@ -86,6 +90,9 @@ class WhisperTranscriber:
             )
             
             transcription = self.transcribe(model, [str(converted_audio_file)])
+            if not transcription:
+                print("No speech was detected, so no transcript was saved.")
+                raise SystemExit(NO_SPEECH_EXIT_CODE)
             self.create_document_object(transcription, audio_file_str)
 
         except Exception as e:

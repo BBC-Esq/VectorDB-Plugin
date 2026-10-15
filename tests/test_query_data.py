@@ -157,3 +157,17 @@ def test_chunk_rows_clean_and_label():
          {"file_path": r"C:\docs\b.txt", "similarity_score": 0.6}])
     assert rows == [{"text": "First line\n\nSecond", "name": "a.pdf", "path": r"C:\docs\a.pdf", "score": 0.8, "page": 2},
                     {"text": "plain", "name": "b.txt", "path": r"C:\docs\b.txt", "score": 0.6, "page": None}]
+
+
+def test_recording_with_no_speech_says_nothing_was_transcribed():
+    from types import SimpleNamespace
+
+    from gui.tabs_databases import query
+
+    tab = SimpleNamespace(notice=None, voice="transcribing", voice_started=1.0, transcript=None, schedule_push=lambda: None)
+    query.DatabaseQueryTab.update_transcription(tab, "  ")
+    assert tab.notice == {"kind": "warn", "message": query.NOTHING_TRANSCRIBED, "source": "voice"}
+    assert tab.voice == "idle" and tab.transcript is None
+    tab.voice, tab.notice = "transcribing", None
+    query.DatabaseQueryTab.update_transcription(tab, "What does the lease say?")
+    assert tab.notice is None and tab.transcript == {"id": 1, "text": "What does the lease say?"}

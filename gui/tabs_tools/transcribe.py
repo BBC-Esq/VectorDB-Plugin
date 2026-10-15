@@ -17,7 +17,7 @@ PRECISIONS = ["float32", "bfloat16", "float16"]
 
 
 class TranscriptionWorkerThread(QThread):
-    finished_signal = Signal(bool, str)
+    finished_signal = Signal(str, str)
 
     def __init__(self, model_key, batch_size, audio_file, parent=None):
         super().__init__(parent)
@@ -33,10 +33,10 @@ class TranscriptionWorkerThread(QThread):
                 model_key=self.model_key,
                 batch_size=self.batch_size
             )
-            transcriber.start_transcription_process(self.audio_file)
-            self.finished_signal.emit(True, "")
+            saved = transcriber.start_transcription_process(self.audio_file)
+            self.finished_signal.emit("saved" if saved else "no_speech", "")
         except Exception as e:
-            self.finished_signal.emit(False, str(e))
+            self.finished_signal.emit("failed", str(e))
 
 
 def model_table():
@@ -172,13 +172,17 @@ class TranscribeTool(QObject):
             return None
         return max(candidates, key=lambda p: p.stat().st_mtime).name
 
-    def _on_finished(self, success, message):
+    def _on_finished(self, status, message):
         worker = self.worker
         if worker is not None:
             worker.quit()
             worker.wait()
             self.worker = None
-        if success:
+        if status == "no_speech":
+            my_cprint("No speech was detected, so no transcript was saved.", 'yellow')
+            self.result = {"ok": False, "kind": "warn",
+                           "message": f"No speech was detected in {Path(self.file).name}, so no transcript was saved."}
+        elif status == "saved":
             my_cprint("Transcription created and ready to be input into vector database.", 'green')
             name = self._transcript_name()
             saved = f"The transcript was saved as {name} in the Docs_for_DB folder" if name else "The transcript was saved in the Docs_for_DB folder"

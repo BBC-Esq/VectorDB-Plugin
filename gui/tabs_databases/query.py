@@ -25,6 +25,7 @@ from modules.tts_process import run_tts_in_process
 
 WEB_PAGE = Path(__file__).resolve().parent / "web" / "query_tab.html"
 NO_CHUNKS = "No chunks passed the similarity threshold. Try lowering the 'Similarity' setting in the Database Query settings tab."
+NOTHING_TRANSCRIBED = "The recording was too short or silent, so nothing was transcribed."
 
 
 def chat_history_path():
@@ -667,7 +668,7 @@ class DatabaseQueryTab(WebTab):
         else:
             self.voice = "idle"
             if self.notice is None or self.notice.get("source") != "voice":
-                self.notice = {"kind": "warn", "message": "The recording was too short or silent, so nothing was transcribed.", "source": "voice"}
+                self.notice = {"kind": "warn", "message": NOTHING_TRANSCRIBED, "source": "voice"}
         self.voice_started = None
         self.schedule_push()
         return {"ok": True}
@@ -680,6 +681,8 @@ class DatabaseQueryTab(WebTab):
             self.notice = {"kind": "error", "message": text.removeprefix("Error:").strip("[] ").strip(), "source": "voice"}
         elif text:
             self.transcript = {"id": (self.transcript or {}).get("id", 0) + 1, "text": text}
+        elif self.voice == "transcribing":
+            self.notice = {"kind": "warn", "message": NOTHING_TRANSCRIBED, "source": "voice"}
         if failed or self.voice == "transcribing":
             self.voice = "idle"
             self.voice_started = None
