@@ -13,7 +13,7 @@
     { key: "size", label: "Size", num: true },
     { key: "created", label: "Created", cls: "col-created" },
   ];
-  const TASK_LABELS = { delete: "Deleting", backup: "Backing up", restore: "Restoring", rebuild: "Rebuilding index", remove_document: "Removing a document" };
+  const TASK_LABELS = { delete: "Deleting", backup: "Backing up", restore: "Restoring", rebuild: "Rebuilding index", remove_document: "Removing a document", add_documents: "Adding documents" };
   const STALE_TIP = "The backup copy was made before this database last changed.";
   const CHANGES_TIP = "Documents added or removed since the index was built. Searches already reflect them, and rebuilding the index folds them into a new index.";
   const FILTER_AT = 9;
@@ -24,6 +24,8 @@
   let sort = { key: "name", dir: 1 };
   let confirmName = null;
   let confirmRebuild = null;
+  let confirmAdd = null;
+  let addError = null;
   let dbQuery = "";
   let headSignature = "";
   let tableSignature = "";
@@ -310,11 +312,25 @@
       + "</div></div></div>";
   }
 
+  function addConfirmHTML(db) {
+    const count = confirmAdd.count;
+    const skipped = confirmAdd.skipped || [];
+    return `<div class="confirm" role="alertdialog" aria-label="Confirm addition">${ICONS.info}<div class="confirm-body">`
+      + `<div class="confirm-title">Add ${fmt.int(count)} file${count === 1 ? "" : "s"} to <b>${esc(db.name)}</b>?</div>`
+      + `<div class="confirm-text">The files will be processed with this database's embedding model and chunk settings. They will be searchable before the next index rebuild. Your original files will not be changed.</div>`
+      + (skipped.length ? `<div class="confirm-text">${fmt.int(skipped.length)} unsupported file${skipped.length === 1 ? " was" : "s were"} excluded.</div>` : "")
+      + '<div class="confirm-actions">'
+      + `<button type="button" class="btn primary" data-act="confirm_add">Add documents</button>`
+      + '<button type="button" class="btn ghost" data-act="cancel_add" id="cancel-add">Cancel</button>'
+      + "</div></div></div>";
+  }
+
   function actionsHTML(db) {
     const task = taskFor(db.name);
     if (task) {
       const label = task.kind === "remove_document" ? "Removing a document from" : TASK_LABELS[task.kind];
-      return `<div class="detail-task"><span class="spinner"></span><span>${esc(label)} ${esc(db.name)}…</span></div>`;
+      const progress = task.stage ? ` · ${esc(task.stage)}` : "";
+      return `<div class="detail-task"><span class="spinner"></span><span>${esc(label)} ${esc(db.name)}…${progress}</span></div>`;
     }
     if (db.status === "building") return "";
     const blocked = state.blocked;
@@ -322,6 +338,10 @@
     const buttons = [];
     if (db.status === "ready" || db.status === "incomplete") {
       buttons.push(`<button type="button" class="btn primary small" data-act="query">${QUERY}Query</button>`);
+    }
+    if (db.status === "ready" && db.registered) {
+      buttons.push(`<button type="button" class="btn ghost small" data-act="choose_add_files"${off}>Add files…</button>`);
+      buttons.push(`<button type="button" class="btn ghost small" data-act="choose_add_folder"${off}>Add folder…</button>`);
     }
     if (db.status === "ready" && changeCount(db)) {
       buttons.push(`<button type="button" class="btn ghost small" data-act="rebuild"${off}${confirmRebuild === db.name ? " disabled" : ""}>${ICONS.build}Rebuild index…</button>`);
@@ -347,7 +367,8 @@
     }
     if (confirmName && confirmName !== db.name) confirmName = null;
     if (confirmRebuild && (confirmRebuild !== db.name || !changeCount(db))) confirmRebuild = null;
-    const signature = JSON.stringify([db, state.task, state.blocked, confirmName, confirmRebuild]);
+    if (confirmAdd && confirmAdd.name !== db.name) confirmAdd = null;
+    const signature = JSON.stringify([db, state.task, state.blocked, confirmName, confirmRebuild, confirmAdd, addError]);
     if (signature !== detailSignature) {
       detailSignature = signature;
       const focused = document.activeElement ? document.activeElement.id : "";
@@ -357,9 +378,11 @@
         + "</div>";
       $("#detail-body").innerHTML = (confirmName === db.name ? confirmHTML(db) : "")
         + (confirmRebuild === db.name ? rebuildConfirmHTML(db) : "")
+        + (confirmAdd ? addConfirmHTML(db) : "")
+        + (addError ? `<div class="status error">${ICONS.error}<div class="status-body">${esc(addError)}</div></div>` : "")
         + statsHTML(db)
         + warningsHTML(db);
-      if ((focused === "cancel-delete" || focused === "cancel-rebuild") && $(`#${focused}`)) $(`#${focused}`).focus();
+      if ((focused === "cancel-delete" || focused === "cancel-rebuild" || focused === "cancel-add") && $(`#${focused}`)) $(`#${focused}`).focus();
     }
     ManageFiles.update(state.files && state.files.name === db.name ? state.files : null, state.kinds);
   }
@@ -383,6 +406,8 @@
     pendingSelect = name;
     confirmName = null;
     confirmRebuild = null;
+    confirmAdd = null;
+    addError = null;
     tableSignature = "";
     renderTable();
     renderDetail();
@@ -441,7 +466,38 @@
     }
     const db = current();
     if (!db) return;
-    if (action === "delete") askDelete();
+    if (action === "choose_add_files" || action === "choose_add_folder") {
+      const name = db.name;
+      addError = null;
+      VDB.call(action, { name }).then((result) => {
+        if (selected !== name) return;
+        if (result.error) addError = result.error;
+        else if (!result.cancelled) {
+          confirmAdd = { name, count: result.count, skipped: result.skipped };
+          confirmName = null;
+          confirmRebuild = null;
+        }
+        detailSignature = "";
+        renderDetail();
+        if (confirmAdd && $("#cancel-add")) $("#cancel-add").focus();
+      });
+    } else if (action === "cancel_add") {
+      confirmAdd = null;
+      addError = null;
+      VDB.call("cancel_add");
+      detailSignature = "";
+      renderDetail();
+    } else if (action === "confirm_add") {
+      const name = confirmAdd.name;
+      confirmAdd = null;
+      VDB.call("add_documents", { name }).then((result) => {
+        if (result.error) {
+          addError = result.error;
+          detailSignature = "";
+          renderDetail();
+        }
+      });
+    } else if (action === "delete") askDelete();
     else if (action === "rebuild") askRebuild();
     else if (action === "cancel_delete" || action === "cancel_rebuild") {
       confirmName = null;
@@ -506,9 +562,9 @@
       }
     });
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && (confirmName || confirmRebuild) && !VDB.popover.key) {
+      if (e.key === "Escape" && (confirmName || confirmRebuild || confirmAdd) && !VDB.popover.key) {
         e.preventDefault();
-        act(confirmName ? "cancel_delete" : "cancel_rebuild");
+        act(confirmName ? "cancel_delete" : confirmRebuild ? "cancel_rebuild" : "cancel_add");
       }
     });
     document.addEventListener("input", (e) => {
