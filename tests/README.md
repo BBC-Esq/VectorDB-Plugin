@@ -29,7 +29,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_create_state.py` | Create Database tab: adding and removing files, the embedding model list, settings, build progress read from the build log, recording the new database and the checks before a build starts, including waiting for a backup or restore |
 | `test_credentials.py` | Config file load and save round trip, and where each credential is stored |
 | `test_database_info.py` | Each database's creation date and version in `metadata.db`: recorded when it is built, kept from the file's date when an older database is upgraded, raised only by committed changes, and read without writing |
-| `test_database_interactions.py` | Model family detection, query prompts, text normalization, `metadata.db` creation, audio document loading, searches skipping removed chunks and searches scoring added chunks alongside the index |
+| `test_database_interactions.py` | Model family detection, query prompts, text normalization, `metadata.db` creation, audio document loading, searches skipping removed chunks, searches scoring added chunks alongside the index, and the prepare step leaving out documents before they are split or embedded |
 | `test_document_ids.py` | Document ids in `metadata.db`: new databases, older mapping formats, the one-time upgrade of older databases (including a failed upgrade changing nothing) and batched lookups |
 | `test_document_processor.py` | `FixedSizeTextSplitter` chunking: size, overlap, metadata and edge cases |
 | `test_extract_metadata.py` | Content and file hashing, metadata extraction and PDF page numbers |

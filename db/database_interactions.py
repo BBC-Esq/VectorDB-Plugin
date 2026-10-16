@@ -347,11 +347,11 @@ def append_chunks(database_directory, prepared):
         shutil.rmtree(tmp_path, ignore_errors=True)
 
 
-def prepare_documents(database_name, source_directory, first_document_id=1):
+def prepare_documents(database_name, source_directory, first_document_id=1, keep_document=None):
     database = get_config().created_databases[database_name]
     builder = CreateVectorDB(database_name)
     return builder.prepare(Path(source_directory), database.model, int(database.chunk_size), int(database.chunk_overlap),
-                           first_document_id=first_document_id)
+                           first_document_id=first_document_id, keep_document=keep_document)
 
 
 def _setup_tiledb_dlls():
@@ -632,7 +632,8 @@ class CreateVectorDB:
                     logger.warning(f"Failed to delete {item}: {e}")
 
     @torch.inference_mode()
-    def prepare(self, source_directory, model_path, chunk_size, chunk_overlap, first_document_id=1, before_embedding=None):
+    def prepare(self, source_directory, model_path, chunk_size, chunk_overlap, first_document_id=1, before_embedding=None,
+                keep_document=None):
         cuda_mgr = get_cuda_manager()
         config_data = get_config()
         source_directory = Path(source_directory)
@@ -696,6 +697,11 @@ class CreateVectorDB:
             if not doc_data:
                 my_cprint("No documents, audio transcripts, or images found to process.", "red")
                 raise RuntimeError("No content found to ingest into the database.")
+
+            if keep_document is not None:
+                json_docs_to_save = [doc for doc in json_docs_to_save if keep_document(doc)]
+                if not json_docs_to_save:
+                    return PreparedChunks([], [], np.empty((0, 0), dtype=np.float32), [], not_added)
 
             for doc_id, doc in enumerate(json_docs_to_save, start=first_document_id):
                 doc.metadata = {**(doc.metadata or {}), "doc_id": doc_id}

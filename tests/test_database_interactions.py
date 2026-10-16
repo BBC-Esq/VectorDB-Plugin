@@ -1,5 +1,8 @@
 import json
+import pickle
 import sqlite3
+import sys
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -286,3 +289,61 @@ class TestAddedChunks:
         query_db._load_added_chunks(tiledb)
         assert query_db.added_ids.tolist() == [2]
         assert query_db.added_vectors.tolist() == [pytest.approx([0.0, 1.0, 0.0, 0.0])]
+
+
+class TestPrepareKeepDocument:
+
+    @pytest.fixture
+    def pipeline(self, tmp_path, monkeypatch):
+        from db import database_interactions
+
+        extracted = [
+            ("text of the new file " * 5, {"file_name": "new.txt", "file_path": "C:/docs/new.txt", "hash": "h-new"}),
+            ("text of the known file " * 5, {"file_name": "known.txt", "file_path": "C:/docs/known.txt", "hash": "h-known"}),
+        ]
+        seen = {"split": None, "embedded": None}
+
+        def extract(source_directory, extracted_pkl):
+            with open(extracted_pkl, "wb") as f:
+                pickle.dump([(text, dict(metadata)) for text, metadata in extracted], f)
+
+        def split(extracted_pkl, chunks_pkl, chunk_size, chunk_overlap, checkpoint_dir):
+            with open(extracted_pkl, "rb") as f:
+                documents = pickle.load(f)
+            seen["split"] = [metadata["file_name"] for _, metadata in documents]
+            with open(chunks_pkl, "wb") as f:
+                pickle.dump({"texts": [text for text, _ in documents], "chunks": documents, "failed_files": []}, f)
+
+        class Embedder:
+            def embed_documents(self, texts):
+                seen["embedded"] = list(texts)
+                return np.ones((len(texts), 4), dtype=np.float32), list(range(len(texts)))
+
+        monkeypatch.setattr(database_interactions, "_run_extract_with_retry", extract)
+        monkeypatch.setattr(database_interactions, "_run_split_with_retry", split)
+        monkeypatch.setattr(database_interactions, "get_config", lambda: SimpleNamespace())
+        monkeypatch.setattr(CreateVectorDB, "initialize_vector_model", lambda self, model_path, config_data: Embedder())
+        monkeypatch.setitem(sys.modules, "modules.process_images", SimpleNamespace(choose_image_loader=lambda **kwargs: []))
+        return CreateVectorDB.__new__(CreateVectorDB), tmp_path, seen
+
+    def test_documents_left_out_are_never_split_or_embedded(self, pipeline):
+        builder, folder, seen = pipeline
+        prepared = builder.prepare(folder, "model", 300, 50, first_document_id=7,
+                                   keep_document=lambda document: document.metadata["hash"] != "h-known")
+        assert seen["split"] == ["new.txt"]
+        assert len(seen["embedded"]) == 1
+        assert [document.metadata["doc_id"] for document in prepared.documents] == [7]
+        assert [metadata["doc_id"] for metadata in prepared.metadatas] == [7]
+        assert prepared.vectors.shape == (1, 4)
+
+    def test_nothing_left_skips_the_split_and_the_model(self, pipeline):
+        builder, folder, seen = pipeline
+        prepared = builder.prepare(folder, "model", 300, 50, keep_document=lambda document: False)
+        assert seen == {"split": None, "embedded": None}
+        assert (prepared.texts, prepared.metadatas, prepared.documents, prepared.vectors.shape) == ([], [], [], (0, 0))
+
+    def test_without_the_hook_every_document_is_kept(self, pipeline):
+        builder, folder, seen = pipeline
+        prepared = builder.prepare(folder, "model", 300, 50)
+        assert seen["split"] == ["new.txt", "known.txt"]
+        assert [document.metadata["doc_id"] for document in prepared.documents] == [1, 2]
