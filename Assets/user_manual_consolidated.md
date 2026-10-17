@@ -636,9 +636,9 @@ chunks from searches; the original source file is never deleted. Its chunks rema
 reclaim their space. The 'Query' button switches to the Query Database tab.
 
 ### How do I add files to an existing database?
-Select it and choose 'Add files…' or 'Add folder…'. Folder selection includes only top-level files by default and asks before including supported files in subdirectories. The program confirms the number of
+Select the database on the Manage Databases tab and choose 'Add files…' or 'Add folder…'. Folder selection includes only top-level files by default and asks before including supported files in subdirectories. The program confirms the number of
 supported files before starting. It processes them using that database's embedding model and chunk settings, leaves the original
-files untouched, and lists files it skipped. A file with the same content and source path already in the database is skipped.
+files untouched, and lists files it skipped. While files are being added, click 'Cancel' to stop the operation. A file with the same content and source path already in the database is skipped.
 Added documents can be found by searches immediately. 'Rebuild index' later folds their chunks into the main index and clears the pending index change count. The backup remains out of date until you update it separately.
 
 ### How do I delete, back up or restore a database on the Manage Databases tab?

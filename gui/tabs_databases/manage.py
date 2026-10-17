@@ -172,8 +172,10 @@ class DocumentAdditionWorker(QThread):
         script = PROJECT_ROOT / "db" / "stage_mutate.py"
         database_path = manage_data.vector_root() / self.database_name
         try:
-            with tempfile.TemporaryDirectory(prefix="vectordb_add_request_") as temporary:
+            with tempfile.TemporaryDirectory(prefix="vectordb_add_request_", ignore_cleanup_errors=True) as temporary:
                 manifest = Path(temporary) / "manifest.json"
+                private_temp = Path(temporary) / "temp"
+                private_temp.mkdir()
                 manifest.write_text(json.dumps({"database_name": self.database_name, "paths": self.paths}), encoding="utf-8")
                 if self._cancelled:
                     self.done.emit(self.database_name, None, "Cancelled by user.")
@@ -182,7 +184,8 @@ class DocumentAdditionWorker(QThread):
                     [sys.executable, str(script), "add", str(database_path), str(manifest)],
                     cwd=str(PROJECT_ROOT), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     text=True, encoding="utf-8", errors="replace", bufsize=1,
-                    env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"},
+                    env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1",
+                         "TMPDIR": str(private_temp), "TEMP": str(private_temp), "TMP": str(private_temp)},
                 )
                 self._process = process
                 if self._cancelled and process.poll() is None:
@@ -661,7 +664,9 @@ class ManageDatabasesTab(WebTab):
 
     def _on_documents_added(self, name, result, error):
         self.task = None
-        if error:
+        if error == "Cancelled by user.":
+            self.notice = {"kind": "info", "message": f"Stopped adding documents to {name}. Nothing was changed."}
+        elif error:
             self.notice = {"kind": "error", "message": f"Documents could not be added to {name}: {error}"}
         else:
             added = result.get("added_documents", 0)

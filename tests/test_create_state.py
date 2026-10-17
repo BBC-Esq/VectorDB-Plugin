@@ -1,5 +1,6 @@
 import json
 import os
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -207,3 +208,8 @@ def test_build_start_guards(root, monkeypatch):
     monkeypatch.setattr(create_build, "transcription_running", lambda: False)
     monkeypatch.setattr(create_build, "backup_running", lambda: True)
     assert "Tools tab" in controller.start(None, "good_name", "model", True, cfg)["error"]
+    monkeypatch.setattr(create_build, "backup_running", lambda: False)
+    monkeypatch.setattr(create_build, "QApplication", SimpleNamespace(
+        allWidgets=lambda: [SimpleNamespace(database_task_running=lambda: True)],
+    ))
+    assert "Manage Databases tab" in controller.start(None, "good_name", "model", True, cfg)["error"]
