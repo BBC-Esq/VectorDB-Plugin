@@ -635,11 +635,11 @@ it and press Delete. After confirmation, the program removes the document from t
 chunks from searches; the original source file is never deleted. Its chunks remain in the index until you use 'Rebuild index' to
 reclaim their space. The 'Query' button switches to the Query Database tab.
 
-To add files to an existing database, select it and choose 'Add files…' or 'Add folder…'. The program confirms the number of
+### How do I add files to an existing database?
+Select it and choose 'Add files…' or 'Add folder…'. Folder selection includes only top-level files by default and asks before including supported files in subdirectories. The program confirms the number of
 supported files before starting. It processes them using that database's embedding model and chunk settings, leaves the original
 files untouched, and lists files it skipped. A file with the same content and source path already in the database is skipped.
-Added documents can be found by searches immediately; 'Rebuild index' later folds their chunks into the main index. The database
-and its backup are marked as changed until you rebuild and update the backup.
+Added documents can be found by searches immediately. 'Rebuild index' later folds their chunks into the main index and clears the pending index change count. The backup remains out of date until you update it separately.
 
 ### How do I delete, back up or restore a database on the Manage Databases tab?
 Select the database and click 'Delete…'. The tab asks you to confirm and says exactly what will be removed: the database and its

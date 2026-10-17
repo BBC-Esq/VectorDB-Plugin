@@ -394,6 +394,9 @@ class BuildController(QObject):
     def start(self, parent_widget, database_name, model_label, check_pdfs, cfg, model_display=None):
         if self.busy():
             return {"error": "A database is already being created."}
+        if any(callable(getattr(widget, "database_task_running", None)) and widget.database_task_running()
+               for widget in QApplication.allWidgets()):
+            return self._fail("A database operation is running on the Manage Databases tab. Wait for it to finish.")
         if self.files.staging_running():
             return self._fail("Files are still being added to the list. Create the database after that finishes "
                               "so every file is included.")

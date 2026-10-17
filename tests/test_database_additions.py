@@ -1,4 +1,5 @@
 import sqlite3
+import hashlib
 import sys
 import types
 from contextlib import closing
@@ -39,8 +40,16 @@ def database(tmp_path):
 def fake_pipeline(monkeypatch, prepared, mappings):
     calls = []
 
-    def prepare(name, source, first_document_id):
+    def prepare(name, source, first_document_id, keep_document=None):
         calls.append(("prepare", name, first_document_id, source))
+        if keep_document is not None:
+            kept = [doc for doc in prepared.documents if keep_document(doc)]
+            ids = {doc.metadata["doc_id"] for doc in kept}
+            prepared.documents = kept
+            positions = [i for i, meta in enumerate(prepared.metadatas) if meta["doc_id"] in ids]
+            prepared.texts = [prepared.texts[i] for i in positions]
+            prepared.metadatas = [prepared.metadatas[i] for i in positions]
+            prepared.vectors = prepared.vectors[positions]
         return prepared
 
     def append(folder, chunks):
@@ -140,6 +149,8 @@ def test_rejects_unsupported_input_without_modifying_database(database, tmp_path
     with pytest.raises(ValueError, match="Unsupported"):
         database_additions._stage_files([unsupported], tmp_path)
 
+    assert ".json" not in database_additions.ALLOWED_EXTENSIONS
+
     with closing(sqlite3.connect(folder / "metadata.db")) as connection:
         assert stored_database_info(connection)["version"] == 1
 
@@ -160,3 +171,43 @@ def test_copy_fallback_restores_the_original_source_path(tmp_path, monkeypatch):
     assert copied.is_file() and not copied.is_symlink()
     assert doc.metadata["file_path"] == str(source)
     assert prepared.metadatas[0]["file_path"] == str(source)
+
+
+def test_existing_image_is_skipped_before_staging(tmp_path, monkeypatch):
+    source = tmp_path / "photo.png"
+    source.write_bytes(b"image bytes")
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    monkeypatch.setitem(sys.modules, "core.extract_metadata", SimpleNamespace(
+        compute_file_hash=lambda path: hashlib.sha256(Path(path).read_bytes()).hexdigest(),
+    ))
+    staging = tmp_path / "private"
+    staging.mkdir()
+    skipped = []
+
+    staged = database_additions._stage_files([source], staging, {(digest, str(source))}, skipped)
+
+    assert staged == {}
+    assert skipped == ["photo.png"]
+    assert list(staging.iterdir()) == []
+
+
+def test_duplicate_is_filtered_before_embedding_with_copy_fallback(database, monkeypatch):
+    folder, original = database
+    monkeypatch.setattr(Path, "symlink_to", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("no symlinks")))
+    doc = document(2, original, "old", "old-hash")
+    prepared = SimpleNamespace(
+        documents=[doc], texts=["old chunk"], metadatas=[doc.metadata.copy()], vectors=Vectors([1]), not_added=[],
+    )
+    calls = fake_pipeline(monkeypatch, prepared, [])
+    prepare = sys.modules["db.database_interactions"].prepare_documents
+
+    def prepare_copied(name, source, first_document_id, keep_document=None):
+        doc.metadata["file_path"] = str(Path(source) / original.name)
+        return prepare(name, source, first_document_id, keep_document)
+
+    sys.modules["db.database_interactions"].prepare_documents = prepare_copied
+
+    result = database_additions.add_documents("sample", folder, [original])
+
+    assert result["skipped"] == ["original.txt"]
+    assert not any(call[0] == "append" for call in calls)

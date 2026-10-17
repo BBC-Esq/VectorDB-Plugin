@@ -4,22 +4,27 @@ import tempfile
 from contextlib import closing
 from pathlib import Path
 
-from core.constants import SUPPORTED_EXTENSIONS
+from db.choose_documents import ALLOWED_EXTENSIONS
 from db.sqlite_operations import bump_version, record_addition, stored_database_info, upgrade_metadata_db
 
-ALLOWED_EXTENSIONS = set(SUPPORTED_EXTENSIONS) | {
-    ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff", ".json",
-}
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff"}
 
 
-def _stage_files(paths, folder):
+def _stage_files(paths, folder, existing=None, skipped=None):
     staged = {}
+    existing = existing or set()
     for raw_path in paths:
         source = Path(raw_path).resolve(strict=True)
         if not source.is_file() or source.suffix.lower() not in ALLOWED_EXTENSIONS:
             raise ValueError(f"Unsupported or missing file: {raw_path}")
         if str(source) in staged.values():
             continue
+        if source.suffix.lower() in IMAGE_EXTENSIONS:
+            from core.extract_metadata import compute_file_hash
+            if (compute_file_hash(source), str(source)) in existing:
+                if skipped is not None:
+                    skipped.append(source.name)
+                continue
         target = folder / source.name
         if target.exists() or target.is_symlink():
             import hashlib
@@ -83,14 +88,32 @@ def add_documents(database_name, database_directory, paths, progress=None):
     from db.database_interactions import append_chunks, prepare_documents
 
     with tempfile.TemporaryDirectory(prefix="vectordb_add_") as temporary:
-        staged = _stage_files(paths, Path(temporary))
+        skipped = []
+        staged = _stage_files(paths, Path(temporary), existing, skipped)
         if not staged:
-            raise ValueError("No new files were selected.")
+            return {"added_documents": 0, "added_chunks": 0, "skipped": skipped, "not_added": []}
         if progress:
             progress("Extracting and embedding files")
-        prepared = prepare_documents(database_name, temporary, first_document_id=first_id)
+        seen = set(existing)
+
+        def keep_document(document):
+            metadata = document.metadata
+            path = metadata.get("file_path")
+            original = staged.get(str(Path(path).resolve())) if path else None
+            if original:
+                metadata["file_path"] = original
+                metadata["file_name"] = Path(original).name
+            key = (metadata.get("hash"), metadata.get("file_path"))
+            if key in seen:
+                skipped.append(metadata.get("file_name", "unknown"))
+                return False
+            seen.add(key)
+            return True
+
+        prepared = prepare_documents(database_name, temporary, first_document_id=first_id,
+                                     keep_document=keep_document)
         _restore_source_paths(prepared, staged)
-        skipped = _retain_new_documents(prepared, existing)
+        skipped.extend(_retain_new_documents(prepared, existing))
         if not prepared.documents:
             return {"added_documents": 0, "added_chunks": 0, "skipped": skipped, "not_added": prepared.not_added}
 

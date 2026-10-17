@@ -314,11 +314,11 @@
 
   function addConfirmHTML(db) {
     const count = confirmAdd.count;
-    const skipped = confirmAdd.skipped || [];
+    const skipped = confirmAdd.skipped_count || 0;
     return `<div class="confirm" role="alertdialog" aria-label="Confirm addition">${ICONS.info}<div class="confirm-body">`
       + `<div class="confirm-title">Add ${fmt.int(count)} file${count === 1 ? "" : "s"} to <b>${esc(db.name)}</b>?</div>`
       + `<div class="confirm-text">The files will be processed with this database's embedding model and chunk settings. They will be searchable before the next index rebuild. Your original files will not be changed.</div>`
-      + (skipped.length ? `<div class="confirm-text">${fmt.int(skipped.length)} unsupported file${skipped.length === 1 ? " was" : "s were"} excluded.</div>` : "")
+      + (skipped ? `<div class="confirm-text">${fmt.int(skipped)} unsupported file${skipped === 1 ? " was" : "s were"} excluded.</div>` : "")
       + '<div class="confirm-actions">'
       + `<button type="button" class="btn primary" data-act="confirm_add">Add documents</button>`
       + '<button type="button" class="btn ghost" data-act="cancel_add" id="cancel-add">Cancel</button>'
@@ -330,7 +330,9 @@
     if (task) {
       const label = task.kind === "remove_document" ? "Removing a document from" : TASK_LABELS[task.kind];
       const progress = task.stage ? ` · ${esc(task.stage)}` : "";
-      return `<div class="detail-task"><span class="spinner"></span><span>${esc(label)} ${esc(db.name)}…${progress}</span></div>`;
+      return `<div class="detail-task"><span class="spinner"></span><span>${esc(label)} ${esc(db.name)}…${progress}</span>`
+        + (task.kind === "add_documents" ? `<button type="button" class="btn ghost small" data-act="cancel_running_add"${task.stage === "Cancelling" ? " disabled" : ""}>Cancel</button>` : "")
+        + "</div>";
     }
     if (db.status === "building") return "";
     const blocked = state.blocked;
@@ -339,7 +341,7 @@
     if (db.status === "ready" || db.status === "incomplete") {
       buttons.push(`<button type="button" class="btn primary small" data-act="query">${QUERY}Query</button>`);
     }
-    if (db.status === "ready" && db.registered) {
+    if (db.status === "ready" && db.registered && db.model && db.model.downloaded) {
       buttons.push(`<button type="button" class="btn ghost small" data-act="choose_add_files"${off}>Add files…</button>`);
       buttons.push(`<button type="button" class="btn ghost small" data-act="choose_add_folder"${off}>Add folder…</button>`);
     }
@@ -473,7 +475,7 @@
         if (selected !== name) return;
         if (result.error) addError = result.error;
         else if (!result.cancelled) {
-          confirmAdd = { name, count: result.count, skipped: result.skipped };
+          confirmAdd = { name, count: result.count, skipped_count: result.skipped_count };
           confirmName = null;
           confirmRebuild = null;
         }
@@ -487,6 +489,8 @@
       VDB.call("cancel_add");
       detailSignature = "";
       renderDetail();
+    } else if (action === "cancel_running_add") {
+      VDB.call("cancel_running_add");
     } else if (action === "confirm_add") {
       const name = confirmAdd.name;
       confirmAdd = null;
