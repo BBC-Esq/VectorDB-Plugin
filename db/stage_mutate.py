@@ -34,17 +34,25 @@ def _setup_tiledb_dlls():
 
 
 def main():
-    if len(sys.argv) != 4 or sys.argv[1] != "remove":
+    if len(sys.argv) != 4 or sys.argv[1] not in ("remove", "add"):
         print(
-            f"Usage: {sys.argv[0]} remove <database_directory> <document_id>",
+            f"Usage: {sys.argv[0]} remove <database_directory> <document_id> | add <database_directory> <manifest.json>",
             file=sys.stderr,
         )
         return 2
 
     _setup_tiledb_dlls()
-    from db.database_mutations import remove_document
-
-    result = remove_document(sys.argv[2], int(sys.argv[3]))
+    if sys.argv[1] == "remove":
+        from db.database_mutations import remove_document
+        result = remove_document(sys.argv[2], int(sys.argv[3]))
+    else:
+        from db.database_additions import add_documents
+        with open(sys.argv[3], "r", encoding="utf-8") as manifest:
+            request = json.load(manifest)
+        result = add_documents(
+            request["database_name"], sys.argv[2], request["paths"],
+            progress=lambda stage: print("VECTORDB_ADD_STAGE " + stage, flush=True),
+        )
     print("VECTORDB_MUTATION_RESULT " + json.dumps(result), flush=True)
     return 0
 

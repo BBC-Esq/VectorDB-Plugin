@@ -1,6 +1,9 @@
 import json
+import pickle
 import sqlite3
+import sys
 from contextlib import closing
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -180,6 +183,56 @@ def test_added_chunks_are_appended_and_folded_in_by_a_rebuild(tmp_path, vector_s
     index = vector_search.FlatIndex(uri=str(folder / "vector_index"))
     _, found = index.query(np.array([prepared.vectors[1]]), k=1)
     assert int(found[0][0]) == int(mappings[1][0])
+
+
+def test_document_addition_appends_without_changing_the_index(tmp_path, vector_search, monkeypatch):
+    from db import stage_append
+    from db.database_additions import add_documents
+
+    folder = build_database(tmp_path / "db", vector_search)
+    original = index_ids(folder)
+    source = tmp_path / "new.txt"
+    source.write_text("new text", encoding="utf-8")
+    prepared = SimpleNamespace(
+        texts=["new chunk 901", "new chunk 902"],
+        metadatas=[{"file_name": "new.txt", "hash": "new.txt", "file_path": str(source), "doc_id": 4} for _ in range(2)],
+        vectors=np.stack([_vector(901), _vector(902)]),
+        documents=[Document(page_content="new text", metadata={
+            "file_name": "new.txt", "hash": "new.txt", "file_path": str(source), "doc_id": 4,
+        })],
+        not_added=[],
+    )
+    for metadata in [prepared.documents[0].metadata, *prepared.metadatas]:
+        metadata["file_path"] = str(source)
+    def append_chunks(database_directory, chunks):
+        data_dir = tmp_path / "handoff"
+        data_dir.mkdir()
+        np.save(data_dir / "vectors.npy", chunks.vectors)
+        (data_dir / "meta.json").write_text(json.dumps({
+            "embedding_dim": DIMENSIONS, "num_vectors": len(chunks.texts),
+            "batch_size": 100000, "num_batches": 1,
+        }), encoding="utf-8")
+        with open(data_dir / "shard_00000.pkl", "wb") as handoff:
+            pickle.dump({"texts": chunks.texts, "metadatas": chunks.metadatas}, handoff)
+        stage_append.append(database_directory, data_dir)
+        with open(data_dir / "hash_id_mappings.pkl", "rb") as handoff:
+            return pickle.load(handoff)
+
+    monkeypatch.setitem(sys.modules, "db.database_interactions", SimpleNamespace(
+        prepare_documents=lambda *args, **kwargs: prepared,
+        append_chunks=append_chunks,
+    ))
+
+    result = add_documents("db", folder, [source])
+
+    assert result["added_documents"] == 1 and result["added_chunks"] == 2
+    assert index_ids(folder) == original
+    assert len(store_ids(folder)) == len(original) + 2
+    assert changes(folder) == {"documents": 1, "removed_chunks": 0, "added_chunks": 2}
+    with closing(sqlite3.connect(folder / "metadata.db")) as connection:
+        assert connection.execute("SELECT file_path FROM document_metadata WHERE id = 4").fetchone() == (str(source),)
+    stage_rebuild.rebuild(folder)
+    assert index_ids(folder) == store_ids(folder)
 
 
 def test_chunks_appended_without_a_commit_are_dropped_by_a_rebuild(tmp_path, vector_search):
