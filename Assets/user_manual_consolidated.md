@@ -145,13 +145,16 @@ completing the registration. Once logged in, go to the API keys page, click "Cre
 click "Create secret key" to generate it. Make sure to copy and store the key securely, as it won't be shown again. To activate
 the key, visit the Billing section and add your payment details. For a more detailed walkthrough, you can refer to this
 step-by-step tutorial.  Then paste the key into the API key box on the ChatGPT page of the Chat Backend Settings dialog, which you
-open from the 'File' menu, and click 'Test connection' to confirm that the key works and can use the model you chose.
+open from the 'File' menu, and click 'Test connection' to confirm that the key works and can use the model you chose. Three OpenAI
+models are offered: gpt-6 Luna, the economical default; gpt-6.1 Sol, a balanced model; and gpt-6 Astra, the flagship. Each lets
+you set 'Verbosity' and a 'Reasoning effort' from 'Low' to 'Max', and gpt-6 Luna also offers 'None'.
 
 ### How much does it cost to use ChatGPT or MiniMax?
 ChatGPT and MiniMax are paid online services: each question you ask is charged to your OpenAI or MiniMax account according to how
 many tokens the question, the retrieved contexts, and the answer use. The ChatGPT page of the Chat Backend Settings dialog, which
 you open from the 'File' menu, shows the selected model's input, cached input, and output prices per million tokens, and its Model
-menu lists every model's input and output price, so you can compare them before you choose. Higher 'Reasoning effort' settings
+menu lists every model's input and output price, so you can compare them before you choose; gpt-6 Luna costs the least and gpt-6
+Astra the most. Higher 'Reasoning effort' settings
 usually cost more, because OpenAI bills the model's reasoning as output tokens. The Local Models, LM Studio, and Kobold backends
 run on your own computer and cost nothing to use.
 
@@ -170,9 +173,9 @@ The Chat Backend Settings dialog, opened from the 'File' menu via 'Chat Backend 
 backends that run outside this program. A list on the left shows ChatGPT, LM Studio, MiniMax, and Kobold with a short status for
 each, such as 'API key saved,' 'Needs an API key,' or the server address, and clicking one shows its settings on the right. Every
 change is saved as soon as you make it, so there is no OK button; click 'Close' or press Escape when you are done, and anything
-you were still typing is saved first. On the ChatGPT page you paste your OpenAI API key, choose the OpenAI model, and for the
-newer models set 'Verbosity' and 'Reasoning effort,' while boxes show the selected model's input, cached input, and output prices
-per million tokens. A saved key is never shown in full: the box shows only its last four characters, the eye button reveals it,
+you were still typing is saved first. On the ChatGPT page you paste your OpenAI API key, choose the OpenAI model, and set
+'Verbosity' and 'Reasoning effort,' whose choices depend on the model, while boxes show the selected model's input, cached input,
+and output prices per million tokens. A saved key is never shown in full: the box shows only its last four characters, the eye button reveals it,
 and 'Remove' deletes it after a second click. The LM Studio page has the server port and the 'Show thinking' switch, the MiniMax
 page has the MiniMax API key, and the Kobold page shows the address the program uses. The 'Backend settings' button on the Query
 Database tab opens the same dialog on the page for the selected backend.
