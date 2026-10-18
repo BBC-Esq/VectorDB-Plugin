@@ -5,9 +5,11 @@ from chat.common import load_chat_config
 from core.utilities import format_citations
 from core.constants import system_message
 from core.chatgpt_settings import (
-    DEFAULT_OPENAI_MODEL,
     DEFAULT_VERBOSITY,
     DEFAULT_REASONING_EFFORT,
+    VERBOSITY_OPTIONS,
+    clamp_reasoning_effort,
+    migrate_legacy_model,
     supports_verbosity,
     supports_reasoning_effort,
 )
@@ -25,9 +27,11 @@ class ChatGPTChat:
         from openai import OpenAI
 
         openai_config = self.config.get('openai', {}) or {}
-        model = openai_config.get('model') or DEFAULT_OPENAI_MODEL
+        model = migrate_legacy_model(openai_config.get('model'))
         api_key = openai_config.get('api_key')
-        verbosity = openai_config.get('verbosity') or DEFAULT_VERBOSITY
+        verbosity = openai_config.get('verbosity')
+        if verbosity not in VERBOSITY_OPTIONS:
+            verbosity = DEFAULT_VERBOSITY
         reasoning_effort = openai_config.get('reasoning_effort') or DEFAULT_REASONING_EFFORT
 
         if not api_key:
@@ -52,8 +56,8 @@ class ChatGPTChat:
         if supports_verbosity(model):
             request_args["text"] = {"verbosity": verbosity}
 
-        if supports_reasoning_effort(model) and reasoning_effort and reasoning_effort != "none":
-            request_args["reasoning"] = {"effort": reasoning_effort}
+        if supports_reasoning_effort(model):
+            request_args["reasoning"] = {"effort": clamp_reasoning_effort(model, reasoning_effort)}
 
         stream = client.responses.create(**request_args)
 

@@ -23,7 +23,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | File | What it covers |
 |------|----------------|
 | `conftest.py` | Shared fixtures: a sample config, sample citation metadata and the project root |
-| `test_backends_data.py` | Chat Backend Settings dialog: API keys, model choices, the LM Studio address and port, and the LM Studio and ChatGPT connection checks |
+| `test_backends_data.py` | Chat Backend Settings dialog: API keys, model choices and the reasoning efforts each model offers, the LM Studio address and port, and the LM Studio and ChatGPT connection checks |
 | `test_chat_base.py` | `build_augmented_query`, maximum lengths, maximum new tokens, generation settings and `make_bnb_settings` |
 | `test_constants.py` | Required keys in the chat, embedding, vision and Whisper model lists, document loaders, thinking tags, pipeline presets and supported file types |
 | `test_create_state.py` | Create Database tab: adding and removing files, the embedding model list, settings, build progress read from the build log, recording the new database and the checks before a build starts, including waiting for a backup or restore |
@@ -42,6 +42,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_manage_data.py` | Manage Databases tab: the database list, database details (chunk counts and creation dates from `metadata.db`), file rows, read-only connections, safely deleting a database, backing up and restoring, backups that are out of date, changes since the index was built and starting a rebuild of the index |
 | `test_minimax.py` | MiniMax constants, model list and temperature clamping |
 | `test_models_catalog.py` | Models tab: CPU-only filtering, download status, benchmark summaries, precision compared with the embedding code, and theme colors |
+| `test_openai_chat.py` | ChatGPT models, the reasoning efforts each one offers, older saved choices replaced, and the request sent to OpenAI |
 | `test_process_manager.py` | Process cleanup at exit: stops a running process and tolerates one that is already closed |
 | `test_query_data.py` | Query Database tab: citations, token counts, answer text, readiness messages, the database list, local model flags, chunk rows and a voice recording with no speech |
 | `test_scraper.py` | HTML processing, the scraper registry and selectors, URL checks and file name cleanup |

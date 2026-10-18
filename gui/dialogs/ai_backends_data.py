@@ -13,8 +13,10 @@ from core.chatgpt_settings import (
     DEFAULT_VERBOSITY,
     REASONING_EFFORT_OPTIONS,
     VERBOSITY_OPTIONS,
+    clamp_reasoning_effort,
     get_display_name,
     get_model_pricing,
+    reasoning_effort_options,
     supports_reasoning_effort,
     supports_verbosity,
 )
@@ -117,7 +119,7 @@ def openai_values(cfg):
     model = section.get("model") if section.get("model") in AVAILABLE_OPENAI_MODELS else DEFAULT_OPENAI_MODEL
     verbosity = section.get("verbosity") if section.get("verbosity") in VERBOSITY_OPTIONS else DEFAULT_VERBOSITY
     reasoning = section.get("reasoning_effort") if section.get("reasoning_effort") in REASONING_EFFORT_OPTIONS else DEFAULT_REASONING_EFFORT
-    return section, model, verbosity, reasoning
+    return section, model, verbosity, clamp_reasoning_effort(model, reasoning)
 
 
 def normalize_config():
@@ -173,7 +175,7 @@ def build_state(selected="chatgpt", tests=None):
             "verbosities": VERBOSITY_OPTIONS,
             "show_verbosity": supports_verbosity(model),
             "reasoning": reasoning,
-            "reasonings": REASONING_EFFORT_OPTIONS,
+            "reasonings": reasoning_effort_options(model),
             "show_reasoning": supports_reasoning_effort(model),
             "test": tests.get("chatgpt"),
         },
@@ -225,6 +227,33 @@ def _choice_setter(name, options, label):
     return setter
 
 
+def _set_model(cfg, value):
+    if value not in AVAILABLE_OPENAI_MODELS:
+        raise InvalidValue(f"Model must be one of: {', '.join(AVAILABLE_OPENAI_MODELS)}.")
+    section = _section(cfg, "openai")
+    changed = section.get("model") != value
+    section["model"] = value
+    effort = section.get("reasoning_effort")
+    if effort:
+        fitted = clamp_reasoning_effort(value, effort if effort in REASONING_EFFORT_OPTIONS else DEFAULT_REASONING_EFFORT)
+        if fitted != effort:
+            section["reasoning_effort"] = fitted
+            changed = True
+    return changed
+
+
+def _set_reasoning_effort(cfg, value):
+    _, model, _, _ = openai_values(cfg)
+    options = reasoning_effort_options(model)
+    if value not in options:
+        raise InvalidValue(f"Reasoning effort for {get_display_name(model)} must be one of: {', '.join(options)}.")
+    section = _section(cfg, "openai")
+    if section.get("reasoning_effort") == value:
+        return False
+    section["reasoning_effort"] = value
+    return True
+
+
 def _set_port(cfg, value):
     text = _text(value)
     if not re.fullmatch(r"\d{1,5}", text) or not 1 <= int(text) <= 65535:
@@ -254,9 +283,9 @@ def _set_show_thinking(cfg, value):
 
 HANDLERS = {
     "openai.api_key": _key_setter("openai"),
-    "openai.model": _choice_setter("model", AVAILABLE_OPENAI_MODELS, "Model"),
+    "openai.model": _set_model,
     "openai.verbosity": _choice_setter("verbosity", VERBOSITY_OPTIONS, "Verbosity"),
-    "openai.reasoning_effort": _choice_setter("reasoning_effort", REASONING_EFFORT_OPTIONS, "Reasoning effort"),
+    "openai.reasoning_effort": _set_reasoning_effort,
     "server.port": _set_port,
     "server.show_thinking": _set_show_thinking,
     "minimax.api_key": _key_setter("minimax"),

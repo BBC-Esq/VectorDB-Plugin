@@ -5,6 +5,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 import yaml
 import threading
 
+from core.chatgpt_settings import DEFAULT_OPENAI_MODEL, DEFAULT_REASONING_EFFORT
+
 
 class _SubConfig(BaseModel):
     model_config = ConfigDict(extra='allow', validate_assignment=True)
@@ -12,8 +14,8 @@ class _SubConfig(BaseModel):
 
 class OpenAIConfig(_SubConfig):
     api_key: Optional[str] = None
-    model: str = "gpt-4o-mini"
-    reasoning_effort: str = "medium"
+    model: str = DEFAULT_OPENAI_MODEL
+    reasoning_effort: str = DEFAULT_REASONING_EFFORT
 
 
 class MiniMaxConfig(_SubConfig):

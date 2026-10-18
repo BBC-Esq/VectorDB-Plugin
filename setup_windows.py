@@ -334,7 +334,7 @@ def update_config_yaml():
     if 'api_key' not in config['openai']:
         config['openai']['api_key'] = ''
     if 'model' not in config['openai']:
-        config['openai']['model'] = 'gpt-4o-mini'
+        config['openai']['model'] = 'gpt-6-luna'
     if 'reasoning_effort' not in config['openai']:
         config['openai']['reasoning_effort'] = 'medium'
 

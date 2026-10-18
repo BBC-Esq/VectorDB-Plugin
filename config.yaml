@@ -37,7 +37,7 @@ minimax:
   model: MiniMax-M2.7
 openai:
   api_key:
-  model: gpt-5.4-mini
+  model: gpt-6-luna
   reasoning_effort: medium
   verbosity: low
 server:

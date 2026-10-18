@@ -51,8 +51,17 @@ def test_normalize_replaces_models_and_choices_that_are_no_longer_offered(root):
     assert cfg["other"] == 1
 
 
+def test_normalize_fits_an_older_model_and_its_effort_to_what_is_offered(root):
+    write_config(root, {"openai": {"model": "gpt-5.4-mini", "reasoning_effort": "none"}})
+    assert data.normalize_config() is True
+    assert read_config(root)["openai"] == {"model": "gpt-6-luna", "reasoning_effort": "none"}
+    write_config(root, {"openai": {"model": "gpt-6-astra", "reasoning_effort": "none"}})
+    assert data.normalize_config() is True
+    assert read_config(root)["openai"] == {"model": "gpt-6-astra", "reasoning_effort": "low"}
+
+
 def test_normalize_leaves_valid_or_missing_values_alone(root):
-    write_config(root, {"openai": {"model": "gpt-5.4", "verbosity": None}})
+    write_config(root, {"openai": {"model": "gpt-6.1-sol", "verbosity": None}})
     before = (root / "config.yaml").read_bytes()
     assert data.normalize_config() is False
     assert (root / "config.yaml").read_bytes() == before
@@ -89,14 +98,25 @@ def test_api_keys_with_spaces_are_refused(root):
 
 def test_choices_must_be_offered(root):
     write_config(root, {})
-    assert data.apply_change("openai.model", "gpt-5.5")["changed"] is True
+    assert data.apply_change("openai.model", "gpt-6-astra")["changed"] is True
     assert data.apply_change("openai.verbosity", "high")["changed"] is True
-    assert data.apply_change("openai.reasoning_effort", "xhigh")["changed"] is True
-    assert read_config(root)["openai"] == {"model": "gpt-5.5", "verbosity": "high", "reasoning_effort": "xhigh"}
-    assert data.apply_change("openai.model", "gpt-4o")["ok"] is False
+    assert data.apply_change("openai.reasoning_effort", "max")["changed"] is True
+    assert read_config(root)["openai"] == {"model": "gpt-6-astra", "verbosity": "high", "reasoning_effort": "max"}
+    assert data.apply_change("openai.model", "gpt-5.4-mini")["ok"] is False
     assert data.apply_change("openai.verbosity", "loud")["ok"] is False
-    assert data.apply_change("openai.reasoning_effort", "max")["ok"] is False
+    assert data.apply_change("openai.reasoning_effort", "none")["ok"] is False
+    assert data.apply_change("openai.reasoning_effort", "extreme")["ok"] is False
     assert data.apply_change("openai.unknown", 1) == {"ok": False, "error": "Unknown setting: openai.unknown"}
+
+
+def test_each_model_offers_its_own_reasoning_efforts(root):
+    write_config(root, {"openai": {"model": "gpt-6-luna", "reasoning_effort": "none"}})
+    assert data.build_state()["chatgpt"]["reasonings"] == ["none", "low", "medium", "high", "xhigh", "max"]
+    assert data.apply_change("openai.model", "gpt-6.1-sol") == {"ok": True, "changed": True}
+    assert read_config(root)["openai"] == {"model": "gpt-6.1-sol", "reasoning_effort": "low"}
+    chatgpt = data.build_state()["chatgpt"]
+    assert chatgpt["reasonings"] == ["low", "medium", "high", "xhigh", "max"] and chatgpt["reasoning"] == "low"
+    assert data.apply_change("openai.model", "gpt-6.1-sol") == {"ok": True, "changed": False}
 
 
 def test_port_replaces_only_the_port_of_the_saved_address(root):
@@ -139,17 +159,17 @@ def test_show_thinking_and_unreadable_configs(root):
 
 def test_build_state_describes_each_backend(root):
     write_config(root, {
-        "openai": {"api_key": LONG_KEY, "model": "gpt-5.5"},
+        "openai": {"api_key": LONG_KEY, "model": "gpt-6-astra"},
         "server": {"connection_str": "http://localhost:4321/v1", "show_thinking": True},
         "minimax": {"api_key": "short"},
     })
     state = data.build_state("lmstudio", {"kobold": {"status": "ok", "message": "fine"}})
     assert state["selected"] == "lmstudio" and state["error"] is None
     chatgpt = state["chatgpt"]
-    assert chatgpt["key_set"] and chatgpt["key_hint"] == "WXYZ" and chatgpt["model"] == "gpt-5.5"
-    assert chatgpt["pricing"] == {"input": 5.0, "cached": 0.5, "output": 30.0}
+    assert chatgpt["key_set"] and chatgpt["key_hint"] == "WXYZ" and chatgpt["model"] == "gpt-6-astra"
+    assert chatgpt["pricing"] == {"input": 10.0, "cached": 1.0, "output": 50.0}
     assert [m["value"] for m in chatgpt["models"]] == data.AVAILABLE_OPENAI_MODELS
-    assert chatgpt["models"][0]["note"] == "$5.00 in · $30.00 out"
+    assert chatgpt["models"][0]["note"] == "$10.00 in · $50.00 out"
     assert chatgpt["show_verbosity"] and chatgpt["show_reasoning"]
     assert state["lmstudio"]["port"] == "4321" and not state["lmstudio"]["missing"] and not state["lmstudio"]["malformed"]
     assert state["lmstudio"]["show_thinking"] is True
@@ -171,13 +191,13 @@ def test_build_state_flags_missing_and_malformed_addresses_and_unreadable_config
 
 
 def test_chatgpt_check_reports_each_answer(root, monkeypatch):
-    cfg = {"openai": {"api_key": LONG_KEY, "model": "gpt-5.4-mini"}}
+    cfg = {"openai": {"api_key": LONG_KEY, "model": "gpt-6-luna"}}
     assert data.check_chatgpt({})["message"] == "Enter an API key first."
     calls = []
-    fake_get(monkeypatch, FakeResponse(200, {"data": [{"id": "gpt-5.4-mini"}]}), calls=calls)
-    assert data.check_chatgpt(cfg) == {"status": "ok", "message": "The key works and can use gpt-5.4 mini."}
+    fake_get(monkeypatch, FakeResponse(200, {"data": [{"id": "gpt-6-luna"}]}), calls=calls)
+    assert data.check_chatgpt(cfg) == {"status": "ok", "message": "The key works and can use gpt-6 Luna (economy)."}
     assert calls[0][1]["headers"] == {"Authorization": f"Bearer {LONG_KEY}"} and calls[0][1]["timeout"] == 15
-    fake_get(monkeypatch, FakeResponse(200, {"data": [{"id": "gpt-5.4"}]}))
+    fake_get(monkeypatch, FakeResponse(200, {"data": [{"id": "gpt-6-astra"}]}))
     assert data.check_chatgpt(cfg)["status"] == "warn"
     fake_get(monkeypatch, FakeResponse(401, {}))
     assert "did not accept this API key" in data.check_chatgpt(cfg)["message"]

@@ -10,7 +10,7 @@
   const ONLINE = new Set(["chatgpt", "minimax"]);
   const TESTABLE = new Set(["chatgpt", "lmstudio", "kobold"]);
   const KEY_BACKEND = { "openai.api_key": "chatgpt", "minimax.api_key": "minimax" };
-  const LEVELS = { none: "None", low: "Low", medium: "Medium", high: "High", xhigh: "Extra high" };
+  const LEVELS = { none: "None", low: "Low", medium: "Medium", high: "High", xhigh: "Extra high", max: "Max" };
   const PORT_RE = /:(\d{1,5})(?=\/)/;
   const FOCUS_ATTRS = ["key", "value", "select", "backend", "reveal", "remove", "check"];
 
@@ -173,7 +173,7 @@
     const model = data.models.find((m) => m.value === data.model) || data.models[0];
     const fields = [
       field("openai.api_key", "API key", secretHTML("openai.api_key", data, "Paste your OpenAI API key (sk-...)"), 4),
-      field("openai.model", "Model", VDB.selectButton("openai.model", { label: model.label, note: model.note }), data.show_verbosity ? 2 : 4),
+      field("openai.model", "Model", VDB.selectButton("openai.model", { label: model.label }), data.show_verbosity ? 2 : 4),
     ];
     if (data.show_verbosity) fields.push(field("openai.verbosity", "Verbosity", segmentedHTML("openai.verbosity", data.verbosities, data.verbosity), 2));
     if (data.show_reasoning) fields.push(field("openai.reasoning_effort", "Reasoning effort", segmentedHTML("openai.reasoning_effort", data.reasonings, data.reasoning), 4));
