@@ -796,7 +796,7 @@ libs = [
     "tiledb-vector-search==0.16.0",
     "tokenizers==0.23.2",
     "tqdm==4.67.3",
-    "transformers==5.18.0",
+    "transformers==5.20.1",
     "typer==0.27.2",
     "typing-inspection==0.4.2",
     "typing_extensions==4.15.0",
