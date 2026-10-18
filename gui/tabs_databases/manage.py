@@ -2,14 +2,16 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from PySide6.QtCore import QThread, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QApplication, QTabWidget
+from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox, QTabWidget
 
 from core.constants import PROJECT_ROOT
 from core.utilities import open_file
+from db.choose_documents import ALLOWED_EXTENSIONS
 from gui.web_common.web_tab import WebTab
 from gui.tabs_databases import manage_data
 
@@ -20,6 +22,7 @@ TASK_MESSAGES = {
     "restore": "A database is still being restored. Please wait for it to finish before closing the program.",
     "rebuild": "A database index is still being rebuilt. Please wait for it to finish before closing the program.",
     "remove_document": "A document is still being removed. Please wait for it to finish before closing the program.",
+    "add_documents": "Documents are still being added. Please wait for the task to finish before closing the program.",
 }
 
 
@@ -147,6 +150,74 @@ class DocumentMutationWorker(QThread):
         )
 
 
+class DocumentAdditionWorker(QThread):
+    done = Signal(str, object, str)
+    progress = Signal(str)
+
+    def __init__(self, database_name, paths, parent=None):
+        super().__init__(parent)
+        self.database_name = database_name
+        self.paths = list(paths)
+        self._process = None
+        self._cancelled = False
+
+    def cancel(self):
+        self._cancelled = True
+        process = self._process
+        if process and process.poll() is None:
+            from gui.tabs_databases.create_build import VectorDBWorker
+            VectorDBWorker._terminate_process_tree(process.pid)
+
+    def run(self):
+        script = PROJECT_ROOT / "db" / "stage_mutate.py"
+        database_path = manage_data.vector_root() / self.database_name
+        try:
+            with tempfile.TemporaryDirectory(prefix="vectordb_add_request_", ignore_cleanup_errors=True) as temporary:
+                manifest = Path(temporary) / "manifest.json"
+                private_temp = Path(temporary) / "temp"
+                private_temp.mkdir()
+                manifest.write_text(json.dumps({"database_name": self.database_name, "paths": self.paths}), encoding="utf-8")
+                if self._cancelled:
+                    self.done.emit(self.database_name, None, "Cancelled by user.")
+                    return
+                process = subprocess.Popen(
+                    [sys.executable, str(script), "add", str(database_path), str(manifest)],
+                    cwd=str(PROJECT_ROOT), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, encoding="utf-8", errors="replace", bufsize=1,
+                    env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1",
+                         "TMPDIR": str(private_temp), "TEMP": str(private_temp), "TMP": str(private_temp)},
+                )
+                self._process = process
+                if self._cancelled and process.poll() is None:
+                    self.cancel()
+                result_line = None
+                error_line = None
+                for raw_line in process.stdout:
+                    line = raw_line.rstrip("\r\n")
+                    if line.startswith("VECTORDB_ADD_STAGE "):
+                        self.progress.emit(line.removeprefix("VECTORDB_ADD_STAGE "))
+                    elif line.startswith("VECTORDB_MUTATION_RESULT "):
+                        result_line = line
+                    elif line.strip():
+                        error_line = line
+                process.wait()
+        except Exception as error:
+            self.done.emit(self.database_name, None, f"{type(error).__name__}: {error}")
+            return
+        marker = "VECTORDB_MUTATION_RESULT "
+        if result_line:
+            try:
+                self.done.emit(self.database_name, json.loads(result_line[len(marker):]), "")
+                return
+            except ValueError:
+                pass
+        if self._cancelled:
+            self.done.emit(self.database_name, None, "Cancelled by user.")
+            return
+        self.done.emit(self.database_name, None, error_line.removeprefix("ERROR: ")
+                       if error_line else "Document addition failed.")
+
+
 def external_state():
     building = None
     tools_busy = False
@@ -175,6 +246,9 @@ class ManageDatabasesTab(WebTab):
         self.task = None
         self.notice = None
         self._next_selection = None
+        self._pending_add = None
+        self._skipped_add = 0
+        self._add_worker = None
         self.external = {"building": None, "tools_busy": False}
         self._stamp = None
         self._active = False
@@ -231,7 +305,7 @@ class ManageDatabasesTab(WebTab):
             entry["model"] = manage_data.model_summary(entry["model_path"])
             name = entry["name"]
             names.add(name)
-            if not entry["folder"] or name == self.external["building"] or name == self._replacing():
+            if not entry["folder"] or name == self.external["building"] or name in (self._replacing(), self._mutating()):
                 continue
             cached = self.info.get(name)
             if cached is None or cached[0] != manage_data.signature(name):
@@ -273,7 +347,7 @@ class ManageDatabasesTab(WebTab):
         return self.task["name"] if self.task and self.task["kind"] in ("delete", "rebuild") else None
 
     def _mutating(self):
-        return self.task["name"] if self.task and self.task["kind"] == "remove_document" else None
+        return self.task["name"] if self.task and self.task["kind"] in ("remove_document", "add_documents") else None
 
     def _entry(self, name):
         return next((entry for entry in self.entries if entry["name"] == name), None)
@@ -366,6 +440,8 @@ class ManageDatabasesTab(WebTab):
     def blocked_reason(self):
         if self.task:
             return "Wait for the current task to finish."
+        if self.external["building"]:
+            return "A database is being created on the Create Database tab. Wait for it to finish."
         if self.external["tools_busy"]:
             return "A backup or restore is running on the Tools tab. Wait for it to finish."
         return None
@@ -393,13 +469,16 @@ class ManageDatabasesTab(WebTab):
         self._poll.stop()
         for worker in list(self._workers):
             worker.requestInterruption()
+            if isinstance(worker, DocumentAdditionWorker):
+                worker.cancel()
         for worker in list(self._workers):
-            worker.wait(10000 if isinstance(worker, (TaskWorker, DocumentMutationWorker)) else 3000)
+            worker.wait(10000 if isinstance(worker, (TaskWorker, DocumentMutationWorker, DocumentAdditionWorker)) else 3000)
 
     def js_select(self, name):
         if self._entry(name) is None:
             return {"error": "That database is no longer listed."}
         self.selected = name
+        self._pending_add = None
         self._ensure_files()
         self.schedule_push()
         return {"ok": True}
@@ -492,6 +571,117 @@ class ManageDatabasesTab(WebTab):
             }
         self.info.pop(database_name, None)
         self.files = None
+        self.refresh()
+
+    def _choose_add(self, name, folder):
+        entry = self._entry(name)
+        if name != self.selected or entry is None or not entry["folder"] or not entry["registered"]:
+            return {"error": "Select an available database first."}
+        reason = self.blocked_reason()
+        if reason:
+            return {"error": reason}
+        if not entry["model"] or not entry["model"]["downloaded"]:
+            return {"error": "Download this database's embedding model before adding documents."}
+        if folder:
+            chosen = QFileDialog.getExistingDirectory(self, "Choose folder to add", str(PROJECT_ROOT))
+            if not chosen:
+                return {"cancelled": True}
+            root = Path(chosen)
+            paths = sorted(p for p in root.iterdir() if p.is_file())
+            nested = sorted(p for p in root.rglob("*") if p.is_file() and p.parent != root
+                            and p.suffix.lower() in ALLOWED_EXTENSIONS)
+            if nested:
+                reply = QMessageBox.question(
+                    self, "Include Subdirectories?",
+                    f"This folder contains {sum(p.suffix.lower() in ALLOWED_EXTENSIONS for p in paths)} "
+                    f"compatible file(s) at the top level and {len(nested)} more in subdirectories.\n\n"
+                    "Include the subdirectory files as well?",
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+                )
+                if reply == QMessageBox.Yes:
+                    paths.extend(nested)
+        else:
+            chosen = QFileDialog.getOpenFileNames(self, "Choose files to add", str(PROJECT_ROOT))[0]
+            if not chosen:
+                return {"cancelled": True}
+            paths = [Path(p) for p in chosen]
+        compatible = [str(p) for p in paths if p.suffix.lower() in ALLOWED_EXTENSIONS]
+        skipped_count = sum(p.suffix.lower() not in ALLOWED_EXTENSIONS for p in paths)
+        if not compatible:
+            return {"error": "No supported files were selected."}
+        self._pending_add = {"name": name, "paths": compatible, "skipped_count": skipped_count}
+        return {"count": len(compatible), "skipped_count": skipped_count, "folder": folder}
+
+    def js_choose_add_files(self, name):
+        return self._choose_add(name, False)
+
+    def js_choose_add_folder(self, name):
+        return self._choose_add(name, True)
+
+    def js_cancel_add(self):
+        self._pending_add = None
+        return {"ok": True}
+
+    def js_add_documents(self, name):
+        pending = self._pending_add
+        if not pending or pending["name"] != name or name != self.selected:
+            return {"error": "The selected files changed. Choose them again."}
+        reason = self.blocked_reason()
+        if reason:
+            return {"error": reason}
+        entry = self._entry(name)
+        if not entry or not entry["model"] or not entry["model"]["downloaded"]:
+            return {"error": "Download this database's embedding model before adding documents."}
+        self._pending_add = None
+        self._skipped_add = pending["skipped_count"]
+        for worker in list(self._workers):
+            if isinstance(worker, (FilesWorker, InfoWorker)):
+                worker.requestInterruption()
+        self._files_token += 1
+        self.files = None
+        self.task = {"kind": "add_documents", "name": name, "count": len(pending["paths"])}
+        self.notice = None
+        worker = DocumentAdditionWorker(name, pending["paths"])
+        self._add_worker = worker
+        worker.progress.connect(self._on_add_progress)
+        worker.done.connect(self._on_documents_added)
+        self._start(worker)
+        self.schedule_push()
+        return {"ok": True}
+
+    def js_cancel_running_add(self):
+        if not self.task or self.task["kind"] != "add_documents":
+            return {"error": "No document addition is running."}
+        self.task["stage"] = "Cancelling"
+        self._add_worker.cancel()
+        self.schedule_push()
+        return {"ok": True}
+
+    def _on_add_progress(self, stage):
+        if self.task and self.task["kind"] == "add_documents":
+            self.task["stage"] = stage
+            self.schedule_push()
+
+    def _on_documents_added(self, name, result, error):
+        self.task = None
+        if error == "Cancelled by user.":
+            self.notice = {"kind": "info", "message": f"Stopped adding documents to {name}. Nothing was changed."}
+        elif error:
+            self.notice = {"kind": "error", "message": f"Documents could not be added to {name}: {error}"}
+        else:
+            added = result.get("added_documents", 0)
+            skipped = result.get("skipped", []) + result.get("not_added", [])
+            self.notice = {
+                "kind": "ok" if added else "warn",
+                "message": f"Added {added} document{'s' if added != 1 else ''} ({result.get('added_chunks', 0)} chunks) to {name}."
+                           if added else f"No new documents were added to {name}.",
+                "details": ([f"{self._skipped_add} unsupported file(s) excluded."] if self._skipped_add else [])
+                           + [f"Skipped: {item}" for item in skipped],
+            }
+        self.info.pop(name, None)
+        self.files = None
+        self._skipped_add = 0
+        self._add_worker = None
         self.refresh()
 
     def _begin(self, kind, name):
