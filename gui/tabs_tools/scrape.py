@@ -1,5 +1,6 @@
 import os
 import platform
+import re
 import shutil
 import subprocess
 import time
@@ -14,6 +15,11 @@ MAX_CONCURRENT_SCRAPES = 6
 QSETTINGS_ORG = "VectorDB-Plugin"
 QSETTINGS_APP = "ScrapeDocumentation"
 RATE_LIMITED_KEY = "rate_limited_scrapes"
+_NUMBER_RE = re.compile(r"(\d+)")
+
+
+def _natural_key(name):
+    return [int(part) if part.isdigit() else part.lower() for part in _NUMBER_RE.split(name)]
 
 
 def _load_rate_limited_set() -> set[str]:
@@ -74,7 +80,7 @@ class ScrapeTool(QObject):
         self.refresh()
 
     def doc_names(self):
-        return sorted(scrape_documentation.keys(), key=str.lower)
+        return sorted(scrape_documentation.keys(), key=_natural_key)
 
     def refresh(self):
         root = scraped_root()

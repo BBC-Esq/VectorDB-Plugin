@@ -2610,14 +2610,74 @@ scrape_documentation = {
         "folder": "torch_29",
         "scraper_class": "PyTorchScraper"
     },
+    "torch 2.10": {
+        "URL": "https://docs.pytorch.org/docs/2.10/",
+        "folder": "torch_210",
+        "scraper_class": "PyTorchScraper"
+    },
+    "torch 2.11": {
+        "URL": "https://docs.pytorch.org/docs/2.11/",
+        "folder": "torch_211",
+        "scraper_class": "PydataThemeScraper"
+    },
+    "torch 2.12": {
+        "URL": "https://docs.pytorch.org/docs/2.12/",
+        "folder": "torch_212",
+        "scraper_class": "PydataThemeScraper"
+    },
+    "torch 2.13": {
+        "URL": "https://docs.pytorch.org/docs/2.13/",
+        "folder": "torch_213",
+        "scraper_class": "PydataThemeScraper"
+    },
+    "torch 2.14": {
+        "URL": "https://docs.pytorch.org/docs/2.14/",
+        "folder": "torch_214",
+        "scraper_class": "PydataThemeScraper"
+    },
     "Torchaudio 2.9": {
         "URL": "https://docs.pytorch.org/audio/2.9.0/",
         "folder": "torchaudio_29",
         "scraper_class": "PyTorchScraper"
     },
+    "Torchaudio 2.10": {
+        "URL": "https://docs.pytorch.org/audio/2.10.0/",
+        "folder": "torchaudio_210",
+        "scraper_class": "PyTorchScraper"
+    },
+    "Torchaudio 2.11": {
+        "URL": "https://docs.pytorch.org/audio/2.11.0/",
+        "folder": "torchaudio_211",
+        "scraper_class": "PyTorchScraper"
+    },
     "Torchvision 0.24": {
         "URL": "https://docs.pytorch.org/vision/0.24/",
         "folder": "torchvision_024",
+        "scraper_class": "PyTorchScraper"
+    },
+    "Torchvision 0.25": {
+        "URL": "https://docs.pytorch.org/vision/0.25/",
+        "folder": "torchvision_025",
+        "scraper_class": "PyTorchScraper"
+    },
+    "Torchvision 0.26": {
+        "URL": "https://docs.pytorch.org/vision/0.26/",
+        "folder": "torchvision_026",
+        "scraper_class": "PyTorchScraper"
+    },
+    "Torchvision 0.27": {
+        "URL": "https://docs.pytorch.org/vision/0.27/",
+        "folder": "torchvision_027",
+        "scraper_class": "PyTorchScraper"
+    },
+    "Torchvision 0.28": {
+        "URL": "https://docs.pytorch.org/vision/0.28/",
+        "folder": "torchvision_028",
+        "scraper_class": "PyTorchScraper"
+    },
+    "Torchvision 0.29": {
+        "URL": "https://docs.pytorch.org/vision/0.29/",
+        "folder": "torchvision_029",
         "scraper_class": "PyTorchScraper"
     },
     "tqdm": {

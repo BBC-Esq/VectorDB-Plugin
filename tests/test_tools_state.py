@@ -156,6 +156,16 @@ def test_scrape_state_marks_scraped_docs(monkeypatch, tmp_path, scrape_settings)
     assert tool.selected == "aiohttp"
 
 
+def test_scrape_versions_sort_numerically(monkeypatch, tmp_path, scrape_settings):
+    monkeypatch.setattr(scrape, "PROJECT_ROOT", tmp_path)
+    names = [d["name"] for d in scrape.ScrapeTool(None).state()["docs"]]
+    assert [n for n in names if n.startswith("torch 2.")] == [
+        "torch 2.9", "torch 2.10", "torch 2.11", "torch 2.12", "torch 2.13", "torch 2.14"]
+    assert [n for n in names if n.startswith("Torchvision 0.")] == [f"Torchvision 0.{v}" for v in range(24, 30)]
+    assert [n for n in names if n.startswith("Torchaudio 2.")] == ["Torchaudio 2.9", "Torchaudio 2.10", "Torchaudio 2.11"]
+    assert names.index("aiohttp") < names.index("Beautiful Soup 4") < names.index("tqdm")
+
+
 def test_rate_limited_scrapes_survive_a_restart(monkeypatch, tmp_path, scrape_settings):
     monkeypatch.setattr(scrape, "PROJECT_ROOT", tmp_path)
     folder = tmp_path / "Scraped_Documentation" / scrape.scrape_documentation["anyio"]["folder"]
