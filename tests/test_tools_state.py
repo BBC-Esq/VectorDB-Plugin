@@ -164,6 +164,9 @@ def test_scrape_versions_sort_numerically(monkeypatch, tmp_path, scrape_settings
     assert [n for n in names if n.startswith("Torchvision 0.")] == [f"Torchvision 0.{v}" for v in range(24, 30)]
     assert [n for n in names if n.startswith("Torchaudio 2.")] == ["Torchaudio 2.9", "Torchaudio 2.10", "Torchaudio 2.11"]
     assert names.index("aiohttp") < names.index("Beautiful Soup 4") < names.index("tqdm")
+    accelerate = [n for n in names if n.startswith("Accelerate ")]
+    assert accelerate == sorted(accelerate, key=lambda n: tuple(int(p) for p in n.split()[1].split(".")))
+    assert accelerate[0] == "Accelerate 1.7.0" and accelerate[-1] == "Accelerate 1.15.0"
 
 
 def test_rate_limited_scrapes_survive_a_restart(monkeypatch, tmp_path, scrape_settings):

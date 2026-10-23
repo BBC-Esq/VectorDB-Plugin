@@ -90,6 +90,22 @@ class TestScraperSelectors:
             assert isinstance(tag, str), f"SCRAPER_SELECTORS['{key}'] tag is not a string"
 
 
+class TestDocumentationEntries:
+
+    def test_every_entry_names_a_known_scraper(self):
+        from core.constants import scrape_documentation
+        known = set(SCRAPER_SELECTORS) | set(ScraperRegistry._special_scrapers)
+        unknown = {n: e.get("scraper_class") for n, e in scrape_documentation.items()
+                   if e.get("scraper_class", "BaseScraper") not in known}
+        assert unknown == {}
+
+    def test_entries_have_unique_folders_and_web_urls(self):
+        from core.constants import scrape_documentation
+        folders = [e["folder"] for e in scrape_documentation.values()]
+        assert len(folders) == len(set(folders))
+        assert all(e["URL"].startswith("https://") for e in scrape_documentation.values())
+
+
 class TestUrlValidation:
 
     def test_valid_same_domain(self):

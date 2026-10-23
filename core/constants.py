@@ -2003,6 +2003,56 @@ scrape_documentation = {
         "folder": "accelerate_170",
         "scraper_class": "HuggingfaceScraper"
     },
+    "Accelerate 1.8.0": {
+        "URL": "https://huggingface.co/docs/accelerate/v1.8.0/en",
+        "folder": "accelerate_180",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Accelerate 1.8.1": {
+        "URL": "https://huggingface.co/docs/accelerate/v1.8.1/en",
+        "folder": "accelerate_181",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Accelerate 1.9.0": {
+        "URL": "https://huggingface.co/docs/accelerate/v1.9.0/en",
+        "folder": "accelerate_190",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Accelerate 1.10.0": {
+        "URL": "https://huggingface.co/docs/accelerate/v1.10.0/en",
+        "folder": "accelerate_1100",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Accelerate 1.10.1": {
+        "URL": "https://huggingface.co/docs/accelerate/v1.10.1/en",
+        "folder": "accelerate_1101",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Accelerate 1.11.0": {
+        "URL": "https://huggingface.co/docs/accelerate/v1.11.0/en",
+        "folder": "accelerate_1110",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Accelerate 1.12.0": {
+        "URL": "https://huggingface.co/docs/accelerate/v1.12.0/en",
+        "folder": "accelerate_1120",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Accelerate 1.13.0": {
+        "URL": "https://huggingface.co/docs/accelerate/v1.13.0/en",
+        "folder": "accelerate_1130",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Accelerate 1.14.0": {
+        "URL": "https://huggingface.co/docs/accelerate/v1.14.0/en",
+        "folder": "accelerate_1140",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Accelerate 1.15.0": {
+        "URL": "https://huggingface.co/docs/accelerate/v1.15.0/en",
+        "folder": "accelerate_1150",
+        "scraper_class": "HuggingfaceScraper"
+    },
     "aiohappyeyeballs": {
         "URL": "https://aiohappyeyeballs.readthedocs.io/en/stable/",
         "folder": "aiohappyeyeballs",
@@ -2043,6 +2093,36 @@ scrape_documentation = {
     "bitsandbytes 0.48.2": {
         "URL": "https://huggingface.co/docs/bitsandbytes/v0.48.2/en/",
         "folder": "bitsandbytes_0482",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "bitsandbytes 0.49.0": {
+        "URL": "https://huggingface.co/docs/bitsandbytes/v0.49.0/en/",
+        "folder": "bitsandbytes_0490",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "bitsandbytes 0.49.1": {
+        "URL": "https://huggingface.co/docs/bitsandbytes/v0.49.1/en/",
+        "folder": "bitsandbytes_0491",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "bitsandbytes 0.49.2": {
+        "URL": "https://huggingface.co/docs/bitsandbytes/v0.49.2/en/",
+        "folder": "bitsandbytes_0492",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "bitsandbytes 0.50.0": {
+        "URL": "https://huggingface.co/docs/bitsandbytes/v0.50.0/en/",
+        "folder": "bitsandbytes_0500",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "bitsandbytes 0.50.1": {
+        "URL": "https://huggingface.co/docs/bitsandbytes/v0.50.1/en/",
+        "folder": "bitsandbytes_0501",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "bitsandbytes 0.50.2": {
+        "URL": "https://huggingface.co/docs/bitsandbytes/v0.50.2/en/",
+        "folder": "bitsandbytes_0502",
         "scraper_class": "HuggingfaceScraper"
     },
     "cffi": {
@@ -2105,10 +2185,85 @@ scrape_documentation = {
         "folder": "datasets_0430",
         "scraper_class": "HuggingfaceScraper"
     },
+    "datasets 4.4.0": {
+        "URL": "https://huggingface.co/docs/datasets/v4.4.0/en/",
+        "folder": "datasets_0440",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "datasets 4.4.1": {
+        "URL": "https://huggingface.co/docs/datasets/v4.4.1/en/",
+        "folder": "datasets_0441",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "datasets 4.4.2": {
+        "URL": "https://huggingface.co/docs/datasets/v4.4.2/en/",
+        "folder": "datasets_0442",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "datasets 4.5.0": {
+        "URL": "https://huggingface.co/docs/datasets/v4.5.0/en/",
+        "folder": "datasets_0450",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "datasets 4.6.0": {
+        "URL": "https://huggingface.co/docs/datasets/v4.6.0/en/",
+        "folder": "datasets_0460",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "datasets 4.6.1": {
+        "URL": "https://huggingface.co/docs/datasets/v4.6.1/en/",
+        "folder": "datasets_0461",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "datasets 4.7.0": {
+        "URL": "https://huggingface.co/docs/datasets/v4.7.0/en/",
+        "folder": "datasets_0470",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "datasets 4.8.0": {
+        "URL": "https://huggingface.co/docs/datasets/v4.8.0/en/",
+        "folder": "datasets_0480",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "datasets 4.8.1": {
+        "URL": "https://huggingface.co/docs/datasets/v4.8.1/en/",
+        "folder": "datasets_0481",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "datasets 4.8.2": {
+        "URL": "https://huggingface.co/docs/datasets/v4.8.2/en/",
+        "folder": "datasets_0482",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "datasets 4.8.3": {
+        "URL": "https://huggingface.co/docs/datasets/v4.8.3/en/",
+        "folder": "datasets_0483",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "datasets 4.8.4": {
+        "URL": "https://huggingface.co/docs/datasets/v4.8.4/en/",
+        "folder": "datasets_0484",
+        "scraper_class": "HuggingfaceScraper"
+    },
     "deepdiff 8.6.1": {
         "URL": "https://zepworks.com/deepdiff/8.6.1/",
         "folder": "deepdiff_861",
         "scraper_class": "BodyRoleMainScraper"
+    },
+    "deepdiff 8.6.2": {
+        "URL": "https://zepworks.com/deepdiff/8.6.2/",
+        "folder": "deepdiff_862",
+        "scraper_class": "BodyRoleMainScraper"
+    },
+    "deepdiff 9.0.0": {
+        "URL": "https://zepworks.com/deepdiff/9.0.0/",
+        "folder": "deepdiff_900",
+        "scraper_class": "FuroThemeScraper"
+    },
+    "deepdiff 9.1.0": {
+        "URL": "https://zepworks.com/deepdiff/9.1.0/",
+        "folder": "deepdiff_910",
+        "scraper_class": "FuroThemeScraper"
     },
     "Deprecated": {
         "URL": "https://deprecated.readthedocs.io/en/latest/",
@@ -2123,6 +2278,46 @@ scrape_documentation = {
     "Diffusers 0.35.0": {
         "URL": "https://huggingface.co/docs/diffusers/v0.35.0/en/",
         "folder": "diffusers_0350",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Diffusers 0.35.1": {
+        "URL": "https://huggingface.co/docs/diffusers/v0.35.1/en/",
+        "folder": "diffusers_0351",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Diffusers 0.36.0": {
+        "URL": "https://huggingface.co/docs/diffusers/v0.36.0/en/",
+        "folder": "diffusers_0360",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Diffusers 0.37.0": {
+        "URL": "https://huggingface.co/docs/diffusers/v0.37.0/en/",
+        "folder": "diffusers_0370",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Diffusers 0.37.1": {
+        "URL": "https://huggingface.co/docs/diffusers/v0.37.1/en/",
+        "folder": "diffusers_0371",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Diffusers 0.38.0": {
+        "URL": "https://huggingface.co/docs/diffusers/v0.38.0/en/",
+        "folder": "diffusers_0380",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Diffusers 0.39.0": {
+        "URL": "https://huggingface.co/docs/diffusers/v0.39.0/en/",
+        "folder": "diffusers_0390",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Diffusers 0.40.0": {
+        "URL": "https://huggingface.co/docs/diffusers/v0.40.0/en/",
+        "folder": "diffusers_0400",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Diffusers 0.41.0": {
+        "URL": "https://huggingface.co/docs/diffusers/v0.41.0/en/",
+        "folder": "diffusers_0410",
         "scraper_class": "HuggingfaceScraper"
     },
     "dill": {
@@ -2203,6 +2398,26 @@ scrape_documentation = {
     "Huggingface Hub 1.33.0": {
         "URL": "https://huggingface.co/docs/huggingface_hub/v1.33.0/en/",
         "folder": "huggingface_hub_1330",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Huggingface Hub 2.0.0": {
+        "URL": "https://huggingface.co/docs/huggingface_hub/v2.0.0/en/",
+        "folder": "huggingface_hub_200",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Huggingface Hub 2.1.0": {
+        "URL": "https://huggingface.co/docs/huggingface_hub/v2.1.0/en/",
+        "folder": "huggingface_hub_210",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Huggingface Hub 2.1.1": {
+        "URL": "https://huggingface.co/docs/huggingface_hub/v2.1.1/en/",
+        "folder": "huggingface_hub_211",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Huggingface Hub 2.2.0": {
+        "URL": "https://huggingface.co/docs/huggingface_hub/v2.2.0/en/",
+        "folder": "huggingface_hub_220",
         "scraper_class": "HuggingfaceScraper"
     },
     "humanfriendly": {
@@ -2525,6 +2740,16 @@ scrape_documentation = {
         "folder": "scipy_1162",
         "scraper_class": "PydataThemeScraper",
     },
+    "SciPy 1.17.0": {
+        "URL": "https://docs.scipy.org/doc/scipy-1.17.0/",
+        "folder": "scipy_1170",
+        "scraper_class": "PydataThemeScraper"
+    },
+    "SciPy 1.18.0": {
+        "URL": "https://docs.scipy.org/doc/scipy-1.18.0/",
+        "folder": "scipy_1180",
+        "scraper_class": "PydataThemeScraper"
+    },
     "Sentence-Transformers": {
         "URL": "https://www.sbert.net/docs",
         "folder": "sentence_transformers",
@@ -2555,6 +2780,21 @@ scrape_documentation = {
         "folder": "sounddevice_053",
         "scraper_class": "BodyRoleMainScraper"
     },
+    "sounddevice 0.5.4": {
+        "URL": "https://python-sounddevice.readthedocs.io/en/0.5.4/",
+        "folder": "sounddevice_054",
+        "scraper_class": "BodyRoleMainScraper"
+    },
+    "sounddevice 0.5.5": {
+        "URL": "https://python-sounddevice.readthedocs.io/en/0.5.5/",
+        "folder": "sounddevice_055",
+        "scraper_class": "BodyRoleMainScraper"
+    },
+    "sounddevice 0.5.6": {
+        "URL": "https://python-sounddevice.readthedocs.io/en/0.5.6/",
+        "folder": "sounddevice_056",
+        "scraper_class": "BodyRoleMainScraper"
+    },
     "Soupsieve": {
         "URL": "https://facelessuser.github.io/soupsieve/",
         "folder": "soupsieve",
@@ -2568,6 +2808,11 @@ scrape_documentation = {
     "SQLAlchemy 20": {
         "URL": "https://docs.sqlalchemy.org/en/20/",
         "folder": "sqlalchemy_20",
+        "scraper_class": "DivIdDocsBodyScraper"
+    },
+    "SQLAlchemy 21": {
+        "URL": "https://docs.sqlalchemy.org/en/21/",
+        "folder": "sqlalchemy_21",
         "scraper_class": "DivIdDocsBodyScraper"
     },
     "sympy": {
@@ -2600,9 +2845,79 @@ scrape_documentation = {
         "folder": "timm_1020",
         "scraper_class": "HuggingfaceScraper"
     },
+    "Timm 1.0.21": {
+        "URL": "https://huggingface.co/docs/timm/v1.0.21/en/",
+        "folder": "timm_1021",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Timm 1.0.22": {
+        "URL": "https://huggingface.co/docs/timm/v1.0.22/en/",
+        "folder": "timm_1022",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Timm 1.0.23": {
+        "URL": "https://huggingface.co/docs/timm/v1.0.23/en/",
+        "folder": "timm_1023",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Timm 1.0.24": {
+        "URL": "https://huggingface.co/docs/timm/v1.0.24/en/",
+        "folder": "timm_1024",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Timm 1.0.25": {
+        "URL": "https://huggingface.co/docs/timm/v1.0.25/en/",
+        "folder": "timm_1025",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Timm 1.0.26": {
+        "URL": "https://huggingface.co/docs/timm/v1.0.26/en/",
+        "folder": "timm_1026",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Timm 1.0.27": {
+        "URL": "https://huggingface.co/docs/timm/v1.0.27/en/",
+        "folder": "timm_1027",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Timm 1.0.28": {
+        "URL": "https://huggingface.co/docs/timm/v1.0.28/en/",
+        "folder": "timm_1028",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Timm 1.0.29": {
+        "URL": "https://huggingface.co/docs/timm/v1.0.29/en/",
+        "folder": "timm_1029",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Timm 1.0.30": {
+        "URL": "https://huggingface.co/docs/timm/v1.0.30/en/",
+        "folder": "timm_1030",
+        "scraper_class": "HuggingfaceScraper"
+    },
     "tokenizers 0.22.1": {
         "URL": "https://huggingface.co/docs/tokenizers/v0.22.1/en",
         "folder": "tokenizers_0221",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "tokenizers 0.22.2": {
+        "URL": "https://huggingface.co/docs/tokenizers/v0.22.2/en",
+        "folder": "tokenizers_0222",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "tokenizers 0.23.1": {
+        "URL": "https://huggingface.co/docs/tokenizers/v0.23.1/en",
+        "folder": "tokenizers_0231",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "tokenizers 0.23.2": {
+        "URL": "https://huggingface.co/docs/tokenizers/v0.23.2/en",
+        "folder": "tokenizers_0232",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "tokenizers 0.23.3": {
+        "URL": "https://huggingface.co/docs/tokenizers/v0.23.3/en",
+        "folder": "tokenizers_0233",
         "scraper_class": "HuggingfaceScraper"
     },
     "torch 2.9": {
@@ -2688,6 +3003,26 @@ scrape_documentation = {
     "Transformers 5.17.0": {
         "URL": "https://huggingface.co/docs/transformers/v5.17.0/en",
         "folder": "transformers_5170",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Transformers 5.19.0": {
+        "URL": "https://huggingface.co/docs/transformers/v5.19.0/en",
+        "folder": "transformers_5190",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Transformers 5.20.0": {
+        "URL": "https://huggingface.co/docs/transformers/v5.20.0/en",
+        "folder": "transformers_5200",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Transformers 5.20.1": {
+        "URL": "https://huggingface.co/docs/transformers/v5.20.1/en",
+        "folder": "transformers_5201",
+        "scraper_class": "HuggingfaceScraper"
+    },
+    "Transformers 5.20.2": {
+        "URL": "https://huggingface.co/docs/transformers/v5.20.2/en",
+        "folder": "transformers_5202",
         "scraper_class": "HuggingfaceScraper"
     },
     "typing_extensions": {
