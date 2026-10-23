@@ -8,12 +8,15 @@ from bs4 import BeautifulSoup
 import modules.scraper as scraper_module
 from modules.scraper import (
     BaseScraper,
+    HuggingfacePacedScraper,
     MintlifyScraper,
     SelectorScraper,
     ScraperRegistry,
     ScraperWorker,
     SCRAPER_SELECTORS,
+    _RateLimitPacer,
     _mintlify_convert_alerts,
+    _parse_rate_limit,
     _mintlify_strip_injected_headers,
     render_openapi_spec_overview,
 )
@@ -292,3 +295,84 @@ class TestMintlifyScraper:
             assert 'href="https://docs.example.com/guides/start"' in handle.read()
         assert fetch("https://docs.example.com/older/start") == set()
         assert [f for f in os.listdir(worker.save_dir) if f.endswith(".html")] == [os.path.basename(final_file)]
+
+
+HF_PAGE = '<html><body><div class="prose-doc prose relative mx-auto max-w-4xl break-words"><p>Pipelines guide</p></div></body></html>'
+
+
+class _HfResponse:
+    def __init__(self, status, ratelimit=None, url="https://huggingface.co/docs/transformers/v1/en/pipelines"):
+        self.url = url
+        self.status_code = status
+        self.headers = {"content-type": "text/html"}
+        if ratelimit:
+            self.headers["ratelimit"] = ratelimit
+        self.text = HF_PAGE
+
+
+class _ScriptedSession:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = 0
+
+    async def get(self, url, timeout=30, allow_redirects=True):
+        self.calls += 1
+        return self.responses.pop(0)
+
+
+class TestHuggingfaceRateLimit:
+
+    URL = "https://huggingface.co/docs/transformers/v1/en/pipelines"
+
+    def _fetch(self, worker, session, tmp_path):
+        return asyncio.run(worker.fetch(session, self.URL, "huggingface.co", asyncio.BoundedSemaphore(1),
+                                        worker.save_dir, str(tmp_path / "failed.log"), "/docs/transformers/v1/en"))
+
+    def test_header_is_parsed(self):
+        assert _parse_rate_limit('"pages";r=72;t=143') == (72, 143)
+        assert _parse_rate_limit("") is None
+        assert _parse_rate_limit('"pages";q=100;w=300') is None
+
+    def test_only_transformers_entries_are_paced(self):
+        from core.constants import scrape_documentation
+        assert ScraperRegistry.get_scraper("HuggingfacePacedScraper") is HuggingfacePacedScraper
+        paced = HuggingfacePacedScraper("https://huggingface.co/docs/transformers/v1/en", "x")
+        assert paced.follows_rate_limit_header
+        assert "Pipelines guide" in paced.extract_main_content(BeautifulSoup(HF_PAGE, "lxml")).get_text()
+        plain = ScraperRegistry.get_scraper("HuggingfaceScraper")("https://huggingface.co/docs/accelerate/v1/en", "y")
+        assert not getattr(plain, "follows_rate_limit_header", False)
+        names = {n for n, e in scrape_documentation.items() if e.get("scraper_class") == "HuggingfacePacedScraper"}
+        assert names and names == {n for n in scrape_documentation if n.startswith("Transformers ")}
+
+    def test_paced_scraper_waits_out_a_429_and_saves_the_page(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(scraper_module, "PROJECT_ROOT", tmp_path)
+        monkeypatch.setattr(_RateLimitPacer, "UNKNOWN_SPACING", 0)
+        monkeypatch.setattr(_RateLimitPacer, "RESET_GRACE", 0)
+        worker = ScraperWorker(self.URL, "paced", HuggingfacePacedScraper, name="Transformers")
+        session = _ScriptedSession([_HfResponse(429, '"pages";r=0;t=0'), _HfResponse(200, '"pages";r=99;t=300')])
+        self._fetch(worker, session, tmp_path)
+        assert session.calls == 2
+        assert os.path.exists(worker._html_path(self.URL))
+        assert not (tmp_path / "failed.log").exists()
+        assert not worker._rate_limited
+
+    def test_other_huggingface_docs_keep_the_old_429_handling(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(scraper_module, "PROJECT_ROOT", tmp_path)
+        worker = ScraperWorker(self.URL, "plain", ScraperRegistry.get_scraper("HuggingfaceScraper"), name="Accelerate")
+        session = _ScriptedSession([_HfResponse(429, '"pages";r=0;t=0'), _HfResponse(200)])
+        assert self._fetch(worker, session, tmp_path) == set()
+        assert session.calls == 1
+        assert not os.path.exists(worker._html_path(self.URL))
+        assert (tmp_path / "failed.log").read_text(encoding="utf-8").strip() == self.URL
+
+    def test_pacer_spreads_the_remaining_budget_over_the_window(self, monkeypatch):
+        monkeypatch.setattr(_RateLimitPacer, "UNKNOWN_SPACING", 0)
+
+        async def scenario():
+            pacer = _RateLimitPacer()
+            await pacer.wait_turn()
+            pacer.observe(_HfResponse(200, '"pages";r=12;t=10'))
+            await pacer.wait_turn()
+            return pacer._next_at - asyncio.get_running_loop().time()
+
+        assert 0.9 < asyncio.run(scenario()) <= 1.0

@@ -3003,27 +3003,27 @@ scrape_documentation = {
     "Transformers 5.17.0": {
         "URL": "https://huggingface.co/docs/transformers/v5.17.0/en",
         "folder": "transformers_5170",
-        "scraper_class": "HuggingfaceScraper"
+        "scraper_class": "HuggingfacePacedScraper"
     },
     "Transformers 5.19.0": {
         "URL": "https://huggingface.co/docs/transformers/v5.19.0/en",
         "folder": "transformers_5190",
-        "scraper_class": "HuggingfaceScraper"
+        "scraper_class": "HuggingfacePacedScraper"
     },
     "Transformers 5.20.0": {
         "URL": "https://huggingface.co/docs/transformers/v5.20.0/en",
         "folder": "transformers_5200",
-        "scraper_class": "HuggingfaceScraper"
+        "scraper_class": "HuggingfacePacedScraper"
     },
     "Transformers 5.20.1": {
         "URL": "https://huggingface.co/docs/transformers/v5.20.1/en",
         "folder": "transformers_5201",
-        "scraper_class": "HuggingfaceScraper"
+        "scraper_class": "HuggingfacePacedScraper"
     },
     "Transformers 5.20.2": {
         "URL": "https://huggingface.co/docs/transformers/v5.20.2/en",
         "folder": "transformers_5202",
-        "scraper_class": "HuggingfaceScraper"
+        "scraper_class": "HuggingfacePacedScraper"
     },
     "typing_extensions": {
         "URL": "https://typing-extensions.readthedocs.io/en/stable/",

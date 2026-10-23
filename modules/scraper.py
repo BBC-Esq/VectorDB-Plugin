@@ -161,6 +161,13 @@ class SelectorScraper(BaseScraper):
         return soup.find(self._tag, **self._kwargs)
 
 
+class HuggingfacePacedScraper(SelectorScraper):
+    follows_rate_limit_header = True
+
+    def __init__(self, url, folder):
+        super().__init__(url, folder, "HuggingfaceScraper")
+
+
 class PymupdfScraper(BaseScraper):
     def extract_main_content(self, soup):
         article_container = soup.find("div", class_="article-container")
@@ -994,6 +1001,7 @@ class ScraperRegistry:
         "DivIdContentSecondScraper": DivIdContentSecondScraper,
         "PropCacheScraper": PropCacheScraper,
         "MintlifyScraper": MintlifyScraper,
+        "HuggingfacePacedScraper": HuggingfacePacedScraper,
         "FileDownloader": FileDownloader,
     }
 
@@ -1005,6 +1013,77 @@ class ScraperRegistry:
             key = scraper_name
             return lambda url, folder: SelectorScraper(url, folder, key)
         return BaseScraper
+
+
+def _parse_rate_limit(value):
+    if not value:
+        return None
+    remaining = re.search(r"\br=(\d+)", value)
+    reset_in = re.search(r"\bt=(\d+)", value)
+    if not remaining or not reset_in:
+        return None
+    return int(remaining.group(1)), int(reset_in.group(1))
+
+
+class _RateLimitPacer:
+    SAFETY_MARGIN = 2
+    UNKNOWN_SPACING = 1.0
+    RESET_GRACE = 1.0
+    FALLBACK_WAIT = 60
+
+    def __init__(self):
+        self._lock = asyncio.Lock()
+        self._remaining = None
+        self._reset_at = 0.0
+        self._next_at = 0.0
+
+    async def wait_turn(self):
+        loop = asyncio.get_running_loop()
+        async with self._lock:
+            while True:
+                now = loop.time()
+                if self._remaining is not None and now >= self._reset_at:
+                    self._remaining = None
+                if self._remaining is not None and self._remaining <= self.SAFETY_MARGIN:
+                    await asyncio.sleep(self._reset_at - now + self.RESET_GRACE)
+                    continue
+                if self._next_at > now:
+                    await asyncio.sleep(self._next_at - now)
+                    continue
+                break
+            if self._remaining is None:
+                self._next_at = now + self.UNKNOWN_SPACING
+            else:
+                self._next_at = now + (self._reset_at - now) / (self._remaining - self.SAFETY_MARGIN)
+                self._remaining -= 1
+
+    def observe(self, response):
+        limit = _parse_rate_limit(response.headers.get("ratelimit"))
+        if limit is None:
+            return
+        remaining, reset_in = limit
+        reset_at = asyncio.get_running_loop().time() + reset_in
+        if self._remaining is not None and abs(reset_at - self._reset_at) < 2:
+            remaining = min(remaining, self._remaining)
+        self._remaining = remaining
+        self._reset_at = reset_at
+
+    def hold(self, response):
+        limit = _parse_rate_limit(response.headers.get("ratelimit"))
+        if limit is not None:
+            wait = limit[1]
+        else:
+            retry_after = str(response.headers.get("retry-after", ""))
+            wait = int(retry_after) if retry_after.isdigit() else self.FALLBACK_WAIT
+        now = asyncio.get_running_loop().time()
+        already_held = (
+            self._remaining is not None
+            and self._remaining <= self.SAFETY_MARGIN
+            and self._reset_at > now
+        )
+        self._remaining = 0
+        self._reset_at = max(self._reset_at, now + wait) if already_held else now + wait
+        return not already_held
 
 
 class ScraperWorker(QObject):
@@ -1030,6 +1109,7 @@ class ScraperWorker(QObject):
         self._429s_since_last_success = 0
         self.resume = resume
         self._log_lock = None
+        self._pacer = _RateLimitPacer() if getattr(self.scraper, "follows_rate_limit_header", False) else None
 
     def run(self):
         self._loop = asyncio.new_event_loop()
@@ -1233,7 +1313,7 @@ class ScraperWorker(QObject):
                     await self.log_failed_url(url, log_file)
                     return set()
                 try:
-                    response = await session.get(fetch_url, timeout=30, allow_redirects=True)
+                    response = await self._get(session, fetch_url)
                 except (asyncio.TimeoutError, RequestsError, OSError):
                     if attempt == retries:
                         await self.log_failed_url(url, log_file)
@@ -1294,6 +1374,22 @@ class ScraperWorker(QObject):
                 self._emit_count()
                 return links
         return set()
+
+    async def _get(self, session, fetch_url):
+        if self._pacer is None:
+            return await session.get(fetch_url, timeout=30, allow_redirects=True)
+        while True:
+            await self._pacer.wait_turn()
+            response = await session.get(fetch_url, timeout=30, allow_redirects=True)
+            if response.status_code != 429:
+                self._pacer.observe(response)
+                return response
+            if self._pacer.hold(response):
+                self._429s_since_last_success += 1
+                if self._429s_since_last_success >= self.RATE_LIMIT_THRESHOLD:
+                    self._rate_limited = True
+            if self._rate_limited or self._cancelled:
+                return response
 
     async def save_html(self, content, url, save_dir, links=None):
         filename = self._html_path(url)
