@@ -5,6 +5,7 @@ import asyncio
 import textwrap
 import aiofiles
 import markdown
+import yaml
 from bs4 import BeautifulSoup
 from copy import deepcopy
 import hashlib
@@ -307,7 +308,567 @@ def _mintlify_strip_leftover_tags(md_text):
     return "\n".join(out)
 
 
+_MINTLIFY_ALERT_RE = re.compile(
+    r"^(\s*>\s*)\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|INFO|DANGER|SUCCESS|CHECK)\][ \t]*(.*)$",
+    re.IGNORECASE,
+)
+_OPENAPI_BLOCK_RE = re.compile(
+    r"^## OpenAPI[ \t]*\n+(`{3,})ya?ml[ \t]+\S+[ \t]+(\w+)[ \t]+(\S+)[ \t]*\n(.*?)\n\1[ \t]*$",
+    re.MULTILINE | re.DOTALL,
+)
+_OPENAPI_SPEC_SUFFIXES = (".yaml", ".yml", ".json")
+_MINTLIFY_NON_PAGE_SUFFIXES = (
+    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".bmp", ".avif", ".pdf", ".zip", ".gz", ".tgz",
+    ".mp4", ".webm", ".mov", ".mp3", ".wav", ".css", ".js", ".woff", ".woff2", ".ttf", ".txt", ".csv", ".xml",
+)
+_OPENAPI_HTTP_METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
+_OPENAPI_FENCE_LANGS = {"curl": "bash", "shell": "bash", "sh": "bash", "c#": "csharp", "node": "javascript", "js": "javascript"}
+_OPENAPI_MAX_DEPTH = 6
+_OPENAPI_MAX_EXAMPLE_CHARS = 3000
+_OPENAPI_MAX_INLINE_EXAMPLE_CHARS = 120
+_MARKDOWN_EXTENSIONS = ["fenced_code", "tables", "attr_list"]
+
+
+def _mintlify_strip_injected_headers(md_text):
+    lines = md_text.split("\n")
+    i = 0
+    while True:
+        while i < len(lines) and not lines[i].strip():
+            i += 1
+        if i < len(lines) and lines[i].startswith("> ## "):
+            while i < len(lines) and lines[i].startswith(">"):
+                i += 1
+            continue
+        return "\n".join(lines[i:])
+
+
+def _mintlify_convert_alerts(md_text):
+    lines = md_text.split("\n")
+    out = []
+    in_fence = False
+    for i, line in enumerate(lines):
+        if line is None:
+            continue
+        if _MINTLIFY_FENCE_TOGGLE_RE.match(line):
+            in_fence = not in_fence
+        elif not in_fence:
+            m = _MINTLIFY_ALERT_RE.match(line)
+            if m:
+                label = m.group(2).capitalize()
+                rest = m.group(3).strip()
+                if not rest:
+                    j = i + 1
+                    while j < len(lines) and lines[j] is not None and lines[j].strip() == ">":
+                        j += 1
+                    if j < len(lines) and lines[j] is not None and re.fullmatch(
+                        rf"\s*>\s*\**{label}\**:?\s*", lines[j], flags=re.IGNORECASE
+                    ):
+                        lines[j] = None
+                line = f"{m.group(1)}**{label}:**" + (f" {rest}" if rest else "")
+        out.append(line)
+    return "\n".join(out)
+
+
+_HTML_TAG_NAMES = frozenset((
+    "a", "abbr", "b", "blockquote", "br", "caption", "center", "code", "col", "colgroup", "dd", "del", "details",
+    "div", "dl", "dt", "em", "figcaption", "figure", "font", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "img",
+    "ins", "kbd", "li", "mark", "ol", "p", "pre", "s", "small", "span", "strong", "sub", "summary", "sup", "table",
+    "tbody", "td", "tfoot", "th", "thead", "tr", "u", "ul",
+))
+_ANGLE_TAG_RE = re.compile(r"<(/?)([A-Za-z][A-Za-z0-9_-]*)([^<>]*)>")
+
+
+def _escape_placeholders(text):
+    def repl(m):
+        whole = m.group(0)
+        if m.group(2).lower() in _HTML_TAG_NAMES or "://" in whole or "@" in whole:
+            return whole
+        return "&lt;" + whole[1:-1] + "&gt;"
+
+    out = []
+    in_fence = False
+    for line in str(text).split("\n"):
+        if _MINTLIFY_FENCE_TOGGLE_RE.match(line):
+            in_fence = not in_fence
+        elif not in_fence:
+            parts = _MINTLIFY_INLINE_CODE_RE.split(line)
+            for k in range(0, len(parts), 2):
+                parts[k] = _ANGLE_TAG_RE.sub(repl, parts[k])
+            line = "".join(parts)
+        out.append(line)
+    return "\n".join(out)
+
+
+def _block(text):
+    return _escape_placeholders(str(text).strip())
+
+
+def _fenced(code, lang=""):
+    code = str(code).rstrip("\n")
+    longest = max((len(run) for run in re.findall(r"`{3,}", code)), default=0)
+    fence = "`" * max(3, longest + 1)
+    return [f"{fence}{lang}", code, fence]
+
+
+_MD_TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$")
+_MD_HEADING_RE = re.compile(r"^(#{1,6})(\s)")
+
+
+def _flatten_md_tables(text):
+    out, table = [], []
+
+    def flush():
+        rows = [[cell.strip() for cell in row.strip().strip("|").split("|")]
+                for row in table if not _MD_TABLE_SEPARATOR_RE.match(row)]
+        if len(rows) >= 2:
+            header, sentences = rows[0], []
+            for row in rows[1:]:
+                if len(header) == 2 and len(row) >= 2:
+                    sentence = f"{row[0]}: {row[1].rstrip('.')}"
+                else:
+                    sentence = "; ".join(f"{h}: {c}" for h, c in zip(header, row) if c).rstrip(".")
+                if sentence:
+                    sentences.append(sentence + ".")
+            out.append(" ".join(sentences))
+        else:
+            out.extend(table)
+        table.clear()
+
+    for line in str(text).split("\n"):
+        if line.strip().startswith("|"):
+            table.append(line)
+            continue
+        flush()
+        out.append(line)
+    flush()
+    return "\n".join(out)
+
+
+def _demote_headings(text, levels):
+    out = []
+    in_fence = False
+    for line in str(text).split("\n"):
+        if _MINTLIFY_FENCE_TOGGLE_RE.match(line):
+            in_fence = not in_fence
+        elif not in_fence:
+            line = _MD_HEADING_RE.sub(lambda m: "#" * min(6, len(m.group(1)) + levels) + m.group(2), line, count=1)
+        out.append(line)
+    return "\n".join(out)
+
+
+def _inline(text):
+    return _escape_placeholders(" ".join(_flatten_md_tables(text).split()))
+
+
+def _normalized(text):
+    return " ".join(str(text).split()).lower()
+
+
+class _OpenApiRenderer:
+    def __init__(self, spec):
+        self.spec = spec if isinstance(spec, dict) else {}
+
+    def _lookup(self, ref):
+        if not isinstance(ref, str) or not ref.startswith("#/"):
+            return None
+        node = self.spec
+        for part in ref[2:].split("/"):
+            part = part.replace("~1", "/").replace("~0", "~")
+            if not isinstance(node, dict) or part not in node:
+                return None
+            node = node[part]
+        return node
+
+    def resolve(self, node):
+        name = None
+        seen = set()
+        while isinstance(node, dict) and "$ref" in node:
+            ref = node["$ref"]
+            if ref in seen:
+                break
+            seen.add(ref)
+            target = self._lookup(ref)
+            if not isinstance(target, dict):
+                break
+            siblings = {k: v for k, v in node.items() if k != "$ref"}
+            name = ref.rsplit("/", 1)[-1]
+            node = {**target, **siblings} if siblings else target
+        return (node if isinstance(node, dict) else {}), name
+
+    def merge(self, node, depth=0):
+        schema, name = self.resolve(node)
+        if "allOf" not in schema or depth > _OPENAPI_MAX_DEPTH:
+            return schema, name
+        merged = {k: v for k, v in schema.items() if k not in ("allOf", "properties", "required")}
+        properties = {}
+        required = []
+        for part in schema.get("allOf") or []:
+            sub, _ = self.merge(part, depth + 1)
+            properties.update(sub.get("properties") or {})
+            required.extend(sub.get("required") or [])
+            for key, value in sub.items():
+                if key not in ("properties", "required") and key not in merged:
+                    merged[key] = value
+        properties.update(schema.get("properties") or {})
+        required.extend(schema.get("required") or [])
+        if properties:
+            merged["properties"] = properties
+        if required:
+            merged["required"] = list(dict.fromkeys(required))
+        return merged, name
+
+    @staticmethod
+    def _is_array(schema):
+        types = schema.get("type")
+        return types == "array" or (isinstance(types, list) and "array" in types) or "items" in schema
+
+    def _has_fields(self, node, depth=0):
+        if depth > _OPENAPI_MAX_DEPTH:
+            return False
+        schema, _ = self.merge(node)
+        if schema.get("properties"):
+            return True
+        if self._is_array(schema):
+            return self._has_fields(schema.get("items") or {}, depth + 1)
+        options = schema.get("oneOf") or schema.get("anyOf") or []
+        if any(self._has_fields(option, depth + 1) for option in options):
+            return True
+        additional = schema.get("additionalProperties")
+        return isinstance(additional, dict) and self._has_fields(additional, depth + 1)
+
+    def type_label(self, node, depth=0):
+        schema, name = self.merge(node)
+        if depth > _OPENAPI_MAX_DEPTH:
+            return name or "object"
+        for key in ("oneOf", "anyOf"):
+            options = schema.get(key)
+            if options:
+                labels = [self.type_label(option, depth + 1) for option in options]
+                return " or ".join(dict.fromkeys(label for label in labels if label))
+        types = schema.get("type")
+        if isinstance(types, list):
+            return " or ".join(dict.fromkeys(self._single_type(schema, t, name, depth) for t in types))
+        return self._single_type(schema, types, name, depth)
+
+    def _single_type(self, schema, type_name, name, depth):
+        if type_name == "array" or (type_name is None and "items" in schema):
+            return f"array of {self.type_label(schema.get('items') or {}, depth + 1)}"
+        if type_name == "object" or (type_name is None and "properties" in schema):
+            additional = schema.get("additionalProperties")
+            if not schema.get("properties") and isinstance(additional, dict):
+                return f"map of {self.type_label(additional, depth + 1)}"
+            return f"{name} object" if name else "object"
+        if type_name is None:
+            if "const" in schema:
+                return type(schema["const"]).__name__.replace("str", "string")
+            return name or "any"
+        fmt = schema.get("format")
+        return f"{type_name} ({fmt})" if fmt else str(type_name)
+
+    @staticmethod
+    def _value(value):
+        return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+
+    @staticmethod
+    def constraints(schema):
+        notes = []
+        for key, label in (("deprecated", "deprecated"), ("readOnly", "read-only"), ("writeOnly", "write-only")):
+            if schema.get(key):
+                notes.append(label)
+        for key, label in (("minLength", "min length"), ("maxLength", "max length"), ("minimum", "minimum"),
+                           ("maximum", "maximum"), ("minItems", "min items"), ("maxItems", "max items")):
+            if key in schema:
+                notes.append(f"{label} {schema[key]}")
+        if "pattern" in schema:
+            notes.append(f"pattern `{schema['pattern']}`")
+        return notes
+
+    def extras(self, schema):
+        parts = []
+        if "const" in schema:
+            parts.append(f"Always `{self._value(schema['const'])}`.")
+        if schema.get("enum"):
+            parts.append("Allowed values: " + ", ".join(f"`{self._value(v)}`" for v in schema["enum"]) + ".")
+        default = None
+        for key in ("default", "x-default"):
+            if key in schema:
+                default = schema[key]
+                parts.append(f"Default: `{self._value(default)}`.")
+                break
+        example = schema.get("example")
+        if example is None and isinstance(schema.get("examples"), list) and schema["examples"]:
+            example = schema["examples"][0]
+        if example is not None and example != default and not isinstance(example, (dict, list)):
+            text = _inline(self._value(example))
+            if text and len(text) <= _OPENAPI_MAX_INLINE_EXAMPLE_CHARS:
+                parts.append(f"Example: `{text}`.")
+        return parts
+
+    def field(self, prop, node, is_required, level, expanded, depth):
+        schema, _ = self.merge(node)
+        details = [self.type_label(node), "required" if is_required else "optional"] + self.constraints(schema)
+        sentences = []
+        description = _inline(schema.get("description") or schema.get("title") or "")
+        if description:
+            sentences.append(description)
+        sentences.extend(self.extras(schema))
+        if self._is_array(schema) and "enum" not in schema:
+            items, _ = self.merge(schema.get("items") or {})
+            if items.get("enum"):
+                sentences.extend(s for s in self.extras(items) if s.startswith("Allowed"))
+        line = f"{'    ' * level}- `{prop}` ({', '.join(details)})"
+        if sentences:
+            line += ": " + " ".join(sentences)
+        return [line] + self.children(node, level + 1, expanded, depth + 1)
+
+    def field_lines(self, schema, level, expanded, depth=0):
+        required = set(schema.get("required") or [])
+        lines = []
+        for prop, sub in (schema.get("properties") or {}).items():
+            lines.extend(self.field(prop, sub, prop in required, level, expanded, depth))
+        return lines
+
+    def children(self, node, level, expanded, depth):
+        if depth > _OPENAPI_MAX_DEPTH:
+            return []
+        schema, name = self.merge(node)
+        indent = "    " * level
+        if self._is_array(schema):
+            return self.children(schema.get("items") or {}, level, expanded, depth)
+        options = schema.get("oneOf") or schema.get("anyOf")
+        if options:
+            with_fields = [option for option in options if self._has_fields(option)]
+            if len(with_fields) == 1:
+                return self.children(with_fields[0], level, expanded, depth)
+            lines = []
+            for option in with_fields:
+                option_schema, option_name = self.merge(option)
+                label = option_name or option_schema.get("title") or "object"
+                description = _inline(option_schema.get("description") or "")
+                lines.append(f"{indent}- One option, `{label}`" + (f": {description}" if description else ""))
+                lines.extend(self.children(option, level + 1, expanded, depth + 1))
+            return lines
+        if schema.get("properties"):
+            if name:
+                if name in expanded:
+                    return [f"{indent}- The fields of `{name}` are listed above."]
+                expanded.add(name)
+            return self.field_lines(schema, level, expanded, depth)
+        additional = schema.get("additionalProperties")
+        if isinstance(additional, dict) and self._has_fields(additional):
+            return self.children(additional, level, expanded, depth)
+        return []
+
+    def body_lines(self, node, expanded):
+        schema, name = self.merge(node)
+        lines = [f"Type: {self.type_label(node)}."]
+        description = _block(schema.get("description") or "")
+        if description:
+            lines += ["", description]
+        if schema.get("properties"):
+            if name:
+                expanded.add(name)
+            fields = self.field_lines(schema, 0, expanded)
+        else:
+            fields = self.children(node, 0, expanded, 1)
+        if fields:
+            lines += ["", *fields]
+        return lines
+
+    def media_example(self, media):
+        value = None
+        if "example" in media:
+            value = media["example"]
+        elif isinstance(media.get("examples"), dict) and media["examples"]:
+            first, _ = self.resolve(next(iter(media["examples"].values())))
+            value = first.get("value")
+        else:
+            schema, _ = self.merge(media.get("schema") or {})
+            if isinstance(schema.get("example"), (dict, list)):
+                value = schema["example"]
+        if value is None:
+            return None
+        text = value if isinstance(value, str) else json.dumps(value, indent=2, ensure_ascii=False)
+        if len(text) > _OPENAPI_MAX_EXAMPLE_CHARS:
+            text = text[:_OPENAPI_MAX_EXAMPLE_CHARS].rstrip() + "\n..."
+        return text
+
+    def parameter_line(self, param):
+        schema = param.get("schema") or {}
+        merged, _ = self.merge(schema)
+        details = [param.get("in") or "parameter", self.type_label(schema),
+                   "required" if param.get("required") else "optional"] + self.constraints(merged)
+        if param.get("deprecated") and "deprecated" not in details:
+            details.append("deprecated")
+        sentences = []
+        description = _inline(param.get("description") or merged.get("description") or "")
+        if description:
+            sentences.append(description)
+        sentences.extend(self.extras({**merged, **({"example": param["example"]} if "example" in param else {})}))
+        line = f"- `{param.get('name')}` ({', '.join(details)})"
+        if sentences:
+            line += ": " + " ".join(sentences)
+        return line
+
+    def base_url(self, op, path_item):
+        servers = op.get("servers") or path_item.get("servers") or self.spec.get("servers") or []
+        if servers and isinstance(servers[0], dict):
+            return str(servers[0].get("url") or "").rstrip("/")
+        return ""
+
+    def webhook(self, name, page_text="", title="Webhook"):
+        item = (self.spec.get("webhooks") or {}).get(name)
+        if not isinstance(item, dict):
+            return ""
+        for method in _OPENAPI_HTTP_METHODS:
+            if isinstance(item.get(method), dict):
+                return self.operation(method, name, page_text, path_item=item, title=title)
+        return ""
+
+    def operation(self, method, path, page_text="", path_item=None, title="Endpoint"):
+        is_webhook = path_item is not None
+        if path_item is None:
+            path_item = (self.spec.get("paths") or {}).get(path) or {}
+        op = path_item.get(method)
+        if not isinstance(op, dict):
+            raise KeyError(f"{method.upper()} {path} is not in the OpenAPI block")
+        if is_webhook:
+            target = f"Event `{path}`, sent as an HTTP `{method.upper()}` request to your webhook URL."
+        else:
+            target = f"`{method.upper()} {self.base_url(op, path_item)}{path}`"
+        out = [f"## {title}", "", target, ""]
+        if op.get("deprecated"):
+            out += ["**Deprecated.**", ""]
+        description = str(op.get("description") or "").strip()
+        if description and _normalized(description) not in _normalized(page_text):
+            out += [_block(description), ""]
+
+        params = {}
+        for raw in list(path_item.get("parameters") or []) + list(op.get("parameters") or []):
+            param, _ = self.resolve(raw)
+            if param.get("name"):
+                params[(param.get("name"), param.get("in"))] = param
+        if params:
+            out += ["### Parameters", ""] + [self.parameter_line(p) for p in params.values()] + [""]
+
+        body, _ = self.resolve(op.get("requestBody") or {})
+        content = body.get("content") or {}
+        if content:
+            content_type, media = next(iter(content.items()))
+            note = f"Content type: `{content_type}`, {'required' if body.get('required') else 'optional'}."
+            body_description = _block(body.get("description") or "")
+            out += [f"### {'Payload' if is_webhook else 'Request body'}", "",
+                    note + (f" {body_description}" if body_description else ""), ""]
+            if media.get("schema"):
+                out += self.body_lines(media["schema"], set()) + [""]
+            example = self.media_example(media)
+            if example:
+                out += ["Example request body:", "", *_fenced(example, "json"), ""]
+
+        responses = op.get("responses") or {}
+        if responses:
+            out += ["### Responses", ""]
+            for code, raw in responses.items():
+                response, _ = self.resolve(raw)
+                out += [f"#### {code}", ""]
+                response_description = _block(response.get("description") or "")
+                if response_description:
+                    out += [response_description, ""]
+                media_types = response.get("content") or {}
+                if media_types:
+                    media = next(iter(media_types.values()))
+                    if media.get("schema"):
+                        out += self.body_lines(media["schema"], set()) + [""]
+                    if str(code).startswith("2"):
+                        example = self.media_example(media)
+                        if example:
+                            out += ["Example response:", "", *_fenced(example, "json"), ""]
+
+        samples = op.get("x-codeSamples") or op.get("x-code-samples") or []
+        if samples:
+            out += ["### Code samples", ""]
+            for sample in samples:
+                if not isinstance(sample, dict) or not sample.get("source"):
+                    continue
+                label = sample.get("label") or sample.get("lang") or "Example"
+                lang = str(sample.get("lang") or "").lower()
+                out += [f"**{label}**", "", *_fenced(sample["source"], _OPENAPI_FENCE_LANGS.get(lang, lang)), ""]
+
+        external = op.get("externalDocs")
+        if isinstance(external, dict) and external.get("url"):
+            out += [f"See also: [{external.get('description') or external['url']}]({external['url']})", ""]
+        return "\n".join(out)
+
+    def overview(self):
+        info = self.spec.get("info") or {}
+        out = [f"# {info.get('title') or 'API reference'}", ""]
+        if info.get("version"):
+            out += [f"Version: `{info['version']}`", ""]
+        if info.get("description"):
+            out += [_block(info["description"]), ""]
+        base = self.base_url({}, {})
+        if base:
+            out += [f"Base URL: `{base}`", ""]
+        schemes = ((self.spec.get("components") or {}).get("securitySchemes") or {})
+        auth = []
+        for scheme_name, raw in schemes.items():
+            scheme, _ = self.resolve(raw)
+            where = " ".join(str(scheme.get(k)) for k in ("type", "in", "name", "scheme") if scheme.get(k))
+            text = f"- `{scheme_name}` ({where})" if where else f"- `{scheme_name}`"
+            if scheme.get("description"):
+                text += f": {_inline(scheme['description'])}"
+            auth.append(text)
+        if auth:
+            out += ["## Authentication", "", *auth, ""]
+        for tag in self.spec.get("tags") or []:
+            if not isinstance(tag, dict) or not tag.get("name"):
+                continue
+            out += [f"## {tag['name']}", ""]
+            if tag.get("description"):
+                out += [_demote_headings(_block(tag["description"]), 2), ""]
+            external = tag.get("externalDocs")
+            if isinstance(external, dict) and external.get("url"):
+                out += [f"See also: [{external.get('description') or external['url']}]({external['url']})", ""]
+        endpoints = []
+        for path, item in (self.spec.get("paths") or {}).items():
+            if not isinstance(item, dict):
+                continue
+            for method, op in item.items():
+                if method.lower() in _OPENAPI_HTTP_METHODS and isinstance(op, dict):
+                    summary = _inline(op.get("summary") or op.get("operationId") or "")
+                    endpoints.append(f"- `{method.upper()} {path}`" + (f": {summary}" if summary else ""))
+        if endpoints:
+            out += ["## Endpoints", "", *endpoints, ""]
+        for name in self.spec.get("webhooks") or {}:
+            rendered = self.webhook(name, title=f"Webhook: {name}")
+            if rendered:
+                out += [rendered, ""]
+        return "\n".join(out)
+
+
+def _render_openapi_blocks(md_text):
+    def repl(m):
+        try:
+            renderer = _OpenApiRenderer(yaml.safe_load(m.group(4)))
+            method, target, page_text = m.group(2).lower(), m.group(3), m.string[:m.start()]
+            if method == "webhook":
+                return renderer.webhook(target, page_text)
+            return renderer.operation(method, target, page_text)
+        except Exception:
+            return m.group(0)
+    return _OPENAPI_BLOCK_RE.sub(repl, md_text)
+
+
+def render_openapi_spec_overview(text):
+    spec = yaml.safe_load(text)
+    if not isinstance(spec, dict) or not ("openapi" in spec or "swagger" in spec):
+        raise ValueError("not an OpenAPI document")
+    md_text = _mintlify_convert_alerts(_OpenApiRenderer(spec).overview())
+    return markdown.markdown(md_text, extensions=_MARKDOWN_EXTENSIONS, output_format="html")
+
+
 def render_mintlify_markdown(md_text):
+    md_text = _mintlify_strip_injected_headers(md_text)
     md_text = _MINTLIFY_DOC_INDEX_RE.sub("", md_text, count=1)
     for name, action in _MINTLIFY_MDX_COMPONENTS.items():
         if action == "UNWRAP":
@@ -317,10 +878,12 @@ def render_mintlify_markdown(md_text):
         elif action == "QUOTE":
             md_text = _mintlify_quote(md_text, name)
     md_text = _mintlify_strip_leftover_tags(md_text)
+    md_text = _mintlify_convert_alerts(md_text)
+    md_text = _render_openapi_blocks(md_text)
     md_text = _mintlify_normalize_fences(md_text)
     return markdown.markdown(
         md_text,
-        extensions=["fenced_code", "tables", "attr_list"],
+        extensions=_MARKDOWN_EXTENSIONS,
         output_format="html",
     )
 
@@ -355,14 +918,26 @@ class MintlifyScraper(BaseScraper):
 
     def fetch_url_for(self, url):
         u = url.rstrip("/")
-        if u.endswith(".md"):
+        if u.endswith(".md") or u.lower().endswith(_OPENAPI_SPEC_SUFFIXES):
             return u
+        parts = urlsplit(u)
+        if not parts.path:
+            return urlunsplit((parts.scheme, parts.netloc, "/index.md", "", ""))
         return u + ".md"
+
+    def page_url_for(self, final_url):
+        u = str(final_url).split("#", 1)[0].split("?", 1)[0].rstrip("/")
+        return u[:-3] if u.endswith(".md") else u
+
+    def wants_url(self, url):
+        return not urlsplit(url).path.rstrip("/").lower().endswith(_MINTLIFY_NON_PAGE_SUFFIXES)
 
     def transform_response(self, text, url):
         head = text.lstrip()[:200].lower()
         if head.startswith("<!doctype") or head.startswith("<html"):
             return text
+        if url.rstrip("/").lower().endswith(_OPENAPI_SPEC_SUFFIXES):
+            return f"<div>{render_openapi_spec_overview(text)}</div>"
         rendered = render_mintlify_markdown(text)
         return f"<div>{rendered}</div>"
 
@@ -681,6 +1256,15 @@ class ScraperWorker(QObject):
 
                 self._429s_since_last_success = 0
 
+                save_url = url
+                if hasattr(self.scraper, "page_url_for"):
+                    final_page = self.scraper.page_url_for(getattr(response, "url", None) or fetch_url)
+                    if final_page and self._filename_key(final_page) != self._filename_key(url):
+                        if os.path.exists(self._html_path(final_page)):
+                            self._emit_count()
+                            return set()
+                        save_url = final_page
+
                 content_type = response.headers.get("content-type", "").lower()
                 if not has_response_transform and "text/html" not in content_type:
                     self._emit_count()
@@ -689,7 +1273,7 @@ class ScraperWorker(QObject):
                 html = response.text
                 if has_response_transform:
                     try:
-                        html = self.scraper.transform_response(html, url)
+                        html = self.scraper.transform_response(html, save_url)
                     except Exception as e:
                         print(f"transform_response failed for {url}: {type(e).__name__}: {e}")
                         await self.log_failed_url(url, log_file)
@@ -698,9 +1282,9 @@ class ScraperWorker(QObject):
 
                 try:
                     links = self.extract_links(
-                        html, url, base_domain, acceptable_domain_extension
+                        html, save_url, base_domain, acceptable_domain_extension
                     )
-                    created = await self.save_html(html, url, save_dir, links=links)
+                    created = await self.save_html(html, save_url, save_dir, links=links)
                 except Exception:
                     await self.log_failed_url(url, log_file)
                     self._emit_count()
@@ -842,6 +1426,8 @@ class ScraperWorker(QObject):
 
         parsed = urlparse(url)
         if strip_www(parsed.netloc) != strip_www(base_domain):
+            return False
+        if hasattr(self.scraper, "wants_url") and not self.scraper.wants_url(url):
             return False
 
         if acceptable_domain_extension:

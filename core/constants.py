@@ -2530,6 +2530,11 @@ scrape_documentation = {
         "folder": "sentence_transformers",
         "scraper_class": "RtdThemeScraper"
     },
+    "Shippo API": {
+        "URL": "https://docs.goshippo.com/",
+        "folder": "shippo_api",
+        "scraper_class": "MintlifyScraper"
+    },
     "Six": {
         "URL": "https://six.readthedocs.io/",
         "folder": "six",
