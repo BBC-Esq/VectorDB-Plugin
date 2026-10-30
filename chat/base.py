@@ -309,6 +309,7 @@ class LiquidAI(BaseModel):
             return_tensors="pt",
             return_attention_mask=True,
             return_token_type_ids=False,
+            add_special_tokens=False,
         )
         if inputs['input_ids'].size(1) > self.max_length:
             raise ValueError(
