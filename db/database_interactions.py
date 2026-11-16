@@ -1,23 +1,12 @@
 import faulthandler
 faulthandler.enable()
 
-# Module-level TileDB DLL preload. Mirrors the approach in VectorDB-Light's
-# vector_db_query.py (lines 1-31). Critical for subprocesses spawned via
-# multiprocessing.Process: when the
-# fresh interpreter imports this module, the DLLs load immediately —
-# before any other code can accidentally trigger a tiledb.vector_search
-# import without DLL registration, which on Windows causes the
-# _tiledbvspy native module to fail with
-#   ImportError: DLL load failed while importing _tiledbvspy
-# or an even worse silent hang. The standalone _setup_tiledb_dlls()
-# function below is kept for the creation subprocess path, where DLL
-# setup has to happen after configure_logging() / set_cuda_paths().
 import os
 import sys
 import ctypes
 
 try:
-    import tiledb as _tiledb_bootstrap  # noqa: F401
+    import tiledb as _tiledb_bootstrap
 
     _venv_root = os.path.dirname(os.path.dirname(sys.executable))
     _site_packages = os.path.join(_venv_root, "Lib", "site-packages")
@@ -75,9 +64,6 @@ import torch
 if not hasattr(np, "in1d"):
     np.in1d = np.isin
 
-# orjson is a Rust-based JSON encoder that's ~10x faster than stdlib json
-# and avoids the heap fragmentation that triggers OverflowError + access
-# violation when serializing millions of metadata dicts in tight loops.
 try:
     import orjson
 
@@ -519,13 +505,6 @@ class CreateVectorDB:
             start = batch_idx * TILEDB_WRITE_BATCH_SIZE
             end = min(start + TILEDB_WRITE_BATCH_SIZE, num_vectors)
 
-            # Use numpy's vectorized generator instead of a Python list
-            # comprehension over random.randint. The list-comprehension
-            # approach allocated end-start Python int objects per batch
-            # (~7+ GB total at the Caselaw scale), which triggered an
-            # OverflowError + access violation inside random.randint on
-            # Python 3.12. numpy's integers() runs entirely in C and
-            # returns a uint64 array directly.
             batch_ids = rng.integers(
                 low=0,
                 high=np.iinfo(np.uint64).max,
@@ -535,7 +514,6 @@ class CreateVectorDB:
             )
             all_ids[start:end] = batch_ids
 
-            # Build all id strings in one C-level call instead of ~1.9M per-item str() calls, to reduce write-loop heap churn.
             batch_id_strs = batch_ids.astype(str).tolist()
             for i in range(start, end):
                 file_hash = metadatas[i].get('hash', '')
@@ -543,12 +521,6 @@ class CreateVectorDB:
 
             batch_vectors = vectors_array[start:end]
             batch_texts = np.array(texts[start:end], dtype=object)
-            # _json_dumps uses orjson when available (Rust-based, ~10x faster
-            # than stdlib json). The stdlib json.dumps loop here triggered an
-            # OverflowError + access violation at the Caselaw scale due to
-            # heap fragmentation from millions of small string allocations.
-            # Consecutive-dedup: a file's chunks are consecutive with identical metadata, so reuse
-            # the prior JSON string when the dict is unchanged (cuts serializations ~1.9M -> ~125K).
             batch_meta_strs = []
             prev_meta = None
             prev_meta_str = None
