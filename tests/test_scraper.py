@@ -377,6 +377,36 @@ class TestHuggingfaceRateLimit:
 
         assert 0.9 < asyncio.run(scenario()) <= 1.0
 
+    def test_paced_scraper_stops_asking_once_it_gives_up(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(scraper_module, "PROJECT_ROOT", tmp_path)
+        monkeypatch.setattr(_RateLimitPacer, "UNKNOWN_SPACING", 0.01)
+        monkeypatch.setattr(_RateLimitPacer, "RESET_GRACE", 0)
+        monkeypatch.setattr(ScraperWorker, "RATE_LIMIT_THRESHOLD", 2)
+        worker = ScraperWorker(self.URL, "paced", HuggingfacePacedScraper, name="Transformers")
+        session = _AlwaysLimitedSession()
+        urls = [f"{self.URL}/{number}" for number in range(4)]
+
+        async def crawl():
+            semaphore = asyncio.BoundedSemaphore(4)
+            await asyncio.gather(*[
+                worker.fetch(session, url, "huggingface.co", semaphore, worker.save_dir,
+                             str(tmp_path / "failed.log"), "/docs/transformers/v1/en")
+                for url in urls])
+
+        asyncio.run(crawl())
+        assert worker._rate_limited
+        assert session.calls == 2
+        assert set((tmp_path / "failed.log").read_text(encoding="utf-8").split()) == set(urls)
+
+
+class _AlwaysLimitedSession:
+    calls = 0
+
+    async def get(self, url, timeout=30, allow_redirects=True):
+        self.calls += 1
+        await asyncio.sleep(0)
+        return _HfResponse(429, '"pages";r=0;t=0')
+
 
 class _SiteResponse:
     def __init__(self, url, body):
@@ -437,6 +467,29 @@ class TestWholeCrawl:
         worker.run()
         with open(leftover, encoding="utf-8") as handle:
             assert "page one" in handle.read()
+
+    def test_links_on_a_redirected_page_are_read_from_where_it_was_served(self, tmp_path, monkeypatch):
+        root = "https://docs.example.com/docs/"
+        pages = {root: '<html><body><a href="guide">guide</a></body></html>',
+                 root + "guide/": '<html><body><a href="install.html">install</a></body></html>',
+                 root + "guide/install.html": "<html><body>install page</body></html>"}
+        session = _RedirectingSession(pages, {root + "guide": root + "guide/"})
+        monkeypatch.setattr(scraper_module, "PROJECT_ROOT", tmp_path)
+        monkeypatch.setattr(scraper_module, "AsyncSession", lambda **kwargs: session)
+        worker = ScraperWorker(root, "site", BaseScraper, name="Site")
+        worker.run()
+        assert os.path.exists(worker._html_path(root + "guide/install.html"))
+        assert "failed_urls.log" not in os.listdir(worker.save_dir)
+
+
+class _RedirectingSession(_SiteSession):
+    def __init__(self, pages, redirects):
+        super().__init__(pages)
+        self.redirects = redirects
+
+    async def get(self, url, timeout=30, allow_redirects=True):
+        final = self.redirects.get(url, url)
+        return _SiteResponse(final, self.pages.get(final))
 
 
 class TestBracketsInUrls:

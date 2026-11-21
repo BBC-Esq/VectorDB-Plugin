@@ -1033,22 +1033,34 @@ class _RateLimitPacer:
 
     def __init__(self):
         self._lock = asyncio.Lock()
+        self._stopped = asyncio.Event()
         self._remaining = None
         self._reset_at = 0.0
         self._next_at = 0.0
+
+    def stop(self):
+        self._stopped.set()
+
+    async def _sleep(self, seconds):
+        try:
+            await asyncio.wait_for(self._stopped.wait(), seconds)
+        except asyncio.TimeoutError:
+            pass
 
     async def wait_turn(self):
         loop = asyncio.get_running_loop()
         async with self._lock:
             while True:
+                if self._stopped.is_set():
+                    return False
                 now = loop.time()
                 if self._remaining is not None and now >= self._reset_at:
                     self._remaining = None
                 if self._remaining is not None and self._remaining <= self.SAFETY_MARGIN:
-                    await asyncio.sleep(self._reset_at - now + self.RESET_GRACE)
+                    await self._sleep(self._reset_at - now + self.RESET_GRACE)
                     continue
                 if self._next_at > now:
-                    await asyncio.sleep(self._next_at - now)
+                    await self._sleep(self._next_at - now)
                     continue
                 break
             if self._remaining is None:
@@ -1056,6 +1068,7 @@ class _RateLimitPacer:
             else:
                 self._next_at = now + (self._reset_at - now) / (self._remaining - self.SAFETY_MARGIN)
                 self._remaining -= 1
+        return True
 
     def observe(self, response):
         limit = _parse_rate_limit(response.headers.get("ratelimit"))
@@ -1333,6 +1346,10 @@ class ScraperWorker(QObject):
                     await asyncio.sleep(2)
                     continue
 
+                if response is None:
+                    await self.log_failed_url(url, log_file)
+                    return set()
+
                 if response.status_code == 429:
                     self._429s_since_last_success += 1
                     if self._429s_since_last_success >= self.RATE_LIMIT_THRESHOLD:
@@ -1348,14 +1365,16 @@ class ScraperWorker(QObject):
 
                 self._429s_since_last_success = 0
 
-                save_url = url
+                save_url = link_base = url
                 if hasattr(self.scraper, "page_url_for"):
                     final_page = self.scraper.page_url_for(getattr(response, "url", None) or fetch_url)
                     if final_page and self._filename_key(final_page) != self._filename_key(url):
                         if self._page_saved(final_page):
                             self._emit_count()
                             return set()
-                        save_url = final_page
+                        save_url = link_base = final_page
+                else:
+                    link_base = str(getattr(response, "url", None) or url)
 
                 content_type = response.headers.get("content-type", "").lower()
                 if not has_response_transform and "text/html" not in content_type:
@@ -1374,7 +1393,7 @@ class ScraperWorker(QObject):
 
                 try:
                     links = self.extract_links(
-                        html, save_url, base_domain, acceptable_domain_extension
+                        html, link_base, base_domain, acceptable_domain_extension
                     )
                     created = await self.save_html(html, save_url, save_dir, links=links)
                 except Exception:
@@ -1391,7 +1410,8 @@ class ScraperWorker(QObject):
         if self._pacer is None:
             return await session.get(fetch_url, timeout=30, allow_redirects=True)
         while True:
-            await self._pacer.wait_turn()
+            if not await self._pacer.wait_turn():
+                return None
             response = await session.get(fetch_url, timeout=30, allow_redirects=True)
             if response.status_code != 429:
                 self._pacer.observe(response)
@@ -1400,6 +1420,7 @@ class ScraperWorker(QObject):
                 self._429s_since_last_success += 1
                 if self._429s_since_last_success >= self.RATE_LIMIT_THRESHOLD:
                     self._rate_limited = True
+                    self._pacer.stop()
             if self._rate_limited or self._cancelled:
                 return response
 
