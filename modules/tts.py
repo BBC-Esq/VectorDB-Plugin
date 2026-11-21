@@ -100,6 +100,7 @@ class BaseAudio:
         self.lock = threading.Lock()
         self.config = {}
         self.processing_thread = None
+        self.playback_error = None
 
     def load_config(self, config_file, section):
         with open(config_file, 'r', encoding='utf-8') as f:
@@ -132,6 +133,9 @@ class BaseAudio:
                     sd.wait()
                 except Exception as e:
                     print(f"Error playing audio: {e}")
+                    self.playback_error = e
+                    self.stop_event.set()
+                    break
             except queue.Empty:
                 if self.processing_thread is None or not self.processing_thread.is_alive():
                     break
@@ -156,6 +160,8 @@ class BaseAudio:
 
         self.processing_thread.join()
         playback_thread.join()
+        if self.playback_error is not None:
+            raise RuntimeError(f"The audio could not be played: {self.playback_error}")
 
     def stop(self):
         self.stop_event.set()

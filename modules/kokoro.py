@@ -248,6 +248,8 @@ class KokoroTTS:
                 except Exception as e:
                     if not self.stop_event.is_set():
                         print(f"Audio playback error: {e}")
+                        self.playback_error = e
+                        self.stop_event.set()
                     try:
                         sd.stop()
                     except:
@@ -276,6 +278,7 @@ class KokoroTTS:
             raise ValueError("Speed must be positive")
 
         self.stop_event.clear()
+        self.playback_error = None
         self.sentence_queue = queue.Queue()
         self.audio_queue = queue.Queue()
 
@@ -305,3 +308,5 @@ class KokoroTTS:
 
         process_thread.join()
         playback_thread.join()
+        if self.playback_error is not None:
+            raise RuntimeError(f"The audio could not be played: {self.playback_error}")

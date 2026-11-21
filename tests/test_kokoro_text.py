@@ -19,6 +19,39 @@ def test_real_sentence_ends_still_split():
     assert len(split_sentences("The claim fails. The court agreed! Did it matter?")) == 3
 
 
+def no_output_device(*args, **kwargs):
+    raise OSError("Error opening OutputStream: Invalid device")
+
+
+def test_kokoro_remembers_a_playback_failure(monkeypatch):
+    import queue
+    import threading
+
+    import modules.kokoro as kokoro
+
+    monkeypatch.setattr(kokoro.sd, "play", no_output_device)
+    tts = kokoro.KokoroTTS.__new__(kokoro.KokoroTTS)
+    tts.stop_event = threading.Event()
+    tts.audio_queue = queue.Queue()
+    tts.audio_queue.put([0.0] * 10)
+    tts.playback_error = None
+    tts._play_audio()
+    assert "Invalid device" in str(tts.playback_error) and tts.stop_event.is_set()
+
+
+def test_other_voices_raise_after_a_playback_failure(monkeypatch, tmp_path):
+    import numpy as np
+
+    import modules.tts as tts
+
+    monkeypatch.setattr(tts.sd, "play", no_output_device)
+    (tmp_path / "answer.txt").write_text("One sentence to speak.", encoding="utf-8")
+    audio = tts.BaseAudio()
+    audio.process_text_to_audio = lambda sentences: audio.audio_queue.put((np.zeros(10, dtype=np.float32), 24000))
+    with pytest.raises(RuntimeError, match="could not be played"):
+        audio.run(str(tmp_path / "answer.txt"))
+
+
 def test_clauses_are_rejoined_with_their_punctuation():
     assert _join_clauses("Yes, no, maybe", ["jEs", "noU", "meIbi"]) == "jEs, noU, meIbi"
     assert _join_clauses("then the law: statute, and precedent", ["a", "b", "c"]) == "a: b, c"
