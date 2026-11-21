@@ -718,6 +718,10 @@ def delete_file(file_path):
 TILEDB_DEEPEST_RELATIVE_PATH = 150
 PATH_SAFETY_MARGIN = 10
 WINDOWS_MAX_PATH = 259
+DATABASE_NAME_PATTERN = re.compile(r"[a-z0-9_-]+")
+WINDOWS_RESERVED_NAMES = frozenset(
+    ["con", "prn", "aux", "nul"] + [f"com{i}" for i in range(1, 10)] + [f"lpt{i}" for i in range(1, 10)]
+)
 
 
 def max_database_name_length(project_root):
@@ -734,6 +738,12 @@ def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=Fals
 
     if not database_name or len(database_name) < 3 or database_name.lower() in ["null", "none"]:
         return False, "Name must be at least 3 characters long and not be 'null' or 'none.'"
+
+    if not DATABASE_NAME_PATTERN.fullmatch(database_name):
+        return False, "The database name may contain only lowercase letters, numbers, hyphens and underscores."
+
+    if database_name in WINDOWS_RESERVED_NAMES:
+        return False, f"'{database_name}' is a name Windows reserves for devices. Choose a different name."
 
     name_limit = max_database_name_length(script_dir)
     if len(database_name) > name_limit:

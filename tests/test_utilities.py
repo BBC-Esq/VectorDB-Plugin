@@ -339,3 +339,21 @@ class TestTtsRunSettings:
         modules = [torch.nn.Linear(4, 4), torch.nn.LSTM(4, 4)]
         utilities.move_modules(modules, "cpu", torch.bfloat16)
         assert {p.dtype for m in modules for p in m.parameters()} == {torch.bfloat16}
+
+
+class TestDatabaseNamePreconditions:
+
+    @pytest.mark.parametrize("name", ["aux", "con", "nul", "prn", "com1", "lpt9"])
+    def test_windows_device_names_are_refused(self, tmp_path, name):
+        ok, message = utilities.check_preconditions_for_db_creation(tmp_path, name)
+        assert not ok and "reserves" in message
+
+    @pytest.mark.parametrize("name", ["café_notes", "Smith v. Jones Inc.", "2024/contracts", "q3: draft", ".hidden", "My_DB"])
+    def test_other_characters_are_refused(self, tmp_path, name):
+        ok, message = utilities.check_preconditions_for_db_creation(tmp_path, name)
+        assert not ok and "lowercase" in message
+
+    def test_a_valid_name_passes_the_name_checks(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(utilities, "WINDOWS_MAX_PATH", 1000)
+        ok, message = utilities.check_preconditions_for_db_creation(tmp_path, "contracts_2024-a")
+        assert not ok and "config.yaml" in message
