@@ -9,8 +9,8 @@ from core.extract_metadata import (
     compute_file_hash,
     extract_common_metadata,
     extract_typed_metadata,
-    add_pymupdf_page_metadata,
 )
+from db.text_splitter import add_pymupdf_page_metadata
 
 
 class TestComputeContentHash:

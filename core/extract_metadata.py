@@ -1,9 +1,6 @@
 import os
 import datetime
 import hashlib
-import re
-from db.document_processor import Document
-from typing import List, Tuple
 
 def compute_content_hash(content: str) -> str:
     return hashlib.sha256(content.encode('utf-8')).hexdigest()
@@ -46,59 +43,3 @@ def extract_typed_metadata(file_path, document_type, content_hash=None):
     metadata = extract_common_metadata(file_path, content_hash)
     metadata["document_type"] = document_type
     return metadata
-
-def add_pymupdf_page_metadata(doc: Document, chunk_size: int = 1200, chunk_overlap: int = 600) -> List[Document]:
-    def split_text(text: str, chunk_size: int, chunk_overlap: int) -> List[Tuple[str, int]]:
-        page_markers = []
-        offset = 0
-        for m in re.finditer(r'\[\[page(\d+)\]\]', text):
-            marker_len = len(m.group(0))
-            page_markers.append((m.start() - offset, int(m.group(1))))
-            offset += marker_len
-
-        clean_text = re.sub(r'\[\[page\d+\]\]', '', text)
-
-        chunks = []
-        start = 0
-        while start < len(clean_text):
-            end = start + chunk_size
-            if end > len(clean_text):
-                end = len(clean_text)
-            chunk = clean_text[start:end].strip()
-
-            page_num = 1
-            for marker_pos, page in reversed(page_markers):
-                if marker_pos <= start:
-                    page_num = page
-                    break
-
-            if chunk:
-                chunks.append((chunk, page_num))
-            
-            start += chunk_size - chunk_overlap
-
-        return chunks
-
-    chunks = split_text(doc.page_content, chunk_size, chunk_overlap)
-
-    new_docs = []
-    for chunk, page_num in chunks:
-        new_metadata = {}
-        if doc.metadata:
-            for k, v in doc.metadata.items():
-                if k is not None and v is not None:
-                    key = str(k)
-                    if isinstance(v, (str, int, float, bool)):
-                        new_metadata[key] = v
-                    else:
-                        new_metadata[key] = str(v)
-
-        new_metadata['page_number'] = page_num
-
-        new_doc = Document(
-            page_content=str(chunk).strip(),
-            metadata=new_metadata
-        )
-        new_docs.append(new_doc)
-
-    return new_docs
