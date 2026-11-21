@@ -34,6 +34,21 @@ if "cysignals" not in sys.modules and "tesserocr.cysignals" in sys.modules:
 
 thread_local = threading.local()
 
+
+def remove_page_rotation(page) -> None:
+    if not page.rotation:
+        return
+    media, crop = page.mediabox, page.cropbox
+    visible = fitz.Rect(crop.x0, media.y1 - crop.y1, crop.x1, media.y1 - crop.y0) & media
+    if not visible.is_empty:
+        page.set_mediabox(visible)
+    page.remove_rotation()
+    media = page.mediabox
+    if page.cropbox != fitz.Rect(media.x0, 0, media.x1, media.height):
+        document = page.parent
+        document.xref_set_key(page.xref, "CropBox", document.xref_get_key(page.xref, "MediaBox")[1])
+
+
 class OCRProcessor(ABC):
     def __init__(self, zoom: int = 2, progress_queue: Queue = None):
         self.zoom = zoom
@@ -210,7 +225,7 @@ class TesseractOCR(OCRProcessor):
         os.close(fd)
         with fitz.open(pdf_path) as pdf_document, fitz.open() as out_pdf:
             page = pdf_document[page_num]
-            page.remove_rotation()
+            remove_page_rotation(page)
             try:
                 needs = page_needs_ocr(page)
             except Exception:
@@ -262,13 +277,13 @@ class TesseractOCR(OCRProcessor):
             orig_pages = []
             for page in original_doc:
                 orig_pages.append({'width': page.rect.width, 'height': page.rect.height, 'rotation': page.rotation, 'mediabox': page.mediabox, 'cropbox': getattr(page, 'cropbox', None)})
+            src_meta = dict(original_doc.metadata or {})
         temp_path = str(ocr_pdf_path) + ".optimized"
         with fitz.open(ocr_pdf_path) as ocr_doc:
             for i, page in enumerate(ocr_doc):
                 if i < len(orig_pages):
                     orig = orig_pages[i]
-                    if orig['rotation'] in (90, 270):
-                        page.set_mediabox(fitz.Rect(0, 0, orig['width'], orig['height']))
+                    if orig['rotation']:
                         continue
                     page.set_mediabox(orig['mediabox'])
                     if orig['cropbox']:
@@ -280,8 +295,12 @@ class TesseractOCR(OCRProcessor):
                         except ValueError:
                             pass
             self.restore_navigation(original_pdf_path, ocr_doc)
+            meta = {k: v for k, v in src_meta.items()
+                    if v and k in ('title', 'author', 'subject', 'keywords', 'creator', 'creationDate', 'trapped')}
+            meta['producer'] = f'{OCR_PRODUCER_PREFIX} Tesseract'
+            meta['modDate'] = fitz.get_pdf_now()
             try:
-                ocr_doc.set_metadata({'producer': f'{OCR_PRODUCER_PREFIX} Tesseract'})
+                ocr_doc.set_metadata(meta)
             except Exception:
                 pass
             ocr_doc.save(temp_path, garbage=4, deflate=True, clean=True)
@@ -537,7 +556,7 @@ class RapidOCRBackend(OCRProcessor):
         os.close(fd)
         with fitz.open(pdf_path) as pdf_document, fitz.open() as out_pdf:
             page = pdf_document[page_num]
-            page.remove_rotation()
+            remove_page_rotation(page)
             out_pdf.insert_pdf(page.parent, from_page=page_num, to_page=page_num)
             try:
                 needs = page_needs_ocr(page)
@@ -703,9 +722,7 @@ class RapidOCRBackend(OCRProcessor):
             for i, page in enumerate(ocr_doc):
                 if i < len(orig_pages):
                     orig = orig_pages[i]
-                    if orig['rotation'] in (90, 270):
-                        page.set_mediabox(fitz.Rect(0, 0, orig['width'], orig['height']))
-                    else:
+                    if not orig['rotation']:
                         page.set_mediabox(orig['mediabox'])
                         if orig['cropbox']:
                             try:
