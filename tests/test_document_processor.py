@@ -123,3 +123,59 @@ class TestEmailLoader:
         body = "Señor Núñez ordered crème brûlée at the café."
         raw = b"Subject: Menu\r\nContent-Type: text/plain\r\nContent-Transfer-Encoding: 8bit\r\n\r\n" + body.encode(encoding)
         assert body in self._load(tmp_path, raw)
+
+
+class TestSpreadsheetLoaders:
+
+    ROWS = [["Supplier", "Item"], ["Halvorsen Marine", "bilge pump"], ["Okonkwo Textiles", "indigo dye"]]
+    TEXT = "Supplier Item\nHalvorsen Marine bilge pump\nOkonkwo Textiles indigo dye"
+
+    def _workbook(self, path, chart_sheet=False):
+        from openpyxl import Workbook
+
+        workbook = Workbook()
+        for row in self.ROWS:
+            workbook.active.append(row)
+        if chart_sheet:
+            from openpyxl.chart import BarChart, Reference
+
+            chart = BarChart()
+            chart.add_data(Reference(workbook.active, min_col=2, min_row=1, max_row=3))
+            workbook.create_chartsheet("Chart").add_chart(chart)
+        workbook.save(path)
+
+    def test_xlsx_with_a_chart_sheet_still_loads_its_data(self, tmp_path):
+        from db.document_processor import _load_xlsx
+
+        self._workbook(tmp_path / "chart.xlsx", chart_sheet=True)
+        assert _load_xlsx(tmp_path / "chart.xlsx") == self.TEXT
+
+    def test_xlsx_with_a_wrong_size_tag_loads_every_row(self, tmp_path):
+        import zipfile
+
+        from db.document_processor import _load_xlsx
+
+        self._workbook(tmp_path / "source.xlsx")
+        with zipfile.ZipFile(tmp_path / "source.xlsx") as source, \
+                zipfile.ZipFile(tmp_path / "small_tag.xlsx", "w", zipfile.ZIP_DEFLATED) as target:
+            for item in source.infolist():
+                data = source.read(item.filename)
+                if item.filename == "xl/worksheets/sheet1.xml":
+                    assert b'<dimension ref="A1:B3"' in data
+                    data = data.replace(b'<dimension ref="A1:B3"', b'<dimension ref="A1"')
+                target.writestr(item, data)
+        assert _load_xlsx(tmp_path / "small_tag.xlsx") == self.TEXT
+
+    def test_xls_numbers_and_dates_are_written_like_xlsx(self):
+        import xlrd
+        from types import SimpleNamespace
+
+        from db.document_processor import _xls_cell_text
+
+        def cell(ctype, value):
+            return _xls_cell_text(SimpleNamespace(ctype=ctype, value=value), 0)
+
+        assert cell(xlrd.XL_CELL_NUMBER, 1042.0) == "1042"
+        assert cell(xlrd.XL_CELL_NUMBER, 2.5) == "2.5"
+        assert cell(xlrd.XL_CELL_DATE, 45352.0) == "2024-03-01 00:00:00"
+        assert cell(xlrd.XL_CELL_TEXT, "Invoice") == "Invoice"

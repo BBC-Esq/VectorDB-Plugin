@@ -252,6 +252,22 @@ def _load_msg(file_path: Path) -> Optional[str]:
     return "\n".join(parts) if parts else None
 
 
+def _xls_cell_text(cell, datemode) -> str:
+    import xlrd
+
+    value = cell.value
+    if cell.ctype == xlrd.XL_CELL_DATE:
+        try:
+            return str(xlrd.xldate_as_datetime(value, datemode))
+        except Exception:
+            return str(value)
+    if cell.ctype == xlrd.XL_CELL_NUMBER and float(value).is_integer():
+        return str(int(value))
+    if cell.ctype == xlrd.XL_CELL_BOOLEAN:
+        return str(bool(value))
+    return str(value)
+
+
 def _load_xls(file_path: Path) -> Optional[str]:
     import xlrd
 
@@ -263,7 +279,7 @@ def _load_xls(file_path: Path) -> Optional[str]:
             for col_idx in range(sheet.ncols):
                 cell = sheet.cell(row_idx, col_idx)
                 if cell.value is not None and str(cell.value).strip():
-                    row_values.append(str(cell.value))
+                    row_values.append(_xls_cell_text(cell, workbook.datemode))
             if row_values:
                 parts.append(" ".join(row_values))
     return "\n".join(parts) if parts else None
@@ -274,8 +290,8 @@ def _load_xlsx(file_path: Path) -> Optional[str]:
 
     wb = load_workbook(str(file_path), data_only=True, read_only=True)
     parts = []
-    for sheet in wb.sheetnames:
-        ws = wb[sheet]
+    for ws in wb.worksheets:
+        ws.reset_dimensions()
         for row in ws.iter_rows():
             row_values = []
             for cell in row:
