@@ -125,3 +125,14 @@ class TestMistralPrompt:
         assert model.create_prompt("What is the notice period?") == (
             f"[SYSTEM_PROMPT]{system_message}[/SYSTEM_PROMPT][INST]What is the notice period?[/INST]"
         )
+
+
+class TestCpuSettings:
+
+    def test_a_quantized_model_loads_in_full_precision_without_a_gpu(self, monkeypatch):
+        from chat.base import _configure_device_settings
+
+        monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+        settings = make_bnb_settings(torch.bfloat16)
+        assert _configure_device_settings(settings, {"precision": "bfloat16"}) == "cpu"
+        assert settings["model_settings"] == {"dtype": torch.float32, "device_map": "cpu"}

@@ -223,3 +223,62 @@ class TestSpreadsheetLoaders:
         assert cell(xlrd.XL_CELL_NUMBER, 2.5) == "2.5"
         assert cell(xlrd.XL_CELL_DATE, 45352.0) == "2024-03-01 00:00:00"
         assert cell(xlrd.XL_CELL_TEXT, "Invoice") == "Invoice"
+
+
+class TestLoaderThreads:
+
+    def _count_loaders(self, monkeypatch):
+        import threading
+        import time
+
+        import db.document_processor as processor
+
+        state = {"running": 0, "peak": 0}
+        lock = threading.Lock()
+
+        def slow_loader(path):
+            with lock:
+                state["running"] += 1
+                state["peak"] = max(state["peak"], state["running"])
+            time.sleep(0.05)
+            with lock:
+                state["running"] -= 1
+            return Document(page_content=path.name, metadata={})
+
+        monkeypatch.setattr(processor, "load_single_document", slow_loader)
+        return processor, state
+
+    def test_a_worker_uses_the_number_of_threads_it_is_given(self, tmp_path, monkeypatch):
+        processor, state = self._count_loaders(monkeypatch)
+        paths = [tmp_path / f"file{number}.txt" for number in range(6)]
+        assert len(processor._extraction_worker_batch(paths, 1)) == 6
+        assert state["peak"] == 1
+        processor._extraction_worker_batch(paths, 3)
+        assert state["peak"] == 3
+
+    def test_the_minimal_preset_loads_one_file_at_a_time(self, tmp_path, monkeypatch):
+        from concurrent.futures import Future
+
+        processor, state = self._count_loaders(monkeypatch)
+
+        class InlineExecutor:
+            def __init__(self, workers):
+                self.workers = workers
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def submit(self, function, *args):
+                future = Future()
+                future.set_result(function(*args))
+                return future
+
+        monkeypatch.setattr(processor, "ProcessPoolExecutor", InlineExecutor)
+        monkeypatch.setattr(processor, "_get_ingest_params", lambda: (1, 1))
+        for number in range(6):
+            (tmp_path / f"file{number}.txt").write_text("text", encoding="utf-8")
+        assert len(processor.load_documents(tmp_path)) == 6
+        assert state["peak"] == 1

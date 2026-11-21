@@ -92,7 +92,7 @@ def _configure_device_settings(settings, model_info):
     else:
         settings['model_settings'].pop('quantization_config', None)
         settings['model_settings']['device_map'] = "cpu"
-        settings['model_settings'].setdefault('dtype', torch.float32)
+        settings['model_settings']['dtype'] = torch.float32
 
     return device
 

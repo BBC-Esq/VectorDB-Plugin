@@ -443,13 +443,13 @@ def load_single_document(file_path: Path) -> Optional[Document]:
         return None
 
 
-def _extraction_worker_batch(file_paths):
+def _extraction_worker_batch(file_paths, threads=THREADS_PER_PROCESS):
     results = []
 
     def _process_one(file_path):
         return load_single_document(file_path)
 
-    n_threads = min(THREADS_PER_PROCESS, len(file_paths))
+    n_threads = max(1, min(threads, len(file_paths)))
     with ThreadPoolExecutor(n_threads) as pool:
         futures = {pool.submit(_process_one, p): p for p in file_paths}
         for future in as_completed(futures):
@@ -497,7 +497,8 @@ def load_documents(source_dir: Path) -> list:
                 executor.shutdown(wait=True, cancel_futures=True)
     else:
         n_procs = min(ingest_processes, len(doc_paths))
-        logger.info(f"Loading {len(doc_paths)} documents with {n_procs} processes \u00b7 {THREADS_PER_PROCESS} threads each")
+        threads_each = max(1, min(THREADS_PER_PROCESS, ingest_threads))
+        logger.info(f"Loading {len(doc_paths)} documents with {n_procs} processes \u00b7 {threads_each} threads each")
 
         chunks = [[] for _ in range(n_procs)]
         for i, chunk in enumerate(doc_paths):
@@ -505,7 +506,7 @@ def load_documents(source_dir: Path) -> list:
 
         try:
             with ProcessPoolExecutor(n_procs) as executor:
-                futures = [executor.submit(_extraction_worker_batch, chunk) for chunk in chunks]
+                futures = [executor.submit(_extraction_worker_batch, chunk, threads_each) for chunk in chunks]
                 for future in as_completed(futures):
                     try:
                         batch_results = future.result()

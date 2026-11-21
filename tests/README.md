@@ -24,7 +24,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 |------|----------------|
 | `conftest.py` | Shared fixtures: a sample config, sample citation metadata and the project root |
 | `test_backends_data.py` | Chat Backend Settings dialog: API keys, model choices and the reasoning efforts each model offers, the LM Studio address and port, and the LM Studio and ChatGPT connection checks |
-| `test_chat_base.py` | `build_augmented_query`, maximum lengths, maximum new tokens, generation settings, `make_bnb_settings` and the Mistral prompt |
+| `test_chat_base.py` | `build_augmented_query`, maximum lengths, maximum new tokens, generation settings, `make_bnb_settings`, the Mistral prompt and loading in float32 on a computer without a GPU |
 | `test_constants.py` | Required keys in the chat, embedding, vision and Whisper model lists, document loaders, thinking tags, pipeline presets and supported file types |
 | `test_create_state.py` | Create Database tab: adding and removing files, the embedding model list, settings, build progress read from the build log, recording the new database with the settings it was built with, the checks before a build starts, including waiting for a backup or restore, reporting a failed backup of the new database, and holding off transcription from the PDF check until the build ends |
 | `test_credentials.py` | Config file load and save round trip, and where each credential is stored |
@@ -32,7 +32,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_database_additions.py` | Adding files to an existing database: versioned SQLite commit, duplicate skipping before embedding, original source paths with symlink or copy staging, supported formats and rollback after append |
 | `test_database_interactions.py` | Model family detection, query prompts, text normalization, `metadata.db` creation, audio document loading, searches skipping removed chunks, searches scoring added chunks alongside the index, the file type filter reaching added chunks, and the prepare step leaving out documents before they are split or embedded |
 | `test_document_ids.py` | Document ids in `metadata.db`: new databases, older mapping formats, the one-time upgrade of older databases (including a failed upgrade changing nothing) and batched lookups |
-| `test_document_processor.py` | `FixedSizeTextSplitter` and PDF chunking: size, overlap with no repeated tail chunk, metadata and edge cases; the email, spreadsheet, text, CSV and Word loaders |
+| `test_document_processor.py` | `FixedSizeTextSplitter` and PDF chunking: size, overlap with no repeated tail chunk, metadata and edge cases; the email, spreadsheet, text, CSV and Word loaders; how many files a preset loads at once |
 | `test_extract_metadata.py` | Content and file hashing, metadata extraction and PDF page numbers |
 | `test_gui_validation.py` | Database name rules, port extraction, the file type filter mapping and name preconditions (no GUI imports) |
 | `test_index_changes.py` | The record in `metadata.db` of documents added or removed since the index was built: present in new and upgraded databases, written only when a change commits, read without writing and cleared |
