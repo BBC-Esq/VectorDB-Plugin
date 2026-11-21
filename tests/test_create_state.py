@@ -213,3 +213,25 @@ def test_build_start_guards(root, monkeypatch):
         allWidgets=lambda: [SimpleNamespace(database_task_running=lambda: True)],
     ))
     assert "Manage Databases tab" in controller.start(None, "good_name", "model", True, cfg)["error"]
+
+
+def test_backup_worker_reports_a_failed_copy(root, monkeypatch):
+    from gui.tabs_databases import manage_data
+
+    monkeypatch.setattr(manage_data, "PROJECT_ROOT", root)
+    database = root / "Vector_DB" / "contracts"
+    database.mkdir()
+    (database / "metadata.db").write_text("x", encoding="utf-8")
+    results = []
+    worker = create_build.BackupWorker("contracts")
+    worker.done.connect(lambda ok, message: results.append((ok, message)))
+    worker.run()
+    assert results == [(True, "")]
+    assert (root / "Vector_DB_Backup" / "contracts" / "metadata.db").exists()
+
+    def fail(source, target, temp):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(manage_data, "copy_into_place", fail)
+    worker.run()
+    assert results[-1] == (False, "disk full")

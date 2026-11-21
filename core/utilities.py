@@ -663,39 +663,21 @@ def make_theme_changer(theme_name):
         update_theme_in_config(theme_name)
     return change_theme
 
-def backup_database(database_name=None):
+def backup_database():
    source_directory = Path('Vector_DB')
    backup_directory = Path('Vector_DB_Backup')
 
-   if database_name:
-       logging.debug("Starting incremental database backup")
-       backup_directory.mkdir(parents=True, exist_ok=True)
-       source_db_path = source_directory / database_name
-       backup_db_path = backup_directory / database_name
-       if backup_db_path.exists():
-           try:
-               shutil.rmtree(backup_db_path)
-           except Exception as e:
-               logging.debug(f"Failed to remove existing backup: {e}")
-               print(f"Warning: Could not remove existing backup of {database_name}: {e}")
-       try:
-           shutil.copytree(source_db_path, backup_db_path)
-           logging.debug(f"Successfully created backup of {database_name}")
-       except Exception as e:
-           logging.debug(f"Backup failed: {e}")
-           print(f"Error backing up {database_name}: {e}")
+   logging.debug("Starting full database backup")
+   if backup_directory.exists():
+       for item in backup_directory.iterdir():
+           if item.is_dir():
+               shutil.rmtree(item)
+           else:
+               item.unlink()
    else:
-       logging.debug("Starting full database backup")
-       if backup_directory.exists():
-           for item in backup_directory.iterdir():
-               if item.is_dir():
-                   shutil.rmtree(item)
-               else:
-                   item.unlink()
-       else:
-           backup_directory.mkdir(parents=True, exist_ok=True)
-       shutil.copytree(source_directory, backup_directory, dirs_exist_ok=True)
-       logging.debug("Database backup completed successfully")
+       backup_directory.mkdir(parents=True, exist_ok=True)
+   shutil.copytree(source_directory, backup_directory, dirs_exist_ok=True)
+   logging.debug("Database backup completed successfully")
 
 
 def open_file(file_path):

@@ -17,7 +17,8 @@ from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from core.constants import BUILD_COMPLETE_MARKER, DB_FOLDER_CREATED_MARKER, NOT_ADDED_MARKER, PROJECT_ROOT
-from core.utilities import _needs_ocr_worker, backup_database, check_preconditions_for_db_creation, my_cprint, save_config_atomically
+from core.utilities import _needs_ocr_worker, check_preconditions_for_db_creation, my_cprint, save_config_atomically
+from gui.tabs_databases import manage_data
 
 LOG_LINES = 400
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
@@ -219,8 +220,11 @@ class BackupWorker(QThread):
 
     def run(self):
         try:
-            backup_database(self.database_name)
+            manage_data.backup_database(self.database_name)
             self.done.emit(True, "")
+        except shutil.Error as e:
+            problems = e.args[0] if e.args and isinstance(e.args[0], list) else []
+            self.done.emit(False, str(problems[0][2]) if problems else str(e))
         except Exception as e:
             self.done.emit(False, str(e))
 
