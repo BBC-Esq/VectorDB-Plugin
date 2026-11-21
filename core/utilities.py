@@ -436,7 +436,7 @@ def normalize_chat_text(text):
 
     text = text.strip()
     text = re.sub(r'^\d+[.)]\s+', '', text)
-    text = re.sub(r'^[^a-zA-Z0-9]+', '', text)
+    text = re.sub(r'^[\W_]+', '', text)
 
     return text.strip()
 

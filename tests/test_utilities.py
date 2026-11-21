@@ -112,6 +112,13 @@ class TestNormalizeChatText:
         result = normalize_chat_text("")
         assert result == ""
 
+    def test_a_leading_letter_from_another_alphabet_is_kept(self):
+        assert normalize_chat_text("École nationale: la réponse est oui.").startswith("École")
+        assert normalize_chat_text("Ça dépend du contrat.").startswith("Ça")
+        assert normalize_chat_text("这是一个句子。") == "这是一个句子。"
+        assert normalize_chat_text("Привет, мир.").startswith("Привет")
+        assert normalize_chat_text("... \"Quoted\" start") == "Quoted\" start"
+
 
 class TestFormatCitations:
 

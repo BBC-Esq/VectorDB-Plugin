@@ -22,6 +22,8 @@ _ABBREVIATIONS = {
     'mr', 'mrs', 'ms', 'dr', 'prof', 'sr', 'jr', 'st', 'vs', 'v', 'no', 'nos', 'inc', 'ltd', 'co', 'corp',
     'llc', 'dept', 'fig', 'approx', 'ga', 'app', 'ct', 'cir', 'supp', 'sec', 'art', 'ch', 'para', 'vol',
     'jan', 'feb', 'mar', 'apr', 'jun', 'jul', 'aug', 'sep', 'sept', 'oct', 'nov', 'dec',
+    'fed', 'civ', 'crim', 'evid', 'proc', 'id', 'al', 'esq', 'ph.d', 'cal', 'stat', 'gen', 'cf', 'const',
+    'amend', 'rev', 'ann', 'admin', 'bankr', 'dist', 'div', 'reg', 'cong', 'sess',
 }
 
 

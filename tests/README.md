@@ -39,7 +39,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_index_rebuild.py` | Rebuild index: a real index and chunk store rebuilt without removed chunks, a failed rebuild changing nothing, an empty database refused, and interrupted rebuilds finished or undone; new chunks appended by document addition and folded in by a rebuild, appends that were never committed dropped, and vectors of another size refused |
 | `test_initialize.py` | Startup: recreating a missing `config.yaml`, reporting an unreadable one, and creating folders in the program folder |
 | `test_jeeves_helpers.py` | Ask Jeeves: the poems file, source rows from the user guide and text prepared for speech |
-| `test_kokoro_text.py` | Kokoro speech text: phoneme clauses rejoined with their punctuation |
+| `test_kokoro_text.py` | Speech text: phoneme clauses rejoined with their punctuation, and sentence splitting around legal abbreviations |
 | `test_local_model.py` | Local chat model process: answers from the passages it is given, returns their citations, and is reported if it dies while answering |
 | `test_manage_data.py` | Manage Databases tab: the database list, database details (chunk counts and creation dates from `metadata.db`), file rows, read-only connections, safely deleting a database, backing up and restoring, backups that are out of date, changes since the index was built, starting a rebuild of the index, and the stats worker noting when it was interrupted |
 | `test_markdown_js.py` | Answer rendering in `markdown.js`, run through Node.js (skipped without it): headings, code blocks under list items, nested lists, links and double-underscore names |
