@@ -90,3 +90,36 @@ class TestFixedSizeTextSplitter:
         splitter = FixedSizeTextSplitter(chunk_size=50, chunk_overlap=0)
         chunks = splitter.split_documents([doc])
         assert len(chunks) == 1
+
+
+class TestEmailLoader:
+
+    def _load(self, tmp_path, raw):
+        from db.document_processor import _load_eml
+
+        path = tmp_path / "message.eml"
+        path.write_bytes(raw)
+        return _load_eml(path)
+
+    def test_html_body_is_read_when_the_plain_part_is_empty(self, tmp_path):
+        raw = (b"Subject: Minutes\r\nMIME-Version: 1.0\r\n"
+               b'Content-Type: multipart/alternative; boundary="b"\r\n\r\n'
+               b"--b\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n \r\n"
+               b"--b\r\nContent-Type: text/html; charset=utf-8\r\n\r\n"
+               b"<html><body><p>The committee voted to repaint the lantern room.</p></body></html>\r\n--b--\r\n")
+        text = self._load(tmp_path, raw)
+        assert text.startswith("Subject: Minutes") and "voted to repaint the lantern room" in text
+
+    def test_plain_part_is_preferred_when_it_has_text(self, tmp_path):
+        raw = (b"Subject: Minutes\r\nMIME-Version: 1.0\r\n"
+               b'Content-Type: multipart/alternative; boundary="b"\r\n\r\n'
+               b"--b\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nPlain version.\r\n"
+               b"--b\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<p>HTML version.</p>\r\n--b--\r\n")
+        text = self._load(tmp_path, raw)
+        assert "Plain version." in text and "HTML version." not in text
+
+    @pytest.mark.parametrize("encoding", ["utf-8", "cp1252"])
+    def test_accented_letters_survive_a_missing_charset(self, tmp_path, encoding):
+        body = "Señor Núñez ordered crème brûlée at the café."
+        raw = b"Subject: Menu\r\nContent-Type: text/plain\r\nContent-Transfer-Encoding: 8bit\r\n\r\n" + body.encode(encoding)
+        assert body in self._load(tmp_path, raw)

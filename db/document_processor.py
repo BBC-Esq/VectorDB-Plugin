@@ -177,13 +177,13 @@ def _load_html(file_path: Path) -> Optional[str]:
 
 
 def _eml_part_text(part) -> str:
-    try:
-        content = part.get_content()
-        if isinstance(content, str):
-            return content
-    except Exception:
-        pass
-    data = part.get_payload(decode=True) or b""
+    data = part.get_payload(decode=True)
+    if not isinstance(data, bytes):
+        try:
+            content = part.get_content()
+        except Exception:
+            return ""
+        return content if isinstance(content, str) else ""
     for enc in filter(None, (part.get_content_charset(), "utf-8", "cp1252")):
         try:
             return data.decode(enc)
@@ -200,9 +200,14 @@ def _collect_eml_text(part, parts):
         return
     if part.is_multipart():
         if part.get_content_subtype() == "alternative":
-            body = part.get_body(preferencelist=("plain", "html"))
-            if body is not None and body is not part:
-                _collect_eml_text(body, parts)
+            for kind in ("plain", "html"):
+                body = part.get_body(preferencelist=(kind,))
+                if body is not None and body is not part:
+                    found = []
+                    _collect_eml_text(body, found)
+                    if found:
+                        parts.extend(found)
+                        return
             return
         for child in part.iter_parts():
             _collect_eml_text(child, parts)

@@ -32,7 +32,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_database_additions.py` | Adding files to an existing database: versioned SQLite commit, duplicate skipping before embedding, original source paths with symlink or copy staging, supported formats and rollback after append |
 | `test_database_interactions.py` | Model family detection, query prompts, text normalization, `metadata.db` creation, audio document loading, searches skipping removed chunks, searches scoring added chunks alongside the index, the file type filter reaching added chunks, and the prepare step leaving out documents before they are split or embedded |
 | `test_document_ids.py` | Document ids in `metadata.db`: new databases, older mapping formats, the one-time upgrade of older databases (including a failed upgrade changing nothing) and batched lookups |
-| `test_document_processor.py` | `FixedSizeTextSplitter` and PDF chunking: size, overlap with no repeated tail chunk, metadata and edge cases |
+| `test_document_processor.py` | `FixedSizeTextSplitter` and PDF chunking: size, overlap with no repeated tail chunk, metadata and edge cases; the email loader |
 | `test_extract_metadata.py` | Content and file hashing, metadata extraction and PDF page numbers |
 | `test_gui_validation.py` | Database name rules, port extraction, the file type filter mapping and name preconditions (no GUI imports) |
 | `test_index_changes.py` | The record in `metadata.db` of documents added or removed since the index was built: present in new and upgraded databases, written only when a change commits, read without writing and cleared |
