@@ -457,3 +457,32 @@ class TestBracketsInUrls:
                  for page in ("Mercury_(planet)", "Mercury_(element)", "list[int]", "list[str]")}
         assert len(names) == 4
         assert worker.sanitize_filename("https://docs.example.com/docs/plain.html") == "docs.example.com_docs_plain"
+
+
+class _Refused:
+    url = ""
+    status_code = 429
+    headers = {"content-type": "text/html"}
+    text = ""
+
+
+class _RefusingSession(_SiteSession):
+    async def get(self, url, timeout=30, allow_redirects=True):
+        return _Refused()
+
+
+class TestInterruptedResume:
+
+    def test_failed_urls_not_reached_before_a_rate_limit_are_kept(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(scraper_module, "PROJECT_ROOT", tmp_path)
+        monkeypatch.setattr(scraper_module, "AsyncSession", lambda **kwargs: _RefusingSession({}))
+        root = "https://docs.example.com/docs/"
+        failed = {f"https://docs.example.com/docs/p{i}" for i in range(130)}
+        worker = ScraperWorker(root, "site", BaseScraper, name="Site", resume=True)
+        log = os.path.join(worker.save_dir, "failed_urls.log")
+        with open(log, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(sorted(failed)) + "\n")
+        worker.run()
+        assert worker._rate_limited
+        with open(log, encoding="utf-8") as handle:
+            assert failed <= {line.strip() for line in handle if line.strip()}

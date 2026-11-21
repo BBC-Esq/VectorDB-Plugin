@@ -162,6 +162,8 @@ def test_scrape_state_marks_scraped_docs(monkeypatch, tmp_path, scrape_settings)
     monkeypatch.setattr(scrape, "PROJECT_ROOT", tmp_path)
     folder = scrape.scrape_documentation["aiohttp"]["folder"]
     (tmp_path / "Scraped_Documentation" / folder).mkdir(parents=True)
+    (tmp_path / "Scraped_Documentation" / folder / "index.html").write_text("x", encoding="utf-8")
+    (tmp_path / "Scraped_Documentation" / scrape.scrape_documentation["anyio"]["folder"]).mkdir(parents=True)
     tool = scrape.ScrapeTool(None)
     state = tool.state()
     assert len(state["docs"]) == len(scrape.scrape_documentation)
@@ -214,6 +216,13 @@ def test_scrape_finish_updates_rows(monkeypatch, tmp_path, scrape_settings):
     tool._on_worker_finished("attrs", False, False)
     assert tool.rows["attrs"]["status"] == "completed" and "attrs" not in scrape._load_rate_limited_set()
     assert tool.selected == "attrs"
+    assert tool.state()["rows"][0]["failed"] == 0
+    (folder / "failed_urls.log").write_text("https://a/x\nhttps://a/y\nhttps://a/x\n\n", encoding="utf-8")
+    tool._on_worker_finished("attrs", False, False)
+    assert tool.rows["attrs"]["status"] == "completed" and tool.state()["rows"][0]["failed"] == 2
+    (folder / "a.html").unlink()
+    tool._on_worker_finished("attrs", False, False)
+    assert tool.rows["attrs"]["status"] == "failed"
 
 
 def test_vision_counts_images_and_reads_the_chosen_model(cpu_only, monkeypatch, tmp_path):

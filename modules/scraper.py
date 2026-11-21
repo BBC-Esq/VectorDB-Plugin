@@ -1109,6 +1109,8 @@ class ScraperWorker(QObject):
         self._429s_since_last_success = 0
         self.resume = resume
         self._log_lock = None
+        self._retry_urls = set()
+        self._visited = set()
         self._pacer = _RateLimitPacer() if getattr(self.scraper, "follows_rate_limit_header", False) else None
 
     def run(self):
@@ -1121,11 +1123,22 @@ class ScraperWorker(QObject):
             except asyncio.CancelledError:
                 pass
         finally:
+            self._keep_unvisited_retries()
             if not self._cancelled and not self._rate_limited:
                 self._finalize_clean_run()
             self.cleanup()
             self._loop.close()
             self.scraping_finished.emit(self.name, self._cancelled, self._rate_limited)
+
+    def _keep_unvisited_retries(self):
+        leftover = sorted(self._retry_urls - self._visited)
+        if not leftover:
+            return
+        try:
+            with open(os.path.join(self.save_dir, "failed_urls.log"), "a", encoding="utf-8") as f:
+                f.write("".join(url + "\n" for url in leftover))
+        except OSError:
+            pass
 
     def _finalize_clean_run(self):
         try:
@@ -1183,7 +1196,7 @@ class ScraperWorker(QObject):
         self.stats["scraped"] = self.count_saved_files()
 
         semaphore = asyncio.BoundedSemaphore(max_concurrent_requests)
-        visited = set()
+        visited = self._visited = set()
 
         if self.resume:
             to_visit = self._build_resume_queue(log_file)
@@ -1273,6 +1286,7 @@ class ScraperWorker(QObject):
                         line = line.strip()
                         if line:
                             candidates.add(line)
+                            self._retry_urls.add(line)
             except Exception:
                 pass
             try:

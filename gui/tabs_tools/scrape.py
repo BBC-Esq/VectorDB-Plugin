@@ -57,6 +57,22 @@ def folder_for(doc_name):
     return os.path.join(scraped_root(), scrape_documentation[doc_name]["folder"])
 
 
+def has_pages(folder_path):
+    try:
+        with os.scandir(folder_path) as entries:
+            return any(entry.name.endswith(".html") for entry in entries)
+    except OSError:
+        return False
+
+
+def count_failed(folder_path):
+    try:
+        with open(os.path.join(folder_path, "failed_urls.log"), encoding="utf-8") as f:
+            return len({line.strip() for line in f if line.strip()})
+    except OSError:
+        return 0
+
+
 def count_pages(folder_path):
     try:
         if os.path.exists(folder_path):
@@ -86,7 +102,7 @@ class ScrapeTool(QObject):
         root = scraped_root()
         self.scraped = {
             name for name in self.doc_names()
-            if os.path.exists(os.path.join(root, scrape_documentation[name]["folder"]))
+            if has_pages(os.path.join(root, scrape_documentation[name]["folder"]))
         }
 
     def _restore_rate_limited_rows(self):
@@ -104,7 +120,7 @@ class ScrapeTool(QObject):
     def state(self):
         docs = [{"name": name, "scraped": name in self.scraped} for name in self.doc_names()]
         rows = [
-            {"name": name, "status": row["status"], "pages": row["pages"],
+            {"name": name, "status": row["status"], "pages": row["pages"], "failed": row.get("failed", 0),
              "running": name in self.active, "started": row.get("started")}
             for name, row in self.rows.items()
         ]
@@ -220,13 +236,14 @@ class ScrapeTool(QObject):
         if row is None:
             return
         row["pages"] = count_pages(row["folder"])
+        row["failed"] = count_failed(row["folder"])
         if was_cancelled:
             row["status"] = "cancelled"
         elif was_rate_limited:
             row["status"] = "rate_limited"
             _mark_rate_limited_persistent(doc_name)
         else:
-            row["status"] = "completed"
+            row["status"] = "completed" if row["pages"] else "failed"
             _clear_rate_limited_persistent(doc_name)
         row["finished"] = time.time()
         self.selected = doc_name

@@ -25,6 +25,13 @@
       icon = ICONS.check;
       kind = "ok";
       text = `Completed · <b>${pages(row.pages)}</b>`;
+      if (row.failed) {
+        text += ` · ${fmt.int(row.failed)} link${row.failed === 1 ? "" : "s"} could not be fetched (listed in failed_urls.log in the folder)`;
+      }
+    } else if (row.status === "failed") {
+      icon = ICONS.warn;
+      kind = "warn";
+      text = "No pages could be scraped. Check your internet connection or the site, then scrape again.";
     } else if (row.status === "cancelled") {
       icon = ICONS.stop;
       kind = "muted";
