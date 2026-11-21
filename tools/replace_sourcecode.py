@@ -113,6 +113,15 @@ def setup_vector_db():
         updater.print_status("ERROR", f"Error creating directories: {str(e)}")
         return
 
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            if zip_ref.testzip() is not None:
+                updater.print_status("ERROR", "Zip file is corrupted.")
+                return
+    except Exception as e:
+        updater.print_status("ERROR", f"Error reading zip file: {str(e)}")
+        return
+
     user_manual_paths = [
         vector_db_path / "user_manual",
         vector_db_backup_path / "user_manual"
@@ -132,9 +141,6 @@ def setup_vector_db():
 
     try:
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            if zip_ref.testzip() is not None:
-                updater.print_status("ERROR", "Zip file is corrupted.")
-                return
             zip_ref.extractall(vector_db_path)
             zip_ref.extractall(vector_db_backup_path)
         updater.print_status("SUCCESS", f"Successfully extracted user_manual_db.zip to {vector_db_path} and {vector_db_backup_path}")

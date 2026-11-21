@@ -14,6 +14,23 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QObject, QThread, Signal, QPoint
 
 from packaging import version
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.utils import canonicalize_name
+
+
+def required_names(requirements):
+    names = []
+    for text in requirements or []:
+        try:
+            requirement = Requirement(text)
+        except InvalidRequirement:
+            continue
+        if requirement.marker is not None and not requirement.marker.evaluate({"extra": ""}):
+            continue
+        name = canonicalize_name(requirement.name)
+        if name not in names:
+            names.append(name)
+    return names
 
 
 def _get_latest_version(package_name):
@@ -357,6 +374,7 @@ class PackageChecker(QMainWindow):
             self.show_message("Input Error", "Please enter a package name.")
             return
         exists, version_installed = self._is_package_available(package_name)
+        self.results_table.setSortingEnabled(False)
         self.results_table.clearContents()
         self.results_table.setRowCount(0)
         if exists:
@@ -370,25 +388,13 @@ class PackageChecker(QMainWindow):
 
     def check_all_packages(self):
         self.current_mode = 'all'
+        self.results_table.setSortingEnabled(False)
         self.results_table.clearContents()
         self.results_table.setRowCount(0)
         try:
             installed_packages = list(importlib.metadata.distributions())
             installed_packages.sort(key=lambda x: x.metadata['Name'].lower())
-            self.requires_map = {}
-            self.required_by_map = {}
-            package_names = {}
-            for dist in installed_packages:
-                name = dist.metadata['Name']
-                package_names[name.lower()] = name
-                requires = dist.requires or []
-                self.requires_map[name] = requires
-                for req in requires:
-                    req_name = req.split()[0]
-                    if req_name in self.required_by_map:
-                        self.required_by_map[req_name].append(name)
-                    else:
-                        self.required_by_map[req_name] = [name]
+            self.build_dependency_maps(installed_packages)
             self.results_table.setRowCount(len(installed_packages))
             for row, dist in enumerate(installed_packages):
                 name = dist.metadata['Name']
@@ -429,22 +435,7 @@ class PackageChecker(QMainWindow):
             self.show_message("Up to Date", "All packages are up to date!")
             return
         self.outdated_packages = outdated_packages
-        self.requires_map = {}
-        self.required_by_map = {}
-        for pkg in outdated_packages:
-            name = pkg[0]
-            try:
-                dist = importlib.metadata.distribution(name)
-                requires = dist.requires or []
-                self.requires_map[name] = requires
-                for req in requires:
-                    req_name = req.split()[0]
-                    if req_name in self.required_by_map:
-                        self.required_by_map[req_name].append(name)
-                    else:
-                        self.required_by_map[req_name] = [name]
-            except importlib.metadata.PackageNotFoundError:
-                pass
+        self.build_dependency_maps(importlib.metadata.distributions())
         self.results_table.setRowCount(len(outdated_packages))
         for row, (name, current, latest) in enumerate(outdated_packages):
             self.results_table.setItem(row, 0, QTableWidgetItem(name))
@@ -637,9 +628,11 @@ class PackageChecker(QMainWindow):
                         self.outdated_packages[i] = (pkg[0], installed_version, latest_version)
                         row = self.find_row(package_name)
                         if row is not None:
+                            self.results_table.setSortingEnabled(False)
                             self.results_table.setItem(row, 1, QTableWidgetItem(installed_version))
                             self.results_table.setItem(row, 2, QTableWidgetItem(latest_version))
                             self.set_tooltip_for_package(row, package_name)
+                            self.results_table.setSortingEnabled(True)
             self.show_message("Update Complete", f"Package '{package_name}' has been updated in the outdated list.")
         except importlib.metadata.PackageNotFoundError:
             self.show_message("Error", f"Package '{package_name}' not found after installation.")
@@ -769,10 +762,23 @@ class PackageChecker(QMainWindow):
         msg_box.setIcon(icon)
         msg_box.exec()
 
+    def build_dependency_maps(self, distributions):
+        self.requires_map = {}
+        self.required_by_map = {}
+        for dist in distributions:
+            name = dist.metadata['Name']
+            if not name:
+                continue
+            requires = required_names(dist.requires)
+            self.requires_map[canonicalize_name(name)] = requires
+            for required in requires:
+                self.required_by_map.setdefault(required, []).append(name)
+
     def set_tooltip_for_package(self, row, package_name):
-        requires = self.requires_map.get(package_name, [])
-        required_by = self.required_by_map.get(package_name, [])
-        requires_text = ", ".join([req.split()[0] for req in requires]) if requires else "None"
+        key = canonicalize_name(package_name)
+        requires = self.requires_map.get(key, [])
+        required_by = sorted(self.required_by_map.get(key, []), key=str.lower)
+        requires_text = ", ".join(requires) if requires else "None"
         required_by_text = ", ".join(required_by) if required_by else "None"
         tooltip_text = f"Requires: {requires_text}\nRequired by: {required_by_text}"
         package_item = self.results_table.item(row, 0)
