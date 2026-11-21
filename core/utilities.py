@@ -354,8 +354,8 @@ def download_kokoro_tts():
     except Exception as e:
         print(f"Failed to download Kokoro TTS model: {e}")
         if tts_path.exists():
-            shutil.rmtree(tts_path)
-        return False
+            shutil.rmtree(tts_path, ignore_errors=True)
+        raise
 
 
 def normalize_chat_text(text):

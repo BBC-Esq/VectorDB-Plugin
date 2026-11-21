@@ -306,7 +306,9 @@ def create_directory_structure():
 create_directory_structure()
 
 from core.utilities import download_kokoro_tts
-if not download_kokoro_tts():
+try:
+    download_kokoro_tts()
+except Exception:
     print("\033[91mThe Kokoro text-to-speech model could not be downloaded. It can be downloaded later from within the program.\033[0m")
 
 def update_config_yaml():

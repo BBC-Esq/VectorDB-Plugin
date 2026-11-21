@@ -25,6 +25,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `conftest.py` | Shared fixtures: a sample config, sample citation metadata and the project root |
 | `test_backends_data.py` | Chat Backend Settings dialog: API keys, model choices and the reasoning efforts each model offers, the LM Studio address and port, and the LM Studio and ChatGPT connection checks |
 | `test_chat_base.py` | `build_augmented_query`, maximum lengths, maximum new tokens, generation settings, `make_bnb_settings`, the Mistral prompt and loading in float32 on a computer without a GPU |
+| `test_config.py` | Settings come only from `config.yaml`, never from environment variables with the same names |
 | `test_constants.py` | Required keys in the chat, embedding, vision and Whisper model lists, document loaders, thinking tags, pipeline presets and supported file types |
 | `test_create_state.py` | Create Database tab: adding and removing files, the embedding model list, settings, build progress read from the build log, recording the new database with the settings it was built with, the checks before a build starts, including waiting for a backup or restore, reporting a failed backup of the new database, and holding off transcription from the PDF check until the build ends |
 | `test_credentials.py` | Config file load and save round trip, and where each credential is stored |
@@ -56,4 +57,4 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_thinking_tags.py` | Thinking tag structure and filtering, and LM Studio hiding a model's thinking without losing the answer |
 | `test_tools.py` | File hashing, markdown chunk extraction and chunk analysis |
 | `test_tools_state.py` | Tools tab: Whisper models and precisions, transcription checks and results (including audio with no speech), scraping status including failed links and scrapes that saved nothing, vision, OCR and the backup summary, including databases changed since the backup backups that wait while another database task runs, and running tools keeping the window open |
-| `test_utilities.py` | `normalize_chat_text`, `format_citations`, `prepare_long_path`, `normalize_text`, embedding batch sizes, package and installation checks, platform and Python version info, the device and precision each TTS backend runs in, and the database name checks before a build |
+| `test_utilities.py` | `normalize_chat_text`, `format_citations`, `prepare_long_path`, `normalize_text`, embedding batch sizes, package and installation checks, platform and Python version info, the device and precision each TTS backend runs in, the database name checks before a build, and the reason a failed Kokoro download reports |

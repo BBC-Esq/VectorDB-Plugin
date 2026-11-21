@@ -121,6 +121,10 @@ class AppConfig(BaseSettings):
     _config_path: Path = PrivateAttr(default=Path("config.yaml"))
     _lock: threading.RLock = PrivateAttr(default_factory=threading.RLock)
 
+    @classmethod
+    def settings_customise_sources(cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings):
+        return (init_settings,)
+
     @property
     def root_dir(self) -> Path:
         return Path(__file__).resolve().parent.parent

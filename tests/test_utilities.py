@@ -376,3 +376,22 @@ class TestDatabaseNamePreconditions:
         monkeypatch.setattr(utilities, "WINDOWS_MAX_PATH", 1000)
         ok, message = utilities.check_preconditions_for_db_creation(tmp_path, "contracts_2024-a")
         assert not ok and "config.yaml" in message
+
+
+class TestKokoroDownload:
+
+    def test_a_failed_download_reports_why_it_failed(self, tmp_path, monkeypatch):
+        import huggingface_hub
+        from PySide6.QtCore import Qt
+
+        def no_internet(**kwargs):
+            raise ConnectionError("no internet")
+
+        monkeypatch.setattr(utilities, "PROJECT_ROOT", tmp_path)
+        monkeypatch.setattr(huggingface_hub, "snapshot_download", no_internet)
+        results = []
+        runnable = utilities.DownloadRunnable(utilities.download_kokoro_tts)
+        runnable.signals.finished.connect(lambda success, message: results.append((success, message)), Qt.DirectConnection)
+        runnable.run()
+        assert results == [(False, "no internet")]
+        assert not (tmp_path / "Models" / "tts" / "ctranslate2-4you--Kokoro-82M-light").exists()
