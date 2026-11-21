@@ -28,6 +28,25 @@ class TestFixedSizeTextSplitter:
         assert len(chunks) >= 3
         assert chunks[0].page_content[-3:] == chunks[1].page_content[:3]
 
+    def test_overlap_adds_no_chunk_that_only_repeats_the_end(self):
+        for length in (451, 600, 700, 701, 901, 1150, 1151, 1600, 2500):
+            text = "".join(chr(97 + i % 26) for i in range(length))
+            chunks = FixedSizeTextSplitter(chunk_size=700, chunk_overlap=250).split_documents(
+                [Document(page_content=text, metadata={})])
+            pieces = [c.page_content for c in chunks]
+            assert "".join([pieces[0]] + [piece[250:] for piece in pieces[1:]]) == text
+            assert len(pieces) == max(1, -(-(length - 700) // 450) + 1)
+
+    def test_pdf_overlap_adds_no_chunk_that_only_repeats_the_end(self):
+        from db.text_splitter import add_pymupdf_page_metadata
+
+        for length in (451, 600, 901, 1150, 1600):
+            text = "[[page1]]" + "".join(chr(97 + i % 26) for i in range(length))
+            pieces = [c.page_content for c in add_pymupdf_page_metadata(
+                Document(page_content=text, metadata={}), chunk_size=700, chunk_overlap=250)]
+            assert "".join([pieces[0]] + [piece[250:] for piece in pieces[1:]]) == text[9:]
+            assert len(pieces) == max(1, -(-(length - 700) // 450) + 1)
+
     def test_single_chunk(self):
         doc = Document(page_content="Short text", metadata={})
         splitter = FixedSizeTextSplitter(chunk_size=100, chunk_overlap=0)

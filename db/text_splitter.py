@@ -46,11 +46,12 @@ class FixedSizeTextSplitter:
             for start in range(0, len(text), step):
                 piece = text[start:start + self.chunk_size].strip()
 
-                if not piece:
-                    continue
+                if piece:
+                    metadata = doc.metadata if doc.metadata else {}
+                    chunks.append(Document(page_content=piece, metadata=dict(metadata)))
 
-                metadata = doc.metadata if doc.metadata else {}
-                chunks.append(Document(page_content=piece, metadata=dict(metadata)))
+                if start + self.chunk_size >= len(text):
+                    break
 
         return chunks
 
@@ -94,6 +95,8 @@ def add_pymupdf_page_metadata(doc: Document, chunk_size: int = 1200, chunk_overl
             elif chunk and page_num is None:
                 chunks.append((chunk, 1))
 
+            if end >= len(clean_text):
+                break
             start += chunk_size - chunk_overlap
 
         return chunks
