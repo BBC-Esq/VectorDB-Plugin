@@ -400,27 +400,18 @@ class _SiteSession:
         return _SiteResponse(url, self.pages.get(url))
 
 
-class TestPageLimit:
+class TestWholeCrawl:
 
-    def test_reaching_the_limit_pauses_a_scrape_that_resume_completes(self, tmp_path, monkeypatch):
+    def test_a_crawl_saves_every_linked_page_and_cleans_up(self, tmp_path, monkeypatch):
         root = "https://docs.example.com/docs/"
-        pages = {root: '<html><body><a href="/docs/p1">next</a></body></html>'}
-        for i in range(1, 8):
-            link = f'<a href="/docs/p{i + 1}">next</a>' if i < 7 else ""
-            pages[f"https://docs.example.com/docs/p{i}"] = f"<html><body>page {i} {link}</body></html>"
+        links = "".join(f'<a href="/docs/p{i}">page {i}</a>' for i in range(120))
+        pages = {root: f"<html><body>{links}</body></html>"}
+        for i in range(120):
+            pages[f"https://docs.example.com/docs/p{i}"] = f'<html><body>page {i} <a href="/docs/">home</a></body></html>'
         monkeypatch.setattr(scraper_module, "PROJECT_ROOT", tmp_path)
         monkeypatch.setattr(scraper_module, "AsyncSession", lambda **kwargs: _SiteSession(pages))
-        monkeypatch.setattr(ScraperWorker, "PAGE_LIMIT", 3)
         worker = ScraperWorker(root, "site", BaseScraper, name="Site")
         worker.run()
-
-        def saved(suffix):
-            return [f for f in os.listdir(worker.save_dir) if f.endswith(suffix)]
-
-        assert worker.page_limit_reached
-        assert len(saved(".html")) == 3 and saved(".links.json")
-        monkeypatch.setattr(ScraperWorker, "PAGE_LIMIT", 100)
-        resumed = ScraperWorker(root, "site", BaseScraper, name="Site", resume=True)
-        resumed.run()
-        assert not resumed.page_limit_reached
-        assert len(saved(".html")) == 8 and not saved(".links.json")
+        files = os.listdir(worker.save_dir)
+        assert len([f for f in files if f.endswith(".html")]) == 121
+        assert not [f for f in files if f.endswith(".links.json")] and "failed_urls.log" not in files

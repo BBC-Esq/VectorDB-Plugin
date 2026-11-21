@@ -33,10 +33,6 @@
       icon = ICONS.warn;
       kind = "warn";
       text = `The site is limiting requests. ${pages(row.pages)} saved; scrape it again and choose Resume to continue.`;
-    } else if (row.status === "page_limit") {
-      icon = ICONS.warn;
-      kind = "warn";
-      text = `Paused at the page limit for one run. ${pages(row.pages)} saved; scrape it again and choose Resume to continue.`;
     }
     const busy = row.running;
     const buttons = [
