@@ -32,8 +32,36 @@ def get_supported_quantizations(device_type):
     return [q for q in desired_order if q in filtered_types]
 
 
+class ConfigFileError(Exception):
+    pass
+
+
+def prepare_config_file():
+    config_path = PROJECT_ROOT / 'config.yaml'
+    if not config_path.exists():
+        default_path = PROJECT_ROOT / 'Assets' / 'config.yaml'
+        if default_path.exists():
+            shutil.copyfile(default_path, config_path)
+        else:
+            config_path.write_text('{}\n', encoding='utf-8')
+        print("config.yaml was missing, so it was recreated with the default settings.")
+        return
+    try:
+        with open(config_path, 'r', encoding='utf-8') as stream:
+            data = yaml.safe_load(stream)
+        problem = None if data is None or isinstance(data, dict) else "It does not contain a list of settings."
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as e:
+        problem = str(e)
+    if problem:
+        raise ConfigFileError(
+            f"The settings file could not be read:\n\n{config_path}\n\n{problem}\n\n"
+            "Correct the file, or delete it to start again with the default settings. "
+            "Deleting it also clears the list of databases and any saved keys."
+        )
+
+
 def update_config_file(**system_info):
-    full_config_path = Path('config.yaml').resolve()
+    full_config_path = PROJECT_ROOT / 'config.yaml'
 
     with open(full_config_path, 'r', encoding='utf-8') as stream:
         config_data = yaml.safe_load(stream) or {}
@@ -77,7 +105,7 @@ def check_for_necessary_folders():
     ]
     
     for folder in folders:
-        Path(folder).mkdir(exist_ok=True)
+        (PROJECT_ROOT / folder).mkdir(exist_ok=True)
 
 
 def restore_vector_db_backup():
@@ -166,6 +194,7 @@ def delete_chat_history():
 
 
 def main():
+    prepare_config_file()
     compute_device_info = get_compute_device_info()
     platform_info = get_platform_info()
     update_config_file(Compute_Device=compute_device_info, Platform_Info=platform_info)

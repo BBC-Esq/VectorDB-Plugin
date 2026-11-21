@@ -1,6 +1,11 @@
 import faulthandler
 faulthandler.enable(all_threads=True)
 
+import os
+from pathlib import Path
+
+os.chdir(Path(__file__).resolve().parent)
+
 import multiprocessing
 multiprocessing.set_start_method('spawn', force=True)
 

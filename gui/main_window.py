@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QTabWidget,
     QMenuBar, QHBoxLayout, QMessageBox
 )
-from core.initialize import main as initialize_system
+from core.initialize import ConfigFileError, main as initialize_system
 from gui.metrics_bar import MetricsWidget as MetricsBar
 from gui.tabs import create_tabs
 from core.utilities import (
@@ -225,7 +225,11 @@ def main():
 
     theme_manager.apply(ensure_theme_config())
 
-    ex = DocQA_GUI()
+    try:
+        ex = DocQA_GUI()
+    except ConfigFileError as e:
+        QMessageBox.critical(None, "Settings File Problem", str(e))
+        sys.exit(1)
     ex.show()
 
     sys.exit(app.exec())
