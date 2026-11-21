@@ -477,7 +477,12 @@ class VisionTool(QObject):
                 self.changed.emit()
 
     def busy_message(self):
-        return None
+        if not self.running():
+            return None
+        if self.task == "compare":
+            return ("A vision model comparison is still running. Cancel it or wait for it to finish "
+                    "before closing the program.")
+        return "The vision model is still describing images. Please wait for it to finish before closing the program."
 
     def cleanup(self):
         if self.running():

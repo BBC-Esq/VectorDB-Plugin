@@ -51,5 +51,5 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_symlinks.py` | Symlink creation |
 | `test_thinking_tags.py` | Thinking tag structure and filtering |
 | `test_tools.py` | File hashing, markdown chunk extraction and chunk analysis |
-| `test_tools_state.py` | Tools tab: Whisper models and precisions, transcription checks and results (including audio with no speech), scraping status, vision, OCR and the backup summary, including databases changed since the backup and backups that wait while another database task runs |
+| `test_tools_state.py` | Tools tab: Whisper models and precisions, transcription checks and results (including audio with no speech), scraping status, vision, OCR and the backup summary, including databases changed since the backup backups that wait while another database task runs, and running tools keeping the window open |
 | `test_utilities.py` | `normalize_chat_text`, `format_citations`, `prepare_long_path`, `normalize_text`, embedding batch sizes, package and installation checks, platform and Python version info, the device and precision each TTS backend runs in, and the database name checks before a build |

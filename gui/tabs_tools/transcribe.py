@@ -85,6 +85,11 @@ class TranscribeTool(QObject):
     def running(self):
         return self.worker is not None and self.worker.isRunning()
 
+    def busy_message(self):
+        if self.running():
+            return "An audio transcription is still running. Please wait for it to finish before closing the program."
+        return None
+
     def state(self):
         file_state = None
         if self.file:

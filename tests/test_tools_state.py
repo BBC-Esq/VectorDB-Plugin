@@ -141,6 +141,23 @@ def test_transcription_worker_exit_codes(monkeypatch):
         transcriber.start_transcription_process("talk.wav")
 
 
+def test_running_tools_hold_the_window_open(cpu_only, monkeypatch, tmp_path):
+    monkeypatch.setattr(vision, "PROJECT_ROOT", tmp_path)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "Docs_for_DB").mkdir()
+
+    class Running:
+        def isRunning(self):
+            return True
+
+    tools = {"OCR": ocr.OcrTool(None), "transcription": transcribe.TranscribeTool(None), "vision": vision.VisionTool(None)}
+    for word, tool in tools.items():
+        assert tool.busy_message() is None
+        tool.worker = Running()
+        assert word in tool.busy_message() and "before closing the program" in tool.busy_message()
+        tool.worker = None
+
+
 def test_scrape_state_marks_scraped_docs(monkeypatch, tmp_path, scrape_settings):
     monkeypatch.setattr(scrape, "PROJECT_ROOT", tmp_path)
     folder = scrape.scrape_documentation["aiohttp"]["folder"]
