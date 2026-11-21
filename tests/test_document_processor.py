@@ -125,6 +125,50 @@ class TestEmailLoader:
         assert body in self._load(tmp_path, raw)
 
 
+class TestTextLoaders:
+
+    def test_one_stray_byte_does_not_garble_a_utf8_file(self):
+        from db.document_processor import _decode_text
+
+        text = "The café’s résumé policy — naïve façade. " * 5
+        damaged = text.encode("utf-8") + b"It\x92s final."
+        assert _decode_text(damaged) == text + "It’s final."
+        assert _decode_text(text.encode("utf-8")) == text
+
+    def test_a_windows_1252_file_is_still_read_as_windows_1252(self):
+        from db.document_processor import _decode_text
+
+        text = "Señor Núñez ordered crème brûlée at the café."
+        assert _decode_text(text.encode("cp1252")) == text
+
+    def test_csv_with_a_very_long_cell_loads(self, tmp_path):
+        from db.document_processor import _load_csv
+
+        (tmp_path / "long.csv").write_text("id,notes\n1," + "word " * 40000 + "\n", encoding="utf-8")
+        text = _load_csv(tmp_path / "long.csv")
+        assert text.startswith("id notes") and len(text) > 200000
+
+    def test_a_word_text_box_is_read_once(self, tmp_path):
+        import zipfile
+
+        from db.document_processor import _load_docx
+
+        box = "<w:txbxContent><w:p><w:r><w:t>BOX TEXT</w:t></w:r></w:p></w:txbxContent>"
+        document = (
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+            'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" '
+            'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" '
+            'xmlns:v="urn:schemas-microsoft-com:vml"><w:body><w:p><w:r><w:t>Before.</w:t></w:r></w:p><w:p><w:r>'
+            f'<mc:AlternateContent><mc:Choice Requires="wps"><wps:txbx>{box}</wps:txbx></mc:Choice>'
+            f"<mc:Fallback><v:textbox>{box}</v:textbox></mc:Fallback></mc:AlternateContent>"
+            "</w:r></w:p></w:body></w:document>"
+        )
+        with zipfile.ZipFile(tmp_path / "box.docx", "w") as archive:
+            archive.writestr("word/document.xml", document)
+        text = _load_docx(tmp_path / "box.docx")
+        assert "Before." in text and text.count("BOX TEXT") == 1
+
+
 class TestSpreadsheetLoaders:
 
     ROWS = [["Supplier", "Item"], ["Halvorsen Marine", "bilge pump"], ["Okonkwo Textiles", "indigo dye"]]

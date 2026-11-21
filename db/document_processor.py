@@ -94,17 +94,25 @@ def _load_pdf(file_path: Path) -> Optional[str]:
     return "".join(full_content) if full_content else None
 
 
+_DOCX_FALLBACK = re.compile(rb"<mc:Fallback\b.*?</mc:Fallback>", re.DOTALL)
+
+
 def _load_docx(file_path: Path) -> Optional[str]:
     import zipfile
-    import docx2txt
     from docx2txt.docx2txt import xml2text
-    text = docx2txt.process(str(file_path))
+
+    def part_text(zf, name):
+        return xml2text(_DOCX_FALLBACK.sub(b"", zf.read(name)))
+
     notes = []
     with zipfile.ZipFile(str(file_path)) as zf:
-        names = set(zf.namelist())
+        names = zf.namelist()
+        headers = [name for name in names if re.match("word/header[0-9]*.xml", name)]
+        footers = [name for name in names if re.match("word/footer[0-9]*.xml", name)]
+        text = "".join(part_text(zf, name) for name in headers + ["word/document.xml"] + footers).strip()
         for part, label in (("word/footnotes.xml", "Footnotes"), ("word/endnotes.xml", "Endnotes")):
             if part in names:
-                note_text = xml2text(zf.read(part)).strip()
+                note_text = part_text(zf, part).strip()
                 if note_text:
                     notes.append(f"{label}:\n{note_text}")
     if notes:
@@ -119,6 +127,26 @@ _BOMS = (
     (codecs.BOM_UTF16_LE, "utf-16-le"),
     (codecs.BOM_UTF16_BE, "utf-16-be"),
 )
+
+
+def _cp1252_for_invalid_bytes(error):
+    raw = error.object[error.start:error.end]
+    try:
+        return raw.decode("cp1252"), error.end
+    except UnicodeDecodeError:
+        return raw.decode("latin-1"), error.end
+
+
+codecs.register_error("cp1252_for_invalid_bytes", _cp1252_for_invalid_bytes)
+
+
+def _decode_mostly_utf8(data: bytes) -> Optional[str]:
+    kept = data.decode("utf-8", errors="ignore")
+    invalid = len(data.decode("utf-8", errors="replace")) - len(kept)
+    valid = len(kept) - len(kept.encode("ascii", errors="ignore"))
+    if valid <= invalid:
+        return None
+    return data.decode("utf-8", errors="cp1252_for_invalid_bytes")
 
 
 def _decode_text(data: bytes, declared: Optional[str] = None, translate_newlines: bool = True) -> str:
@@ -149,6 +177,10 @@ def _decode_text(data: bytes, declared: Optional[str] = None, translate_newlines
                 text = data.decode(enc)
                 break
             except UnicodeDecodeError:
+                if enc == "utf-8":
+                    text = _decode_mostly_utf8(data)
+                    if text is not None:
+                        break
                 continue
         else:
             text = data.decode("latin-1")
@@ -163,6 +195,7 @@ def _load_txt(file_path: Path) -> Optional[str]:
 
 
 def _load_csv(file_path: Path) -> Optional[str]:
+    csv.field_size_limit(2**31 - 1)
     text = _decode_text(Path(file_path).read_bytes(), translate_newlines=False)
     rows = [" ".join(row) for row in csv.reader(io.StringIO(text, newline=""))]
     return "\n".join(rows) if rows else None
