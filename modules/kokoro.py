@@ -44,6 +44,24 @@ def split_sentences(text: str) -> list:
     return [sentence.strip() for sentence in sentences if re.search(r'\w', sentence)]
 
 
+_CLAUSE_BREAK = re.compile(r'([;:,.!?—…])[;:,.!?—…"\'”’)\]]*(?:\s+|$)')
+
+
+def _join_clauses(text, clauses):
+    clauses = [clause.strip() for clause in clauses if clause.strip()]
+    pieces, marks, start = [], [], 0
+    for match in _CLAUSE_BREAK.finditer(text):
+        if text[start:match.start()].strip():
+            pieces.append(text[start:match.start()])
+            marks.append(match.group(1))
+        start = match.end()
+    if text[start:].strip():
+        pieces.append(text[start:])
+    if len(pieces) != len(clauses):
+        return ', '.join(clauses)
+    return ' '.join(clause + (marks[i] if i < len(marks) else '') for i, clause in enumerate(clauses))
+
+
 def _make_direct_espeak(repo_path: Path):
     espeak_path = str(repo_path / 'espeak-ng.exe')
 
@@ -61,7 +79,7 @@ def _make_direct_espeak(repo_path: Path):
         if result.returncode != 0:
             print(f"Espeak error: {result.stderr}")
             return ''
-        return result.stdout.strip()
+        return _join_clauses(text, result.stdout.splitlines())
 
     return direct_espeak
 
