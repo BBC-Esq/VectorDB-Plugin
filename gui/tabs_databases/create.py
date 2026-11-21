@@ -72,7 +72,7 @@ class CreateDatabaseTab(WebTab):
         }
 
     def database_build_running(self):
-        return self.build.running()
+        return self.build.reading_files()
 
     def database_in_progress(self):
         return self.build.name if self.build.busy() else None

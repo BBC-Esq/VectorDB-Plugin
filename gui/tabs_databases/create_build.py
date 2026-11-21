@@ -374,6 +374,9 @@ class BuildController(QObject):
     def busy(self):
         return self.phase in ("scanning", "building", "saving")
 
+    def reading_files(self):
+        return self.phase in ("scanning", "building")
+
     def state(self):
         return {
             "phase": self.phase,

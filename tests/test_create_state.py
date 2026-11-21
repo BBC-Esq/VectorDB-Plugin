@@ -215,6 +215,15 @@ def test_build_start_guards(root, monkeypatch):
     assert "Manage Databases tab" in controller.start(None, "good_name", "model", True, cfg)["error"]
 
 
+def test_transcription_is_held_off_from_the_pdf_check_until_the_build_ends(root):
+    controller = create_build.BuildController(None, create_files.StagedFiles(None))
+    held = {}
+    for phase in ("idle", "scanning", "building", "saving"):
+        controller.phase = phase
+        held[phase] = controller.reading_files()
+    assert held == {"idle": False, "scanning": True, "building": True, "saving": False}
+
+
 def test_backup_worker_reports_a_failed_copy(root, monkeypatch):
     from gui.tabs_databases import manage_data
 
