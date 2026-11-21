@@ -74,6 +74,12 @@ def test_turn_text_for_answers_and_chunks():
     assert query_data.turn_text({"kind": "answer", "answer": "", "citations": []}) == ""
 
 
+def test_an_answer_with_no_text_counts_as_empty():
+    assert query_data.answer_is_empty({"kind": "answer", "answer": "\n"})
+    assert not query_data.answer_is_empty({"kind": "answer", "answer": "Thirty days."})
+    assert not query_data.answer_is_empty({"kind": "chunks", "answer": ""})
+
+
 def test_query_settings_summary():
     cfg = {"database": {"contexts": 6, "similarity": 0.7, "search_term": " lease ", "document_types": "image"},
            "Compute_Device": {"database_query": "cuda"}}

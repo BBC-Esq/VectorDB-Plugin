@@ -1,5 +1,4 @@
 import logging
-import re
 
 import requests
 from PySide6.QtCore import QThread
@@ -8,45 +7,49 @@ from chat.common import ChatSignals, load_chat_config
 from core.utilities import format_citations
 from core.constants import system_message, THINKING_TAGS
 
-_ALL_THINKING_TAGS = [t for pair in THINKING_TAGS.values() for t in pair]
-_START_THINKING_TAGS = frozenset(s for s, _ in THINKING_TAGS.values())
-_THINKING_TAG_RE = re.compile("|".join(re.escape(t) for t in _ALL_THINKING_TAGS))
+_THINKING_PAIRS = list(THINKING_TAGS.values())
+STOPPED_WHILE_THINKING = (
+    "The model stopped while it was still thinking, so it gave no answer. Turn on Show thinking in the "
+    "Chat Backend Settings to see its reasoning, or raise the response length limit in LM Studio."
+)
 
 
-def _strip_thinking(buffer, in_thinking):
-    out = []
-    pos = 0
-    cur_in = in_thinking
-    while True:
-        m = _THINKING_TAG_RE.search(buffer, pos)
-        if m is None:
-            break
-        if not cur_in:
-            out.append(buffer[pos:m.start()])
-        cur_in = m.group(0) in _START_THINKING_TAGS
-        pos = m.end()
+class _HiddenThinking:
+    def __init__(self):
+        self.buffer = ""
+        self.closing = None
+        self.answering = False
 
-    tail = buffer[pos:]
-    hold = 0
-    for t in _ALL_THINKING_TAGS:
-        max_i = min(len(t) - 1, len(tail))
-        for i in range(max_i, 0, -1):
-            if tail.endswith(t[:i]):
-                if i > hold:
-                    hold = i
-                break
+    def feed(self, text):
+        if self.answering:
+            return text
+        self.buffer += text
+        while True:
+            if self.closing is not None:
+                end = self.buffer.find(self.closing)
+                if end < 0:
+                    self.buffer = self.buffer[-(len(self.closing) - 1):]
+                    return ""
+                self.buffer = self.buffer[end + len(self.closing):]
+                self.closing = None
+            start = self.buffer.lstrip()
+            opened = next(((opening, closing) for opening, closing in _THINKING_PAIRS if start.startswith(opening)), None)
+            if opened:
+                self.buffer = start[len(opened[0]):]
+                self.closing = opened[1]
+                continue
+            if any(opening.startswith(start) for opening, _ in _THINKING_PAIRS):
+                return ""
+            self.answering = True
+            self.buffer = ""
+            return start
 
-    if hold:
-        flushable = tail[:-hold]
-        new_buffer = tail[-hold:]
-    else:
-        flushable = tail
-        new_buffer = ""
+    def finish(self):
+        if self.closing is not None:
+            raise RuntimeError(STOPPED_WHILE_THINKING)
+        leftover, self.buffer = self.buffer.lstrip(), ""
+        return leftover
 
-    if not cur_in:
-        out.append(flushable)
-
-    return "".join(out), new_buffer, cur_in
 
 class LMStudioChat:
     def __init__(self):
@@ -72,9 +75,8 @@ class LMStudioChat:
             stream=True
         )
 
-        in_thinking_block = False
+        hidden = _HiddenThinking()
         first_content = True
-        buffer = ""
         for chunk in stream:
             if not chunk.choices:
                 continue
@@ -91,19 +93,12 @@ class LMStudioChat:
                 yield content
                 continue
 
-            buffer += content
-            text, buffer, in_thinking_block = _strip_thinking(buffer, in_thinking_block)
-            if not text:
-                continue
-            if first_content:
-                text = text.lstrip()
-                if not text:
-                    continue
-                first_content = False
-            yield text
+            text = hidden.feed(content)
+            if text:
+                yield text
 
-        if not show_thinking and buffer and not in_thinking_block:
-            tail = buffer.lstrip() if first_content else buffer
+        if not show_thinking:
+            tail = hidden.finish()
             if tail:
                 yield tail
 

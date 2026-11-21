@@ -170,6 +170,13 @@ def citations_text(citations):
     return lines
 
 
+EMPTY_ANSWER = "The chat model returned no text. Ask again, or try another chat model."
+
+
+def answer_is_empty(turn):
+    return turn["kind"] == "answer" and not (turn.get("answer") or "").strip()
+
+
 def turn_text(turn):
     if turn["kind"] == "chunks":
         parts = []

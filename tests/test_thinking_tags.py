@@ -63,3 +63,42 @@ class TestThinkingTagFiltering:
         assert 'Second' not in result
         assert 'Hello' in result
         assert 'World' in result
+
+
+class TestLMStudioHiddenThinking:
+
+    def _answer(self, monkeypatch, pieces):
+        from types import SimpleNamespace
+
+        import openai
+
+        import chat.lm_studio as lm_studio
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                create = lambda **request: [SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content=piece))])
+                                            for piece in pieces]
+                self.chat = SimpleNamespace(completions=SimpleNamespace(create=create))
+
+        monkeypatch.setattr(openai, "OpenAI", FakeClient)
+        monkeypatch.setattr(lm_studio, "load_chat_config",
+                            lambda: {"server": {"connection_str": "http://127.0.0.1:1/v1", "show_thinking": False}})
+        return "".join(lm_studio.LMStudioChat().connect_to_local_chatgpt("question"))
+
+    def test_thinking_is_hidden_and_the_answer_kept(self, monkeypatch):
+        assert self._answer(monkeypatch, ["<thi", "nk>reasoning</think>", "The answer."]) == "The answer."
+        assert self._answer(monkeypatch, ["\n\n<think>abc</th", "ink>\n\nThe answer."]) == "The answer."
+        assert self._answer(monkeypatch, ["<thinking>a</thinking><think>b</think>Two blocks."]) == "Two blocks."
+        assert self._answer(monkeypatch, ["No thinking ", "at all."]) == "No thinking at all."
+
+    def test_a_tag_mentioned_in_the_answer_is_left_as_text(self, monkeypatch):
+        pieces = ["<think>plan</think>", "Reasoning models wrap thoughts in a ", "<think> tag, ", "which is hidden."]
+        assert self._answer(monkeypatch, pieces) == "Reasoning models wrap thoughts in a <think> tag, which is hidden."
+        assert self._answer(monkeypatch, ["Thoughts go in a <think> tag."]) == "Thoughts go in a <think> tag."
+
+    def test_stopping_while_still_thinking_is_reported(self, monkeypatch):
+        from chat.lm_studio import STOPPED_WHILE_THINKING
+
+        with pytest.raises(RuntimeError, match="still thinking") as error:
+            self._answer(monkeypatch, ["<think>", "I should look at the lease first"])
+        assert str(error.value) == STOPPED_WHILE_THINKING

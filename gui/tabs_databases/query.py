@@ -441,7 +441,11 @@ class DatabaseQueryTab(WebTab):
         if turn is not None and not turn["ended"]:
             turn["ended"] = time.time()
             if turn["phase"] != "error":
-                turn["phase"] = "done"
+                if query_data.answer_is_empty(turn):
+                    turn["error"] = query_data.EMPTY_ANSWER
+                    turn["phase"] = "error"
+                else:
+                    turn["phase"] = "done"
             if turn["kind"] == "answer" and turn["answer"].strip():
                 self._write_chat_history(turn["answer"])
         if self.active == turn_id:

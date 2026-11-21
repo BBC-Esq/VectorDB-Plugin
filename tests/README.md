@@ -51,7 +51,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_search_process.py` | Database search process: the same database stays loaded, a new database or changed settings end the old process before loading, releasing, errors, crashes and timeouts |
 | `test_settings_state.py` | Settings tab: reading, checking and saving settings, GPU-only choices, half precision, TTS backends with their device and precision choices and model cards, vision model cards and unreadable config files |
 | `test_symlinks.py` | Symlink creation |
-| `test_thinking_tags.py` | Thinking tag structure and filtering |
+| `test_thinking_tags.py` | Thinking tag structure and filtering, and LM Studio hiding a model's thinking without losing the answer |
 | `test_tools.py` | File hashing, markdown chunk extraction and chunk analysis |
 | `test_tools_state.py` | Tools tab: Whisper models and precisions, transcription checks and results (including audio with no speech), scraping status including failed links and scrapes that saved nothing, vision, OCR and the backup summary, including databases changed since the backup backups that wait while another database task runs, and running tools keeping the window open |
 | `test_utilities.py` | `normalize_chat_text`, `format_citations`, `prepare_long_path`, `normalize_text`, embedding batch sizes, package and installation checks, platform and Python version info, the device and precision each TTS backend runs in, and the database name checks before a build |
