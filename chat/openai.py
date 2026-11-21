@@ -1,7 +1,7 @@
 import logging
 from PySide6.QtCore import QThread, Signal
 
-from chat.common import load_chat_config
+from chat.common import load_chat_config, no_chunks_message
 from core.utilities import format_citations
 from core.constants import system_message
 from core.chatgpt_settings import (
@@ -88,10 +88,7 @@ class ChatGPTChat:
         save_metadata(metadata_list)
 
         if not contexts:
-            self.error_callback(
-                "No chunks passed the similarity threshold. "
-                "Try lowering the 'Similarity' setting in the Database Query settings tab."
-            )
+            self.error_callback(no_chunks_message())
             self.finished_callback()
             return
 

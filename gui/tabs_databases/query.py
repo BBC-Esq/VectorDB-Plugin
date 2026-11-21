@@ -10,6 +10,7 @@ from PySide6.QtCore import QObject, QThread, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QApplication, QMessageBox, QTabWidget
 
+from chat.common import no_chunks_message
 from chat.kobold import KoboldThread
 from chat.lm_studio import LMStudioChatThread
 from chat.local_model import LocalModelChat
@@ -24,7 +25,6 @@ from gui.tabs_databases.query_search import chunk_rows
 from modules.tts_process import run_tts_in_process
 
 WEB_PAGE = Path(__file__).resolve().parent / "web" / "query_tab.html"
-NO_CHUNKS = "No chunks passed the similarity threshold. Try lowering the 'Similarity' setting in the Database Query settings tab."
 NOTHING_TRANSCRIBED = "The recording was too short or silent, so nothing was transcribed."
 
 
@@ -124,7 +124,7 @@ class LocalSubmitWorker(QThread):
             if self.abandoned:
                 return
             if not contexts:
-                self.failed.emit(NO_CHUNKS)
+                self.failed.emit(no_chunks_message())
                 return
             self.chat.start_chat(self.question, contexts, metadata_list)
         except Exception as e:
@@ -351,6 +351,7 @@ class DatabaseQueryTab(WebTab):
             "error": None,
             "chunks": None,
             "similarity": query_data.query_settings(self._config)["similarity"],
+            "search_term": query_data.query_settings(self._config)["search_term"],
         }
         self._next_turn += 1
         self.turns = [turn]

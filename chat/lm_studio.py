@@ -3,7 +3,7 @@ import logging
 import requests
 from PySide6.QtCore import QThread
 
-from chat.common import ChatSignals, load_chat_config
+from chat.common import ChatSignals, load_chat_config, no_chunks_message
 from core.utilities import format_citations
 from core.constants import system_message, THINKING_TAGS
 
@@ -110,10 +110,7 @@ class LMStudioChat:
         save_metadata(metadata_list)
 
         if not contexts:
-            self.signals.error_signal.emit(
-                "No chunks passed the similarity threshold. "
-                "Try lowering the 'Similarity' setting in the Database Query settings tab."
-            )
+            self.signals.error_signal.emit(no_chunks_message())
             self.signals.finished_signal.emit()
             return
 

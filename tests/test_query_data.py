@@ -206,3 +206,15 @@ def test_a_question_is_not_sent_once_its_turn_has_ended(monkeypatch):
     first.run()
     query.LocalSubmitWorker(chat, "model", "second", "db").run()
     assert chat.sent == ["second"]
+
+
+def test_the_no_chunks_message_names_a_search_term_that_is_set(monkeypatch):
+    import chat.common as common
+
+    monkeypatch.setattr(common, "load_chat_config", lambda: {"database": {"search_term": ""}})
+    assert common.no_chunks_message() == common.NO_CHUNKS
+    monkeypatch.setattr(common, "load_chat_config", lambda: {"database": {"search_term": " indemnify "}})
+    message = common.no_chunks_message()
+    assert 'search term "indemnify"' in message and "similarity threshold" in message
+    monkeypatch.setattr(common, "load_chat_config", lambda: None)
+    assert common.no_chunks_message() == common.NO_CHUNKS

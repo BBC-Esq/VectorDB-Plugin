@@ -100,8 +100,12 @@
   function chunksHTML(turn) {
     if (!turn.chunks) return "";
     if (!turn.chunks.length) {
-      return `<div class="status warn">${ICONS.warn}<div class="status-body">No chunks passed the similarity threshold of ${esc(turn.similarity ?? "—")}. `
-        + 'Lower the Similarity setting on the <button type="button" class="link" data-tab="Settings">Settings tab</button> and ask again.</div></div>';
+      const settings = '<button type="button" class="link" data-tab="Settings">Settings tab</button>';
+      const text = turn.search_term
+        ? `No chunks that passed the similarity threshold of ${esc(turn.similarity ?? "—")} contain the search term "${esc(turn.search_term)}". `
+          + `Clear or change the Search term on the ${settings}, or lower the Similarity setting, and ask again.`
+        : `No chunks passed the similarity threshold of ${esc(turn.similarity ?? "—")}. Lower the Similarity setting on the ${settings} and ask again.`;
+      return `<div class="status warn">${ICONS.warn}<div class="status-body">${text}</div></div>`;
     }
     return '<div class="chunks">' + turn.chunks.map((c, i) => {
       const key = `${turn.id}:${i}`;
@@ -124,7 +128,7 @@
   function errorHTML(turn) {
     if (!turn.error) return "";
     const hint = /similarity threshold/i.test(turn.error)
-      ? ' <button type="button" class="link" data-tab="Settings">Change the Similarity setting</button>'
+      ? ` <button type="button" class="link" data-tab="Settings">${/search term/i.test(turn.error) ? "Open the Settings tab" : "Change the Similarity setting"}</button>`
       : /api key/i.test(turn.error) ? ' <button type="button" class="link" data-act="backend_settings">Open Chat Backend Settings</button>' : "";
     return `<div class="status error turn-error">${ICONS.error}<div class="status-body"><div class="error-text">${esc(turn.error)}</div>${hint}</div></div>`;
   }
