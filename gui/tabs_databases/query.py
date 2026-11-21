@@ -112,6 +112,7 @@ class LocalSubmitWorker(QThread):
         self.model = model
         self.question = question
         self.database = database
+        self.abandoned = False
 
     def run(self):
         try:
@@ -120,6 +121,8 @@ class LocalSubmitWorker(QThread):
                     self.chat.terminate_current_process()
                 self.chat.start_model_process(self.model)
             contexts, metadata_list = search_database(self.database, self.question)
+            if self.abandoned:
+                return
             if not contexts:
                 self.failed.emit(NO_CHUNKS)
                 return
@@ -172,6 +175,7 @@ class DatabaseQueryTab(WebTab):
         self.active = None
         self._local_turn = None
         self._threads = {}
+        self._submit_workers = {}
         self._relays = {}
         self._workers = set()
         self.chunks_only = False
@@ -401,6 +405,7 @@ class DatabaseQueryTab(WebTab):
         relay = self._relay(turn["id"])
         worker = LocalSubmitWorker(self.local_model_chat, self.local_model, turn["question"], turn["database"])
         worker.failed.connect(relay.failed)
+        self._submit_workers[turn["id"]] = worker
         self._keep(worker)
         worker.start()
 
@@ -453,6 +458,9 @@ class DatabaseQueryTab(WebTab):
         if self._local_turn == turn_id:
             self._local_turn = None
         self._threads.pop(turn_id, None)
+        submit_worker = self._submit_workers.pop(turn_id, None)
+        if submit_worker is not None:
+            submit_worker.abandoned = True
         relay = self._relays.pop(turn_id, None)
         if relay is not None:
             relay.deleteLater()

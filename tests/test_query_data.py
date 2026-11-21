@@ -177,3 +177,32 @@ def test_recording_with_no_speech_says_nothing_was_transcribed():
     tab.voice, tab.notice = "transcribing", None
     query.DatabaseQueryTab.update_transcription(tab, "What does the lease say?")
     assert tab.notice is None and tab.transcript == {"id": 1, "text": "What does the lease say?"}
+
+
+def test_a_question_is_not_sent_once_its_turn_has_ended(monkeypatch):
+    from gui.tabs_databases import query
+
+    class Chat:
+        current_model = "model"
+        model_process = object()
+
+        def __init__(self):
+            self.sent = []
+
+        def is_model_loaded(self):
+            return True
+
+        def start_chat(self, question, contexts, metadata_list):
+            self.sent.append(question)
+
+    def search(database, question):
+        if question == "first":
+            first.abandoned = True
+        return ["context"], [{}]
+
+    monkeypatch.setattr(query, "search_database", search)
+    chat = Chat()
+    first = query.LocalSubmitWorker(chat, "model", "first", "db")
+    first.run()
+    query.LocalSubmitWorker(chat, "model", "second", "db").run()
+    assert chat.sent == ["second"]
