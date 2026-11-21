@@ -1449,12 +1449,15 @@ class ScraperWorker(QObject):
         original_url = url
 
         base_url = url.split("?", 1)[0].split("#", 1)[0]
+        with_brackets = base_url
 
         for open_br, close_br in ("[]", "()"):
-            while open_br in base_url and close_br in base_url:
-                start, end = base_url.find(open_br), base_url.find(close_br)
-                if 0 <= start < end:
-                    base_url = base_url[:start] + base_url[end + 1 :]
+            while True:
+                start = base_url.find(open_br)
+                end = base_url.find(close_br, start + 1)
+                if start < 0 or end < 0:
+                    break
+                base_url = base_url[:start] + base_url[end + 1 :]
 
         filename = (
             base_url.replace("https://", "")
@@ -1471,7 +1474,7 @@ class ScraperWorker(QObject):
         if filename.strip(" .").lower() in reserved:
             filename = f"file_{filename}"
 
-        need_hash = ("?" in original_url or "#" in original_url)
+        need_hash = ("?" in original_url or "#" in original_url or base_url != with_brackets)
 
         full_path = os.path.join(self.save_dir, filename + ".html")
         if need_hash or len(full_path) > self.MAX_WIN_PATH:

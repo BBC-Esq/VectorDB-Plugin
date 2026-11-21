@@ -428,3 +428,23 @@ class TestWholeCrawl:
         worker.run()
         with open(leftover, encoding="utf-8") as handle:
             assert "page one" in handle.read()
+
+
+class TestBracketsInUrls:
+
+    def _worker(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(scraper_module, "PROJECT_ROOT", tmp_path)
+        return ScraperWorker("https://docs.example.com/docs/", "site", BaseScraper, name="Site")
+
+    def test_brackets_in_the_wrong_order_do_not_hang(self, tmp_path, monkeypatch):
+        worker = self._worker(tmp_path, monkeypatch)
+        name = worker.sanitize_filename("https://docs.example.com/docs/notes)_(draft).html")
+        assert name.startswith("docs.example.com_docs_notes)_")
+        assert worker.sanitize_filename("https://docs.example.com/docs/a]b[c") == "docs.example.com_docs_a]b[c"
+
+    def test_pages_that_differ_only_inside_brackets_get_their_own_files(self, tmp_path, monkeypatch):
+        worker = self._worker(tmp_path, monkeypatch)
+        names = {worker.sanitize_filename(f"https://docs.example.com/docs/{page}.html")
+                 for page in ("Mercury_(planet)", "Mercury_(element)", "list[int]", "list[str]")}
+        assert len(names) == 4
+        assert worker.sanitize_filename("https://docs.example.com/docs/plain.html") == "docs.example.com_docs_plain"

@@ -46,7 +46,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_openai_chat.py` | ChatGPT models, the reasoning efforts each one offers, older saved choices replaced, and the request sent to OpenAI |
 | `test_process_manager.py` | Process cleanup at exit: stops a running process and tolerates one that is already closed |
 | `test_query_data.py` | Query Database tab: citations, token counts, answer text, readiness messages, the database list, local model flags, chunk rows and a voice recording with no speech |
-| `test_scraper.py` | HTML processing, the scraper registry and selectors, URL checks, file name cleanup, the Mintlify scraper's OpenAPI pages, alerts and redirects, the Transformers scraper's handling of Hugging Face's rate limit, a whole crawl that saves every linked page, and re-fetching an empty page left by an interrupted save |
+| `test_scraper.py` | HTML processing, the scraper registry and selectors, URL checks, file name cleanup, the Mintlify scraper's OpenAPI pages, alerts and redirects, the Transformers scraper's handling of Hugging Face's rate limit, a whole crawl that saves every linked page, re-fetching an empty page left by an interrupted save, and URLs with brackets |
 | `test_search_process.py` | Database search process: the same database stays loaded, a new database or changed settings end the old process before loading, releasing, errors, crashes and timeouts |
 | `test_settings_state.py` | Settings tab: reading, checking and saving settings, GPU-only choices, half precision, TTS backends with their device and precision choices and model cards, vision model cards and unreadable config files |
 | `test_symlinks.py` | Symlink creation |
