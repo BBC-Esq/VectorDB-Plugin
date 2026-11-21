@@ -12,6 +12,8 @@ from PySide6.QtCore import QObject, Signal
 from core.constants import rag_string, PROJECT_ROOT
 from pathlib import Path
 
+STOPPED_UNEXPECTEDLY = "The chat model stopped unexpectedly. Check the command prompt window for details."
+
 class MessageType(Enum):
     QUESTION = auto()
     RESPONSE = auto()
@@ -42,6 +44,7 @@ class LocalModelChat:
         self.model_pipe = None
         self.current_model = None
         self.signals = LocalModelSignals()
+        self._awaiting_reply = False
 
     def start_model_process(self, model_name):
         if self.current_model != model_name:
@@ -52,6 +55,7 @@ class LocalModelChat:
             self.model_pipe = parent_conn
             self.model_process = Process(target=self._local_model_process, args=(child_conn, model_name), daemon=True)
             self.model_process.start()
+            self._awaiting_reply = True
             self.current_model = model_name
             self._start_listening_thread()
             self.signals.model_loaded_signal.emit()
@@ -96,6 +100,7 @@ class LocalModelChat:
             self.signals.error_signal.emit("Model not loaded. Please start a model first.")
             return
 
+        self._awaiting_reply = True
         self.model_pipe.send(PipeMessage(
             MessageType.QUESTION,
             (user_question, contexts, metadata_list)
@@ -137,6 +142,7 @@ class LocalModelChat:
                     elif message.type == MessageType.ERROR:
                         self.signals.error_signal.emit(message.payload)
                     elif message.type == MessageType.FINISHED:
+                        self._awaiting_reply = False
                         self.signals.finished_signal.emit()
                         if message.payload == MessageType.EXIT:
                             break
@@ -146,6 +152,9 @@ class LocalModelChat:
                     time.sleep(0.1)
             except (BrokenPipeError, EOFError, OSError):
                 if not stop_event.is_set():
+                    if self._awaiting_reply:
+                        self._awaiting_reply = False
+                        self.signals.error_signal.emit(STOPPED_UNEXPECTEDLY)
                     self.signals.finished_signal.emit()
                 break
             except Exception as e:

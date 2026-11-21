@@ -2,6 +2,7 @@ import threading
 from multiprocessing import Pipe
 
 import pytest
+from PySide6.QtCore import Qt
 
 import chat.base as chat_base
 from chat.local_model import LocalModelChat, MessageType, PipeMessage
@@ -68,3 +69,32 @@ def test_each_question_uses_its_own_passages(model_process):
     ask("First?", ["Passage one."], [{"file_path": "C:/one.txt", "similarity_score": 0.8}])
     ask("Second?", ["Passage two."], [{"file_path": "C:/two.txt", "similarity_score": 0.7}])
     assert "Passage one." in prompts[0] and "Passage two." in prompts[1] and "Passage one." not in prompts[1]
+
+
+def listen_until_the_pipe_closes(awaiting_reply, announce_finish):
+    manager = LocalModelChat()
+    events = []
+    manager.signals.error_signal.connect(lambda message: events.append(("error", message)), Qt.DirectConnection)
+    manager.signals.finished_signal.connect(lambda: events.append(("finished", None)), Qt.DirectConnection)
+    parent, child = Pipe()
+    manager.model_pipe = parent
+    manager._awaiting_reply = awaiting_reply
+    manager._start_listening_thread()
+    if announce_finish:
+        child.send(PipeMessage(MessageType.ERROR, "Failed to load model"))
+        child.send(PipeMessage(MessageType.FINISHED))
+    child.close()
+    manager.listener_thread.join(timeout=10)
+    return events
+
+
+def test_a_model_process_that_dies_while_answering_is_reported():
+    events = listen_until_the_pipe_closes(awaiting_reply=True, announce_finish=False)
+    assert [kind for kind, _ in events] == ["error", "finished"]
+    assert "stopped unexpectedly" in events[0][1]
+
+
+def test_a_model_process_that_ends_after_its_reply_adds_no_error():
+    events = listen_until_the_pipe_closes(awaiting_reply=True, announce_finish=True)
+    assert [kind for kind, _ in events].count("error") == 1
+    assert events[0] == ("error", "Failed to load model")
