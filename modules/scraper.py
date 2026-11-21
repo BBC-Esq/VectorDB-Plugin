@@ -1092,6 +1092,7 @@ class ScraperWorker(QObject):
 
     RATE_LIMIT_THRESHOLD = 5
     MAX_WIN_PATH = 250
+    PAGE_LIMIT = 5_000
 
     def __init__(self, url, folder, scraper_class=BaseScraper, name="", resume=False):
         super().__init__()
@@ -1106,6 +1107,7 @@ class ScraperWorker(QObject):
         self._task = None
         self._cancelled = False
         self._rate_limited = False
+        self.page_limit_reached = False
         self._429s_since_last_success = 0
         self.resume = resume
         self._log_lock = None
@@ -1121,7 +1123,7 @@ class ScraperWorker(QObject):
             except asyncio.CancelledError:
                 pass
         finally:
-            if not self._cancelled and not self._rate_limited:
+            if not self._cancelled and not self._rate_limited and not self.page_limit_reached:
                 self._finalize_clean_run()
             self.cleanup()
             self._loop.close()
@@ -1173,8 +1175,10 @@ class ScraperWorker(QObject):
         self,
         max_concurrent_requests: int = 20,
         batch_size: int = 50,
-        page_limit: int = 5_000,
+        page_limit: int = None,
     ):
+        if page_limit is None:
+            page_limit = self.PAGE_LIMIT
         parsed_url = urlparse(self.url)
         acceptable_domain = parsed_url.netloc
         acceptable_domain_extension = parsed_url.path.rstrip("/")
@@ -1182,6 +1186,7 @@ class ScraperWorker(QObject):
         log_file = os.path.join(self.save_dir, "failed_urls.log")
 
         self.stats["scraped"] = self.count_saved_files()
+        saved_at_start = self.stats["scraped"]
 
         semaphore = asyncio.BoundedSemaphore(max_concurrent_requests)
         visited = set()
@@ -1249,7 +1254,8 @@ class ScraperWorker(QObject):
 
                 await asyncio.sleep(0.2)
 
-                if len(visited) >= page_limit:
+                if self.stats["scraped"] - saved_at_start >= page_limit:
+                    self.page_limit_reached = bool(to_visit)
                     break
 
         return visited

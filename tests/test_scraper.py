@@ -376,3 +376,51 @@ class TestHuggingfaceRateLimit:
             return pacer._next_at - asyncio.get_running_loop().time()
 
         assert 0.9 < asyncio.run(scenario()) <= 1.0
+
+
+class _SiteResponse:
+    def __init__(self, url, body):
+        self.url = url
+        self.status_code = 200 if body is not None else 404
+        self.headers = {"content-type": "text/html"}
+        self.text = body or ""
+
+
+class _SiteSession:
+    def __init__(self, pages):
+        self.pages = pages
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    async def get(self, url, timeout=30, allow_redirects=True):
+        return _SiteResponse(url, self.pages.get(url))
+
+
+class TestPageLimit:
+
+    def test_reaching_the_limit_pauses_a_scrape_that_resume_completes(self, tmp_path, monkeypatch):
+        root = "https://docs.example.com/docs/"
+        pages = {root: '<html><body><a href="/docs/p1">next</a></body></html>'}
+        for i in range(1, 8):
+            link = f'<a href="/docs/p{i + 1}">next</a>' if i < 7 else ""
+            pages[f"https://docs.example.com/docs/p{i}"] = f"<html><body>page {i} {link}</body></html>"
+        monkeypatch.setattr(scraper_module, "PROJECT_ROOT", tmp_path)
+        monkeypatch.setattr(scraper_module, "AsyncSession", lambda **kwargs: _SiteSession(pages))
+        monkeypatch.setattr(ScraperWorker, "PAGE_LIMIT", 3)
+        worker = ScraperWorker(root, "site", BaseScraper, name="Site")
+        worker.run()
+
+        def saved(suffix):
+            return [f for f in os.listdir(worker.save_dir) if f.endswith(suffix)]
+
+        assert worker.page_limit_reached
+        assert len(saved(".html")) == 3 and saved(".links.json")
+        monkeypatch.setattr(ScraperWorker, "PAGE_LIMIT", 100)
+        resumed = ScraperWorker(root, "site", BaseScraper, name="Site", resume=True)
+        resumed.run()
+        assert not resumed.page_limit_reached
+        assert len(saved(".html")) == 8 and not saved(".links.json")

@@ -1,6 +1,7 @@
 import queue as queue_module
 import time
 import uuid
+from types import SimpleNamespace
 from datetime import date
 
 import pytest
@@ -197,6 +198,9 @@ def test_scrape_finish_updates_rows(monkeypatch, tmp_path, scrape_settings):
     tool._on_worker_finished("attrs", False, False)
     assert tool.rows["attrs"]["status"] == "completed" and "attrs" not in scrape._load_rate_limited_set()
     assert tool.selected == "attrs"
+    tool.active["attrs"] = {"worker": SimpleNamespace(page_limit_reached=True)}
+    tool._on_worker_finished("attrs", False, False)
+    assert tool.rows["attrs"]["status"] == "page_limit"
 
 
 def test_vision_counts_images_and_reads_the_chosen_model(cpu_only, monkeypatch, tmp_path):

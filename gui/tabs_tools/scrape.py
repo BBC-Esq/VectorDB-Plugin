@@ -225,6 +225,9 @@ class ScrapeTool(QObject):
         elif was_rate_limited:
             row["status"] = "rate_limited"
             _mark_rate_limited_persistent(doc_name)
+        elif getattr((self.active.get(doc_name) or {}).get("worker"), "page_limit_reached", False):
+            row["status"] = "page_limit"
+            _clear_rate_limited_persistent(doc_name)
         else:
             row["status"] = "completed"
             _clear_rate_limited_persistent(doc_name)
