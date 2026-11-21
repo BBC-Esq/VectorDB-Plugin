@@ -183,6 +183,14 @@ def test_update_config_records_the_new_database(root):
     assert read_config(root)["created_databases"]["new_db"] == {"model": "D:/models/bge", "chunk_size": 900, "chunk_overlap": 100}
 
 
+def test_a_new_database_is_recorded_with_the_settings_it_was_built_with(root):
+    write_config(root, {"EMBEDDING_MODEL_NAME": "D:/models/bge", "database": {"chunk_size": 700, "chunk_overlap": 250}})
+    built_with = create_build.current_build_settings()
+    write_config(root, {"EMBEDDING_MODEL_NAME": "D:/models/bge", "database": {"chunk_size": 1500, "chunk_overlap": 600}})
+    create_build.update_config_with_database_name("new_db", built_with)
+    assert read_config(root)["created_databases"]["new_db"] == {"model": "D:/models/bge", "chunk_size": 700, "chunk_overlap": 250}
+
+
 def test_cpu_confirmation(monkeypatch):
     asked = []
     monkeypatch.setattr(create_build.QMessageBox, "question", staticmethod(lambda *a, **k: asked.append(a) or create_build.QMessageBox.No))

@@ -313,21 +313,28 @@ def backup_running():
                for w in QApplication.allWidgets())
 
 
-def update_config_with_database_name(database_name):
+def current_build_settings():
+    try:
+        with open(PROJECT_ROOT / "config.yaml", 'r', encoding='utf-8') as file:
+            config = yaml.safe_load(file) or {}
+    except OSError:
+        config = {}
+    database = config.get('database') or {}
+    return {
+        'model': config.get('EMBEDDING_MODEL_NAME'),
+        'chunk_size': database.get('chunk_size'),
+        'chunk_overlap': database.get('chunk_overlap')
+    }
+
+
+def update_config_with_database_name(database_name, settings=None):
     config_path = PROJECT_ROOT / "config.yaml"
     if config_path.exists():
         with open(config_path, 'r', encoding='utf-8') as file:
             config = yaml.safe_load(file) or {}
-        model = config.get('EMBEDDING_MODEL_NAME')
-        chunk_size = config.get('database', {}).get('chunk_size')
-        chunk_overlap = config.get('database', {}).get('chunk_overlap')
         if 'created_databases' not in config or not isinstance(config['created_databases'], dict):
             config['created_databases'] = {}
-        config['created_databases'][database_name] = {
-            'model': model,
-            'chunk_size': chunk_size,
-            'chunk_overlap': chunk_overlap
-        }
+        config['created_databases'][database_name] = dict(settings or current_build_settings())
         save_config_atomically(config, config_path, allow_unicode=True)
 
 
@@ -364,6 +371,7 @@ class BuildController(QObject):
         self.model_display = None
         self.started = None
         self.progress = None
+        self.settings = None
         self.scan = None
         self.result = None
         self.cancelling = False
@@ -482,6 +490,7 @@ class BuildController(QObject):
         self.phase = "building"
         self.started = time.time()
         self.progress = BuildProgress()
+        self.settings = current_build_settings()
         self.db_worker = self.make_worker(self.name)
         self.db_worker.progress.connect(self._on_line)
         self.db_worker.finished.connect(self._on_finished)
@@ -518,7 +527,7 @@ class BuildController(QObject):
                                "message": "Database creation was cancelled and any partial files were removed."}
             elif success:
                 my_cprint(f"{self.model_name} removed from memory.", "red")
-                update_config_with_database_name(self.name)
+                update_config_with_database_name(self.name, self.settings)
                 not_added = worker.not_added if worker is not None else []
                 self.result = {
                     "kind": "ok",
@@ -614,7 +623,7 @@ class BuildController(QObject):
             self.db_worker.wait(5000)
             if self.name:
                 if self.db_worker.completed:
-                    update_config_with_database_name(self.name)
+                    update_config_with_database_name(self.name, self.settings)
                 else:
                     partial_dir = PROJECT_ROOT / "Vector_DB" / self.name
                     if partial_dir.exists():
