@@ -404,17 +404,26 @@ class TestWholeCrawl:
 
     def test_a_crawl_saves_every_linked_page_and_cleans_up(self, tmp_path, monkeypatch):
         root = "https://docs.example.com/docs/"
-        links = "".join(f'<a href="/docs/p{i}">page {i}</a>' for i in range(120))
-        pages = {root: f"<html><body>{links}</body></html>"}
+        sidebar = '<a href="/docs/">home</a>' + "".join(f'<a href="/docs/p{i}">page {i}</a>' for i in range(120))
+        pages = {root: f"<html><body>{sidebar}</body></html>"}
         for i in range(120):
-            pages[f"https://docs.example.com/docs/p{i}"] = f'<html><body>page {i} <a href="/docs/">home</a></body></html>'
+            pages[f"https://docs.example.com/docs/p{i}"] = f"<html><body>page {i} {sidebar}</body></html>"
+        pauses = []
+        real_sleep = asyncio.sleep
+
+        async def counted_sleep(delay, *args, **kwargs):
+            pauses.append(delay)
+            await real_sleep(0)
+
         monkeypatch.setattr(scraper_module, "PROJECT_ROOT", tmp_path)
         monkeypatch.setattr(scraper_module, "AsyncSession", lambda **kwargs: _SiteSession(pages))
+        monkeypatch.setattr(scraper_module.asyncio, "sleep", counted_sleep)
         worker = ScraperWorker(root, "site", BaseScraper, name="Site")
         worker.run()
         files = os.listdir(worker.save_dir)
         assert len([f for f in files if f.endswith(".html")]) == 121
         assert not [f for f in files if f.endswith(".links.json")] and "failed_urls.log" not in files
+        assert len(pauses) == 4
 
     def test_an_empty_page_left_by_an_interrupted_save_is_fetched_again(self, tmp_path, monkeypatch):
         root = "https://docs.example.com/docs/"

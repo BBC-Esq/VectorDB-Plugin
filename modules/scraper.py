@@ -1233,6 +1233,7 @@ class ScraperWorker(QObject):
                 except Exception as e:
                     print(f"collect_seed_urls failed: {type(e).__name__}: {e}")
 
+            queued = set(to_visit)
             while to_visit:
                 if self._cancelled or self._rate_limited:
                     break
@@ -1240,7 +1241,8 @@ class ScraperWorker(QObject):
                 to_visit = to_visit[batch_size:]
 
                 for new_links in await process_batch(current_batch, session):
-                    new_to_visit = new_links - visited
+                    new_to_visit = new_links - visited - queued
+                    queued.update(new_to_visit)
                     to_visit.extend(new_to_visit)
 
                 if self._rate_limited:
