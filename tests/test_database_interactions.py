@@ -347,3 +347,23 @@ class TestPrepareKeepDocument:
         prepared = builder.prepare(folder, "model", 300, 50)
         assert seen["split"] == ["new.txt", "known.txt"]
         assert [document.metadata["doc_id"] for document in prepared.documents] == [1, 2]
+
+
+class TestFileTypeFilter:
+
+    def test_added_chunks_count_when_the_search_widens(self, monkeypatch):
+        ranked = ([("audio", {"document_type": "audio"})] * 8
+                  + [("document", {"document_type": "document"})] * 5
+                  + [("audio", {"document_type": "audio"})] * 19)
+        query_db = QueryVectorDB.__new__(QueryVectorDB)
+        query_db.embeddings = SimpleNamespace(embed_query=lambda query: [0.0, 1.0, 0.0, 0.0])
+        query_db.index = SimpleNamespace(size=9)
+        query_db.removed_ids = np.empty(0, dtype=np.uint64)
+        query_db.added_ids = np.arange(100, 123, dtype=np.uint64)
+        query_db.index_uri = "index"
+        settings = SimpleNamespace(contexts=5, similarity=0.5, search_term="", document_types="document")
+        monkeypatch.setattr(QueryVectorDB, "load_configuration", lambda self: SimpleNamespace(database=settings))
+        monkeypatch.setattr(QueryVectorDB, "_retrieve",
+                            lambda self, vector, k, threshold, tiledb: (ranked[:k], k > len(ranked)))
+        contexts, metadata = query_db.search("question")
+        assert contexts == ["document"] * 5

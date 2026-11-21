@@ -991,7 +991,7 @@ class QueryVectorDB:
         results, exhausted = self._retrieve(query_vector_np, k, score_threshold, tiledb)
 
         if document_types:
-            total = int(getattr(self.index, "size", 0) or 0)
+            total = int(getattr(self.index, "size", 0) or 0) + len(self.added_ids)
             fetch_k = k
             typed = [r for r in results if r[1].get('document_type') == document_types]
             while len(typed) < k and not exhausted and fetch_k < total:
