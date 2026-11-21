@@ -39,6 +39,7 @@
     const visible = new Set(shown.map((r) => r.name));
     for (const name of [...selected]) if (!visible.has(name)) selected.delete(name);
     if (active >= shown.length) active = shown.length - 1;
+    if (anchor != null && anchor >= shown.length) anchor = null;
   }
 
   function rowHTML(r, index) {
@@ -198,7 +199,7 @@
   function selectIndex(index, e) {
     const r = shown[index];
     if (!r) return;
-    if (e && e.shiftKey && anchor != null) {
+    if (e && e.shiftKey && anchor != null && anchor < shown.length) {
       const from = Math.min(anchor, index);
       const to = Math.max(anchor, index);
       if (!e.ctrlKey) selected.clear();
