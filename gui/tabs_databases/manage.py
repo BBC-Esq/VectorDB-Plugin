@@ -32,10 +32,12 @@ class InfoWorker(QThread):
     def __init__(self, names, parent=None):
         super().__init__(parent)
         self.names = list(names)
+        self.interrupted = False
 
     def run(self):
         for name in self.names:
             if self.isInterruptionRequested():
+                self.interrupted = True
                 return
             sig = manage_data.signature(name)
             try:
@@ -44,6 +46,7 @@ class InfoWorker(QThread):
                 info = {"files": None, "chunks": None, "dimensions": None, "size": None, "created": None,
                         "complete": False, "problem": str(e)}
             self.loaded.emit(name, sig, info)
+        self.interrupted = self.isInterruptionRequested()
 
 
 class FilesWorker(QThread):
@@ -336,7 +339,7 @@ class ManageDatabasesTab(WebTab):
             self.schedule_push()
 
     def _on_info_finished(self):
-        interrupted = self._info_worker is not None and self._info_worker.isInterruptionRequested()
+        interrupted = self._info_worker is not None and self._info_worker.interrupted
         self._info_worker = None
         if interrupted:
             self.refresh()

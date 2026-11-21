@@ -359,3 +359,17 @@ def test_unsafe_names_are_refused(root):
                 action(bad)
     assert (outside / "keep.txt").exists()
     assert "../Docs_for_DB" in read_config(root)["created_databases"]
+
+
+def test_the_stats_worker_remembers_being_interrupted(monkeypatch):
+    from gui.tabs_databases import manage
+
+    monkeypatch.setattr(manage.manage_data, "signature", lambda name: "signature")
+    monkeypatch.setattr(manage.manage_data, "database_info", lambda name, interrupted: {"size": 1})
+    worker = manage.InfoWorker(["first", "second"])
+    worker.run()
+    assert worker.interrupted is False
+    stopped = manage.InfoWorker(["first", "second"])
+    monkeypatch.setattr(stopped, "isInterruptionRequested", lambda: True)
+    stopped.run()
+    assert stopped.interrupted is True
