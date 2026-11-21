@@ -71,6 +71,14 @@ class TestNormalizeChatText:
         result = normalize_chat_text("Costs \u00a35 each")
         assert '5 pounds' in result
 
+    def test_grouped_numbers_and_large_amounts_are_spelled_out(self):
+        assert normalize_chat_text("The file has 1,234 pages.") == "The file has one thousand two hundred and thirty four pages."
+        assert normalize_chat_text("It cost $7,345.") == "It cost seven thousand three hundred and forty five dollars."
+        assert normalize_chat_text("The fee is $1250.") == "The fee is one thousand two hundred and fifty dollars."
+        assert normalize_chat_text("He owes $1,250.50 now.") == "He owes one thousand two hundred and fifty dollars and 50 cents now."
+        assert normalize_chat_text("About 2,500,000 people.") == "About two million five hundred thousand people."
+        assert normalize_chat_text("Paid £1,000 on January 1, 2024.") == "Paid one thousand pounds on January 1, 20 24."
+
     def test_year_hundreds(self):
         result = normalize_chat_text("In 1900 they")
         assert '19 hundred' in result

@@ -400,6 +400,19 @@ def normalize_chat_text(text):
         a, b = num.group().split('.')
         return ' point '.join([a, ' '.join(b)])
 
+    def in_words(digits):
+        from num2words import num2words
+        return num2words(int(digits.replace(',', ''))).replace(',', '').replace('-', ' ')
+
+    def large_money(m):
+        bill = 'dollars' if m.group(1) == '$' else 'pounds'
+        words = f'{in_words(m.group(2))} {bill}'
+        if m.group(3):
+            c = int(m.group(3)[1:].ljust(2, '0'))
+            coins = f"cent{'' if c == 1 else 's'}" if m.group(1) == '$' else ('penny' if c == 1 else 'pence')
+            words += f' and {c} {coins}'
+        return words
+
     text = text.replace('§', ' section ')
     
     text = text.replace(chr(8216), "'").replace(chr(8217), "'")
@@ -411,6 +424,8 @@ def normalize_chat_text(text):
     text = re.sub(r'\b(?:Ms\.|MS\.(?= [A-Z]))', 'Miss', text)
     text = re.sub(r'\b(?:Mrs\.|MRS\.(?= [A-Z]))', 'Mrs', text)
     
+    text = re.sub(r'([$£])(\d{1,3}(?:,\d{3})+|\d{4,})(\.\d\d?)?\b', large_money, text)
+    text = re.sub(r'\b\d{1,3}(?:,\d{3})+\b', lambda m: in_words(m.group()), text)
     text = re.sub(r'\d*\.\d+|\b\d{4}s?\b|(?<!:)\b(?:[1-9]|1[0-2]):[0-5]\d\b(?!:)', split_num, text)
     text = re.sub(r'(?<=\d),(?=\d)', '', text)
     text = re.sub(r'(?i)[$£]\d+(?:\.\d+)?(?: hundred| thousand| (?:[bm]|tr)illion)*\b|[$£]\d+\.\d\d?\b', flip_money, text)
