@@ -33,6 +33,7 @@
   }
 
   function applyFilter() {
+    if (filter !== "all" && !(files.summary || {})[filter]) filter = "all";
     const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
     shown = rows.filter((r) => (filter === "all" || r.kind === filter)
       && terms.every((t) => r.name.toLowerCase().includes(t)));

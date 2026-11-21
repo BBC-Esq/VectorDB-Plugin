@@ -35,7 +35,7 @@
   }
 
   function blocker() {
-    if (busy()) return "busy";
+    if (busy()) return "Wait for the backup of the new database to finish.";
     if (state.files.staging) return "Files are still being added to the list.";
     if (state.transcribing) return "A transcription is running on the Tools tab. Create the database after it finishes so the transcript is included.";
     if (!state.files.count) return "Add files to the list first.";
