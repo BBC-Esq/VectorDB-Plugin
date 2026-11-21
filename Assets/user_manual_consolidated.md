@@ -455,9 +455,9 @@ return almost nothing.
 
 ### What is the search term filter setting?
 Within the Settings Tab the Search Term Filter setting allows you to require that any chunks returned contain the specified search term.
-It is not case-sensitive, but it does require an exact match.  For example, if you specify “child” it will only return chunks that
-include the term "child" somewhere in it.  This would not include chunks that have the word "children" in it, however, since it
-requires a verbatim match.  With that said, since it is not case-sensitive it would also include chunks with "Child" in them.  This
+It is not case-sensitive, and the term only has to appear somewhere in the chunk, even as part of a longer word.  For example, if you
+specify “child” it will only return chunks that include "child" somewhere in them.  That includes chunks that have "Child", "children"
+or "childhood" in them, but not a chunk that only says "kids".  This
 setting is especially useful when you know that a relevant chunk has a certain key word in it; otherwise, it is best to leave this blank.
 To turn the filter off, click the X at the right end of the box, or delete the text and press Enter.  Lastly, it is important to understand that this setting only applies after both
 the Similarity and Contexts settings.  Therefore, if the Similarity setting is too high or the Contexts setting is too low you might not
@@ -567,7 +567,7 @@ To improve your search results when searching a vector database it is important 
 settings within the Settings Tab.  When a vector database is searched it will first identify candidate chunks to return that meet the
 Similarity setting.  Once it does that it will return the most relevant chunks up to the limit of the number of chunks that you set
 with the Contexts setting.  After that, it will apply the Search Term Filter setting to remove any chunks that do not contain the
-verbatim search term (remember, this is case-insensitive howver).  After that, these chunks are what are then sent to the chat model
+search term (remember, this is case-insensitive and the term can be part of a longer word).  After that, these chunks are what are then sent to the chat model
 along with your initial query to get a response.
 
 ### General VRAM Considerations
