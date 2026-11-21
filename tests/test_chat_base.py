@@ -114,3 +114,14 @@ class TestMakeBnbSettings:
         settings = make_bnb_settings(torch.float16)
         assert 'torch_dtype' not in settings['model_settings']
         assert 'low_cpu_mem_usage' not in settings['model_settings']
+
+
+class TestMistralPrompt:
+
+    def test_prompt_leaves_the_start_token_to_the_tokenizer(self):
+        from chat.base import Mistral_Small_24b, system_message
+
+        model = Mistral_Small_24b.__new__(Mistral_Small_24b)
+        assert model.create_prompt("What is the notice period?") == (
+            f"[SYSTEM_PROMPT]{system_message}[/SYSTEM_PROMPT][INST]What is the notice period?[/INST]"
+        )

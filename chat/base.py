@@ -399,11 +399,7 @@ class Mistral_Small_24b(BaseModel):
         super().__init__(model_info, bnb_bfloat16_settings, generation_settings)
 
     def create_prompt(self, augmented_query):
-        return f"""<s>
-
-[SYSTEM_PROMPT]{system_message}[/SYSTEM_PROMPT]
-
-[INST]{augmented_query}[/INST]"""
+        return f"[SYSTEM_PROMPT]{system_message}[/SYSTEM_PROMPT][INST]{augmented_query}[/INST]"
 
 
 class Phi4(BaseModel):

@@ -24,7 +24,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 |------|----------------|
 | `conftest.py` | Shared fixtures: a sample config, sample citation metadata and the project root |
 | `test_backends_data.py` | Chat Backend Settings dialog: API keys, model choices and the reasoning efforts each model offers, the LM Studio address and port, and the LM Studio and ChatGPT connection checks |
-| `test_chat_base.py` | `build_augmented_query`, maximum lengths, maximum new tokens, generation settings and `make_bnb_settings` |
+| `test_chat_base.py` | `build_augmented_query`, maximum lengths, maximum new tokens, generation settings, `make_bnb_settings` and the Mistral prompt |
 | `test_constants.py` | Required keys in the chat, embedding, vision and Whisper model lists, document loaders, thinking tags, pipeline presets and supported file types |
 | `test_create_state.py` | Create Database tab: adding and removing files, the embedding model list, settings, build progress read from the build log, recording the new database, the checks before a build starts, including waiting for a backup or restore, reporting a failed backup of the new database, and holding off transcription from the PDF check until the build ends |
 | `test_credentials.py` | Config file load and save round trip, and where each credential is stored |
