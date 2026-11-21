@@ -112,3 +112,36 @@ def test_theme_payload_covers_every_theme():
     tron = theme_payload("tron")
     assert tron["on_control_hover"] != tron["colors"]["text_primary"]
     assert theme_payload("no-such-theme")["colors"] == theme_payload("default")["colors"]
+
+
+def failing_downloader(monkeypatch, tmp_path):
+    import huggingface_hub
+    from gui import download_model
+
+    def fail(**kwargs):
+        raise ConnectionError("connection dropped")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(download_model.ModelDownloader, "check_repo_type", lambda self, repo_id: "public")
+    monkeypatch.setattr(download_model.ModelDownloader, "_list_repo_files", lambda self, repo_id, use_token: [])
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", fail)
+    return download_model.ModelDownloader({"repo_id": "BAAI/bge-small-en-v1.5"}, "vector")
+
+
+def test_failed_redownload_keeps_a_downloaded_model(monkeypatch, tmp_path):
+    from gui.download_model import is_complete_download
+
+    downloader = failing_downloader(monkeypatch, tmp_path)
+    folder = tmp_path / "Models" / "vector" / "BAAI--bge-small-en-v1.5"
+    folder.mkdir(parents=True)
+    (folder / "model.safetensors").write_bytes(b"weights")
+    downloader.download()
+    downloader.download()
+    assert is_complete_download(folder)
+    assert (folder / "model.safetensors").read_bytes() == b"weights"
+
+
+def test_failed_first_download_leaves_no_folder(monkeypatch, tmp_path):
+    downloader = failing_downloader(monkeypatch, tmp_path)
+    downloader.download()
+    assert not (tmp_path / "Models" / "vector" / "BAAI--bge-small-en-v1.5").exists()

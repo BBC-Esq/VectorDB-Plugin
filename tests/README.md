@@ -41,7 +41,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_local_model.py` | Local chat model process: answers from the passages it is given and returns their citations |
 | `test_manage_data.py` | Manage Databases tab: the database list, database details (chunk counts and creation dates from `metadata.db`), file rows, read-only connections, safely deleting a database, backing up and restoring, backups that are out of date, changes since the index was built and starting a rebuild of the index |
 | `test_minimax.py` | MiniMax constants, model list and temperature clamping |
-| `test_models_catalog.py` | Models tab: CPU-only filtering, download status, benchmark summaries, precision compared with the embedding code, and theme colors |
+| `test_models_catalog.py` | Models tab: CPU-only filtering, download status, benchmark summaries, precision compared with the embedding code, theme colors, and what a failed download leaves behind |
 | `test_openai_chat.py` | ChatGPT models, the reasoning efforts each one offers, older saved choices replaced, and the request sent to OpenAI |
 | `test_process_manager.py` | Process cleanup at exit: stops a running process and tolerates one that is already closed |
 | `test_query_data.py` | Query Database tab: citations, token counts, answer text, readiness messages, the database list, local model flags, chunk rows and a voice recording with no speech |

@@ -225,7 +225,8 @@ class ModelDownloader(QObject):
         had_existing_download = local_dir.exists() and any(local_dir.iterdir()) and not marker.exists()
         self._had_existing_download = had_existing_download
         local_dir.mkdir(parents=True, exist_ok=True)
-        marker.touch()
+        if not had_existing_download:
+            marker.touch()
         atexit.register(self.cleanup_incomplete_download)
         try:
             repo_files = self._list_repo_files(repo_id, use_token=(repo_type == "gated"))
