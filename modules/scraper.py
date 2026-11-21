@@ -1291,7 +1291,7 @@ class ScraperWorker(QObject):
         acceptable_domain_extension,
         retries: int = 3,
     ):
-        if os.path.exists(self._html_path(url)):
+        if self._page_saved(url):
             return set()
 
         fetch_url = (
@@ -1336,7 +1336,7 @@ class ScraperWorker(QObject):
                 if hasattr(self.scraper, "page_url_for"):
                     final_page = self.scraper.page_url_for(getattr(response, "url", None) or fetch_url)
                     if final_page and self._filename_key(final_page) != self._filename_key(url):
-                        if os.path.exists(self._html_path(final_page)):
+                        if self._page_saved(final_page):
                             self._emit_count()
                             return set()
                         save_url = final_page
@@ -1388,7 +1388,6 @@ class ScraperWorker(QObject):
                 return response
 
     async def save_html(self, content, url, save_dir, links=None):
-        filename = self._html_path(url)
         soup = BeautifulSoup(content, "lxml")
         processed_soup = self.scraper.process_html(soup)
 
@@ -1408,32 +1407,43 @@ class ScraperWorker(QObject):
             new_html.insert(0, new_body)
             processed_soup.insert(0, new_html)
 
-        created = False
-        while not created:
-            try:
-                async with aiofiles.open(filename, "x", encoding="utf-8") as f:
-                    await f.write(str(processed_soup))
-                created = True
-            except FileExistsError:
-                retry = self._html_path(url)
-                if retry == filename:
-                    break
-                filename = retry
+        return await asyncio.to_thread(self._write_page, url, str(processed_soup), links)
 
-        if links:
-            sidecar = filename[:-5] + ".links.json"
-            tmp = sidecar + ".tmp"
-            try:
-                async with aiofiles.open(tmp, "w", encoding="utf-8") as f:
-                    await f.write(json.dumps(sorted(links)))
-                await asyncio.to_thread(os.replace, tmp, sidecar)
-            except Exception:
+    def _page_saved(self, url):
+        path = self._html_path(url)
+        return os.path.exists(path) and os.path.getsize(path) > 0
+
+    def _write_page(self, url, html, links):
+        filename = self._html_path(url)
+        while True:
+            if os.path.exists(filename) and os.path.getsize(filename) == 0:
+                os.remove(filename)
+            if not os.path.exists(filename):
+                if links:
+                    self._write_sidecar(filename[:-5] + ".links.json", links)
                 try:
-                    await asyncio.to_thread(os.remove, tmp)
-                except Exception:
+                    with open(filename, "x", encoding="utf-8") as f:
+                        f.write(html)
+                    return True
+                except FileExistsError:
                     pass
+            retry = self._html_path(url)
+            if retry == filename:
+                return False
+            filename = retry
 
-        return created
+    @staticmethod
+    def _write_sidecar(sidecar, links):
+        tmp = sidecar + ".tmp"
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write(json.dumps(sorted(links)))
+            os.replace(tmp, sidecar)
+        except Exception:
+            try:
+                os.remove(tmp)
+            except Exception:
+                pass
 
     def sanitize_filename(self, url: str) -> str:
         original_url = url

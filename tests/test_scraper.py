@@ -415,3 +415,16 @@ class TestWholeCrawl:
         files = os.listdir(worker.save_dir)
         assert len([f for f in files if f.endswith(".html")]) == 121
         assert not [f for f in files if f.endswith(".links.json")] and "failed_urls.log" not in files
+
+    def test_an_empty_page_left_by_an_interrupted_save_is_fetched_again(self, tmp_path, monkeypatch):
+        root = "https://docs.example.com/docs/"
+        pages = {root: '<html><body><a href="/docs/p1">one</a></body></html>',
+                 "https://docs.example.com/docs/p1": "<html><body>page one</body></html>"}
+        monkeypatch.setattr(scraper_module, "PROJECT_ROOT", tmp_path)
+        monkeypatch.setattr(scraper_module, "AsyncSession", lambda **kwargs: _SiteSession(pages))
+        worker = ScraperWorker(root, "site", BaseScraper, name="Site")
+        leftover = worker._html_path("https://docs.example.com/docs/p1")
+        open(leftover, "w").close()
+        worker.run()
+        with open(leftover, encoding="utf-8") as handle:
+            assert "page one" in handle.read()
