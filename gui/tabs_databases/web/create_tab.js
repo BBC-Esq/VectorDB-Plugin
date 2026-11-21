@@ -27,6 +27,7 @@
     if (!name) return null;
     if (name.length < 3) return "Use at least 3 characters.";
     if (name === "null" || name === "none") return "That name is reserved. Choose another one.";
+    if (name === "user_manual") return "That name is reserved for the Ask Jeeves database. Choose another one.";
     if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/.test(name)) return "Windows reserves that name for devices. Choose another one.";
     if (name.length > state.name_limit) return `Use at most ${state.name_limit} characters.`;
     if (state.existing.includes(name)) return "A database with this name already exists.";

@@ -739,6 +739,9 @@ def check_preconditions_for_db_creation(script_dir, database_name, skip_ocr=Fals
     if not DATABASE_NAME_PATTERN.fullmatch(database_name):
         return False, "The database name may contain only lowercase letters, numbers, hyphens and underscores."
 
+    if database_name == "user_manual":
+        return False, "'user_manual' is reserved for the Ask Jeeves database. Choose a different name."
+
     if database_name in WINDOWS_RESERVED_NAMES:
         return False, f"'{database_name}' is a name Windows reserves for devices. Choose a different name."
 

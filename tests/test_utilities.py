@@ -361,6 +361,10 @@ class TestDatabaseNamePreconditions:
         ok, message = utilities.check_preconditions_for_db_creation(tmp_path, name)
         assert not ok and "lowercase" in message
 
+    def test_the_ask_jeeves_database_name_is_reserved(self, tmp_path):
+        ok, message = utilities.check_preconditions_for_db_creation(tmp_path, "user_manual")
+        assert not ok and "Ask Jeeves" in message
+
     def test_a_valid_name_passes_the_name_checks(self, tmp_path, monkeypatch):
         monkeypatch.setattr(utilities, "WINDOWS_MAX_PATH", 1000)
         ok, message = utilities.check_preconditions_for_db_creation(tmp_path, "contracts_2024-a")
