@@ -4,7 +4,7 @@
   const esc = (text) => String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
   const FENCE = /^\s*(```|~~~)(.*)$/;
-  const HEADING = /^(#{1,6})\s+(.*?)\s*#*\s*$/;
+  const HEADING = /^(#{1,6})\s+(.*?)(?:\s+#+)?\s*$/;
   const RULE = /^\s*([-*_])(\s*\1){2,}\s*$/;
   const BULLET = /^(\s*)([-*+])\s+(.*)$/;
   const NUMBER = /^(\s*)(\d+)[.)]\s+(.*)$/;
@@ -14,18 +14,27 @@
 
   function inline(text) {
     const codes = [];
+    const tags = [];
+    const keep = (html) => {
+      tags.push(html);
+      return `\u0001${tags.length - 1}\u0001`;
+    };
     let s = String(text).replace(/`([^`]+)`/g, (_, code) => {
       codes.push(code);
       return `\u0000${codes.length - 1}\u0000`;
     });
     s = esc(s);
-    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, label, url) => `<a href="${url}">${label}</a>`);
-    s = s.replace(/(^|[\s(])(https?:\/\/[^\s<)]+[^\s<).,;:!?'"])/g, (_, lead, url) => `${lead}<a href="${url}">${url}</a>`);
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, label, url) => `${keep(`<a href="${url}">`)}${label}${keep("</a>")}`);
+    s = s.replace(/(^|[\s(])(https?:\/\/(?:(?!&(?:quot|#39|lt|gt);)[^\s<)])+)/g, (_, lead, found) => {
+      const url = found.replace(/(?:[.,:!?]|(?<!&amp);)+$/, "");
+      return `${lead}${keep(`<a href="${url}">${url}</a>`)}${found.slice(url.length)}`;
+    });
     s = s.replace(/\*\*(?=\S)([\s\S]*?\S)\*\*/g, "<strong>$1</strong>");
-    s = s.replace(/__(?=\S)([\s\S]*?\S)__/g, "<strong>$1</strong>");
+    s = s.replace(/__(?=\S)([\s\S]*?\S)__/g, (whole, inner) => (/^\w+$/.test(inner) ? whole : `<strong>${inner}</strong>`));
     s = s.replace(/(^|[^*\w])\*(?=\S)([^*]*?\S)\*(?!\*)/g, "$1<em>$2</em>");
     s = s.replace(/(^|[^_\w])_(?=\S)([^_]*?\S)_(?![_\w])/g, "$1<em>$2</em>");
     s = s.replace(/~~(?=\S)([\s\S]*?\S)~~/g, "<del>$1</del>");
+    s = s.replace(/\u0001(\d+)\u0001/g, (_, i) => tags[Number(i)]);
     return s.replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${esc(codes[Number(i)])}</code>`);
   }
 
@@ -68,8 +77,9 @@
         top.ordered = ordered;
         top.start = ordered ? Number(match[2]) : 1;
       } else if (indent >= top.indent + 2 && top.items.length) {
-        const child = { items: [], ordered, start: ordered ? Number(match[2]) : 1, indent };
-        top.items[top.items.length - 1].children = child;
+        const last = top.items[top.items.length - 1];
+        const child = last.children || { items: [], ordered, start: ordered ? Number(match[2]) : 1, indent };
+        last.children = child;
         stack.push(child);
         top = child;
       }
@@ -95,10 +105,11 @@
       const fence = line.match(FENCE);
       if (fence) {
         const marker = fence[1];
+        const indent = line.length - line.trimStart().length;
         const code = [];
         i += 1;
         while (i < lines.length && !lines[i].trim().startsWith(marker)) {
-          code.push(lines[i]);
+          code.push(lines[i].slice(Math.min(indent, lines[i].length - lines[i].trimStart().length)));
           i += 1;
         }
         i += 1;
@@ -138,7 +149,8 @@
       }
       if (BULLET.test(line) || NUMBER.test(line)) {
         const items = [];
-        while (i < lines.length && lines[i].trim() && (BULLET.test(lines[i]) || NUMBER.test(lines[i]) || /^\s{2,}\S/.test(lines[i]))) {
+        while (i < lines.length && lines[i].trim() && !FENCE.test(lines[i])
+               && (BULLET.test(lines[i]) || NUMBER.test(lines[i]) || /^\s{2,}\S/.test(lines[i]))) {
           items.push(lines[i]);
           i += 1;
         }
