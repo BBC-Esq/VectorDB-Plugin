@@ -12,6 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 logger = logging.getLogger("stage_ocr")
 SCAN_PROGRESS = "Checking PDFs:"
+READ_PROGRESS = "Reading pages with OCR:"
+SAVE_EVERY = 10
 
 PAGES_PER_TASK = 8
 THREADS_PER_WORKER = 2
@@ -48,9 +50,8 @@ def tasks_for(path, pages):
 
 def run_tasks(function, tasks, option, check, reader, label):
     from modules import ocr_reader
-    results = []
     if not tasks:
-        return results
+        return
     total = sum(len(pages) for _, pages in tasks)
     done = 0
     workers = worker_count(len(tasks))
@@ -59,10 +60,9 @@ def run_tasks(function, tasks, option, check, reader, label):
         futures = [pool.submit(function, path, pages, option) for path, pages in tasks]
         for future in as_completed(futures):
             result = future.result()
-            results.append(result)
             done += len(result[1])
             print(f"{label} {done}/{total} pages", flush=True)
-    return results
+            yield result
 
 
 def find_pages(source_dir, check):
@@ -110,23 +110,77 @@ def scan(source_dir, check, reader):
     return {"needs": needs, "problems": problems}
 
 
+def usable_reader(reader):
+    if reader != "lighton":
+        return reader
+    from modules import ocr_lighton
+    if ocr_lighton.available():
+        return reader
+    print("LightOnOCR needs an NVIDIA GPU with at least 6 GB of memory, so RapidOCR reads the pages instead.", flush=True)
+    return "rapidocr"
+
+
+def read_with_lighton(tasks, store):
+    import fitz
+    from modules import ocr_lighton
+    items = [(path, page) for path, pages in tasks for page in pages]
+    model, processor = ocr_lighton.load()
+    open_documents = {}
+    done = [0]
+
+    def render(item):
+        path, page = item
+        if path not in open_documents:
+            open_documents[path] = fitz.open(path)
+        return ocr_lighton.render(open_documents[path][page - 1])
+
+    def on_result(item, text, cut_off):
+        path, page = item
+        if cut_off:
+            logger.warning(f"Page {page} of {Path(path).name} was cut off at the length limit; its text may be incomplete.")
+        done[0] += 1
+        print(f"{READ_PROGRESS} {done[0]}/{len(items)} pages", flush=True)
+        store(path, {page: text}, done[0] % SAVE_EVERY == 0)
+
+    try:
+        ocr_lighton.read_in_batches(model, processor, items, render, on_result)
+    finally:
+        for document in open_documents.values():
+            document.close()
+
+
 def read(source_dir, check, reader):
     from core import ocr_cache
     from modules import ocr_reader
     documents, _ = find_pages(source_dir, check)
-    reader_id = ocr_reader.READERS[reader]
     tasks = []
+    if any(unread_pages(document, ocr_reader.READERS[reader]) for document in documents.values()):
+        reader = usable_reader(reader)
+    reader_id = ocr_reader.READERS[reader]
     for path, document in documents.items():
         tasks.extend(tasks_for(path, unread_pages(document, reader_id)))
+    unsaved = set()
+
+    def store(path, pages, save=True):
+        record = documents[path]["record"]
+        record["text"].setdefault(reader_id, {}).update({str(number): text for number, text in pages.items()})
+        unsaved.add(path)
+        if save:
+            for changed in unsaved:
+                ocr_cache.save(documents[changed]["entry"], documents[changed]["record"])
+            unsaved.clear()
+
     if tasks:
-        ocr_reader.ensure_models(None, reader)
-        texts = {}
-        for path, _, pages in run_tasks(ocr_reader.read_pages, tasks, reader, None, reader, "Reading pages with OCR:"):
-            texts.setdefault(path, {}).update(pages)
-        for path, pages in texts.items():
-            record = documents[path]["record"]
-            record["text"].setdefault(reader_id, {}).update({str(number): text for number, text in pages.items()})
-            ocr_cache.save(documents[path]["entry"], record)
+        try:
+            if reader == "lighton":
+                read_with_lighton(tasks, store)
+            else:
+                ocr_reader.ensure_models(None, reader)
+                for path, _, pages in run_tasks(ocr_reader.read_pages, tasks, reader, None, reader, READ_PROGRESS):
+                    store(path, pages)
+        finally:
+            for changed in unsaved:
+                ocr_cache.save(documents[changed]["entry"], documents[changed]["record"])
     output = {}
     for document in documents.values():
         stored = document["record"]["text"].get(reader_id) or {}
@@ -148,7 +202,7 @@ def main():
     parser.add_argument("source_dir")
     parser.add_argument("output")
     parser.add_argument("--check", choices=["detector", "quick"], default="detector")
-    parser.add_argument("--reader", choices=["rapidocr", "tesseract"], default="rapidocr")
+    parser.add_argument("--reader", choices=["rapidocr", "tesseract", "lighton"], default="rapidocr")
     args = parser.parse_args()
 
     if not Path(args.source_dir).is_dir():

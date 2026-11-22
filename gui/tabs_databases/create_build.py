@@ -23,7 +23,7 @@ LOG_LINES = 400
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 OCR_CHECKS = ("detector", "quick")
-OCR_READERS = {"rapidocr": "RapidOCR", "tesseract": "Tesseract"}
+OCR_READERS = {"rapidocr": "RapidOCR", "tesseract": "Tesseract", "lighton": "LightOnOCR"}
 SCAN_LINE = re.compile(re.escape(SCAN_PROGRESS) + r" (\d+)/(\d+) pages")
 
 STAGES = [
@@ -179,6 +179,8 @@ def ocr_settings(cfg):
     database = (cfg or {}).get("database") or {}
     check = database.get("ocr_check")
     reader = database.get("ocr_reader")
+    if reader == "lighton" and "cuda" not in (((cfg or {}).get("Compute_Device") or {}).get("available") or []):
+        reader = "rapidocr"
     return (check if check in OCR_CHECKS else "detector", reader if reader in OCR_READERS else "rapidocr")
 
 

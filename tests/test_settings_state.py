@@ -101,6 +101,10 @@ def test_text_and_choice_settings(sandbox, gpu):
     assert not ss.apply_change("create.pipeline_preset", "turbo")["ok"]
     assert ss.apply_change("create.ocr_check", "quick")["ok"] and ss.apply_change("create.ocr_reader", "tesseract")["ok"]
     assert not ss.apply_change("create.ocr_check", "none")["ok"] and not ss.apply_change("create.ocr_reader", "x")["ok"]
+    assert ss.apply_change("create.ocr_reader", "lighton")["ok"] and ss.apply_change("create.ocr_reader", "tesseract")["ok"]
+    ss.cuda_usable = lambda: False
+    assert not ss.apply_change("create.ocr_reader", "lighton")["ok"]
+    ss.cuda_usable = lambda: True
     assert (config(sandbox)["database"]["ocr_check"], config(sandbox)["database"]["ocr_reader"]) == ("quick", "tesseract")
     assert ss.apply_change("query.device", "cuda")["ok"]
     assert not ss.apply_change("query.device", "mps")["ok"]

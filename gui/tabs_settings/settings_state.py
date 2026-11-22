@@ -14,7 +14,7 @@ CONFIG_FILE = Path("config.yaml")
 
 PIPELINE_PRESETS = ["minimal", "low", "normal", "high", "maximum"]
 OCR_CHECKS = {"detector": "Thorough", "quick": "Quick"}
-OCR_READERS = {"rapidocr": "RapidOCR", "tesseract": "Tesseract"}
+OCR_READERS = {"rapidocr": "RapidOCR", "tesseract": "Tesseract", "lighton": "LightOnOCR"}
 DOCUMENT_TYPES = [("", "All files"), ("document", "Documents"), ("image", "Images"), ("audio", "Audio")]
 DEVICE_LABELS = {"cpu": "CPU", "cuda": "CUDA", "mps": "MPS"}
 DEFAULT_VISION_MODEL = "Liquid-VL - 480M"
@@ -131,7 +131,9 @@ HELP = {
     ),
     "create.ocr_reader": (
         "The engine that reads pages needing OCR while a database is created. RapidOCR handles scans, photos and "
-        "rotated pages best. Tesseract is an alternative for clean typed scans."
+        "rotated pages best and never invents text. Tesseract is an alternative for clean typed scans. LightOnOCR "
+        "is the most accurate but needs an NVIDIA GPU with at least 6 GB of memory, downloads a 1.7 GB model on "
+        "first use, and can occasionally leave out text or write text that is not on the page."
     ),
     "create.pipeline_preset": (
         "Controls CPU parallelism during database creation. Minimal: sequential processing (1 thread/process). "
@@ -401,7 +403,8 @@ def _sections(cfg, cuda):
                 {"key": "create.ocr_check", "label": "PDF page check", "type": "segmented",
                  "options": [{"value": value, "label": label} for value, label in OCR_CHECKS.items()]},
                 {"key": "create.ocr_reader", "label": "OCR engine", "type": "segmented",
-                 "options": [{"value": value, "label": label} for value, label in OCR_READERS.items()]},
+                 "options": [{"value": value, "label": label} for value, label in OCR_READERS.items()
+                             if value != "lighton" or cuda]},
             ],
         },
         {"id": "tts", "title": "Text to Speech", "icon": "speaker", "custom": "tts"},
@@ -547,7 +550,8 @@ def build_state():
         "create.half": bool(database.get("half", False)) and cuda,
         "create.pipeline_preset": _pick(database.get("pipeline_preset", "normal"), PIPELINE_PRESETS, "normal"),
         "create.ocr_check": _pick(database.get("ocr_check", "detector"), OCR_CHECKS, "detector"),
-        "create.ocr_reader": _pick(database.get("ocr_reader", "rapidocr"), OCR_READERS, "rapidocr"),
+        "create.ocr_reader": _pick(database.get("ocr_reader", "rapidocr"),
+                                   [value for value in OCR_READERS if value != "lighton" or cuda], "rapidocr"),
     }
     return {
         "error": error,
@@ -627,6 +631,8 @@ def _set_ocr_check(cfg, value):
 def _set_ocr_reader(cfg, value):
     if value not in OCR_READERS:
         raise SettingsError("Choose an OCR engine from the list.")
+    if value == "lighton" and not cuda_usable():
+        raise SettingsError("LightOnOCR needs an NVIDIA GPU.")
     return _set(cfg, "database", "ocr_reader", value)
 
 

@@ -47,7 +47,7 @@ class DatabaseConfig(_SubConfig):
     search_term: str = ""
     pipeline_preset: str = "normal"
     ocr_check: Literal["detector", "quick"] = "detector"
-    ocr_reader: Literal["rapidocr", "tesseract"] = "rapidocr"
+    ocr_reader: Literal["rapidocr", "tesseract", "lighton"] = "rapidocr"
 
     @field_validator('contexts', mode='before')
     @classmethod

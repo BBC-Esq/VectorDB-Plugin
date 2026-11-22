@@ -231,3 +231,52 @@ def test_ocr_settings_fall_back_to_the_defaults():
     assert create_build.ocr_settings({}) == ("detector", "rapidocr")
     assert create_build.ocr_settings({"database": {"ocr_check": "quick", "ocr_reader": "tesseract"}}) == ("quick", "tesseract")
     assert create_build.ocr_settings({"database": {"ocr_check": "x", "ocr_reader": None}}) == ("detector", "rapidocr")
+
+
+def test_lighton_batch_size_follows_the_card_memory():
+    from modules import ocr_lighton
+    assert [ocr_lighton.batch_for_card(gb) for gb in (4, 6, 8, 12, 16, 24)] == [0, 1, 2, 6, 10, 10]
+
+
+def test_lighton_reads_a_batch_again_in_halves_when_memory_runs_out(monkeypatch):
+    import torch
+    from modules import ocr_lighton
+    calls = []
+
+    def fake_read(model, processor, images):
+        calls.append(len(images))
+        if len(images) > 2:
+            raise torch.OutOfMemoryError("out of memory")
+        return [(f"text {image}", False) for image in images]
+
+    monkeypatch.setattr(ocr_lighton, "read_images", fake_read)
+    monkeypatch.setattr(ocr_lighton, "batch_size", lambda pages: 8)
+    monkeypatch.setattr(torch.cuda, "empty_cache", lambda: None)
+    results = {}
+    ocr_lighton.read_in_batches(None, None, list(range(10)), lambda item: item,
+                                lambda item, text, cut_off: results.__setitem__(item, text))
+    assert results == {item: f"text {item}" for item in range(10)}
+    assert calls[:3] == [8, 4, 2] and max(calls[2:]) == 2
+
+
+def test_lighton_markup_becomes_plain_text():
+    from modules import ocr_lighton
+    text = ("# Order\n\nThe **motion** is *granted*.\n\n<table><tr><th>Item</th><th>Cost</th></tr>"
+            "<tr><td>Filing &amp; service</td><td>$120</td></tr></table>\n\n| A | B |\n|---|---|\n| 1 | 2 |")
+    assert ocr_lighton.to_plain(text) == "Order\n\nThe motion is granted.\n\nItem\tCost\nFiling & service\t$120\nA\tB\n1\t2"
+
+
+def test_lighton_falls_back_to_rapidocr_without_a_suitable_gpu(monkeypatch, capsys):
+    from modules import ocr_lighton
+    monkeypatch.setattr(ocr_lighton, "total_vram_gb", lambda: 4.0)
+    assert stage_ocr.usable_reader("lighton") == "rapidocr" and "RapidOCR reads the pages instead" in capsys.readouterr().out
+    monkeypatch.setattr(ocr_lighton, "total_vram_gb", lambda: 8.0)
+    assert stage_ocr.usable_reader("lighton") == "lighton"
+    assert stage_ocr.usable_reader("tesseract") == "tesseract"
+
+
+def test_lighton_is_only_chosen_for_the_scan_when_a_gpu_is_listed():
+    settings = {"database": {"ocr_reader": "lighton"}, "Compute_Device": {"available": ["cpu"]}}
+    assert create_build.ocr_settings(settings) == ("detector", "rapidocr")
+    settings["Compute_Device"]["available"] = ["cpu", "cuda"]
+    assert create_build.ocr_settings(settings) == ("detector", "lighton")

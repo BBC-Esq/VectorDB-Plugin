@@ -12,8 +12,7 @@ from core.text_order import column_reading_order
 logger = logging.getLogger(__name__)
 
 CHECKS = {"detector": "detector-1", "quick": "quick-2"}
-READERS = {"rapidocr": "rapidocr-1", "tesseract": "tesseract-1"}
-READER_LABELS = {"rapidocr": "RapidOCR", "tesseract": "Tesseract"}
+READERS = {"rapidocr": "rapidocr-1", "tesseract": "tesseract-1", "lighton": "lighton-3-0.8b-1"}
 
 GATE_DPI = 200
 RAPIDOCR_DPI = 300
