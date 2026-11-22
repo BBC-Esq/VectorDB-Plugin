@@ -19,6 +19,9 @@ Vector_DB_Backup/
 Docs_for_DB/
 Scraped_Documentation/
 
+# Saved OCR results
+Cache/
+
 # Test files
 TEST - FILES/
 

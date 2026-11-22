@@ -13,6 +13,8 @@ from core.utilities import cuda_usable, fallback_if_unavailable, runs_on_this_ha
 CONFIG_FILE = Path("config.yaml")
 
 PIPELINE_PRESETS = ["minimal", "low", "normal", "high", "maximum"]
+OCR_CHECKS = {"detector": "Thorough", "quick": "Quick"}
+OCR_READERS = {"rapidocr": "RapidOCR", "tesseract": "Tesseract"}
 DOCUMENT_TYPES = [("", "All files"), ("document", "Documents"), ("image", "Images"), ("audio", "Audio")]
 DEVICE_LABELS = {"cpu": "CPU", "cuda": "CUDA", "mps": "MPS"}
 DEFAULT_VISION_MODEL = "Liquid-VL - 480M"
@@ -122,6 +124,15 @@ HELP = {
     ),
     "query.document_types": "Only allows chunks that originate from certain file types.",
     "create.device": "Device used to create databases. Use CUDA if you have a supported NVIDIA GPU.",
+    "create.ocr_check": (
+        "How Create Database finds PDF pages that need OCR. Thorough looks at each page as a picture and flags any "
+        "page showing text the PDF does not hold, such as a scan with a stamp or a typed page with a photo of text. "
+        "Quick only inspects the text and images stored in the PDF, which is much faster but misses those pages."
+    ),
+    "create.ocr_reader": (
+        "The engine that reads pages needing OCR while a database is created. RapidOCR handles scans, photos and "
+        "rotated pages best. Tesseract is an alternative for clean typed scans."
+    ),
     "create.pipeline_preset": (
         "Controls CPU parallelism during database creation. Minimal: sequential processing (1 thread/process). "
         "Low: light parallelism (2-4 workers). Normal: moderate parallelism (default). High: aggressive parallelism. "
@@ -387,6 +398,10 @@ def _sections(cfg, cuda):
                  "disabled": not cuda},
                 {"key": "create.pipeline_preset", "label": "Pipeline performance", "type": "segmented", "span": 3,
                  "options": [{"value": preset, "label": preset.capitalize()} for preset in PIPELINE_PRESETS]},
+                {"key": "create.ocr_check", "label": "PDF page check", "type": "segmented",
+                 "options": [{"value": value, "label": label} for value, label in OCR_CHECKS.items()]},
+                {"key": "create.ocr_reader", "label": "OCR engine", "type": "segmented",
+                 "options": [{"value": value, "label": label} for value, label in OCR_READERS.items()]},
             ],
         },
         {"id": "tts", "title": "Text to Speech", "icon": "speaker", "custom": "tts"},
@@ -531,6 +546,8 @@ def build_state():
         "create.chunk_overlap": database.get("chunk_overlap"),
         "create.half": bool(database.get("half", False)) and cuda,
         "create.pipeline_preset": _pick(database.get("pipeline_preset", "normal"), PIPELINE_PRESETS, "normal"),
+        "create.ocr_check": _pick(database.get("ocr_check", "detector"), OCR_CHECKS, "detector"),
+        "create.ocr_reader": _pick(database.get("ocr_reader", "rapidocr"), OCR_READERS, "rapidocr"),
     }
     return {
         "error": error,
@@ -599,6 +616,18 @@ def _set_pipeline_preset(cfg, value):
     if value not in PIPELINE_PRESETS:
         raise SettingsError("Choose a pipeline performance level from the list.")
     return _set(cfg, "database", "pipeline_preset", value)
+
+
+def _set_ocr_check(cfg, value):
+    if value not in OCR_CHECKS:
+        raise SettingsError("Choose a PDF page check from the list.")
+    return _set(cfg, "database", "ocr_check", value)
+
+
+def _set_ocr_reader(cfg, value):
+    if value not in OCR_READERS:
+        raise SettingsError("Choose an OCR engine from the list.")
+    return _set(cfg, "database", "ocr_reader", value)
 
 
 def _set_half(cfg, value):
@@ -678,6 +707,8 @@ HANDLERS = {
     "create.chunk_overlap": _set_chunk_overlap,
     "create.half": _set_half,
     "create.pipeline_preset": _set_pipeline_preset,
+    "create.ocr_check": _set_ocr_check,
+    "create.ocr_reader": _set_ocr_reader,
     "tts.backend": _set_tts_backend,
     "tts.option": _set_tts_option,
     "vision.model": _set_vision_model,

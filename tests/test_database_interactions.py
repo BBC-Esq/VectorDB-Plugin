@@ -303,7 +303,7 @@ class TestPrepareKeepDocument:
         ]
         seen = {"split": None, "embedded": None}
 
-        def extract(source_directory, extracted_pkl):
+        def extract(source_directory, extracted_pkl, ocr_text=None):
             with open(extracted_pkl, "wb") as f:
                 pickle.dump([(text, dict(metadata)) for text, metadata in extracted], f)
 

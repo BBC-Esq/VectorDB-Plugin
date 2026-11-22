@@ -98,8 +98,8 @@
       const on = state.check_pdfs;
       parts.push('<div class="option-row">'
         + `<button type="button" class="switch" role="switch" aria-checked="${on}" data-switch="check_pdfs"${busy() ? " disabled" : ""}><span class="track"></span>`
-        + `<span>Check the ${fmt.int(pdfs)} PDF${pdfs === 1 ? "" : "s"} for missing text first</span></button>`
-        + '<span class="option-note">Strongly recommended. Scanned PDFs without a text layer would add nothing to the database.</span></div>');
+        + `<span>Check the ${fmt.int(pdfs)} PDF${pdfs === 1 ? "" : "s"} for pages that need OCR first</span></button>`
+        + '<span class="option-note">Strongly recommended. Scanned pages are read with OCR while the database is created; without the check they add nothing.</span></div>');
     }
     const images = (state.files.summary || {}).image || 0;
     if (images && state.settings.vision) {
@@ -161,6 +161,7 @@
     const docs = p.documents != null ? `${fmt.int(p.documents)} document${p.documents === 1 ? "" : "s"}` : "";
     const chunks = p.chunks != null ? `${fmt.int(p.chunks)} chunks` : "";
     switch (p.stage) {
+      case "ocr": return p.ocr_pages ? `Read ${fmt.int(p.ocr_pages[0])} of ${fmt.int(p.ocr_pages[1])} pages with OCR` : "Reading scanned pages with OCR…";
       case "extract": return docs ? `Read ${docs}` : "Reading the files…";
       case "media": return "Describing images and adding transcripts…";
       case "split": return chunks ? `Split into ${chunks}` : "Splitting the text into chunks…";
@@ -207,10 +208,10 @@
       ? '<span class="status-note">Cancelling…</span>'
       : `<button type="button" class="btn ghost small" data-act="cancel_build">${ICONS.stop}Cancel</button>`;
     return '<div class="build-panel">'
-      + `<div class="build-head"><span class="build-title">Checking PDFs for missing text before creating <b>${esc(b.name)}</b></span>`
+      + `<div class="build-head"><span class="build-title">Checking PDFs for pages that need OCR before creating <b>${esc(b.name)}</b></span>`
       + `<span class="elapsed" data-since="${b.started}">${VDB.elapsed(Date.now() / 1000 - b.started)}</span></div>`
       + `<div class="progress${s.total ? "" : " indeterminate"}"><i style="width:${width.toFixed(1)}%"></i></div>`
-      + `<div class="build-detail"><span>${s.total ? `${fmt.int(s.done)} of ${fmt.int(s.total)} PDFs checked` : "Looking for PDFs…"}</span>${cancel}</div>`
+      + `<div class="build-detail"><span>${s.total ? `${fmt.int(s.done)} of ${fmt.int(s.total)} pages checked` : "Looking at the PDFs…"}</span>${cancel}</div>`
       + "</div>";
   }
 
@@ -236,14 +237,28 @@
         + `${notes}</div>${close}</div>`;
     }
     if (r.kind === "ocr") {
-      const names = r.names.slice(0, 8).map((n) => `<div>${esc(n)}</div>`).join("") + (r.names.length > 8 ? `<div>…and ${fmt.int(r.names.length - 8)} more</div>` : "");
+      const list = (items, text) => items.slice(0, 8).map((item) => `<div>${esc(item.name)} (${esc(text(item))})</div>`).join("")
+        + (items.length > 8 ? `<div>…and ${fmt.int(items.length - 8)} more</div>` : "");
+      let body = "";
+      if (r.needs.length) {
+        const cached = r.pages - r.unread;
+        body += `${fmt.int(r.needs.length)} PDF${r.needs.length === 1 ? " has" : "s have"} ${fmt.int(r.pages)} page${r.pages === 1 ? "" : "s"} that need OCR. `
+          + `${esc(r.reader)} can read ${r.pages === 1 ? "it" : "them"} while the database is created`
+          + (cached > 0 ? ` (${fmt.int(cached)} ${cached === 1 ? "was" : "were"} already read earlier).` : ".")
+          + `<div class="notice-list compact">${list(r.needs, (item) => `${fmt.int(item.pages)} of ${fmt.int(item.total)} pages`)}</div>`;
+      }
+      if (r.problems.length) {
+        body += `<div>${fmt.int(r.problems.length)} PDF${r.problems.length === 1 ? "" : "s"} cannot be read and will be left out.</div>`
+          + `<div class="notice-list compact">${list(r.problems, (item) => item.reason)}</div>`;
+      }
+      const go = r.needs.length ? "Read them with OCR and create the database" : "Create the database without them";
       return `<div class="status warn result">${ICONS.warn}<div class="status-body">`
-        + `${fmt.int(r.names.length)} PDF${r.names.length === 1 ? " has" : "s have"} no text layer and need${r.names.length === 1 ? "s" : ""} OCR first, so no database was created.`
-        + `<div class="notice-list compact">${names}</div>`
+        + body
         + '<div class="result-actions">'
+        + `<button type="button" class="btn primary small" data-act="approve_ocr">${ICONS.check}${go}</button>`
         + `<button type="button" class="btn ghost small" data-act="open_report">${ICONS.file}Open the full list</button>`
         + `<button type="button" class="btn ghost small" data-act="remove_ocr_files">${ICONS.close}Remove them from the list</button>`
-        + '<span class="status-note">or run OCR on them on the <button type="button" class="link" data-tab="Tools">Tools tab</button></span>'
+        + '<span class="status-note">The OCR engine and the page check can be changed on the <button type="button" class="link" data-tab="Settings">Settings tab</button></span>'
         + `</div></div>${close}</div>`;
     }
     if (r.kind === "cancelled" || r.kind === "info") {

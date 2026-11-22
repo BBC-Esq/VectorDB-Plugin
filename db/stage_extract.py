@@ -16,8 +16,8 @@ logger = logging.getLogger("stage_extract")
 
 
 def main():
-    if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} <source_dir> <output_pickle>", file=sys.stderr)
+    if len(sys.argv) not in (3, 4):
+        print(f"Usage: {sys.argv[0]} <source_dir> <output_pickle> [ocr_text_json]", file=sys.stderr)
         sys.exit(1)
 
     source_dir = Path(sys.argv[1])
@@ -30,7 +30,10 @@ def main():
     logger.info(f"Stage 1: Extracting documents from {source_dir}")
     t0 = time.time()
 
-    from db.document_processor import load_documents
+    from db.document_processor import OCR_TEXT_VARIABLE, load_documents
+
+    if len(sys.argv) == 4:
+        os.environ[OCR_TEXT_VARIABLE] = sys.argv[3]
     from core.constants import SUPPORTED_EXTENSIONS
 
     docs = load_documents(source_dir)

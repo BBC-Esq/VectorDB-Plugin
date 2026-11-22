@@ -150,6 +150,11 @@ class CreateDatabaseTab(WebTab):
     def js_remove_ocr_files(self):
         self.build.remove_ocr_files()
 
+    def js_approve_ocr(self):
+        result = self.build.approve_ocr()
+        self.schedule_push()
+        return result
+
     def js_open_tab(self, name):
         widget = self.parentWidget()
         while widget is not None and not isinstance(widget, QTabWidget):

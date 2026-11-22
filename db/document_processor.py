@@ -2,11 +2,13 @@ import os
 import io
 import re
 import csv
+import json
 import codecs
 import logging
 import warnings
 import datetime
 import hashlib
+import threading
 from pathlib import Path
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
@@ -82,13 +84,42 @@ def _ocr_text_for_garbled_page(page) -> Optional[str]:
     return None
 
 
+OCR_TEXT_VARIABLE = "VECTORDB_OCR_TEXT"
+_ocr_text = None
+_ocr_text_lock = threading.Lock()
+
+
+def _ocr_pages(file_path) -> dict:
+    global _ocr_text
+    if _ocr_text is None:
+        with _ocr_text_lock:
+            if _ocr_text is None:
+                loaded = {}
+                handoff = os.environ.get(OCR_TEXT_VARIABLE)
+                if handoff:
+                    try:
+                        with open(handoff, "r", encoding="utf-8") as f:
+                            loaded = json.load(f)
+                    except (OSError, ValueError) as e:
+                        logger.error(f"Could not load the OCR text: {e}")
+                _ocr_text = loaded
+    if not _ocr_text:
+        return {}
+    return _ocr_text.get(os.path.normcase(os.path.realpath(file_path))) or {}
+
+
 def _load_pdf(file_path: Path) -> Optional[str]:
     full_content = []
+    ocr_pages = _ocr_pages(file_path)
     with fitz.open(str(file_path)) as doc:
         for page in doc:
-            text = page.get_text()
-            if corrupt_fraction(text) or control_fraction(text):
-                text = _ocr_text_for_garbled_page(page) or text
+            text = ocr_pages.get(str(page.number + 1))
+            if text is not None:
+                text = text.rstrip() + "\n"
+            else:
+                text = page.get_text()
+                if corrupt_fraction(text) or control_fraction(text):
+                    text = _ocr_text_for_garbled_page(page) or text
             if text.strip():
                 full_content.append(f"[[page{page.number + 1}]]{text}")
     return "".join(full_content) if full_content else None

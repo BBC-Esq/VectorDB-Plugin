@@ -178,9 +178,24 @@ def _run_subprocess_stage(name, cmd, timeout=3600):
     return process.returncode, output_lines
 
 
-def _run_extract_with_retry(source_dir, output_pkl):
+OCR_STAGE_TIMEOUT = 7 * 24 * 3600
+
+
+def _run_ocr_stage(source_dir, output_json):
+    from db.stage_ocr import command
+    database = get_config().database
+    exit_code, _ = _run_subprocess_stage(
+        "OCR", command("read", source_dir, output_json, database.ocr_check, database.ocr_reader),
+        timeout=OCR_STAGE_TIMEOUT)
+    if exit_code != 0 or not output_json.exists():
+        raise RuntimeError(f"The OCR stage failed (exit code {exit_code})")
+
+
+def _run_extract_with_retry(source_dir, output_pkl, ocr_text=None):
     python = sys.executable
     cmd = [python, str(STAGE_EXTRACT_PATH), str(source_dir), str(output_pkl)]
+    if ocr_text is not None:
+        cmd.append(str(ocr_text))
 
     for attempt in range(1, EXTRACT_MAX_RETRIES + 1):
         logger.info(f"Extract attempt {attempt}/{EXTRACT_MAX_RETRIES}")
@@ -374,7 +389,7 @@ def _setup_tiledb_dlls():
                 pass
 
 
-def create_vector_db_in_process(database_name):
+def create_vector_db_in_process(database_name, ocr=False):
     faulthandler.enable()
     configure_logging("INFO")
     set_cuda_paths()
@@ -387,7 +402,7 @@ def create_vector_db_in_process(database_name):
 
     try:
         create_vector_db = CreateVectorDB(database_name=database_name)
-        create_vector_db.run()
+        create_vector_db.run(ocr=ocr)
         print(BUILD_COMPLETE_MARKER, flush=True)
     except Exception:
         traceback.print_exc()
@@ -605,7 +620,7 @@ class CreateVectorDB:
 
     @torch.inference_mode()
     def prepare(self, source_directory, model_path, chunk_size, chunk_overlap, first_document_id=1, before_embedding=None,
-                keep_document=None):
+                keep_document=None, ocr=False):
         cuda_mgr = get_cuda_manager()
         config_data = get_config()
         source_directory = Path(source_directory)
@@ -617,9 +632,17 @@ class CreateVectorDB:
         checkpoint_dir.mkdir(exist_ok=True)
 
         try:
+            ocr_text = None
+            if ocr:
+                my_cprint("Reading scanned pages with OCR (subprocess)...", "yellow")
+                ocr_t0 = time.time()
+                ocr_text = tmp_path / "ocr_text.json"
+                _run_ocr_stage(source_directory, ocr_text)
+                logger.info(f"OCR stage: {time.time() - ocr_t0:.1f}s")
+
             my_cprint("Extracting documents (subprocess)...", "yellow")
             extract_t0 = time.time()
-            _run_extract_with_retry(source_directory, extracted_pkl)
+            _run_extract_with_retry(source_directory, extracted_pkl, ocr_text)
             logger.info(f"Extract stage: {time.time() - extract_t0:.1f}s")
 
             with open(extracted_pkl, "rb") as f:
@@ -794,7 +817,7 @@ class CreateVectorDB:
         my_cprint(f"Created directory: {self.PERSIST_DIRECTORY}", "green")
 
     @torch.inference_mode()
-    def run(self):
+    def run(self, ocr=False):
         pipeline_t0 = time.time()
         config_data = get_config()
         self._created_persist_dir = False
@@ -803,7 +826,7 @@ class CreateVectorDB:
         try:
             prepared = self.prepare(self.SOURCE_DIRECTORY, config_data.EMBEDDING_MODEL_NAME,
                                     config_data.database.chunk_size, config_data.database.chunk_overlap,
-                                    before_embedding=self._create_persist_directory)
+                                    before_embedding=self._create_persist_directory, ocr=ocr)
             json_docs_to_save, not_added = prepared.documents, prepared.not_added
 
             tmp_path = Path(tempfile.mkdtemp(prefix="vectordb_create_"))

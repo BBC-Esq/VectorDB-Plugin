@@ -1,6 +1,5 @@
 import gc
 import json
-import multiprocessing as mp
 import os
 import re
 import shutil
@@ -9,7 +8,6 @@ import sys
 import tempfile
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import yaml
@@ -17,13 +15,19 @@ from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from core.constants import BUILD_COMPLETE_MARKER, DB_FOLDER_CREATED_MARKER, NOT_ADDED_MARKER, PROJECT_ROOT
-from core.utilities import _needs_ocr_worker, check_preconditions_for_db_creation, my_cprint, save_config_atomically
+from core.utilities import check_preconditions_for_db_creation, my_cprint, save_config_atomically
+from db.stage_ocr import SCAN_PROGRESS, command as ocr_command
 from gui.tabs_databases import manage_data
 
 LOG_LINES = 400
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
+OCR_CHECKS = ("detector", "quick")
+OCR_READERS = {"rapidocr": "RapidOCR", "tesseract": "Tesseract"}
+SCAN_LINE = re.compile(re.escape(SCAN_PROGRESS) + r" (\d+)/(\d+) pages")
+
 STAGES = [
+    ("ocr", "OCR"),
     ("extract", "Reading"),
     ("media", "Images and audio"),
     ("split", "Splitting"),
@@ -38,9 +42,10 @@ class VectorDBWorker(QThread):
     progress = Signal(str)
     finished = Signal(bool, int, str)
 
-    def __init__(self, database_name, parent=None):
+    def __init__(self, database_name, parent=None, ocr=False):
         super().__init__(parent)
         self.database_name = database_name
+        self.ocr = bool(ocr)
         self._process = None
         self._cancelled = False
         self.not_added = []
@@ -54,7 +59,7 @@ class VectorDBWorker(QThread):
             cmd = [
                 sys.executable, "-c",
                 "from db.database_interactions import create_vector_db_in_process; "
-                f"create_vector_db_in_process({self.database_name!r})"
+                f"create_vector_db_in_process({self.database_name!r}, ocr={self.ocr!r})"
             ]
 
             env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8", "TMPDIR": temp_root}
@@ -170,45 +175,67 @@ class VectorDBWorker(QThread):
                 pass
 
 
-def ocr_threads():
-    try:
-        import psutil
-        physical = psutil.cpu_count(logical=False) or mp.cpu_count()
-    except ImportError:
-        logical = mp.cpu_count()
-        physical = max(1, max(logical // 2, logical - 4))
-    return max(1, physical - 1)
+def ocr_settings(cfg):
+    database = (cfg or {}).get("database") or {}
+    check = database.get("ocr_check")
+    reader = database.get("ocr_reader")
+    return (check if check in OCR_CHECKS else "detector", reader if reader in OCR_READERS else "rapidocr")
 
 
 class OcrScanWorker(QThread):
     progress = Signal(int, int)
-    scanned = Signal(list)
+    scanned = Signal(object)
 
-    def __init__(self, folder, parent=None):
+    def __init__(self, folder, check="detector", reader="rapidocr", parent=None):
         super().__init__(parent)
         self.folder = Path(folder)
+        self.check = check
+        self.reader = reader
+        self.log = []
+        self._process = None
+        self._cancelled = False
 
     def run(self):
+        temp_root = tempfile.mkdtemp(prefix="vectordb_scan_")
+        output = Path(temp_root) / "scan.json"
+        result = None
         try:
-            with os.scandir(self.folder) as it:
-                pdf_paths = [Path(entry.path) for entry in it if entry.name.lower().endswith(".pdf")]
-        except OSError:
-            pdf_paths = []
-        total = len(pdf_paths)
-        flags = [False] * total
-        done = 0
-        self.progress.emit(0, total)
-        with ThreadPoolExecutor(max_workers=ocr_threads()) as ex:
-            futures = {ex.submit(_needs_ocr_worker, str(path)): i for i, path in enumerate(pdf_paths)}
-            for future in as_completed(futures):
-                if self.isInterruptionRequested():
-                    ex.shutdown(wait=False, cancel_futures=True)
-                    self.scanned.emit([])
-                    return
-                flags[futures[future]] = bool(future.result())
-                done += 1
-                self.progress.emit(done, total)
-        self.scanned.emit([str(path) for path, flag in zip(pdf_paths, flags) if flag])
+            self._process = subprocess.Popen(
+                ocr_command("scan", self.folder, output, self.check, self.reader),
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+                bufsize=1, cwd=str(PROJECT_ROOT),
+                env={**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"},
+            )
+            if self._cancelled:
+                VectorDBWorker._terminate_process_tree(self._process.pid)
+            for line in self._process.stdout:
+                line = ANSI.sub("", line).strip()
+                if not line:
+                    continue
+                match = SCAN_LINE.search(line)
+                if match:
+                    self.progress.emit(int(match.group(1)), int(match.group(2)))
+                else:
+                    self.log.append(line)
+                    del self.log[:-LOG_LINES]
+            self._process.wait()
+            if not self._cancelled and self._process.returncode == 0:
+                with open(output, "r", encoding="utf-8") as f:
+                    result = json.load(f)
+        except Exception as e:
+            self.log.append(f"{type(e).__name__}: {e}")
+        finally:
+            process = self._process
+            if process is not None and process.poll() is None:
+                VectorDBWorker._terminate_process_tree(process.pid)
+            shutil.rmtree(temp_root, ignore_errors=True)
+        self.scanned.emit(result)
+
+    def cancel(self):
+        self._cancelled = True
+        process = self._process
+        if process is not None and process.poll() is None:
+            VectorDBWorker._terminate_process_tree(process.pid)
 
 
 class BackupWorker(QThread):
@@ -231,6 +258,8 @@ class BackupWorker(QThread):
 
 class BuildProgress:
     PATTERNS = [
+        (re.compile(r"Reading scanned pages with OCR"), "stage", "ocr"),
+        (re.compile(r"Reading pages with OCR: (\d+)/(\d+) pages"), "ocr_pages", None),
         (re.compile(r"Extracting documents"), "stage", "extract"),
         (re.compile(r"Extracted ([\d,]+) documents"), "documents", None),
         (re.compile(r"Processing any (audio transcripts|images)"), "stage", "media"),
@@ -244,8 +273,10 @@ class BuildProgress:
         (re.compile(r"Database created\. Total time"), "stage", "done"),
     ]
 
-    def __init__(self):
+    def __init__(self, ocr=False):
         self.stage = "start"
+        self.ocr = bool(ocr)
+        self.ocr_pages = None
         self.documents = None
         self.chunks = None
         self.batches = None
@@ -265,6 +296,8 @@ class BuildProgress:
                 continue
             if kind == "stage":
                 self.advance(value)
+            elif kind == "ocr_pages":
+                self.ocr_pages = [int(match.group(1)), int(match.group(2))]
             elif kind == "documents":
                 self.documents = int(match.group(1).replace(",", ""))
             elif kind == "chunks":
@@ -293,8 +326,9 @@ class BuildProgress:
             "stages": [
                 {"key": key, "label": label,
                  "status": "done" if i < current else "running" if i == current else "pending"}
-                for i, (key, label) in enumerate(STAGES)
+                for i, (key, label) in enumerate(STAGES) if self.ocr or key != "ocr"
             ],
+            "ocr_pages": self.ocr_pages,
             "documents": self.documents,
             "chunks": self.chunks,
             "batches": self.batches,
@@ -375,6 +409,8 @@ class BuildController(QObject):
         self.scan = None
         self.result = None
         self.cancelling = False
+        self.ocr = False
+        self.ocr_settings = ("detector", "rapidocr")
 
     def running(self):
         return self.db_worker is not None and self.db_worker.isRunning()
@@ -438,6 +474,8 @@ class BuildController(QObject):
         self.model_display = model_display or model_label
         self.result = None
         self.cancelling = False
+        self.ocr = False
+        self.ocr_settings = ocr_settings(cfg)
         has_pdfs = any(p.suffix.lower() == ".pdf" for p in docs.iterdir() if p.is_file())
         if has_pdfs and check_pdfs:
             self._start_scan(docs)
@@ -446,7 +484,7 @@ class BuildController(QObject):
         return {"ok": True}
 
     def make_scan_worker(self, folder):
-        return OcrScanWorker(folder)
+        return OcrScanWorker(folder, *self.ocr_settings)
 
     def _start_scan(self, docs):
         self.phase = "scanning"
@@ -464,8 +502,9 @@ class BuildController(QObject):
             self.scan = {"done": done, "total": total}
             self.changed.emit()
 
-    def _on_scanned(self, needs_ocr):
+    def _on_scanned(self, found):
         worker = self.scan_worker
+        log = list(getattr(worker, "log", []))
         if worker is not None:
             worker.wait()
             self.scan_worker = None
@@ -475,21 +514,47 @@ class BuildController(QObject):
             self.result = {"kind": "cancelled", "message": "The PDF check was cancelled, so no database was created."}
             self.changed.emit()
             return
-        if needs_ocr:
+        if found is None:
             self.phase = "idle"
-            self.result = {"kind": "ocr", "paths": needs_ocr,
-                           "names": [Path(p).name for p in needs_ocr]}
+            self.progress = BuildProgress()
+            self.progress.log = log
+            self.result = {"kind": "error", "message": "The PDF check failed, so no database was created.", "log": True}
+            self.changed.emit()
+            return
+        needs, problems = found.get("needs") or [], found.get("problems") or []
+        if needs or problems:
+            self.phase = "idle"
+            self.result = {
+                "kind": "ocr",
+                "needs": [{"name": item["name"], "pages": item["pages"], "total": item["total"]} for item in needs],
+                "problems": [{"name": item["name"], "reason": item["reason"]} for item in problems],
+                "paths": [item["path"] for item in needs + problems],
+                "names": [item["name"] for item in needs + problems],
+                "pages": sum(item["pages"] for item in needs),
+                "unread": sum(item["unread"] for item in needs),
+                "reader": OCR_READERS[self.ocr_settings[1]],
+            }
             self.changed.emit()
             return
         self._start_build()
 
+    def approve_ocr(self):
+        if self.busy() or (self.result or {}).get("kind") != "ocr":
+            return {"error": "There is nothing to continue."}
+        if self.files.staging_running():
+            return {"error": "Files are still being added to the list."}
+        self.ocr = bool(self.result.get("needs"))
+        self.result = None
+        self._start_build()
+        return {"ok": True}
+
     def make_worker(self, database_name):
-        return VectorDBWorker(database_name, parent=self)
+        return VectorDBWorker(database_name, parent=self, ocr=self.ocr)
 
     def _start_build(self):
         self.phase = "building"
         self.started = time.time()
-        self.progress = BuildProgress()
+        self.progress = BuildProgress(ocr=self.ocr)
         self.settings = current_build_settings()
         self.db_worker = self.make_worker(self.name)
         self.db_worker.progress.connect(self._on_line)
@@ -506,7 +571,7 @@ class BuildController(QObject):
     def cancel(self):
         if self.phase == "scanning" and self.scan_worker is not None:
             self.cancelling = True
-            self.scan_worker.requestInterruption()
+            self.scan_worker.cancel()
             self.changed.emit()
         elif self.running():
             self.cancelling = True
@@ -590,9 +655,16 @@ class BuildController(QObject):
         if not paths:
             return
         with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as tmp:
-            tmp.write("PDFs that need OCR:\n\n")
-            for pdf_path in paths:
-                tmp.write(f"{pdf_path}\n")
+            needs = (self.result or {}).get("needs") or []
+            problems = (self.result or {}).get("problems") or []
+            if needs:
+                tmp.write("PDFs with pages that need OCR:\n\n")
+                for item in needs:
+                    tmp.write(f"{item['name']} ({item['pages']} of {item['total']} pages)\n")
+            if problems:
+                tmp.write("\nPDFs that cannot be read:\n\n" if needs else "PDFs that cannot be read:\n\n")
+                for item in problems:
+                    tmp.write(f"{item['name']} ({item['reason']})\n")
             temp_path = tmp.name
         os.startfile(temp_path)
 
@@ -606,7 +678,7 @@ class BuildController(QObject):
     def remove_ocr_files(self):
         names = (self.result or {}).get("names") or []
         removed = self.files.remove(names)
-        self.result = {"kind": "info", "message": f"Removed {removed} PDF file(s) that need OCR from the list."}
+        self.result = {"kind": "info", "message": f"Removed {removed} PDF file(s) from the list."}
         self.changed.emit()
 
     def busy_message(self):
@@ -616,7 +688,7 @@ class BuildController(QObject):
 
     def cleanup(self):
         if self.scan_worker is not None and self.scan_worker.isRunning():
-            self.scan_worker.requestInterruption()
+            self.scan_worker.cancel()
             self.scan_worker.wait(5000)
         if self.db_worker is not None and self.db_worker.isRunning():
             self.db_worker.cancel()
