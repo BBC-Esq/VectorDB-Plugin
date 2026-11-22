@@ -48,6 +48,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_minimax.py` | MiniMax constants, model list and temperature clamping |
 | `test_models_catalog.py` | Models tab: CPU-only filtering, download status, benchmark summaries, precision compared with the embedding code, theme colors, and what a failed download leaves behind |
 | `test_ocr_pages.py` | OCR output pages: a rotated page keeps the part that was visible when it is also cropped, and the Tesseract engine keeps the PDF's title and author |
+| `test_pdf_gate.py` | The quick check for PDF pages that need OCR: scans, stamped scans, typed pages, hidden text layers and blank pages |
 | `test_openai_chat.py` | ChatGPT models, the reasoning efforts each one offers, older saved choices replaced, and the request sent to OpenAI |
 | `test_process_manager.py` | Process cleanup at exit: stops a running process and tolerates one that is already closed |
 | `test_query_data.py` | Query Database tab: citations, token counts, answer text, readiness messages, the database list, local model flags, chunk rows, a voice recording with no speech, empty answers, a question not being sent after its turn has ended, and the no-chunks message naming a search term |
