@@ -734,7 +734,6 @@ libs = [
     "pi-heif==1.3.0",
     "pikepdf==10.7.2",
     "pillow==12.2.0",
-    "pipdeptree",
     "platformdirs==4.10.0",
     "pluggy==1.6.0",
     "pre-commit==4.6.0",

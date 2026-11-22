@@ -42,7 +42,7 @@ A few tests skip themselves when they can't run on your computer: one needs a CU
 | `test_jeeves_helpers.py` | Ask Jeeves: the poems file, source rows from the user guide and text prepared for speech |
 | `test_kokoro_text.py` | Speech text: phoneme clauses rejoined with their punctuation, sentence splitting around legal abbreviations, and reporting a playback failure |
 | `test_local_model.py` | Local chat model process: answers from the passages it is given, returns their citations, and is reported if it dies while answering |
-| `test_maintenance_tools.py` | Package checker: each row keeps its own versions after switching lists or upgrading, and requirement names; setup keeps the Ask Jeeves database when its zip file cannot be read |
+| `test_maintenance_tools.py` | Setup keeps the Ask Jeeves database when its zip file cannot be read |
 | `test_manage_data.py` | Manage Databases tab: the database list, database details (chunk counts and creation dates from `metadata.db`), file rows, read-only connections, safely deleting a database, backing up and restoring, backups that are out of date, changes since the index was built, starting a rebuild of the index, and the stats worker noting when it was interrupted |
 | `test_markdown_js.py` | Answer rendering in `markdown.js`, run through Node.js (skipped without it): headings, code blocks under list items, nested lists, links and double-underscore names |
 | `test_minimax.py` | MiniMax constants, model list and temperature clamping |
